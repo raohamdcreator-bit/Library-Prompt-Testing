@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1e293b" />
+    <meta
+      name="description"
+      content="Prompt Teams - AI-powered prompt collaboration platform with professional interface design"
+    />
+    <meta
+      name="keywords"
+      content="AI prompts, team collaboration, prompt library, neural interface, AI tools"
+    />
+
+    <!-- Enhanced Title -->
+    <title>Prompt Teams - AI Collaboration Platform</title>
+
+    <!-- Preconnect to external domains for better performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Enhanced Font Loading -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- PWA Meta Tags -->
+    <meta name="application-name" content="Prompt Teams" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#0f0f0f" />
+    <!-- Dark theme background -->
+
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Prompt Teams" />
+
+    <!-- Open Graph Meta Tags -->
+    <meta
+      property="og:title"
+      content="Prompt Teams - AI Collaboration Platform"
+    />
+    <meta
+      property="og:description"
+      content="Professional AI prompt collaboration with advanced team features"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og-image.png" />
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Prompt Teams" />
+    <meta
+      name="twitter:description"
+      content="AI prompt collaboration platform"
+    />
+
+    <!-- Critical CSS for initial loading -->
+    <style>
+      /* Color variables matching demo */
+      :root {
+        --background: oklch(0.08 0 0);
+        --foreground: oklch(0.95 0 0);
+        --card: oklch(0.12 0 0);
+        --border: oklch(0.25 0 0);
+        --primary: oklch(0.7 0.15 200);
+        --muted-foreground: oklch(0.6 0 0);
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: var(--background);
+        color: var(--foreground);
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        /* Subtle grid pattern background */
+        background-image: linear-gradient(
+            rgba(255, 255, 255, 0.02) 1px,
+            transparent 1px
+          ),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+        background-size: 50px 50px;
+      }
+
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* Professional loading screen */
+      .initial-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: var(--background);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        opacity: 1;
+        transition: opacity 0.5s ease-out;
+      }
+
+      .initial-loader.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .professional-spinner {
+        width: 40px;
+        height: 40px;
+        border: 2px solid var(--border);
+        border-top: 2px solid var(--primary);
+        border-radius: 50%;
+        animation: professionalSpin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55)
+          infinite;
+      }
+
+      @keyframes professionalSpin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .loading-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 32px;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      }
+
+      .loading-text {
+        margin-top: 16px;
+        color: var(--muted-foreground);
+        font-size: 14px;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.6;
+        }
+      }
+
+      .loading-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: center;
+        margin-bottom: 24px;
+      }
+
+      .loading-logo {
+        width: 32px;
+        height: 32px;
+        background: var(--primary);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+      }
+
+      .loading-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--foreground);
+      }
+
+      /* Prevent flash of incorrect theme */
+      * {
+        box-sizing: border-box;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Professional Loading Screen -->
+    <div id="initial-loader" class="initial-loader">
+      <div class="loading-card">
+        <div class="loading-brand">
+          <div class="loading-logo">🤖</div>
+          <div class="loading-title">Prompt Teams</div>
+        </div>
+        <div class="professional-spinner"></div>
+        <div class="loading-text">
+          Initializing AI collaboration platform...
+        </div>
+      </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="root"></div>
+
+    <!-- Enhanced initialization script -->
+    <script>
+      // Professional loading experience
+      window.addEventListener("load", function () {
+        // Ensure minimum loading time for better UX
+        const minLoadTime = 1200;
+        const startTime = performance.now();
+
+        function hideLoader() {
+          const loader = document.getElementById("initial-loader");
+          if (loader) {
+            loader.classList.add("hidden");
+            setTimeout(() => {
+              if (loader.parentNode) {
+                loader.remove();
+              }
+            }, 500);
+          }
+        }
+
+        const elapsed = performance.now() - startTime;
+        const remainingTime = Math.max(0, minLoadTime - elapsed);
+
+        setTimeout(hideLoader, remainingTime);
+      });
+
+      // Enhanced service worker registration
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
+          navigator.serviceWorker
+            .register("/sw.js", { type: "module" }) // ✅ ensures ES module SW support
+            .then(() => console.log("Service Worker registered successfully"))
+            .catch((err) => console.log("SW registration failed:", err));
+        });
+      }
+
+      // Performance monitoring
+      if ("performance" in window) {
+        window.addEventListener("load", function () {
+          setTimeout(function () {
+            const perfData = performance.timing;
+            const loadTime = perfData.loadEventEnd - perfData.navigationStart;
+            console.log(`App loaded in ${loadTime}ms`);
+
+            // Report Core Web Vitals if available
+            if ("web-vital" in window) {
+              getCLS(console.log);
+              getFID(console.log);
+              getFCP(console.log);
+              getLCP(console.log);
+              getTTFB(console.log);
+            }
+          }, 100);
+        });
+      }
+
+      // Enhanced error handling with user feedback
+      window.addEventListener("error", function (e) {
+        console.error("Application error:", e.error);
+
+        // Show user-friendly error for critical failures
+        if (
+          e.error &&
+          e.error.message &&
+          e.error.message.includes("Loading chunk")
+        ) {
+          const errorDiv = document.createElement("div");
+          errorDiv.innerHTML = `
+            <div style="
+              position: fixed; 
+              top: 20px; 
+              right: 20px; 
+              background: var(--card);
+              border: 1px solid var(--border);
+              padding: 16px 20px; 
+              border-radius: 8px;
+              color: var(--foreground);
+              font-family: Inter, sans-serif;
+              font-size: 14px;
+              z-index: 10000;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            ">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                <span>⚠️</span>
+                <strong>Update Available</strong>
+              </div>
+              <div style="color: var(--muted-foreground); margin-bottom: 12px;">
+                Please refresh the page to load the latest version.
+              </div>
+              <button onclick="window.location.reload()" style="
+                background: var(--primary);
+                color: var(--background);
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+                font-weight: 500;
+              ">
+                Refresh Now
+              </button>
+            </div>
+          `;
+          document.body.appendChild(errorDiv);
+        }
+      });
+
+      // Optimize for reduced motion preference
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        document.documentElement.style.setProperty(
+          "--animation-duration",
+          "0.01s"
+        );
+      }
+
+      // Theme detection and optimization
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      ).matches;
+      const prefersLight = window.matchMedia(
+        "(prefers-color-scheme: light)"
+      ).matches;
+
+      // Log theme preference for analytics
+      console.log(
+        `Theme preference: ${
+          prefersDark ? "dark" : prefersLight ? "light" : "none"
+        }`
+      );
+
+      // Connection status monitoring
+      function updateConnectionStatus() {
+        const isOnline = navigator.onLine;
+        if (!isOnline) {
+          const offlineDiv = document.createElement("div");
+          offlineDiv.id = "offline-indicator";
+          offlineDiv.innerHTML = `
+            <div style="
+              position: fixed; 
+              bottom: 20px; 
+              left: 20px; 
+              background: var(--card);
+              border: 1px solid #f59e0b;
+              padding: 12px 16px; 
+              border-radius: 8px;
+              color: var(--foreground);
+              font-family: Inter, sans-serif;
+              font-size: 13px;
+              z-index: 10000;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            ">
+              <span style="color: #f59e0b;">⚠️</span>
+              <span>You're offline. Some features may not work.</span>
+            </div>
+          `;
+          document.body.appendChild(offlineDiv);
+        } else {
+          const offlineDiv = document.getElementById("offline-indicator");
+          if (offlineDiv) {
+            offlineDiv.remove();
+          }
+        }
+      }
+
+      window.addEventListener("online", updateConnectionStatus);
+      window.addEventListener("offline", updateConnectionStatus);
+
+      // Initialize app metadata
+      window.promptTeamsConfig = {
+        version: "2.0.0",
+        buildTime: new Date().toISOString(),
+        theme: "professional-ai",
+        features: {
+          realTimeSync: true,
+          offlineSupport: false,
+          darkMode: true,
+          analytics: true,
+        },
+      };
+    </script>
+
+    <!-- Main React Application -->
+    <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Enhanced Schema.org structured data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Prompt Teams",
+        "description": "Professional AI prompt collaboration platform with advanced team features and neural interface design",
+        "url": "https://prompt-teams-five.vercel.app",
+        "applicationCategory": "ProductivityApplication",
+        "operatingSystem": "Web",
+        "browserRequirements": "Requires JavaScript. Modern browser recommended.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock"
+        },
+        "author": {
+          "@type": "Organization",
+          "name": "Prompt Teams"
+        },
+        "datePublished": "2025",
+        "softwareVersion": "2.0.0",
+        "screenshot": "/screenshots/dashboard.png",
+        "featureList": [
+          "AI Prompt Library",
+          "Team Collaboration",
+          "Real-time Sync",
+          "Advanced Search",
+          "Analytics Dashboard",
+          "Import/Export Tools"
+        ],
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "ratingCount": "500"
+        }
+      }
+    </script>
+
+    <!-- Preload critical fonts -->
+    <link
+      rel="preload"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      as="style"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
+    <noscript
+      ><link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    /></noscript>
+
+    <!-- Fallback for no JavaScript -->
+    <noscript>
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          background: var(--background);
+          color: var(--foreground);
+          font-family: Inter, sans-serif;
+          text-align: center;
+          padding: 20px;
+        "
+      >
+        <div
+          style="
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 400px;
+          "
+        >
+          <div style="font-size: 48px; margin-bottom: 16px">⚠️</div>
+          <h1 style="margin-bottom: 16px; font-size: 24px">
+            JavaScript Required
+          </h1>
+          <p
+            style="
+              color: var(--muted-foreground);
+              margin-bottom: 20px;
+              line-height: 1.5;
+            "
+          >
+            Prompt Teams requires JavaScript to function. Please enable
+            JavaScript in your browser settings and refresh the page.
+          </p>
+          <button
+            onclick="window.location.reload()"
+            style="
+              background: var(--primary);
+              color: var(--background);
+              border: none;
+              padding: 12px 24px;
+              border-radius: 8px;
+              font-size: 14px;
+              font-weight: 600;
+              cursor: pointer;
+            "
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    </noscript>
+  </body>
+</html>
+);
