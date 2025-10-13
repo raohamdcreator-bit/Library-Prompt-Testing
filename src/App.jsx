@@ -1,4 +1,4 @@
-// src/App.jsx - Updated with Secure State Management
+// src/App.jsx - Complete with Custom Routing and Legal Pages
 import { useEffect, useState } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -14,7 +14,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { useAuth } from "./context/AuthContext";
-import { useActiveTeam } from "./context/AppStateContext"; // ✅ NEW: Secure state
+import { useActiveTeam } from "./context/AppStateContext";
 import PromptList from "./components/PromptList";
 import TeamInviteForm from "./components/TeamInviteForm";
 import MyInvites from "./components/MyInvites";
@@ -23,17 +23,37 @@ import FavoritesList from "./components/Favorites";
 import { TeamAnalytics } from "./components/PromptAnalytics";
 import ActivityFeed from "./components/ActivityFeed";
 
-// Enhanced Sign In Component
-const SignInScreen = ({ onSignIn }) => (
-  <div className="min-h-screen" style={{ background: "var(--background)" }}>
-    {/* Navigation */}
+// Import Legal/Info Pages
+import Contact from "./pages/Contact";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfUse from "./pages/TermsOfUse";
+import About from "./pages/About";
+import { NavigationProvider } from "./components/LegalLayout";
+
+// Simple Router Component
+function Router({ currentPath, children }) {
+  const routes = Array.isArray(children) ? children : [children];
+  const route = routes.find((r) => r.props.path === currentPath);
+  return route || null;
+}
+
+function Route({ children }) {
+  return children;
+}
+
+// Navigation Component
+function Navigation({ onSignIn, isAuthenticated, onNavigate }) {
+  return (
     <nav
       className="border-b"
       style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}
     >
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => onNavigate("/")}
+          >
             <div
               className="w-8 h-8 rounded-lg flex items-center justify-center"
               style={{ backgroundColor: "var(--primary)" }}
@@ -53,166 +73,47 @@ const SignInScreen = ({ onSignIn }) => (
             </span>
           </div>
           <div className="hidden md:flex items-center gap-6">
-            <a
-              href="#"
+            <button
+              onClick={() => onNavigate("/")}
               className="transition-colors"
               style={{ color: "var(--muted-foreground)" }}
             >
-              Platform
-            </a>
-            <a
-              href="#"
+              Home
+            </button>
+            <button
+              onClick={() => onNavigate("/about")}
               className="transition-colors"
               style={{ color: "var(--muted-foreground)" }}
             >
-              Features
-            </a>
-            <a
-              href="#"
+              About
+            </button>
+            <button
+              onClick={() => onNavigate("/contact")}
               className="transition-colors"
               style={{ color: "var(--muted-foreground)" }}
             >
-              Teams
-            </a>
+              Contact
+            </button>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={onSignIn}
-              className="btn-primary ai-glow px-6 py-2"
-            >
-              Sign in with Google
-            </button>
+            {!isAuthenticated && (
+              <button
+                onClick={onSignIn}
+                className="btn-primary ai-glow px-6 py-2"
+              >
+                Sign in with Google
+              </button>
+            )}
           </div>
         </div>
       </div>
     </nav>
+  );
+}
 
-    {/* Hero Section */}
-    <section className="container mx-auto px-4 py-20 text-center">
-      <div className="max-w-4xl mx-auto">
-        <div
-          className="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full border"
-          style={{
-            backgroundColor: "var(--secondary)",
-            color: "var(--primary)",
-            borderColor: "var(--border)",
-          }}
-        >
-          <span className="text-sm">⚡</span>
-          <span className="text-sm font-medium">
-            AI-Powered Prompt Collaboration
-          </span>
-        </div>
-
-        <h1
-          className="text-5xl md:text-7xl font-bold mb-6"
-          style={{ color: "var(--foreground)" }}
-        >
-          Build Better Prompts with{" "}
-          <span style={{ color: "var(--primary)" }}>Your Team</span>
-        </h1>
-
-        <p
-          className="text-xl mb-8 max-w-2xl mx-auto leading-relaxed"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          Collaborate on AI prompts with your team. Store, share, and discover
-          the best prompts for your projects with advanced neural interface
-          design.
-        </p>
-
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-          <button
-            onClick={onSignIn}
-            className="btn-primary ai-glow px-8 py-3 text-lg font-medium"
-          >
-            <span className="mr-2">⚡</span>
-            Get Started
-          </button>
-          <button className="btn-secondary px-8 py-3 text-lg font-medium ai-pulse-border">
-            <span className="mr-2">▶</span>
-            View Demo
-          </button>
-        </div>
-
-        <div
-          className="flex items-center justify-center gap-2 text-sm"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          <span>Free forever • No credit card required</span>
-        </div>
-      </div>
-    </section>
-
-    {/* Features Grid */}
-    <section className="container mx-auto px-4 py-20">
-      <div className="text-center mb-16">
-        <h2
-          className="text-3xl md:text-4xl font-bold mb-4"
-          style={{ color: "var(--foreground)" }}
-        >
-          Everything you need for prompt collaboration
-        </h2>
-        <p
-          className="text-lg max-w-2xl mx-auto"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          Comprehensive tools designed for modern AI prompt development and team
-          collaboration
-        </p>
-      </div>
-
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          {
-            icon: "🧠",
-            title: "Smart Library",
-            desc: "Organize and categorize your prompts with intelligent tagging and search.",
-          },
-          {
-            icon: "👥",
-            title: "Team Collaboration",
-            desc: "Share prompts with your team and collaborate in real-time.",
-          },
-          {
-            icon: "⭐",
-            title: "Favorites & Ratings",
-            desc: "Save your best prompts and rate others contributions.",
-          },
-          {
-            icon: "📊",
-            title: "Analytics",
-            desc: "Track usage patterns and optimize your prompt performance.",
-          },
-        ].map((feature, index) => (
-          <div
-            key={index}
-            className="glass-card p-6 hover:border-primary/50 transition-all duration-300"
-          >
-            <div
-              className="w-12 h-12 rounded-lg flex items-center justify-center mb-4"
-              style={{ backgroundColor: "var(--secondary)" }}
-            >
-              <span className="text-2xl">{feature.icon}</span>
-            </div>
-            <h3
-              className="text-lg font-semibold mb-2"
-              style={{ color: "var(--foreground)" }}
-            >
-              {feature.title}
-            </h3>
-            <p
-              className="text-sm leading-relaxed"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              {feature.desc}
-            </p>
-          </div>
-        ))}
-      </div>
-    </section>
-
-    {/* Footer */}
+// Footer Component
+function Footer({ onNavigate }) {
+  return (
     <footer
       className="border-t mt-20"
       style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}
@@ -250,47 +151,28 @@ const SignInScreen = ({ onSignIn }) => (
               style={{ color: "var(--muted-foreground)" }}
             >
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
+                <button
+                  onClick={() => onNavigate("/")}
+                  className="hover:text-foreground transition-colors"
+                >
                   Teams
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
+                <button
+                  onClick={() => onNavigate("/")}
+                  className="hover:text-foreground transition-colors"
+                >
                   Prompts
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
+                <button
+                  onClick={() => onNavigate("/")}
+                  className="hover:text-foreground transition-colors"
+                >
                   Analytics
-                </a>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h4
-              className="font-semibold mb-3"
-              style={{ color: "var(--foreground)" }}
-            >
-              Resources
-            </h4>
-            <ul
-              className="space-y-2 text-sm"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  Documentation
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  Tutorials
-                </a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  Community
-                </a>
+                </button>
               </li>
             </ul>
           </div>
@@ -306,19 +188,49 @@ const SignInScreen = ({ onSignIn }) => (
               style={{ color: "var(--muted-foreground)" }}
             >
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
+                <button
+                  onClick={() => onNavigate("/about")}
+                  className="hover:text-foreground transition-colors"
+                >
                   About
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
+                <button
+                  onClick={() => onNavigate("/contact")}
+                  className="hover:text-foreground transition-colors"
+                >
                   Contact
-                </a>
+                </button>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h4
+              className="font-semibold mb-3"
+              style={{ color: "var(--foreground)" }}
+            >
+              Legal
+            </h4>
+            <ul
+              className="space-y-2 text-sm"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              <li>
+                <button
+                  onClick={() => onNavigate("/privacy")}
+                  className="hover:text-foreground transition-colors"
+                >
+                  Privacy Policy
+                </button>
               </li>
               <li>
-                <a href="#" className="hover:text-foreground transition-colors">
-                  Privacy
-                </a>
+                <button
+                  onClick={() => onNavigate("/terms")}
+                  className="hover:text-foreground transition-colors"
+                >
+                  Terms of Use
+                </button>
               </li>
             </ul>
           </div>
@@ -334,14 +246,154 @@ const SignInScreen = ({ onSignIn }) => (
         </div>
       </div>
     </footer>
-  </div>
-);
+  );
+}
 
+// Landing Page Component
+function LandingPage({ onSignIn, onNavigate }) {
+  return (
+    <div className="min-h-screen" style={{ background: "var(--background)" }}>
+      <Navigation
+        onSignIn={onSignIn}
+        isAuthenticated={false}
+        onNavigate={onNavigate}
+      />
+
+      {/* Hero Section */}
+      <section className="container mx-auto px-4 py-20 text-center">
+        <div className="max-w-4xl mx-auto">
+          <div
+            className="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full border"
+            style={{
+              backgroundColor: "var(--secondary)",
+              color: "var(--primary)",
+              borderColor: "var(--border)",
+            }}
+          >
+            <span className="text-sm">⚡</span>
+            <span className="text-sm font-medium">
+              AI-Powered Prompt Collaboration
+            </span>
+          </div>
+
+          <h1
+            className="text-5xl md:text-7xl font-bold mb-6"
+            style={{ color: "var(--foreground)" }}
+          >
+            Build Better Prompts with{" "}
+            <span style={{ color: "var(--primary)" }}>Your Team</span>
+          </h1>
+
+          <p
+            className="text-xl mb-8 max-w-2xl mx-auto leading-relaxed"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Collaborate on AI prompts with your team. Store, share, and discover
+            the best prompts for your projects with advanced neural interface
+            design.
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+            <button
+              onClick={onSignIn}
+              className="btn-primary ai-glow px-8 py-3 text-lg font-medium"
+            >
+              <span className="mr-2">⚡</span>
+              Get Started
+            </button>
+            <button className="btn-secondary px-8 py-3 text-lg font-medium ai-pulse-border">
+              <span className="mr-2">▶</span>
+              View Demo
+            </button>
+          </div>
+
+          <div
+            className="flex items-center justify-center gap-2 text-sm"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            <span>Free forever • No credit card required</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="text-center mb-16">
+          <h2
+            className="text-3xl md:text-4xl font-bold mb-4"
+            style={{ color: "var(--foreground)" }}
+          >
+            Everything you need for prompt collaboration
+          </h2>
+          <p
+            className="text-lg max-w-2xl mx-auto"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Comprehensive tools designed for modern AI prompt development and
+            team collaboration
+          </p>
+        </div>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[
+            {
+              icon: "🧠",
+              title: "Smart Library",
+              desc: "Organize and categorize your prompts with intelligent tagging and search.",
+            },
+            {
+              icon: "👥",
+              title: "Team Collaboration",
+              desc: "Share prompts with your team and collaborate in real-time.",
+            },
+            {
+              icon: "⭐",
+              title: "Favorites & Ratings",
+              desc: "Save your best prompts and rate others contributions.",
+            },
+            {
+              icon: "📊",
+              title: "Analytics",
+              desc: "Track usage patterns and optimize your prompt performance.",
+            },
+          ].map((feature, index) => (
+            <div
+              key={index}
+              className="glass-card p-6 hover:border-primary/50 transition-all duration-300"
+            >
+              <div
+                className="w-12 h-12 rounded-lg flex items-center justify-center mb-4"
+                style={{ backgroundColor: "var(--secondary)" }}
+              >
+                <span className="text-2xl">{feature.icon}</span>
+              </div>
+              <h3
+                className="text-lg font-semibold mb-2"
+                style={{ color: "var(--foreground)" }}
+              >
+                {feature.title}
+              </h3>
+              <p
+                className="text-sm leading-relaxed"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                {feature.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <Footer onNavigate={onNavigate} />
+    </div>
+  );
+}
+
+// Main App Component
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
-
-  // ✅ NEW: Use secure state management instead of localStorage
   const { activeTeam, setActiveTeam } = useActiveTeam();
+  const [currentPath, setCurrentPath] = useState("/");
 
   const [teams, setTeams] = useState([]);
   const [role, setRole] = useState(null);
@@ -349,6 +401,13 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState("prompts");
   const [teamStats, setTeamStats] = useState({});
+
+  // Handle navigation
+  const navigate = (path) => {
+    console.log("Navigate called with path:", path);
+    setCurrentPath(path);
+    window.scrollTo(0, 0);
+  };
 
   // Helper function to get user initials
   function getUserInitials(name, email) {
@@ -397,7 +456,7 @@ export default function App() {
   useEffect(() => {
     if (!user) {
       setTeams([]);
-      setActiveTeam(null); // ✅ Clear state on logout
+      setActiveTeam(null);
       setLoading(false);
       return;
     }
@@ -423,7 +482,7 @@ export default function App() {
     return () => unsub();
   }, [user, setActiveTeam]);
 
-  // Effect 1: Set first team if no active team selected
+  // Set first team if no active team selected
   useEffect(() => {
     if (!user || loading) return;
 
@@ -432,7 +491,7 @@ export default function App() {
     }
   }, [teams.length, activeTeam, activeView, user, loading, setActiveTeam]);
 
-  // Effect 2: Validate active team still exists
+  // Validate active team still exists
   useEffect(() => {
     if (!user || loading || !activeTeam || teams.length === 0) return;
 
@@ -478,7 +537,6 @@ export default function App() {
       const statsResults = {};
 
       for (const team of teams) {
-        // Load avatars for team members
         for (const uid of Object.keys(team.members || {})) {
           if (!avatarResults[uid]) {
             try {
@@ -497,7 +555,6 @@ export default function App() {
           }
         }
 
-        // Load team stats
         try {
           const promptsQuery = collection(db, "teams", team.id, "prompts");
           const promptsSnapshot = await getDocs(promptsQuery);
@@ -571,10 +628,8 @@ export default function App() {
     }
   }
 
-  // Get active team object
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
 
-  // Get role badge styling
   function getRoleBadge(role) {
     const baseStyle = {
       padding: "2px 8px",
@@ -612,16 +667,40 @@ export default function App() {
     }
   }
 
-  // Check permissions
-  function canManageTeam() {
-    return role === "owner";
-  }
-
   function canManageMembers() {
     return role === "owner" || role === "admin";
   }
 
-  // Loading state
+  // Show legal/info pages
+  if (["/contact", "/privacy", "/terms", "/about"].includes(currentPath)) {
+    return (
+      <NavigationProvider navigate={navigate}>
+        <div style={{ background: "var(--background)", minHeight: "100vh" }}>
+          <Navigation
+            onSignIn={signInWithGoogle}
+            isAuthenticated={!!user}
+            onNavigate={navigate}
+          />
+          <Router currentPath={currentPath}>
+            <Route path="/contact">
+              <Contact />
+            </Route>
+            <Route path="/privacy">
+              <PrivacyPolicy />
+            </Route>
+            <Route path="/terms">
+              <TermsOfUse />
+            </Route>
+            <Route path="/about">
+              <About />
+            </Route>
+          </Router>
+          <Footer onNavigate={navigate} />
+        </div>
+      </NavigationProvider>
+    );
+  }
+
   if (loading) {
     return (
       <div className="app-container">
@@ -637,16 +716,14 @@ export default function App() {
     );
   }
 
-  // Not authenticated - show enhanced landing page
   if (!user) {
-    return <SignInScreen onSignIn={signInWithGoogle} />;
+    return <LandingPage onSignIn={signInWithGoogle} onNavigate={navigate} />;
   }
 
   return (
     <div className="app-container flex min-h-screen">
-      {/* Enhanced Sidebar matching demo cards */}
+      {/* Sidebar */}
       <div className="team-sidebar w-72 p-4 flex flex-col">
-        {/* User Profile Card */}
         <div className="glass-card p-4 mb-6">
           <div className="flex items-center gap-3 mb-3">
             <UserAvatar
@@ -672,7 +749,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Favorites Card */}
         <div className="mb-6">
           <button
             onClick={() => {
@@ -710,7 +786,6 @@ export default function App() {
           </button>
         </div>
 
-        {/* Teams Header */}
         <div className="flex items-center justify-between mb-4">
           <h2
             className="text-lg font-bold"
@@ -731,7 +806,6 @@ export default function App() {
           )}
         </div>
 
-        {/* Teams List */}
         <div className="flex-1 overflow-y-auto space-y-3 mb-6">
           {teams.map((team) => {
             const isOwner = team.ownerId === user.uid;
@@ -752,7 +826,7 @@ export default function App() {
               >
                 <div
                   onClick={() => {
-                    setActiveTeam(team.id); // ✅ SECURE: Uses context instead of localStorage
+                    setActiveTeam(team.id);
                     setActiveView("prompts");
                   }}
                   className="flex items-start gap-3"
@@ -819,7 +893,6 @@ export default function App() {
           })}
         </div>
 
-        {/* Create Team Form */}
         <div className="border-t pt-4" style={{ borderColor: "var(--border)" }}>
           <form
             onSubmit={(e) => {
@@ -852,7 +925,6 @@ export default function App() {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
         <div
           className="p-6 border-b"
           style={{
@@ -901,7 +973,6 @@ export default function App() {
               ) : null}
             </div>
 
-            {/* View Toggle */}
             {activeTeamObj && (
               <div className="glass-card p-1 rounded-lg">
                 {["prompts", "members", "analytics", "activity"].map((view) => (
@@ -930,7 +1001,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* Content */}
         <div
           className="flex-1 p-6 overflow-y-auto"
           style={{ backgroundColor: "var(--background)" }}
