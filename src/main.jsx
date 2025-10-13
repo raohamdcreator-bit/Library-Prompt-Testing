@@ -3,7 +3,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
-import { AppStateProvider } from "./context/AppStateContext"; // ✅ NEW: Secure state management
+import { AppStateProvider } from "./context/AppStateContext";
 import ErrorBoundary, { ConnectionStatus } from "./components/ErrorBoundary";
 import "./index.css";
 import "./App.css";
@@ -46,7 +46,7 @@ function AppErrorFallback({ error, onReset }) {
                 });
               }
 
-              // ✅ SECURE: Clear session storage instead of localStorage
+              // Clear session storage instead of localStorage (SECURE)
               sessionStorage.clear();
 
               // Clear IndexedDB
@@ -91,7 +91,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     >
       <ConnectionStatus />
       <AuthProvider>
-        {/* ✅ NEW: Wrap app with secure state provider */}
         <AppStateProvider>
           <ErrorBoundary>
             <App />
