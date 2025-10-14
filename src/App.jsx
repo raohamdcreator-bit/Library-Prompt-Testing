@@ -41,6 +41,26 @@ function Route({ children }) {
   return children;
 }
 
+// Logo Component
+function Logo({ size = "normal", onClick }) {
+  const dimensions =
+    size === "small" ? "w-6 h-6" : size === "large" ? "w-12 h-12" : "w-8 h-8";
+
+  return (
+    <div
+      className={`${dimensions} flex items-center justify-center`}
+      onClick={onClick}
+    >
+      <img
+        src="/logo.png"
+        alt="Prompt Teams Logo"
+        className="w-full h-full object-contain"
+        style={{ filter: "drop-shadow(0 0 8px rgba(168, 85, 247, 0.4))" }}
+      />
+    </div>
+  );
+}
+
 // Navigation Component
 function Navigation({ onSignIn, isAuthenticated, onNavigate }) {
   return (
@@ -51,20 +71,10 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate }) {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div
-            className="flex items-center gap-2 cursor-pointer"
+            className="flex items-center gap-3 cursor-pointer"
             onClick={() => onNavigate("/")}
           >
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: "var(--primary)" }}
-            >
-              <span
-                className="text-xl"
-                style={{ color: "var(--primary-foreground)" }}
-              >
-                🤖
-              </span>
-            </div>
+            <Logo />
             <span
               className="text-xl font-bold"
               style={{ color: "var(--foreground)" }}
@@ -126,7 +136,16 @@ function Footer({ onNavigate }) {
                 className="w-6 h-6 rounded flex items-center justify-center"
                 style={{ backgroundColor: "var(--primary)" }}
               >
-                <span style={{ color: "var(--primary-foreground)" }}>🤖</span>
+                <span>
+                  <img
+                    src="/logo.png"
+                    alt="Prompt Teams Logo"
+                    className="w-full h-full object-contain"
+                    style={{
+                      filter: "drop-shadow(0 0 8px rgba(168, 85, 247, 0.4))",
+                    }}
+                  />
+                </span>
               </div>
               <span
                 className="font-bold"
