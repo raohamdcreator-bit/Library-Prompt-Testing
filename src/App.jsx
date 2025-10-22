@@ -1,4 +1,4 @@
-// src/App.jsx - Complete with Custom Routing and Legal Pages
+// src/App.jsx - Complete with Custom Routing, Legal Pages, and Live Chat
 import { useEffect, useState } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -22,6 +22,7 @@ import TeamMembers from "./components/TeamMembers";
 import FavoritesList from "./components/Favorites";
 import { TeamAnalytics } from "./components/PromptAnalytics";
 import ActivityFeed from "./components/ActivityFeed";
+import TeamChat from "./components/TeamChat";
 
 // Import Legal/Info Pages
 import Contact from "./pages/Contact";
@@ -420,6 +421,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState("prompts");
   const [teamStats, setTeamStats] = useState({});
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   // Handle navigation
   const navigate = (path) => {
@@ -743,7 +745,8 @@ export default function App() {
     <div className="app-container flex min-h-screen">
       {/* Sidebar */}
       <div className="team-sidebar w-72 p-4 flex flex-col">
-        <div className="glass-card p-4 mb-6">
+        {/* User Profile Card */}
+        <div className="glass-card p-4 mb-4">
           <div className="flex items-center gap-3 mb-3">
             <UserAvatar
               src={user.photoURL}
@@ -768,11 +771,13 @@ export default function App() {
           </div>
         </div>
 
-        <div className="mb-6">
+        {/* My Favorites */}
+        <div className="mb-4">
           <button
             onClick={() => {
               setActiveTeam(null);
               setActiveView("favorites");
+              setIsChatOpen(false);
             }}
             className={`w-full p-4 text-left rounded-lg transition-all duration-300 border ${
               activeView === "favorites" && !activeTeam
@@ -805,6 +810,75 @@ export default function App() {
           </button>
         </div>
 
+        {/* Team Chat Button */}
+        {activeTeamObj && (
+          <div className="mb-4">
+            <button
+              onClick={() => setIsChatOpen(!isChatOpen)}
+              className={`w-full p-4 text-left rounded-lg transition-all duration-300 border ${
+                isChatOpen
+                  ? "ai-glow border-primary"
+                  : "glass-card hover:border-primary/50"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: "var(--secondary)" }}
+                >
+                  <span className="text-lg">💬</span>
+                </div>
+                <div>
+                  <span
+                    className="font-semibold"
+                    style={{ color: "var(--foreground)" }}
+                  >
+                    Team Chat
+                  </span>
+                  <p
+                    className="text-xs mt-1"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    {isChatOpen ? "Close chat" : "Open chat"}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
+        {/* Create Team & Sign Out - Moved to Top */}
+        <div className="space-y-3 mb-4">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const name = e.target.teamName.value.trim();
+              if (name) {
+                createTeam(name);
+                e.target.reset();
+              }
+            }}
+            className="space-y-2"
+          >
+            <input
+              type="text"
+              name="teamName"
+              placeholder="New team name"
+              className="form-input"
+              required
+            />
+            <button type="submit" className="btn-primary w-full">
+              <span className="mr-2">+</span>
+              Create Team
+            </button>
+          </form>
+
+          <button onClick={logout} className="btn-secondary w-full">
+            <span className="mr-2">👋</span>
+            Sign Out
+          </button>
+        </div>
+
+        {/* Teams List */}
         <div className="flex items-center justify-between mb-4">
           <h2
             className="text-lg font-bold"
@@ -825,7 +899,7 @@ export default function App() {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-3 mb-6">
+        <div className="flex-1 overflow-y-auto space-y-3">
           {teams.map((team) => {
             const isOwner = team.ownerId === user.uid;
             const myRole = team.members?.[user.uid];
@@ -910,35 +984,6 @@ export default function App() {
               </div>
             );
           })}
-        </div>
-
-        <div className="border-t pt-4" style={{ borderColor: "var(--border)" }}>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const name = e.target.teamName.value.trim();
-              if (name) {
-                createTeam(name);
-                e.target.reset();
-              }
-            }}
-            className="space-y-3 mb-4"
-          >
-            <input
-              type="text"
-              name="teamName"
-              placeholder="New team name"
-              className="form-input"
-              required
-            />
-            <button type="submit" className="btn-primary w-full">
-              Create Team
-            </button>
-          </form>
-
-          <button onClick={logout} className="btn-secondary w-full">
-            Sign Out
-          </button>
         </div>
       </div>
 
@@ -1094,6 +1139,17 @@ export default function App() {
 
         <MyInvites />
       </div>
+
+      {/* Team Chat Component */}
+      {activeTeamObj && (
+        <TeamChat
+          teamId={activeTeamObj.id}
+          teamName={activeTeamObj.name}
+          position="left"
+          isOpen={isChatOpen}
+          onToggle={() => setIsChatOpen(!isChatOpen)}
+        />
+      )}
     </div>
   );
 }
