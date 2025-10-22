@@ -1,0 +1,572 @@
+/* src/styles/Collaboration.css - Styles for Real-time Collaboration Features */
+
+/* Remote Cursor Styles */
+.remote-cursor {
+  position: absolute;
+  pointer-events: none;
+  z-index: 100;
+  transition: all 0.1s ease-out;
+}
+
+.remote-cursor-line {
+  width: 2px;
+  height: 20px;
+  animation: cursor-blink 1s infinite;
+}
+
+@keyframes cursor-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0.3;
+  }
+}
+
+.remote-cursor-label {
+  position: absolute;
+  top: -24px;
+  left: 0;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Selection Highlight */
+.remote-selection {
+  position: absolute;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.3;
+  transition: all 0.1s ease-out;
+}
+
+/* Lock Warning Banner */
+.lock-banner {
+  background: linear-gradient(
+    90deg,
+    rgba(239, 68, 68, 0.1) 0%,
+    rgba(239, 68, 68, 0.05) 100%
+  );
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Collaboration Status Indicator */
+.collab-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.collab-status.active {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: rgb(34, 197, 94);
+}
+
+.collab-status.locked {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: rgb(239, 68, 68);
+}
+
+.collab-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Collaborative Editor Container */
+.collaborative-editor {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-textarea {
+  flex: 1;
+  resize: none;
+  font-family: "JetBrains Mono", "Courier New", monospace;
+  line-height: 1.6;
+  padding: 16px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  tab-size: 4;
+  -moz-tab-size: 4;
+}
+
+.editor-textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Status Bar */
+.editor-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--muted-foreground);
+}
+
+.editor-status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Collaborator Avatars */
+.collaborator-avatars {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+.collaborator-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--background);
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.collaborator-avatar:hover {
+  transform: scale(1.1);
+  z-index: 10;
+}
+
+.collaborator-avatar-stack {
+  display: flex;
+  margin-left: -8px;
+}
+
+.collaborator-avatar-stack .collaborator-avatar:first-child {
+  margin-left: 0;
+}
+
+/* Conflict Resolution Modal */
+.conflict-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.conflict-modal-content {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+.conflict-diff {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 12px;
+  background: var(--background);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.conflict-diff-line {
+  padding: 2px 8px;
+  margin: 0;
+}
+
+.conflict-diff-line.added {
+  background: rgba(34, 197, 94, 0.15);
+  color: rgb(34, 197, 94);
+}
+
+.conflict-diff-line.removed {
+  background: rgba(239, 68, 68, 0.15);
+  color: rgb(239, 68, 68);
+}
+
+.conflict-diff-line.unchanged {
+  color: var(--muted-foreground);
+}
+
+/* Typing Indicator */
+.typing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  background: var(--secondary);
+  font-size: 12px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.typing-indicator-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--primary);
+  animation: typingDot 1.4s infinite;
+}
+
+.typing-indicator-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingDot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+  30% {
+    transform: translateY(-8px);
+    opacity: 1;
+  }
+}
+
+/* Save Indicator */
+.save-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.save-indicator.saving {
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: rgb(251, 191, 36);
+}
+
+.save-indicator.saved {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: rgb(34, 197, 94);
+}
+
+.save-indicator.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: rgb(239, 68, 68);
+}
+
+/* Presence Indicators */
+.presence-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: presencePulse 2s ease-in-out infinite;
+}
+
+.presence-dot.online {
+  background: rgb(34, 197, 94);
+}
+
+.presence-dot.away {
+  background: rgb(251, 191, 36);
+}
+
+.presence-dot.offline {
+  background: rgb(156, 163, 175);
+}
+
+@keyframes presencePulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+    opacity: 0.8;
+  }
+}
+
+/* Editor Overlays */
+.editor-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.editor-overlay.interactive {
+  pointer-events: auto;
+}
+
+/* Tooltip for Cursors */
+.cursor-tooltip {
+  position: absolute;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  font-size: 11px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.cursor-tooltip::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid rgba(0, 0, 0, 0.9);
+}
+
+/* Collaboration Notification */
+.collab-notification {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  max-width: 320px;
+  padding: 12px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+  animation: slideInRight 0.3s ease-out;
+  z-index: 1000;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.collab-notification.exit {
+  animation: slideOutRight 0.3s ease-out;
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Lock Icon Animation */
+.lock-icon {
+  animation: lockShake 0.5s ease-in-out;
+}
+
+@keyframes lockShake {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+}
+
+/* Cursor Colors - Generate unique colors */
+.cursor-color-0 {
+  color: #ff6b6b;
+  background: #ff6b6b;
+}
+.cursor-color-1 {
+  color: #4ecdc4;
+  background: #4ecdc4;
+}
+.cursor-color-2 {
+  color: #45b7d1;
+  background: #45b7d1;
+}
+.cursor-color-3 {
+  color: #ffa07a;
+  background: #ffa07a;
+}
+.cursor-color-4 {
+  color: #98d8c8;
+  background: #98d8c8;
+}
+.cursor-color-5 {
+  color: #f7dc6f;
+  background: #f7dc6f;
+}
+.cursor-color-6 {
+  color: #bb8fce;
+  background: #bb8fce;
+}
+.cursor-color-7 {
+  color: #85c1e2;
+  background: #85c1e2;
+}
+.cursor-color-8 {
+  color: #f8b739;
+  background: #f8b739;
+}
+.cursor-color-9 {
+  color: #52be80;
+  background: #52be80;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .remote-cursor-label {
+    font-size: 10px;
+    padding: 1px 4px;
+  }
+
+  .collaborator-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .editor-status-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .collab-notification {
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+
+  .conflict-modal-content {
+    padding: 16px;
+    width: 95%;
+  }
+}
+
+/* Dark Mode Adjustments */
+@media (prefers-color-scheme: dark) {
+  .remote-cursor-label {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  }
+
+  .cursor-tooltip {
+    background: rgba(255, 255, 255, 0.95);
+    color: black;
+  }
+
+  .cursor-tooltip::after {
+    border-top-color: rgba(255, 255, 255, 0.95);
+  }
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .remote-cursor,
+  .remote-selection,
+  .typing-indicator,
+  .save-indicator,
+  .collab-notification {
+    animation: none;
+    transition: none;
+  }
+
+  .cursor-blink,
+  .typingDot,
+  .presencePulse,
+  .pulse {
+    animation: none;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .remote-cursor,
+  .collaborator-avatars,
+  .editor-status-bar,
+  .lock-banner,
+  .collab-notification {
+    display: none !important;
+  }
+}
