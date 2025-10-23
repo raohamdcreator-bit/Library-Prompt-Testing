@@ -1,9 +1,10 @@
 // api/send-invite.js - Complete Fixed Version with Enhanced Error Handling
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+//const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = "re_JZhSej8u_25ouwRAiFbmLnbTrW4Hf4w7p";
 
-console.log("Resend key:", process.env.RESEND_API_KEY ? "Loaded" : "Missing");
+//console.log("Resend key:", process.env.RESEND_API_KEY ? "Loaded" : "Missing");
 
 
 export default async function handler(req, res) {
@@ -50,23 +51,22 @@ export default async function handler(req, res) {
     }
 
     
- return res.status(500).json({ 
-        success: false, 
-        error: "test1" 
-      });
+ 
 
     
     // Check if Resend API key is configured
-    if (!process.env.RESEND_API_KEY) {
+  /*  if (!process.env.RESEND_API_KEY) {
       console.error("RESEND_API_KEY environment variable is not set");
       return res.status(500).json({ 
         success: false, 
         error: "Email service not configured" 
       });
     }
+    */
+    
 
     // Validate API key format
-    if (!process.env.RESEND_API_KEY.startsWith('re_')) {
+    if (!resend.startsWith('re_')) {
       console.error("RESEND_API_KEY has invalid format");
       return res.status(500).json({ 
         success: false, 
