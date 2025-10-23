@@ -60,7 +60,8 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
 
         if (!response.ok) {
           console.warn(
-            "Email sending failed, but invite was saved to database"
+           // "Email sending failed, but invite was saved to database"
+             console.log(response.json)  
           );
         }
       } catch (emailError) {
