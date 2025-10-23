@@ -49,6 +49,13 @@ export default async function handler(req, res) {
       });
     }
 
+    
+ return res.status(500).json({ 
+        success: false, 
+        error: "test1" 
+      });
+
+    
     // Check if Resend API key is configured
     if (!process.env.RESEND_API_KEY) {
       console.error("RESEND_API_KEY environment variable is not set");
