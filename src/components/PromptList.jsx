@@ -989,7 +989,7 @@ export default function PromptList({ activeTeam, userRole }) {
         />
       )}
 
-      {/* AI Enhancement Modal */}
+      {/* AI Enhancement Modals */}
       {showAIEnhancer && currentPromptForAI && (
         <AIPromptEnhancer
           prompt={currentPromptForAI}
