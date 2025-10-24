@@ -1,4 +1,4 @@
-// src/components/PromptList.jsx - Complete Fixed Version
+// src/components/PromptList.jsx
 import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -22,7 +22,7 @@ import usePagination, { PaginationControls } from "../hooks/usePagination";
 import AIPromptEnhancer from "./AIPromptEnhancer";
 import PromptResults from "./PromptResults";
 
-// SVG Icon Component
+// SVG Icon Component here
 function Icon({ name, className = "w-5 h-5" }) {
   const icons = {
     add: (
