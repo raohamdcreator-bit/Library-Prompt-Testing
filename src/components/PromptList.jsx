@@ -1,5 +1,5 @@
-// src/components/PromptList.jsx - Fixed SVG Icons + Unique IDs
-import { useState, useEffect } from "react";
+// src/components/PromptList.jsx - Complete Fixed Version
+import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
 import {
   collection,
@@ -20,6 +20,7 @@ import BulkOperations, { PromptSelector } from "./BulkOperations";
 import ExportImport, { ExportUtils } from "./ExportImport";
 import usePagination, { PaginationControls } from "../hooks/usePagination";
 import AIPromptEnhancer from "./AIPromptEnhancer";
+import PromptResults from "./PromptResults";
 
 // SVG Icon Component
 function Icon({ name, className = "w-5 h-5" }) {
@@ -96,6 +97,14 @@ function Icon({ name, className = "w-5 h-5" }) {
         d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
       />
     ),
+    database: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
+      />
+    ),
   };
 
   return (
@@ -121,6 +130,8 @@ export default function PromptList({ activeTeam, userRole }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [expandedPromptId, setExpandedPromptId] = useState(null);
   const [showComments, setShowComments] = useState({});
+  const [showResults, setShowResults] = useState({});
+  const [resultCounts, setResultCounts] = useState({});
   const [selectedPrompts, setSelectedPrompts] = useState([]);
   const [teamMembers, setTeamMembers] = useState({});
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -154,7 +165,6 @@ export default function PromptList({ activeTeam, userRole }) {
           ...d.data(),
         }));
 
-        // Deduplicate by ID (in case of race conditions)
         const uniqueData = Array.from(
           new Map(data.map((item) => [item.id, item])).values()
         );
@@ -230,6 +240,18 @@ export default function PromptList({ activeTeam, userRole }) {
   function handleFilteredResults(filtered) {
     setFilteredPrompts(filtered);
   }
+
+  // FIX: Memoized callback that only updates if count actually changes
+  const handleResultsChange = useCallback((promptId, count) => {
+    setResultCounts((prev) => {
+      // Only update if count actually changed to prevent unnecessary re-renders
+      if (prev[promptId] === count) return prev;
+      return {
+        ...prev,
+        [promptId]: count,
+      };
+    });
+  }, []);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -314,6 +336,14 @@ export default function PromptList({ activeTeam, userRole }) {
     }));
   }
 
+  // FIX: Simple toggle without triggering cascading updates
+  function toggleResults(promptId) {
+    setShowResults((prev) => ({
+      ...prev,
+      [promptId]: !prev[promptId],
+    }));
+  }
+
   function handleSelectionChange(promptId, isSelected) {
     setSelectedPrompts((prev) =>
       isSelected ? [...prev, promptId] : prev.filter((id) => id !== promptId)
@@ -393,14 +423,12 @@ export default function PromptList({ activeTeam, userRole }) {
 
   async function handleSaveAIAsNew(enhancedPrompt) {
     try {
-      // ✅ FIXED: Only extract the fields we need, exclude id/teamId/timestamps
       await savePrompt(
         user.uid,
         {
           title: enhancedPrompt.title,
           text: enhancedPrompt.text,
           tags: Array.isArray(enhancedPrompt.tags) ? enhancedPrompt.tags : [],
-          // Explicitly do NOT include: id, teamId, createdAt, createdBy
         },
         activeTeam
       );
@@ -693,6 +721,7 @@ export default function PromptList({ activeTeam, userRole }) {
             const author = teamMembers[prompt.createdBy];
             const isExpanded = expandedPromptId === prompt.id;
             const isSelected = selectedPrompts.includes(prompt.id);
+            const resultsCount = resultCounts[prompt.id] || 0;
 
             return (
               <div
@@ -734,6 +763,16 @@ export default function PromptList({ activeTeam, userRole }) {
                         <span>{formatDate(prompt.createdAt)}</span>
                         <span>•</span>
                         <span>{prompt.text?.length || 0} chars</span>
+                        {resultsCount > 0 && (
+                          <>
+                            <span>•</span>
+                            <span className="flex items-center gap-1">
+                              <Icon name="database" className="w-3 h-3" />
+                              {resultsCount}{" "}
+                              {resultsCount === 1 ? "result" : "results"}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -868,6 +907,36 @@ export default function PromptList({ activeTeam, userRole }) {
                   >
                     <CompactAITools text={prompt.text} />
 
+                    {/* Results Section - FIX: Added unique key to prevent remounting */}
+                    <div>
+                      <button
+                        onClick={() => toggleResults(prompt.id)}
+                        className="btn-secondary w-full py-2 text-sm flex items-center justify-center gap-2"
+                      >
+                        <Icon name="database" className="w-4 h-4" />
+                        <span>
+                          {showResults[prompt.id] ? "Hide" : "Show"} AI Output
+                          Results
+                          {resultsCount > 0 && ` (${resultsCount})`}
+                        </span>
+                      </button>
+
+                      {showResults[prompt.id] && (
+                        <div className="mt-4">
+                          <PromptResults
+                            key={`results-${prompt.id}`}
+                            teamId={activeTeam}
+                            promptId={prompt.id}
+                            userRole={userRole}
+                            onResultsChange={(count) =>
+                              handleResultsChange(prompt.id, count)
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Comments Section */}
                     <button
                       onClick={() => toggleComments(prompt.id)}
                       className="btn-secondary w-full py-2 text-sm"
