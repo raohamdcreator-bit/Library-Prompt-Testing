@@ -822,7 +822,7 @@ export default function PromptList({ activeTeam, userRole }) {
                             backgroundColor: "var(--secondary)",
                             color: "var(--foreground)",
                           }}
-                          title="Edit prompt"
+                          title="Edit"
                         >
                           <Icon name="edit" className="w-5 h-5" />
                         </button>
