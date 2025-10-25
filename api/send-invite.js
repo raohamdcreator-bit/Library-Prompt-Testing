@@ -1,10 +1,10 @@
-// api/send-invite.js - FIXED VERSION
+// api/send-invite.js - COMPLETELY FIXED VERSION
 import { Resend } from "resend";
 
-// ✅ FIXED: Properly initialize Resend with environment variable
+// Initialize Resend with API key
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-console.log("Resend API Key:", process.env.RESEND_API_KEY ? "✓ Loaded" : "✗ Missing");
+console.log("🔑 Resend API Key Status:", process.env.RESEND_API_KEY ? "✓ Loaded" : "✗ Missing");
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
   // Only allow POST
   if (req.method !== "POST") {
-    console.log(`Method ${req.method} not allowed`);
+    console.log(`❌ Method ${req.method} not allowed`);
     return res.status(405).json({ 
       success: false, 
       error: `Method ${req.method} Not Allowed. Use POST.` 
@@ -30,9 +30,11 @@ export default async function handler(req, res) {
   try {
     const { to, link, teamName, invitedBy, role } = req.body;
 
+    console.log("📨 Received invite request:", { to, teamName, role, invitedBy });
+
     // Validate required fields
     if (!to || !link || !teamName) {
-      console.log("Missing required fields:", { to: !!to, link: !!link, teamName: !!teamName });
+      console.log("❌ Missing required fields:", { to: !!to, link: !!link, teamName: !!teamName });
       return res.status(400).json({ 
         success: false, 
         error: "Missing required fields: to, link, teamName" 
@@ -42,37 +44,43 @@ export default async function handler(req, res) {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(to)) {
-      console.log("Invalid email format:", to);
+      console.log("❌ Invalid email format:", to);
       return res.status(400).json({ 
         success: false, 
         error: "Invalid email address format" 
       });
     }
 
-    // ✅ FIXED: Check if API key exists
+    // Check if API key exists
     if (!process.env.RESEND_API_KEY) {
-      console.error("RESEND_API_KEY environment variable is not set");
+      console.error("❌ RESEND_API_KEY environment variable is not set");
       return res.status(500).json({ 
         success: false, 
         error: "Email service not configured. Please add RESEND_API_KEY to environment variables." 
       });
     }
 
-    // ✅ FIXED: Validate API key format
+    // Validate API key format
     if (!process.env.RESEND_API_KEY.startsWith('re_')) {
-      console.error("RESEND_API_KEY has invalid format");
+      console.error("❌ RESEND_API_KEY has invalid format");
       return res.status(500).json({ 
         success: false, 
         error: "Email service misconfigured - invalid API key format" 
       });
     }
 
-    console.log(`📧 Attempting to send email to: ${to} for team: ${teamName}`);
+    console.log(`📧 Sending email via Resend...`);
+    console.log(`   To: ${to}`);
+    console.log(`   Team: ${teamName}`);
+    console.log(`   Role: ${role}`);
 
-    // ✅ Send email with Resend
+    // ✅ FIXED: Send email with proper error handling
+    // NOTE: The "from" email must be verified in your Resend account
+    // For testing, Resend provides onboarding@resend.dev
+    // For production, verify your own domain
     const emailData = await resend.emails.send({
       from: "Prompt Teams <onboarding@resend.dev>",
-      to: to,
+      to: [to], // ✅ FIXED: Resend expects an array
       subject: `You've been invited to join ${teamName}`,
       html: `
         <!DOCTYPE html>
@@ -147,8 +155,7 @@ export default async function handler(req, res) {
         </body>
         </html>
       `,
-      text: `
-You've been invited to join ${teamName}!
+      text: `You've been invited to join ${teamName}!
 
 ${invitedBy || 'A team member'} has invited you to join ${teamName} as a ${role || 'member'}.
 
@@ -157,12 +164,36 @@ Click here to accept: ${link}
 If you can't click the link, copy and paste this URL into your browser:
 ${link}
 
-If you don't want to join this team, you can safely ignore this email.
-      `
+If you don't want to join this team, you can safely ignore this email.`,
     });
 
-    // Log success with full details
-    console.log("✅ Email sent successfully:", JSON.stringify(emailData, null, 2));
+    // ✅ Check for error in response
+    console.log("📧 Resend API response:", emailData);
+
+    // Resend returns { id: "uuid" } on success
+    // or { name: "error_name", message: "error message", statusCode: 4xx } on error
+    if (emailData.statusCode && emailData.statusCode >= 400) {
+      console.error("❌ Resend returned an error:", emailData);
+      return res.status(emailData.statusCode).json({
+        success: false,
+        error: emailData.message || "Email service error",
+        details: emailData.name,
+        code: emailData.statusCode
+      });
+    }
+
+    // Validate successful response has an ID
+    if (!emailData.id) {
+      console.error("❌ Invalid Resend response (missing id):", emailData);
+      return res.status(500).json({
+        success: false,
+        error: "Invalid email service response",
+        details: "Email ID missing from response"
+      });
+    }
+
+    console.log("✅ Email sent successfully!");
+    console.log("   Email ID:", emailData.id);
     
     return res.status(200).json({ 
       success: true, 
@@ -173,48 +204,59 @@ If you don't want to join this team, you can safely ignore this email.
   } catch (error) {
     // Enhanced error logging
     console.error("❌ Email sending error occurred");
-    console.error("Error name:", error.name);
-    console.error("Error message:", error.message);
-    console.error("Error stack:", error.stack);
+    console.error("   Error name:", error.name);
+    console.error("   Error message:", error.message);
     
-    // Log the full error object
+    if (error.stack) {
+      console.error("   Stack trace:", error.stack);
+    }
+    
+    // Log the full error object for debugging
     if (error.response) {
-      console.error("Error response:", JSON.stringify(error.response, null, 2));
+      console.error("   Error response:", JSON.stringify(error.response, null, 2));
+    }
+
+    // Check if this is a Resend API error
+    if (error.statusCode || error.name === 'validation_error') {
+      console.error("   Resend API Error Details:", {
+        name: error.name,
+        message: error.message,
+        statusCode: error.statusCode
+      });
+      
+      return res.status(error.statusCode || 422).json({
+        success: false,
+        error: error.message || "Email validation failed",
+        details: error.name,
+        code: error.statusCode
+      });
     }
     
     // Provide specific error messages based on error type
     let errorMessage = "Failed to send invitation email";
     let statusCode = 500;
     
-    // Check for specific Resend API errors
     if (error.message?.includes("403") || error.statusCode === 403) {
       errorMessage = "Email service authentication failed. API key may be invalid.";
       statusCode = 500;
-      console.error("403 Error: Invalid API key or insufficient permissions");
     } else if (error.message?.includes("API key")) {
       errorMessage = "Invalid email service configuration";
       statusCode = 500;
-      console.error("API key error detected");
     } else if (error.message?.includes("rate limit") || error.statusCode === 429) {
       errorMessage = "Email rate limit exceeded. Please try again later.";
       statusCode = 429;
-      console.error("Rate limit exceeded");
     } else if (error.message?.includes("quota")) {
       errorMessage = "Email quota exceeded for today.";
       statusCode = 429;
-      console.error("Quota exceeded");
-    } else if (error.message?.includes("domain")) {
-      errorMessage = "Email domain not verified";
+    } else if (error.message?.includes("domain") || error.message?.includes("verified")) {
+      errorMessage = "Email domain not verified in Resend. Please verify your domain or use onboarding@resend.dev for testing.";
       statusCode = 500;
-      console.error("Domain verification error");
     } else if (error.message?.includes("invalid") && error.message?.includes("email")) {
       errorMessage = "Invalid email address provided";
       statusCode = 400;
-      console.error("Invalid email format");
     } else if (error.message?.includes("ENOTFOUND") || error.message?.includes("network")) {
       errorMessage = "Network error connecting to email service";
       statusCode = 503;
-      console.error("Network error");
     }
     
     return res.status(statusCode).json({ 
