@@ -1,11 +1,10 @@
-// api/send-invite.js - Complete Fixed Version with Enhanced Error Handling
+// api/send-invite.js - FIXED VERSION
 import { Resend } from "resend";
 
-//const resend = new Resend(process.env.RESEND_API_KEY);
-const resend = "re_JZhSej8u_25ouwRAiFbmLnbTrW4Hf4w7p";
+// ✅ FIXED: Properly initialize Resend with environment variable
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-//console.log("Resend key:", process.env.RESEND_API_KEY ? "Loaded" : "Missing");
-
+console.log("Resend API Key:", process.env.RESEND_API_KEY ? "✓ Loaded" : "✗ Missing");
 
 export default async function handler(req, res) {
   // Set CORS headers
@@ -50,33 +49,27 @@ export default async function handler(req, res) {
       });
     }
 
-    
- 
-
-    
-    // Check if Resend API key is configured
-  /*  if (!process.env.RESEND_API_KEY) {
+    // ✅ FIXED: Check if API key exists
+    if (!process.env.RESEND_API_KEY) {
       console.error("RESEND_API_KEY environment variable is not set");
       return res.status(500).json({ 
         success: false, 
-        error: "Email service not configured" 
+        error: "Email service not configured. Please add RESEND_API_KEY to environment variables." 
       });
     }
-    */
-    
 
-    // Validate API key format
-    if (!resend.startsWith('re_')) {
+    // ✅ FIXED: Validate API key format
+    if (!process.env.RESEND_API_KEY.startsWith('re_')) {
       console.error("RESEND_API_KEY has invalid format");
       return res.status(500).json({ 
         success: false, 
-        error: "Email service misconfigured" 
+        error: "Email service misconfigured - invalid API key format" 
       });
     }
 
-    console.log(`Attempting to send email to: ${to} for team: ${teamName}`);
+    console.log(`📧 Attempting to send email to: ${to} for team: ${teamName}`);
 
-    // Send email with Resend
+    // ✅ Send email with Resend
     const emailData = await resend.emails.send({
       from: "Prompt Teams <onboarding@resend.dev>",
       to: to,
@@ -169,7 +162,7 @@ If you don't want to join this team, you can safely ignore this email.
     });
 
     // Log success with full details
-    console.log("Email sent successfully:", JSON.stringify(emailData, null, 2));
+    console.log("✅ Email sent successfully:", JSON.stringify(emailData, null, 2));
     
     return res.status(200).json({ 
       success: true, 
@@ -179,7 +172,7 @@ If you don't want to join this team, you can safely ignore this email.
     
   } catch (error) {
     // Enhanced error logging
-    console.error("Email sending error occurred");
+    console.error("❌ Email sending error occurred");
     console.error("Error name:", error.name);
     console.error("Error message:", error.message);
     console.error("Error stack:", error.stack);
