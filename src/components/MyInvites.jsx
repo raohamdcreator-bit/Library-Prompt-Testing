@@ -1,15 +1,15 @@
-// src/components/MyInvites.jsx - FIXED VERSION (No collectionGroup)
+// src/components/MyInvites.jsx - FIXED: Better handling for existing team members
 import { useEffect, useState } from "react";
 import { db } from "../lib/firebase";
 import {
   collection,
   query,
   where,
-  getDocs,
+  onSnapshot,
   doc,
   updateDoc,
   writeBatch,
-  onSnapshot,
+  getDoc,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 
@@ -26,7 +26,9 @@ export default function MyInvites() {
       return;
     }
 
-    // FIXED: Use global team-invites collection instead of collectionGroup
+    console.log("👀 MyInvites: Listening for invites for", user.email.toLowerCase());
+
+    // Listen to global team-invites collection
     const invitesRef = collection(db, "team-invites");
     const q = query(
       invitesRef,
@@ -37,6 +39,8 @@ export default function MyInvites() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
+        console.log("📨 MyInvites: Found", snapshot.docs.length, "pending invites");
+        
         const allInvites = snapshot.docs.map((docSnap) => ({
           id: docSnap.id,
           ...docSnap.data(),
@@ -53,7 +57,7 @@ export default function MyInvites() {
         setLoading(false);
       },
       (error) => {
-        console.error("Error loading invites:", error);
+        console.error("❌ Error loading invites:", error);
         // Silently fail - user just won't see invites
         setInvites([]);
         setLoading(false);
@@ -67,6 +71,7 @@ export default function MyInvites() {
   async function handleAccept(invite) {
     if (!invite?.teamId || !invite?.id) {
       console.error("Invalid invite data:", invite);
+      showNotification("Invalid invitation data", "error");
       return;
     }
 
@@ -74,10 +79,45 @@ export default function MyInvites() {
     setProcessingInvites((prev) => new Set(prev.add(inviteKey)));
 
     try {
+      console.log("✅ Accepting invite:", invite.id, "for team:", invite.teamId);
+
+      // ✅ STEP 1: Check if team exists and if user is already a member
+      const teamRef = doc(db, "teams", invite.teamId);
+      const teamDoc = await getDoc(teamRef);
+
+      if (!teamDoc.exists()) {
+        throw new Error("Team no longer exists. It may have been deleted.");
+      }
+
+      const teamData = teamDoc.data();
+
+      // ✅ Check if user is already a member
+      if (teamData.members && teamData.members[user.uid]) {
+        console.log("ℹ️ User is already a member of this team");
+        
+        // Mark invite as accepted (cleanup)
+        const inviteRef = doc(db, "team-invites", invite.id);
+        await updateDoc(inviteRef, {
+          status: "accepted",
+          acceptedAt: new Date(),
+          acceptedByUid: user.uid,
+          note: "User was already a member",
+        });
+
+        showNotification(
+          `You're already a member of "${invite.teamName}" as ${teamData.members[user.uid]}!`,
+          "info"
+        );
+
+        // Remove from local state
+        setInvites((prev) => prev.filter((inv) => inv.id !== invite.id));
+        return;
+      }
+
+      // ✅ STEP 2: Add user to team and mark invite as accepted
       const batch = writeBatch(db);
 
       // Add user to team members
-      const teamRef = doc(db, "teams", invite.teamId);
       batch.update(teamRef, {
         [`members.${user.uid}`]: invite.role || "member",
       });
@@ -92,6 +132,8 @@ export default function MyInvites() {
 
       await batch.commit();
 
+      console.log("✅ Successfully joined team:", invite.teamName);
+
       showNotification(
         `Successfully joined "${invite.teamName}" as ${
           invite.role || "member"
@@ -102,13 +144,16 @@ export default function MyInvites() {
       // Remove from local state
       setInvites((prev) => prev.filter((inv) => inv.id !== invite.id));
     } catch (error) {
-      console.error("Error accepting invite:", error);
+      console.error("❌ Error accepting invite:", error);
 
       let errorMessage = "Failed to accept invite. ";
+      
       if (error.code === "permission-denied") {
-        errorMessage += "You may not have permission to join this team.";
+        errorMessage += "You don't have permission to join this team.";
       } else if (error.code === "not-found") {
         errorMessage += "The team or invite no longer exists.";
+      } else if (error.message) {
+        errorMessage += error.message;
       } else {
         errorMessage += "Please try again.";
       }
@@ -127,6 +172,7 @@ export default function MyInvites() {
   async function handleReject(invite) {
     if (!invite?.teamId || !invite?.id) {
       console.error("Invalid invite data:", invite);
+      showNotification("Invalid invitation data", "error");
       return;
     }
 
@@ -134,6 +180,8 @@ export default function MyInvites() {
     setProcessingInvites((prev) => new Set(prev.add(inviteKey)));
 
     try {
+      console.log("🚫 Rejecting invite:", invite.id);
+
       const inviteRef = doc(db, "team-invites", invite.id);
       await updateDoc(inviteRef, {
         status: "rejected",
@@ -141,10 +189,10 @@ export default function MyInvites() {
         rejectedByUid: user.uid,
       });
 
-      showNotification("Invite declined", "info");
+      showNotification("Invitation declined", "info");
       setInvites((prev) => prev.filter((inv) => inv.id !== invite.id));
     } catch (error) {
-      console.error("Error rejecting invite:", error);
+      console.error("❌ Error rejecting invite:", error);
 
       if (error.code !== "not-found") {
         showNotification(
@@ -178,7 +226,7 @@ export default function MyInvites() {
     notification.style.backgroundColor = "var(--card)";
     notification.style.color = "var(--foreground)";
     notification.style.border = `1px solid var(--${
-      type === "error" ? "destructive" : "primary"
+      type === "error" ? "destructive" : type === "info" ? "primary" : "primary"
     })`;
 
     document.body.appendChild(notification);
@@ -401,25 +449,3 @@ export default function MyInvites() {
                 </div>
               );
             })}
-          </div>
-
-          {/* Footer Note */}
-          <div
-            className="mt-4 p-3 rounded-lg text-xs flex items-start gap-2"
-            style={{
-              backgroundColor: "var(--muted)",
-              color: "var(--muted-foreground)",
-            }}
-          >
-            <span>💡</span>
-            <p>
-              Accepting an invitation will give you immediate access to the
-              team's prompt library. You can leave teams at any time from the
-              team settings.
-            </p>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
