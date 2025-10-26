@@ -1,7 +1,7 @@
-// src/components/TeamInviteForm.jsx - FIXED VERSION
+// src/components/TeamInviteForm.jsx - FIXED to use global collection
 import { useState } from "react";
 import { db } from "../lib/firebase";
-import { collection, doc, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 
 export default function TeamInviteForm({ teamId, teamName, role }) {
@@ -28,9 +28,9 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
     setLoading(true);
 
     try {
-      // ✅ FIXED: Use consistent subcollection structure like other components
-      await addDoc(collection(db, "teams", teamId, "invites"), {
-        teamId: teamId, // Store teamId for easier querying
+      // ✅ FIXED: Use global collection 'team-invites' (matches MyInvites.jsx)
+      await addDoc(collection(db, "team-invites"), {
+        teamId: teamId,
         teamName: teamName,
         email: email.trim().toLowerCase(),
         role: inviteRole,
@@ -40,11 +40,9 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
         status: "pending",
       });
 
-      // ✅ Optional: Try to send email, but don't fail if unavailable
+      // ✅ Optional: Try to send email
       try {
-        const inviteLink = `${
-          window.location.origin
-        }/join?teamId=${teamId}&inviteId=${Date.now()}`;
+        const inviteLink = `${window.location.origin}/join?teamId=${teamId}`;
 
         const response = await fetch("/api/send-invite", {
           method: "POST",
@@ -59,17 +57,13 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
         });
 
         if (!response.ok) {
-          console.warn(
-           // "Email sending failed, but invite was saved to database"
-             console.log(response.json)  
-          );
+          console.warn("Email sending failed, but invite was saved to database");
         }
       } catch (emailError) {
         console.warn(
           "Email service unavailable, but invite was saved:",
           emailError.message
         );
-        // Don't throw error - invite was still created successfully
       }
 
       setEmail("");
