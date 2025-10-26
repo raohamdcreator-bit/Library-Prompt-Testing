@@ -1,4 +1,4 @@
-// src/components/MyInvites.jsx - FIXED: Better handling for existing team members
+// src/components/MyInvites.jsx - COMPLETE & FIXED
 import { useEffect, useState } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -449,3 +449,25 @@ export default function MyInvites() {
                 </div>
               );
             })}
+          </div>
+
+          {/* Footer Note */}
+          <div
+            className="mt-4 p-3 rounded-lg text-xs flex items-start gap-2"
+            style={{
+              backgroundColor: "var(--muted)",
+              color: "var(--muted-foreground)",
+            }}
+          >
+            <span>💡</span>
+            <p>
+              Accepting an invitation will give you immediate access to the
+              team's prompt library. You can leave teams at any time from the
+              team settings.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
