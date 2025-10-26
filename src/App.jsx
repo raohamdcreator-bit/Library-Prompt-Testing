@@ -1,4 +1,4 @@
-// src/App.jsx - Complete with Custom Routing, Legal Pages, and Live Chat
+// src/App.jsx - Complete with Custom Routing, Legal Pages, Join Team, and Live Chat
 import { useEffect, useState } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -29,6 +29,7 @@ import Contact from "./pages/Contact";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import About from "./pages/About";
+import JoinTeam from "./pages/JoinTeam";
 import { NavigationProvider } from "./components/LegalLayout";
 
 // Simple Router Component
@@ -430,6 +431,14 @@ export default function App() {
     window.scrollTo(0, 0);
   };
 
+  // Check URL on mount for /join route
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path === "/join") {
+      setCurrentPath("/join");
+    }
+  }, []);
+
   // Helper function to get user initials
   function getUserInitials(name, email) {
     if (name) {
@@ -692,8 +701,8 @@ export default function App() {
     return role === "owner" || role === "admin";
   }
 
-  // Show legal/info pages
-  if (["/contact", "/privacy", "/terms", "/about"].includes(currentPath)) {
+  // Show legal/info pages AND join page
+  if (["/contact", "/privacy", "/terms", "/about", "/join"].includes(currentPath)) {
     return (
       <NavigationProvider navigate={navigate}>
         <div style={{ background: "var(--background)", minHeight: "100vh" }}>
@@ -714,6 +723,9 @@ export default function App() {
             </Route>
             <Route path="/about">
               <About />
+            </Route>
+            <Route path="/join">
+              <JoinTeam onNavigate={navigate} />
             </Route>
           </Router>
           <Footer onNavigate={navigate} />
@@ -846,7 +858,8 @@ export default function App() {
             </button>
           </div>
         )}
-        {/* Create Team & Sign Out - Moved to Top */}
+
+        {/* Create Team & Sign Out */}
         <div className="space-y-3 mb-4">
           <form
             onSubmit={(e) => {
