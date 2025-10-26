@@ -1,4 +1,4 @@
-// src/App.jsx - Complete with Custom Routing, Legal Pages, Join Team, and Live Chat
+// src/App.jsx - Complete with Fixed Routing, Legal Pages, Join Team, and Live Chat
 import { useEffect, useState } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -32,10 +32,19 @@ import About from "./pages/About";
 import JoinTeam from "./pages/JoinTeam";
 import { NavigationProvider } from "./components/LegalLayout";
 
-// Simple Router Component
+// ===================================
+// IMPROVED ROUTER COMPONENTS
+// ===================================
 function Router({ currentPath, children }) {
   const routes = Array.isArray(children) ? children : [children];
-  const route = routes.find((r) => r.props.path === currentPath);
+  const route = routes.find((r) => {
+    const routePath = r.props.path;
+    // Exact match for paths without query parameters
+    if (currentPath === routePath) return true;
+    // Match base path even with query parameters (e.g., /join?teamId=123)
+    if (currentPath.startsWith(routePath + '?')) return true;
+    return false;
+  });
   return route || null;
 }
 
@@ -43,7 +52,9 @@ function Route({ children }) {
   return children;
 }
 
-// Logo Component
+// ===================================
+// LOGO COMPONENT
+// ===================================
 function Logo({ size = "normal", onClick }) {
   const dimensions =
     size === "small" ? "w-6 h-6" : size === "large" ? "w-12 h-12" : "w-8 h-8";
@@ -63,7 +74,9 @@ function Logo({ size = "normal", onClick }) {
   );
 }
 
-// Navigation Component
+// ===================================
+// NAVIGATION COMPONENT
+// ===================================
 function Navigation({ onSignIn, isAuthenticated, onNavigate }) {
   return (
     <nav
@@ -123,7 +136,9 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate }) {
   );
 }
 
-// Footer Component
+// ===================================
+// FOOTER COMPONENT
+// ===================================
 function Footer({ onNavigate }) {
   return (
     <footer
@@ -270,7 +285,9 @@ function Footer({ onNavigate }) {
   );
 }
 
-// Landing Page Component
+// ===================================
+// LANDING PAGE COMPONENT
+// ===================================
 function LandingPage({ onSignIn, onNavigate }) {
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
@@ -410,11 +427,13 @@ function LandingPage({ onSignIn, onNavigate }) {
   );
 }
 
-// Main App Component
+// ===================================
+// MAIN APP COMPONENT
+// ===================================
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
   const { activeTeam, setActiveTeam } = useActiveTeam();
-  const [currentPath, setCurrentPath] = useState("/");
+  const [currentPath, setCurrentPath] = useState(window.location.pathname);
 
   const [teams, setTeams] = useState([]);
   const [role, setRole] = useState(null);
@@ -424,22 +443,39 @@ export default function App() {
   const [teamStats, setTeamStats] = useState({});
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  // Handle navigation
+  // ===================================
+  // NAVIGATION HANDLER
+  // ===================================
   const navigate = (path) => {
     console.log("Navigate called with path:", path);
     setCurrentPath(path);
+    window.history.pushState({}, '', path);
     window.scrollTo(0, 0);
   };
 
-  // Check URL on mount for /join route
+  // ===================================
+  // HANDLE URL CHANGES (Initial + Back/Forward)
+  // ===================================
   useEffect(() => {
+    // Handle initial load
     const path = window.location.pathname;
-    if (path === "/join") {
-      setCurrentPath("/join");
-    }
+    console.log("Initial path:", path);
+    setCurrentPath(path);
+
+    // Handle browser back/forward buttons
+    const handlePopState = () => {
+      const newPath = window.location.pathname;
+      console.log("PopState - new path:", newPath);
+      setCurrentPath(newPath);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Helper function to get user initials
+  // ===================================
+  // HELPER FUNCTIONS
+  // ===================================
   function getUserInitials(name, email) {
     if (name) {
       return name
@@ -455,7 +491,6 @@ export default function App() {
     return "U";
   }
 
-  // Enhanced Avatar component
   function UserAvatar({ src, name, email, size = "normal", className = "" }) {
     const [imageError, setImageError] = useState(false);
     const avatarClass = size === "small" ? "user-avatar-small" : "user-avatar";
@@ -482,7 +517,9 @@ export default function App() {
     );
   }
 
-  // Load teams from Firestore
+  // ===================================
+  // LOAD TEAMS FROM FIRESTORE
+  // ===================================
   useEffect(() => {
     if (!user) {
       setTeams([]);
@@ -512,7 +549,9 @@ export default function App() {
     return () => unsub();
   }, [user, setActiveTeam]);
 
-  // Set first team if no active team selected
+  // ===================================
+  // SET FIRST TEAM IF NO ACTIVE TEAM
+  // ===================================
   useEffect(() => {
     if (!user || loading) return;
 
@@ -521,7 +560,9 @@ export default function App() {
     }
   }, [teams.length, activeTeam, activeView, user, loading, setActiveTeam]);
 
-  // Validate active team still exists
+  // ===================================
+  // VALIDATE ACTIVE TEAM STILL EXISTS
+  // ===================================
   useEffect(() => {
     if (!user || loading || !activeTeam || teams.length === 0) return;
 
@@ -534,7 +575,9 @@ export default function App() {
     }
   }, [teams, activeTeam, user, loading, setActiveTeam, activeView]);
 
-  // Load current user's role for the active team
+  // ===================================
+  // LOAD CURRENT USER'S ROLE
+  // ===================================
   useEffect(() => {
     if (!activeTeam || !user) {
       setRole(null);
@@ -560,7 +603,9 @@ export default function App() {
     fetchRole();
   }, [activeTeam, user]);
 
-  // Load avatars and team stats
+  // ===================================
+  // LOAD AVATARS AND TEAM STATS
+  // ===================================
   useEffect(() => {
     async function loadTeamData() {
       const avatarResults = {};
@@ -610,7 +655,9 @@ export default function App() {
     if (teams.length > 0) loadTeamData();
   }, [teams]);
 
-  // Create new team
+  // ===================================
+  // CREATE NEW TEAM
+  // ===================================
   async function createTeam(name) {
     if (!name || !user) return;
     try {
@@ -628,7 +675,9 @@ export default function App() {
     }
   }
 
-  // Delete team (owner only)
+  // ===================================
+  // DELETE TEAM (OWNER ONLY)
+  // ===================================
   async function deleteTeam(teamId) {
     if (!user) return;
     const team = teams.find((t) => t.id === teamId);
@@ -658,6 +707,9 @@ export default function App() {
     }
   }
 
+  // ===================================
+  // HELPER FUNCTIONS FOR UI
+  // ===================================
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
 
   function getRoleBadge(role) {
@@ -701,8 +753,14 @@ export default function App() {
     return role === "owner" || role === "admin";
   }
 
-  // Show legal/info pages AND join page
-  if (["/contact", "/privacy", "/terms", "/about", "/join"].includes(currentPath)) {
+  // ===================================
+  // RENDER SPECIAL ROUTES (Legal/Join)
+  // ===================================
+  const isSpecialRoute = ["/contact", "/privacy", "/terms", "/about", "/join"].some(
+    route => currentPath === route || currentPath.startsWith(route + '?')
+  );
+
+  if (isSpecialRoute) {
     return (
       <NavigationProvider navigate={navigate}>
         <div style={{ background: "var(--background)", minHeight: "100vh" }}>
@@ -711,7 +769,7 @@ export default function App() {
             isAuthenticated={!!user}
             onNavigate={navigate}
           />
-          <Router currentPath={currentPath}>
+          <Router currentPath={currentPath.split('?')[0]}>
             <Route path="/contact">
               <Contact />
             </Route>
@@ -734,6 +792,9 @@ export default function App() {
     );
   }
 
+  // ===================================
+  // LOADING STATE
+  // ===================================
   if (loading) {
     return (
       <div className="app-container">
@@ -749,10 +810,16 @@ export default function App() {
     );
   }
 
+  // ===================================
+  // NOT AUTHENTICATED - SHOW LANDING PAGE
+  // ===================================
   if (!user) {
     return <LandingPage onSignIn={signInWithGoogle} onNavigate={navigate} />;
   }
 
+  // ===================================
+  // MAIN APPLICATION UI
+  // ===================================
   return (
     <div className="app-container flex min-h-screen">
       {/* Sidebar */}
