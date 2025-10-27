@@ -1,4 +1,4 @@
-// src/pages/JoinTeam.jsx - FIXED: Better invite handling for existing users
+// src/pages/JoinTeam.jsx - FIXED with atomic transactions and race condition prevention
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { db } from "../lib/firebase";
@@ -8,8 +8,9 @@ import {
   where,
   getDocs,
   doc,
-  writeBatch,
   getDoc,
+  runTransaction,
+  Timestamp,
 } from "firebase/firestore";
 
 export default function JoinTeam({ onNavigate }) {
@@ -26,7 +27,6 @@ export default function JoinTeam({ onNavigate }) {
 
   async function handleInvitation() {
     try {
-      // Get teamId from URL
       const urlParams = new URLSearchParams(window.location.search);
       const teamId = urlParams.get("teamId");
 
@@ -39,7 +39,6 @@ export default function JoinTeam({ onNavigate }) {
         return;
       }
 
-      // User must be signed in
       if (!user) {
         setStatus("signin_required");
         setMessage("Please sign in to accept this invitation");
@@ -52,124 +51,105 @@ export default function JoinTeam({ onNavigate }) {
       setStatus("processing");
       setMessage("Processing your invitation...");
 
-      // ✅ STEP 1: Check if user is already a member of this team
-      const teamRef = doc(db, "teams", teamId);
-      const teamDoc = await getDoc(teamRef);
+      // ✅ Use transaction to prevent race conditions
+      await runTransaction(db, async (transaction) => {
+        // STEP 1: Get team data
+        const teamRef = doc(db, "teams", teamId);
+        const teamDoc = await transaction.get(teamRef);
 
-      if (!teamDoc.exists()) {
-        setStatus("error");
-        setMessage("Team not found. The invitation may be invalid or the team may have been deleted.");
-        setDebugInfo({ teamId, error: "Team doesn't exist" });
-        return;
-      }
+        if (!teamDoc.exists()) {
+          throw new Error("TEAM_NOT_FOUND");
+        }
 
-      const teamData = teamDoc.data();
-      setTeamName(teamData.name);
+        const teamData = teamDoc.data();
+        setTeamName(teamData.name);
 
-      // Check if user is already a member
-      if (teamData.members && teamData.members[user.uid]) {
-        setStatus("already_member");
-        setMessage(`You're already a member of "${teamData.name}"!`);
-        setDebugInfo({
-          teamId,
-          teamName: teamData.name,
-          currentRole: teamData.members[user.uid],
-        });
-        
-        // Redirect after 2 seconds
-        setTimeout(() => {
-          onNavigate("/");
-        }, 2000);
-        return;
-      }
+        // STEP 2: Check if user is already a member
+        if (teamData.members && teamData.members[user.uid]) {
+          throw new Error("ALREADY_MEMBER");
+        }
 
-      // ✅ STEP 2: Find pending invite for this user's email
-      console.log("🔍 Looking for invites with email:", user.email.toLowerCase());
-      
-      const invitesRef = collection(db, "team-invites");
-      const q = query(
-        invitesRef,
-        where("teamId", "==", teamId),
-        where("email", "==", user.email.toLowerCase()),
-        where("status", "==", "pending")
-      );
+        // STEP 3: Find valid pending invite
+        const normalizedEmail = user.email.toLowerCase();
+        console.log("🔍 Looking for invites with email:", normalizedEmail);
 
-      const inviteSnapshot = await getDocs(q);
-
-      console.log("📨 Found invites:", inviteSnapshot.size);
-
-      if (inviteSnapshot.empty) {
-        // Check if there are ANY invites for this team (for debugging)
-        const allInvitesQuery = query(
+        const invitesRef = collection(db, "team-invites");
+        const inviteQuery = query(
           invitesRef,
           where("teamId", "==", teamId),
+          where("email", "==", normalizedEmail),
           where("status", "==", "pending")
         );
-        const allInvites = await getDocs(allInvitesQuery);
-        
-        const inviteEmails = allInvites.docs.map(d => d.data().email);
-        
-        setStatus("error");
-        setMessage(
-          "No pending invitation found for your email address. " +
-          "It may have already been accepted, cancelled, or sent to a different email address."
-        );
-        setDebugInfo({
-          teamId,
-          teamName: teamData.name,
-          userEmail: user.email.toLowerCase(),
-          pendingInvitesForTeam: inviteEmails.length,
-          inviteEmails: inviteEmails,
-          hint: inviteEmails.length > 0 
-            ? `There are ${inviteEmails.length} pending invite(s) for this team, but none match your email.`
-            : "No pending invites found for this team."
+
+        const inviteSnapshot = await getDocs(inviteQuery);
+        console.log("📨 Found invites:", inviteSnapshot.size);
+
+        if (inviteSnapshot.empty) {
+          // Get all pending invites for debugging
+          const allInvitesQuery = query(
+            invitesRef,
+            where("teamId", "==", teamId),
+            where("status", "==", "pending")
+          );
+          const allInvites = await getDocs(allInvitesQuery);
+          const inviteEmails = allInvites.docs.map((d) => d.data().email);
+
+          throw {
+            name: "NO_INVITE_FOUND",
+            message: "No pending invitation found",
+            debugData: {
+              userEmail: normalizedEmail,
+              pendingInvitesForTeam: inviteEmails.length,
+              inviteEmails: inviteEmails,
+            },
+          };
+        }
+
+        // STEP 4: Validate invite and check expiration
+        const inviteDoc = inviteSnapshot.docs[0];
+        const inviteData = inviteDoc.data();
+        const inviteRef = doc(db, "team-invites", inviteDoc.id);
+
+        console.log("✅ Found invite:", {
+          id: inviteDoc.id,
+          role: inviteData.role,
+          invitedBy: inviteData.inviterName,
         });
-        return;
-      }
 
-      // ✅ STEP 3: Get the first matching invite
-      const inviteDoc = inviteSnapshot.docs[0];
-      const inviteData = inviteDoc.data();
-      
-      console.log("✅ Found invite:", {
-        id: inviteDoc.id,
-        role: inviteData.role,
-        invitedBy: inviteData.inviterName
+        // Check if invite has expired
+        const now = Timestamp.now();
+        if (inviteData.expiresAt && inviteData.expiresAt.toMillis() < now.toMillis()) {
+          throw new Error("INVITE_EXPIRED");
+        }
+
+        // STEP 5: Update team members (add user)
+        transaction.update(teamRef, {
+          [`members.${user.uid}`]: inviteData.role || "member",
+        });
+
+        // STEP 6: Mark invite as accepted
+        transaction.update(inviteRef, {
+          status: "accepted",
+          acceptedAt: Timestamp.now(),
+          acceptedByUid: user.uid,
+        });
+
+        console.log("✅ Transaction prepared successfully");
+
+        return {
+          teamName: teamData.name,
+          role: inviteData.role,
+          inviteId: inviteDoc.id,
+        };
       });
 
-      // ✅ STEP 4: Use batch write to update both team members and invite status
-      const batch = writeBatch(db);
-
-      // Add user to team members
-      batch.update(teamRef, {
-        [`members.${user.uid}`]: inviteData.role || "member",
-      });
-
-      // Mark invite as accepted
-      const inviteRef = doc(db, "team-invites", inviteDoc.id);
-      batch.update(inviteRef, {
-        status: "accepted",
-        acceptedAt: new Date(),
-        acceptedByUid: user.uid,
-      });
-
-      // Commit the batch
-      await batch.commit();
-
+      // Transaction succeeded
       console.log("✅ Successfully joined team!");
 
       setStatus("success");
       setMessage(
-        `Successfully joined "${inviteData.teamName}" as ${
-          inviteData.role || "member"
-        }!`
+        `Successfully joined "${teamName}" as member!`
       );
-      setDebugInfo({
-        teamId,
-        teamName: inviteData.teamName,
-        role: inviteData.role,
-        inviteId: inviteDoc.id,
-      });
 
       // Redirect to home after 2 seconds
       setTimeout(() => {
@@ -177,26 +157,77 @@ export default function JoinTeam({ onNavigate }) {
       }, 2000);
     } catch (err) {
       console.error("❌ Error accepting invitation:", err);
-      setStatus("error");
       setError(err);
 
+      // Handle specific error cases
+      if (err.message === "TEAM_NOT_FOUND") {
+        setStatus("error");
+        setMessage(
+          "Team not found. The invitation may be invalid or the team may have been deleted."
+        );
+        setDebugInfo({ teamId: new URLSearchParams(window.location.search).get("teamId"), error: "Team doesn't exist" });
+        return;
+      }
+
+      if (err.message === "ALREADY_MEMBER") {
+        setStatus("already_member");
+        setMessage(`You're already a member of "${teamName}"!`);
+        setDebugInfo({
+          teamId: new URLSearchParams(window.location.search).get("teamId"),
+          teamName: teamName,
+        });
+        setTimeout(() => {
+          onNavigate("/");
+        }, 2000);
+        return;
+      }
+
+      if (err.message === "INVITE_EXPIRED") {
+        setStatus("error");
+        setMessage("This invitation has expired. Please request a new invitation from the team owner.");
+        setDebugInfo({ error: "Invite expired" });
+        return;
+      }
+
+      if (err.name === "NO_INVITE_FOUND") {
+        setStatus("error");
+        setMessage(
+          "No pending invitation found for your email address. " +
+          "It may have already been accepted, cancelled, or sent to a different email address."
+        );
+        setDebugInfo({
+          teamId: new URLSearchParams(window.location.search).get("teamId"),
+          teamName: teamName,
+          userEmail: user.email.toLowerCase(),
+          ...err.debugData,
+        });
+        return;
+      }
+
+      // Generic error handling
+      setStatus("error");
+
       let errorMessage = "Failed to accept invitation. ";
-      
+
       if (err.code === "permission-denied") {
-        errorMessage += "You don't have permission to join this team. Please check your Firestore security rules.";
+        errorMessage +=
+          "You don't have permission to join this team. Please check your Firestore security rules.";
       } else if (err.code === "not-found") {
         errorMessage += "Team not found. The invitation may be invalid.";
       } else if (err.code === "unavailable") {
-        errorMessage += "Firebase is currently unavailable. Please try again in a moment.";
+        errorMessage +=
+          "Firebase is currently unavailable. Please try again in a moment.";
+      } else if (err.message) {
+        errorMessage += err.message;
       } else {
-        errorMessage += err.message || "An unexpected error occurred.";
+        errorMessage += "An unexpected error occurred.";
       }
 
       setMessage(errorMessage);
       setDebugInfo({
         error: err.message,
         code: err.code,
-        stack: err.stack?.split('\n').slice(0, 3).join('\n'),
+        stack: err.stack?.split("\n").slice(0, 3).join("\n"),
       });
     }
   }
@@ -244,7 +275,8 @@ export default function JoinTeam({ onNavigate }) {
               className="text-xs mt-4"
               style={{ color: "var(--muted-foreground)" }}
             >
-              Make sure to sign in with the email address that received the invitation
+              Make sure to sign in with the email address that received the
+              invitation
             </p>
           </div>
         )}
@@ -385,7 +417,7 @@ export default function JoinTeam({ onNavigate }) {
                   • Check if the invitation was sent to a different email
                   address
                 </li>
-                <li>• The invitation may have already been accepted</li>
+                <li>• The invitation may have already been accepted or expired</li>
                 <li>• The team owner may have cancelled the invitation</li>
                 <li>
                   • Try signing out and signing back in with the correct email
