@@ -1,4 +1,4 @@
-// src/components/TeamMembers.jsx - Updated to match demo UI
+// src/components/TeamMembers.jsx - Updated with better invite management
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -11,8 +11,10 @@ import {
   query,
   where,
   onSnapshot,
+  Timestamp,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { cancelTeamInvite, deleteTeamInvite } from "../lib/inviteUtils";
 
 export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
   const { user } = useAuth();
@@ -41,7 +43,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
               ...userDoc.data(),
             });
           } else {
-            // User document doesn't exist, show basic info
             memberProfiles.push({
               uid,
               role,
@@ -73,7 +74,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     loadMembers();
   }, [teamId, teamData]);
 
-  // Load pending invites
+  // ✅ Load pending invites with real-time updates and expiration filtering
   useEffect(() => {
     if (!teamId) return;
 
@@ -84,10 +85,19 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     );
 
     const unsub = onSnapshot(q, (snapshot) => {
-      const invites = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const now = Timestamp.now();
+      const invites = snapshot.docs
+        .map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+        .filter((invite) => {
+          // ✅ Filter out expired invites
+          if (invite.expiresAt && invite.expiresAt.toMillis() < now.toMillis()) {
+            return false;
+          }
+          return true;
+        });
 
       // Sort by creation date, newest first
       invites.sort((a, b) => {
@@ -170,16 +180,23 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     }
   }
 
-  // Cancel pending invite
+  // ✅ Cancel pending invite using utility function
   async function cancelInvite(inviteId) {
     if (!canManageInvites()) return;
+
+    if (!confirm("Cancel this invitation?")) return;
 
     const actionKey = `cancel-${inviteId}`;
     setProcessingActions((prev) => new Set([...prev, actionKey]));
 
     try {
-      await deleteDoc(doc(db, "team-invites", inviteId));
-      showNotification("Invitation cancelled", "success");
+      const result = await deleteTeamInvite(inviteId);
+      
+      if (result.success) {
+        showNotification("Invitation cancelled", "success");
+      } else {
+        throw new Error(result.error);
+      }
     } catch (error) {
       console.error("Error cancelling invite:", error);
       showNotification("Failed to cancel invitation", "error");
@@ -206,7 +223,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
   }
 
   function canModifyMember(member) {
-    if (member.uid === user.uid) return false; // Can't modify yourself
+    if (member.uid === user.uid) return false;
     if (userRole === "owner") return true;
     if (userRole === "admin" && member.role === "member") return true;
     return false;
@@ -215,7 +232,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
   // Utility functions
   function showNotification(message, type = "info") {
     const notification = document.createElement("div");
-
     const icons = { success: "✅", error: "❌", info: "ℹ️" };
 
     notification.innerHTML = `
@@ -256,6 +272,23 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     } catch {
       return "Invalid date";
     }
+  }
+
+  function getTimeRemaining(expiresAt) {
+    if (!expiresAt) return null;
+    
+    const now = new Date();
+    const expiry = expiresAt.toDate();
+    const diff = expiry - now;
+    
+    if (diff <= 0) return "Expired";
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (days > 0) return `${days}d`;
+    if (hours > 0) return `${hours}h`;
+    return "<1h";
   }
 
   function getRoleIcon(role) {
@@ -497,11 +530,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                       style={{ color: "var(--muted-foreground)" }}
                     >
                       {member.email}
-                      {member.lastSeen && (
-                        <span className="ml-2">
-                          • Last seen {formatDate(member.lastSeen)}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -510,29 +538,24 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                 {canModifyMember(member) && (
                   <div className="flex items-center gap-2 ml-4">
                     {/* Role Change Dropdown */}
-                    <select
-                      value={member.role}
-                      onChange={(e) =>
-                        changeMemberRole(member.uid, e.target.value)
-                      }
-                      disabled={isProcessing}
-                      className="text-xs px-2 py-1 rounded border"
-                      style={{
-                        backgroundColor: "var(--input)",
-                        borderColor: "var(--border)",
-                        color: "var(--foreground)",
-                      }}
-                    >
-                      {userRole === "owner" && (
-                        <>
-                          <option value="member">Member</option>
-                          <option value="admin">Admin</option>
-                        </>
-                      )}
-                      {userRole === "admin" && member.role === "member" && (
+                    {canManageRoles() && (
+                      <select
+                        value={member.role}
+                        onChange={(e) =>
+                          changeMemberRole(member.uid, e.target.value)
+                        }
+                        disabled={isProcessing}
+                        className="text-xs px-2 py-1 rounded border"
+                        style={{
+                          backgroundColor: "var(--input)",
+                          borderColor: "var(--border)",
+                          color: "var(--foreground)",
+                        }}
+                      >
                         <option value="member">Member</option>
-                      )}
-                    </select>
+                        <option value="admin">Admin</option>
+                      </select>
+                    )}
 
                     {/* Remove Button */}
                     <button
@@ -572,6 +595,9 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
           <div className="space-y-3">
             {pendingInvites.map((invite) => {
               const isProcessing = processingActions.has(`cancel-${invite.id}`);
+              const timeRemaining = getTimeRemaining(invite.expiresAt);
+              const isExpiringSoon = invite.expiresAt && 
+                (invite.expiresAt.toMillis() - Date.now()) < 24 * 60 * 60 * 1000;
 
               return (
                 <div
@@ -579,7 +605,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                   className="flex items-center justify-between p-4 rounded-lg border"
                   style={{
                     backgroundColor: "var(--muted)",
-                    borderColor: "var(--border)",
+                    borderColor: isExpiringSoon ? "var(--accent)" : "var(--border)",
                   }}
                 >
                   <div className="flex-1">
@@ -593,6 +619,17 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                       <span style={getRoleBadge(invite.role)}>
                         {getRoleIcon(invite.role)} {invite.role}
                       </span>
+                      {timeRemaining && (
+                        <span
+                          className="text-xs px-2 py-1 rounded"
+                          style={{
+                            backgroundColor: isExpiringSoon ? "var(--accent)" : "var(--secondary)",
+                            color: isExpiringSoon ? "var(--accent-foreground)" : "var(--muted-foreground)",
+                          }}
+                        >
+                          ⏰ {timeRemaining}
+                        </span>
+                      )}
                     </div>
                     <div
                       className="text-sm"
