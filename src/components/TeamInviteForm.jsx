@@ -1,7 +1,7 @@
-// src/components/TeamInviteForm.jsx - FIXED to use global collection
+// src/components/TeamInviteForm.jsx - FIXED with expiresAt
 import { useState } from "react";
 import { db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 
 export default function TeamInviteForm({ teamId, teamName, role }) {
@@ -28,7 +28,10 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
     setLoading(true);
 
     try {
-      // ✅ FIXED: Use global collection 'team-invites' (matches MyInvites.jsx)
+      // ✅ Calculate expiration (7 days from now)
+      const expiresAt = Timestamp.fromMillis(Date.now() + (7 * 24 * 60 * 60 * 1000));
+      
+      // ✅ Create invite with all required fields including expiresAt
       await addDoc(collection(db, "team-invites"), {
         teamId: teamId,
         teamName: teamName,
@@ -37,6 +40,7 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
         invitedBy: user.uid,
         inviterName: user.displayName || user.email,
         createdAt: serverTimestamp(),
+        expiresAt: expiresAt, // ✅ ADDED
         status: "pending",
       });
 
@@ -69,8 +73,8 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
       setEmail("");
       setInviteRole("member");
 
-      // Show success message
-      showNotification(`Invite sent to ${email.trim()}!`, "success");
+      // Show success message with expiration info
+      showNotification(`Invite sent to ${email.trim()}! (Valid for 7 days)`, "success");
     } catch (err) {
       console.error("Error sending invite:", err);
 
@@ -195,7 +199,7 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
             disabled={loading}
           />
           <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-            They'll receive an invitation to join your team
+            They'll receive an invitation to join your team (valid for 7 days)
           </p>
         </div>
 
@@ -303,6 +307,9 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
           </div>
           <div>
             • Email notifications are sent if the email service is configured
+          </div>
+          <div>
+            • Invites expire after 7 days and can be cancelled at any time
           </div>
           <div>
             • Invites can be accepted or declined from the user's invite panel
