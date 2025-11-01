@@ -301,7 +301,7 @@ function LandingPage({ onSignIn, onNavigate }) {
       <section className="container mx-auto px-4 py-20 text-center">
         <div className="max-w-4xl mx-auto">
           <div
-            className="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full border"
+            className="mb-6 ai-glow inline-flex items-center gap-2 px-3 py-1 rounded-full border"
             style={{
               backgroundColor: "var(--primary)",
               color: "var(--secondary-foreground)",
