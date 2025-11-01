@@ -66,7 +66,7 @@ function Logo({ size = "normal", onClick }) {
     >
       <img
         src="/logo.png"
-        alt="Prompt Teams Logo"
+        alt="Prism Logo"
         className="w-full h-full object-contain"
         style={{ filter: "drop-shadow(0 0 8px rgba(168, 85, 247, 0.4))" }}
       />
@@ -94,7 +94,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate }) {
               className="text-xl font-bold"
               style={{ color: "var(--foreground)" }}
             >
-              Prompt Teams
+              Prism
             </span>
           </div>
           <div className="hidden md:flex items-center gap-6">
@@ -168,7 +168,7 @@ function Footer({ onNavigate }) {
                 className="font-bold"
                 style={{ color: "var(--foreground)" }}
               >
-                Prompt Teams
+                Prism
               </span>
             </div>
             <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
@@ -315,7 +315,7 @@ function LandingPage({ onSignIn, onNavigate }) {
           </div>
 
           <h1
-            className="text-5xl md:text-7xl font-bold mb-6"
+            className="text-5xl md:text-7xl font-normal mb-6"
             style={{ color: "var(--foreground)" }}
           >
             Build Better Prompts with{" "}
