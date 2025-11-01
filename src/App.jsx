@@ -303,9 +303,10 @@ function LandingPage({ onSignIn, onNavigate }) {
           <div
             className="mb-6 inline-flex items-center gap-2 px-3 py-1 rounded-full border"
             style={{
-              backgroundColor: "var(--secondary)",
-              color: "var(--primary)",
+              backgroundColor: "var(--primary)",
+              color: "var(--secondary-foreground)",
               borderColor: "var(--border)",
+              boxShadow: "0 0 10px var(--glow-purple-bright)"
             }}
           >
             <span className="text-sm">⚡</span>
