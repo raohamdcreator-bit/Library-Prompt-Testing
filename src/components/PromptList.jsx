@@ -1,4 +1,4 @@
-// src/components/PromptList.jsx
+// src/components/PromptList.jsx - Updated with Visibility Controls
 import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -10,7 +10,15 @@ import {
   doc,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
-import { savePrompt, updatePrompt, deletePrompt } from "../lib/prompts";
+import {
+  savePrompt,
+  updatePrompt,
+  deletePrompt,
+  togglePromptVisibility,
+  canViewPrompt,
+  canChangeVisibility,
+  filterVisiblePrompts,
+} from "../lib/prompts";
 import EditPromptModal from "./EditPromptModal";
 import Comments from "./Comments";
 import { FavoriteButton } from "./Favorites";
@@ -22,7 +30,7 @@ import usePagination, { PaginationControls } from "../hooks/usePagination";
 import AIPromptEnhancer from "./AIPromptEnhancer";
 import PromptResults from "./PromptResults";
 
-// SVG Icon Component here
+// SVG Icon Component
 function Icon({ name, className = "w-5 h-5" }) {
   const icons = {
     add: (
@@ -105,6 +113,38 @@ function Icon({ name, className = "w-5 h-5" }) {
         d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
       />
     ),
+    lock: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+      />
+    ),
+    unlock: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
+      />
+    ),
+    eye: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+      />
+    ),
+    eyeOff: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+      />
+    ),
   };
 
   return (
@@ -125,7 +165,12 @@ export default function PromptList({ activeTeam, userRole }) {
   const [prompts, setPrompts] = useState([]);
   const [filteredPrompts, setFilteredPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newPrompt, setNewPrompt] = useState({ title: "", tags: "", text: "" });
+  const [newPrompt, setNewPrompt] = useState({
+    title: "",
+    tags: "",
+    text: "",
+    visibility: "public",
+  });
   const [editingPrompt, setEditingPrompt] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [expandedPromptId, setExpandedPromptId] = useState(null);
@@ -138,10 +183,11 @@ export default function PromptList({ activeTeam, userRole }) {
   const [teamName, setTeamName] = useState("");
   const [showAIEnhancer, setShowAIEnhancer] = useState(false);
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
+  const [visibilityFilter, setVisibilityFilter] = useState("all"); // all, public, private
 
   const pagination = usePagination(filteredPrompts, 10);
 
-  // Load prompts from Firestore
+  // Load prompts from Firestore with visibility filtering
   useEffect(() => {
     if (!activeTeam) {
       setPrompts([]);
@@ -169,8 +215,15 @@ export default function PromptList({ activeTeam, userRole }) {
           new Map(data.map((item) => [item.id, item])).values()
         );
 
-        setPrompts(uniqueData);
-        setFilteredPrompts(uniqueData);
+        // Filter based on visibility permissions
+        const visiblePrompts = filterVisiblePrompts(
+          uniqueData,
+          user.uid,
+          userRole
+        );
+
+        setPrompts(visiblePrompts);
+        setFilteredPrompts(visiblePrompts);
         setLoading(false);
       },
       (error) => {
@@ -180,7 +233,18 @@ export default function PromptList({ activeTeam, userRole }) {
     );
 
     return () => unsub();
-  }, [activeTeam]);
+  }, [activeTeam, user.uid, userRole]);
+
+  // Apply visibility filter
+  useEffect(() => {
+    if (visibilityFilter === "all") {
+      setFilteredPrompts(prompts);
+    } else {
+      setFilteredPrompts(
+        prompts.filter((p) => p.visibility === visibilityFilter)
+      );
+    }
+  }, [visibilityFilter, prompts]);
 
   // Load team name
   useEffect(() => {
@@ -241,10 +305,8 @@ export default function PromptList({ activeTeam, userRole }) {
     setFilteredPrompts(filtered);
   }
 
-  // FIX: Memoized callback that only updates if count actually changes
   const handleResultsChange = useCallback((promptId, count) => {
     setResultCounts((prev) => {
-      // Only update if count actually changed to prevent unnecessary re-renders
       if (prev[promptId] === count) return prev;
       return {
         ...prev,
@@ -270,11 +332,12 @@ export default function PromptList({ activeTeam, userRole }) {
             .split(",")
             .map((t) => t.trim())
             .filter(Boolean),
+          visibility: newPrompt.visibility,
         },
         activeTeam
       );
 
-      setNewPrompt({ title: "", tags: "", text: "" });
+      setNewPrompt({ title: "", tags: "", text: "", visibility: "public" });
       setShowCreateForm(false);
       showNotification("Prompt created successfully!", "success");
     } catch (error) {
@@ -319,6 +382,34 @@ export default function PromptList({ activeTeam, userRole }) {
     }
   }
 
+  async function handleToggleVisibility(promptId) {
+    const prompt = prompts.find((p) => p.id === promptId);
+    if (!prompt) return;
+
+    if (!canChangeVisibility(prompt, user.uid, userRole)) {
+      showNotification(
+        "You don't have permission to change visibility",
+        "error"
+      );
+      return;
+    }
+
+    try {
+      const newVisibility = await togglePromptVisibility(
+        activeTeam,
+        promptId,
+        prompt.visibility || "public"
+      );
+      showNotification(
+        `Prompt is now ${newVisibility === "private" ? "private" : "public"}`,
+        "success"
+      );
+    } catch (error) {
+      console.error("Error toggling visibility:", error);
+      showNotification("Failed to change visibility", "error");
+    }
+  }
+
   async function handleCopy(text) {
     try {
       await navigator.clipboard.writeText(text);
@@ -336,7 +427,6 @@ export default function PromptList({ activeTeam, userRole }) {
     }));
   }
 
-  // FIX: Simple toggle without triggering cascading updates
   function toggleResults(promptId) {
     setShowResults((prev) => ({
       ...prev,
@@ -429,6 +519,7 @@ export default function PromptList({ activeTeam, userRole }) {
           title: enhancedPrompt.title,
           text: enhancedPrompt.text,
           tags: Array.isArray(enhancedPrompt.tags) ? enhancedPrompt.tags : [],
+          visibility: enhancedPrompt.visibility || "public",
         },
         activeTeam
       );
@@ -534,6 +625,25 @@ export default function PromptList({ activeTeam, userRole }) {
     );
   }
 
+  function getVisibilityBadge(visibility) {
+    const isPrivate = visibility === "private";
+    return {
+      icon: isPrivate ? "lock" : "unlock",
+      label: isPrivate ? "Private" : "Public",
+      style: {
+        padding: "2px 8px",
+        borderRadius: "12px",
+        fontSize: "0.75rem",
+        fontWeight: "500",
+        backgroundColor: isPrivate ? "var(--accent)" : "var(--secondary)",
+        color: isPrivate
+          ? "var(--accent-foreground)"
+          : "var(--secondary-foreground)",
+        border: "1px solid var(--border)",
+      },
+    };
+  }
+
   if (loading) {
     return (
       <div className="glass-card p-8 text-center">
@@ -547,7 +657,7 @@ export default function PromptList({ activeTeam, userRole }) {
     <div className="space-y-6">
       {/* Header */}
       <div className="glass-card p-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h2
               className="text-2xl font-bold mb-2"
@@ -568,6 +678,36 @@ export default function PromptList({ activeTeam, userRole }) {
             <Icon name={showCreateForm ? "close" : "add"} />
             <span>{showCreateForm ? "Cancel" : "New Prompt"}</span>
           </button>
+        </div>
+
+        {/* Visibility Filter */}
+        <div className="flex items-center gap-3 mt-4">
+          <span
+            className="text-sm font-medium"
+            style={{ color: "var(--foreground)" }}
+          >
+            Show:
+          </span>
+          <div className="flex gap-2">
+            {[
+              { value: "all", label: "All", icon: "eye" },
+              { value: "public", label: "Public", icon: "unlock" },
+              { value: "private", label: "Private", icon: "lock" },
+            ].map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => setVisibilityFilter(filter.value)}
+                className={`px-3 py-1 text-sm rounded-lg flex items-center gap-2 transition-all ${
+                  visibilityFilter === filter.value
+                    ? "btn-primary"
+                    : "btn-secondary"
+                }`}
+              >
+                <Icon name={filter.icon} className="w-4 h-4" />
+                <span>{filter.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -642,6 +782,50 @@ export default function PromptList({ activeTeam, userRole }) {
               />
             </div>
 
+            {/* Visibility Control */}
+            <div>
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ color: "var(--foreground)" }}
+              >
+                Visibility
+              </label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value="public"
+                    checked={newPrompt.visibility === "public"}
+                    onChange={(e) =>
+                      setNewPrompt({ ...newPrompt, visibility: e.target.value })
+                    }
+                    className="form-radio"
+                  />
+                  <Icon name="unlock" className="w-4 h-4" />
+                  <span className="text-sm">
+                    Public - All team members can view
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value="private"
+                    checked={newPrompt.visibility === "private"}
+                    onChange={(e) =>
+                      setNewPrompt({ ...newPrompt, visibility: e.target.value })
+                    }
+                    className="form-radio"
+                  />
+                  <Icon name="lock" className="w-4 h-4" />
+                  <span className="text-sm">
+                    Private - Only you and admins can view
+                  </span>
+                </label>
+              </div>
+            </div>
+
             <div className="flex gap-3">
               <button type="submit" className="btn-primary px-6 py-2">
                 Create Prompt
@@ -701,7 +885,7 @@ export default function PromptList({ activeTeam, userRole }) {
           >
             {pagination.isFiltered ? "No matching prompts" : "No prompts yet"}
           </h3>
-          <p style={{ color: "var(--muted-foreground)" }}>
+          <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
             {pagination.isFiltered
               ? "Try adjusting your search filters"
               : "Create your first prompt to get started"}
@@ -722,11 +906,17 @@ export default function PromptList({ activeTeam, userRole }) {
             const isExpanded = expandedPromptId === prompt.id;
             const isSelected = selectedPrompts.includes(prompt.id);
             const resultsCount = resultCounts[prompt.id] || 0;
+            const visibilityBadge = getVisibilityBadge(
+              prompt.visibility || "public"
+            );
+            const isPrivate = prompt.visibility === "private";
 
             return (
               <div
                 key={prompt.id}
-                className="glass-card p-6 transition-all duration-300 hover:border-primary/50"
+                className={`glass-card p-6 transition-all duration-300 hover:border-primary/50 ${
+                  isPrivate ? "border-accent/30" : ""
+                }`}
               >
                 {/* Header */}
                 <div className="flex items-start justify-between mb-4">
@@ -746,12 +936,25 @@ export default function PromptList({ activeTeam, userRole }) {
                     />
 
                     <div className="flex-1 min-w-0">
-                      <h3
-                        className="text-lg font-semibold mb-1"
-                        style={{ color: "var(--foreground)" }}
-                      >
-                        {prompt.title}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3
+                          className="text-lg font-semibold"
+                          style={{ color: "var(--foreground)" }}
+                        >
+                          {prompt.title}
+                        </h3>
+                        {/* Visibility Badge */}
+                        <span
+                          style={visibilityBadge.style}
+                          className="flex items-center gap-1"
+                        >
+                          <Icon
+                            name={visibilityBadge.icon}
+                            className="w-3 h-3"
+                          />
+                          {visibilityBadge.label}
+                        </span>
+                      </div>
                       <div
                         className="flex items-center gap-3 text-xs flex-wrap"
                         style={{ color: "var(--muted-foreground)" }}
@@ -779,6 +982,28 @@ export default function PromptList({ activeTeam, userRole }) {
 
                   {/* Action Buttons */}
                   <div className="flex items-center gap-2 ml-4">
+                    {/* Visibility Toggle */}
+                    {canChangeVisibility(prompt, user.uid, userRole) && (
+                      <button
+                        onClick={() => handleToggleVisibility(prompt.id)}
+                        className="p-2 rounded-lg transition-all duration-200 hover:scale-110"
+                        style={{
+                          backgroundColor: isPrivate
+                            ? "var(--accent)"
+                            : "var(--secondary)",
+                          color: isPrivate
+                            ? "var(--accent-foreground)"
+                            : "var(--foreground)",
+                        }}
+                        title={`Make ${isPrivate ? "public" : "private"}`}
+                      >
+                        <Icon
+                          name={isPrivate ? "eyeOff" : "eye"}
+                          className="w-5 h-5"
+                        />
+                      </button>
+                    )}
+
                     <FavoriteButton
                       prompt={prompt}
                       teamId={activeTeam}
@@ -907,7 +1132,7 @@ export default function PromptList({ activeTeam, userRole }) {
                   >
                     <CompactAITools text={prompt.text} />
 
-                    {/* Results Section - FIX: Added unique key to prevent remounting */}
+                    {/* Results Section */}
                     <div>
                       <button
                         onClick={() => toggleResults(prompt.id)}
