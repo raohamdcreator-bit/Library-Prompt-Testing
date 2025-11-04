@@ -392,7 +392,7 @@ export default function TeamChat({
         position === "right" ? "right-0 border-l" : "left-80 border-r"
       }`}
       style={{
-        backgroundColor: "var(--card)",
+        backgroundColor: "var(--background)",
         borderColor: "var(--border)",
       }}
     >
