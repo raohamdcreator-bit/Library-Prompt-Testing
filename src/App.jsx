@@ -1,4 +1,4 @@
-// src/App.jsx - Complete with Fixed Routing, Legal Pages, Join Team, and Live Chat
+// src/App.jsx - Complete with Waitlist Route
 import { useEffect, useState } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -30,6 +30,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import About from "./pages/About";
 import JoinTeam from "./pages/JoinTeam";
+import Waitlist from "./pages/Waitlist"; // ✅ NEW IMPORT
 import { NavigationProvider } from "./components/LegalLayout";
 
 // ===================================
@@ -42,7 +43,7 @@ function Router({ currentPath, children }) {
     // Exact match for paths without query parameters
     if (currentPath === routePath) return true;
     // Match base path even with query parameters (e.g., /join?teamId=123)
-    if (currentPath.startsWith(routePath + '?')) return true;
+    if (currentPath.startsWith(routePath + "?")) return true;
     return false;
   });
   return route || null;
@@ -306,7 +307,7 @@ function LandingPage({ onSignIn, onNavigate }) {
               backgroundColor: "var(--primary)",
               color: "var(--secondary-foreground)",
               borderColor: "var(--border)",
-              boxShadow: "0 0 10px var(--glow-purple-bright)"
+              boxShadow: "0 0 10px var(--glow-purple-bright)",
             }}
           >
             <span className="text-sm">⚡</span>
@@ -340,9 +341,12 @@ function LandingPage({ onSignIn, onNavigate }) {
               <span className="mr-2">⚡</span>
               Get Started
             </button>
-            <button className="btn-secondary px-8 py-3 text-lg font-medium ai-pulse-border">
-              <span className="mr-2">▶</span>
-              View Demo
+            <button
+              onClick={() => onNavigate("/waitlist")}
+              className="btn-secondary px-8 py-3 text-lg font-medium ai-pulse-border"
+            >
+              <span className="mr-2">🚀</span>
+              Join Waitlist
             </button>
           </div>
 
@@ -355,14 +359,14 @@ function LandingPage({ onSignIn, onNavigate }) {
         </div>
       </section>
 
-      {/* Features Grid */}
+      {/* Current Features Grid */}
       <section className="container mx-auto px-4 py-20">
         <div className="text-center mb-16">
           <h2
             className="text-3xl md:text-4xl font-bold mb-4"
             style={{ color: "var(--foreground)" }}
           >
-            Everything you need for prompt collaboration
+            Everything you need to collaborate on AI prompts
           </h2>
           <p
             className="text-lg max-w-2xl mx-auto"
@@ -373,27 +377,52 @@ function LandingPage({ onSignIn, onNavigate }) {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {[
             {
-              icon: "🧠",
-              title: "Smart Library",
-              desc: "Organize and categorize your prompts with intelligent tagging and search.",
+              icon: "⚡",
+              title: "Real-time Collaboration",
+              desc: "Work together seamlessly with live updates and team chat.",
             },
             {
-              icon: "👥",
-              title: "Team Collaboration",
-              desc: "Share prompts with your team and collaborate in real-time.",
+              icon: "📜",
+              title: "Prompt Version Control",
+              desc: "Track changes and revert to previous versions effortlessly.",
             },
             {
-              icon: "⭐",
-              title: "Favorites & Ratings",
-              desc: "Save your best prompts and rate others contributions.",
+              icon: "🤖",
+              title: "Multi-Model Testing",
+              desc: "Test prompts across different AI models simultaneously.",
+            },
+            {
+              icon: "🔒",
+              title: "Prompt Privacy Controls",
+              desc: "Granular permissions to control who sees what.",
+            },
+            {
+              icon: "🔍",
+              title: "Plagiarism & Similarity Detection",
+              desc: "Ensure originality with built-in similarity checks.",
+            },
+            {
+              icon: "📎",
+              title: "Attach Outputs",
+              desc: "Save text, code, images and results alongside prompts.",
             },
             {
               icon: "📊",
-              title: "Analytics",
-              desc: "Track usage patterns and optimize your prompt performance.",
+              title: "Prompt History & Analytics",
+              desc: "Track usage patterns and optimize performance.",
+            },
+            {
+              icon: "👥",
+              title: "Team Workspace Roles",
+              desc: "Owner, Admin, and Member roles with custom permissions.",
+            },
+            {
+              icon: "⚙️",
+              title: "Execute & Export Prompts",
+              desc: "Run prompts directly and export to JSON/API formats.",
             },
           ].map((feature, index) => (
             <div
@@ -420,6 +449,246 @@ function LandingPage({ onSignIn, onNavigate }) {
               </p>
             </div>
           ))}
+        </div>
+
+        <div className="text-center">
+          <button
+            className="btn-primary ai-glow px-8 py-3 text-lg font-medium"
+            onClick={onSignIn}
+          >
+            Explore Features
+          </button>
+        </div>
+      </section>
+
+      {/* Upcoming Features - AI Governance */}
+      <section
+        className="container mx-auto px-4 py-20"
+        style={{ backgroundColor: "var(--card)" }}
+      >
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <div
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border"
+              style={{
+                backgroundColor: "var(--accent)",
+                borderColor: "var(--border)",
+                color: "var(--accent-foreground)",
+              }}
+            >
+              <span>🎓</span>
+              <span className="font-semibold">Enterprise & EDU Only</span>
+            </div>
+            <h4
+              className="text-2xl md:text-2xl font-bold mb-4"
+              style={{ color: "var(--foreground)" }}
+            >
+              Upcoming Features
+            </h4>
+            <h2
+              className="text-3xl md:text-4xl font-bold mb-4"
+              style={{ color: "var(--foreground)" }}
+            >
+              AI Governance & Learning Intelligence
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12 items-center mb-8">
+            {/* Left side - Features */}
+            <div className="space-y-6">
+              <div className="flex flex-wrap gap-3">
+                {[
+                  "Live LLM prompt tracking",
+                  "VS Code & Cursor monitoring",
+                  "Capture errors, pasted code & AI-generated code",
+                  "Skill scoring & competency reports",
+                  "Student learning analysis",
+                ].map((feature, index) => (
+                  <div
+                    key={index}
+                    className="px-4 py-2 rounded-full border text-sm"
+                    style={{
+                      backgroundColor: "var(--secondary)",
+                      borderColor: "var(--border)",
+                      color: "var(--secondary-foreground)",
+                    }}
+                  >
+                    ✓ {feature}
+                  </div>
+                ))}
+              </div>
+
+              <p
+                className="text-lg leading-relaxed"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                Monitor AI usage in real-time across your organization. Track
+                student learning patterns, detect code plagiarism, and generate
+                comprehensive skill analytics - all while maintaining privacy
+                and compliance.
+              </p>
+            </div>
+
+            {/* Right side - Screenshot placeholder */}
+            <div
+              className="glass-card p-8 rounded-lg border aspect-video flex items-center justify-center"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <div className="text-center">
+                <div className="text-6xl mb-4">💻</div>
+                <p
+                  className="text-lg font-semibold"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  IDE Plugin Interface
+                </p>
+                <p
+                  className="text-sm mt-2"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Real-time AI prompt tracking & monitoring
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <button
+              onClick={() => onNavigate("/waitlist")}
+              className="btn-secondary px-8 py-3 text-lg font-medium"
+            >
+              Request Access
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Competitive Advantage */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-12">
+            <h2
+              className="text-3xl md:text-4xl font-bold mb-4"
+              style={{ color: "var(--foreground)" }}
+            >
+              Why This Platform?
+            </h2>
+            <p className="text-lg" style={{ color: "var(--muted-foreground)" }}>
+              The only platform that combines prompt collaboration with AI
+              governance
+            </p>
+          </div>
+
+          <div
+            className="glass-card p-8 rounded-lg border overflow-x-auto"
+            style={{ borderColor: "var(--border)" }}
+          >
+            <table className="w-full">
+              <thead>
+                <tr
+                  className="border-b"
+                  style={{ borderColor: "var(--border)" }}
+                >
+                  <th
+                    className="text-left py-4 px-4 font-semibold"
+                    style={{ color: "var(--foreground)" }}
+                  >
+                    Focus
+                  </th>
+                  <th
+                    className="text-center py-4 px-4 font-semibold"
+                    style={{ color: "var(--primary)" }}
+                  >
+                    Prism
+                  </th>
+                  <th
+                    className="text-center py-4 px-4 font-semibold"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    Others
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  "Prompt collab + governance",
+                  "Prompt privacy controls",
+                  "Plagiarism & student ethics",
+                  "Real-time IDE AI tracking",
+                  "Skill analytics",
+                ].map((feature, index) => (
+                  <tr
+                    key={index}
+                    className="border-b"
+                    style={{ borderColor: "var(--border)" }}
+                  >
+                    <td
+                      className="py-4 px-4"
+                      style={{ color: "var(--foreground)" }}
+                    >
+                      {feature}
+                    </td>
+                    <td className="text-center py-4 px-4">
+                      <span className="text-2xl text-green-500">✅</span>
+                    </td>
+                    <td className="text-center py-4 px-4">
+                      <span className="text-2xl text-red-500">❌</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="text-center mt-8">
+            <p
+              className="text-xl font-semibold"
+              style={{ color: "var(--foreground)" }}
+            >
+              We are the AI workspace + monitoring layer the world has been
+              waiting for.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section
+        className="container mx-auto px-4 py-20"
+        style={{ backgroundColor: "var(--card)" }}
+      >
+        <div className="max-w-4xl mx-auto text-center">
+          <h2
+            className="text-3xl md:text-5xl font-bold mb-6"
+            style={{ color: "var(--foreground)" }}
+          >
+            Ready to build smarter AI workflows?
+          </h2>
+          <p
+            className="text-xl mb-8"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            Join teams already transforming their AI collaboration
+          </p>
+
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
+            <button
+              onClick={onSignIn}
+              className="btn-primary ai-glow px-8 py-4 text-lg font-semibold min-w-[200px]"
+            >
+              Start Free
+            </button>
+            <button
+              onClick={() => onNavigate("/waitlist")}
+              className="btn-secondary px-8 py-4 text-lg font-semibold min-w-[200px]"
+            >
+              Book EDU/Enterprise Demo
+            </button>
+          </div>
+
+          <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            No credit card required • Free forever for individuals
+          </p>
         </div>
       </section>
 
@@ -450,7 +719,7 @@ export default function App() {
   const navigate = (path) => {
     console.log("Navigate called with path:", path);
     setCurrentPath(path);
-    window.history.pushState({}, '', path);
+    window.history.pushState({}, "", path);
     window.scrollTo(0, 0);
   };
 
@@ -470,8 +739,8 @@ export default function App() {
       setCurrentPath(newPath);
     };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   // ===================================
@@ -757,20 +1026,30 @@ export default function App() {
   // ===================================
   // RENDER SPECIAL ROUTES (Legal/Join)
   // ===================================
-  const isSpecialRoute = ["/contact", "/privacy", "/terms", "/about", "/join"].some(
-    route => currentPath === route || currentPath.startsWith(route + '?')
+  const isSpecialRoute = [
+    "/contact",
+    "/privacy",
+    "/terms",
+    "/about",
+    "/join",
+    "/waitlist",
+  ].some(
+    (route) => currentPath === route || currentPath.startsWith(route + "?")
   );
 
   if (isSpecialRoute) {
     return (
       <NavigationProvider navigate={navigate}>
         <div style={{ background: "var(--background)", minHeight: "100vh" }}>
-          <Navigation
-            onSignIn={signInWithGoogle}
-            isAuthenticated={!!user}
-            onNavigate={navigate}
-          />
-          <Router currentPath={currentPath.split('?')[0]}>
+          {/* Only show Navigation for non-waitlist pages */}
+          {currentPath !== "/waitlist" && (
+            <Navigation
+              onSignIn={signInWithGoogle}
+              isAuthenticated={!!user}
+              onNavigate={navigate}
+            />
+          )}
+          <Router currentPath={currentPath.split("?")[0]}>
             <Route path="/contact">
               <Contact />
             </Route>
@@ -786,13 +1065,16 @@ export default function App() {
             <Route path="/join">
               <JoinTeam onNavigate={navigate} />
             </Route>
+            <Route path="/waitlist">
+              <Waitlist onNavigate={navigate} />
+            </Route>
           </Router>
-          <Footer onNavigate={navigate} />
+          {/* Only show Footer for non-waitlist pages */}
+          {currentPath !== "/waitlist" && <Footer onNavigate={navigate} />}
         </div>
       </NavigationProvider>
     );
   }
-
   // ===================================
   // LOADING STATE
   // ===================================
@@ -1226,7 +1508,7 @@ export default function App() {
         <TeamChat
           teamId={activeTeamObj.id}
           teamName={activeTeamObj.name}
-          position="left"
+          position="right"
           isOpen={isChatOpen}
           onToggle={() => setIsChatOpen(!isChatOpen)}
         />
