@@ -1,299 +1,191 @@
-// src/components/Favorites.jsx - FIXED VERSION
+// src/components/Favorites.jsx - Updated with Visibility Support
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
-import {
-  collection,
-  doc,
-  setDoc,
-  deleteDoc,
-  onSnapshot,
-  serverTimestamp,
-  getDoc,
-} from "firebase/firestore";
+import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { toggleFavorite } from "../lib/prompts";
+import { canViewPrompt } from "../lib/prompts";
 
-// Hook: useFavorites
-export function useFavorites() {
+// Favorite Button Component
+export function FavoriteButton({ prompt, teamId, teamName, size = "normal" }) {
+  const { user } = useAuth();
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user || !prompt) return;
+
+    const favRef = doc(db, "users", user.uid, "favorites", prompt.id);
+    const unsubscribe = onSnapshot(favRef, (snap) => {
+      setIsFavorite(snap.exists());
+    });
+
+    return () => unsubscribe();
+  }, [user, prompt]);
+
+  async function handleToggle() {
+    if (!user || loading) return;
+
+    setLoading(true);
+    try {
+      await toggleFavorite(user.uid, { ...prompt, teamId }, isFavorite);
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const buttonSize = size === "small" ? "p-2" : "p-3";
+  const iconSize = size === "small" ? "w-5 h-5" : "w-6 h-6";
+
+  return (
+    <button
+      onClick={handleToggle}
+      disabled={loading}
+      className={`${buttonSize} rounded-lg transition-all duration-200 hover:scale-110 ${
+        loading ? "opacity-50" : ""
+      }`}
+      style={{
+        backgroundColor: isFavorite ? "var(--accent)" : "var(--secondary)",
+        color: isFavorite ? "var(--accent-foreground)" : "var(--foreground)",
+      }}
+      title={isFavorite ? "Remove from favorites" : "Add to favorites"}
+    >
+      <svg
+        className={iconSize}
+        fill={isFavorite ? "currentColor" : "none"}
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+        />
+      </svg>
+    </button>
+  );
+}
+
+// Main Favorites List Component
+export default function FavoritesList() {
   const { user } = useAuth();
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expandedFavorites, setExpandedFavorites] = useState({});
+  const [teamRoles, setTeamRoles] = useState({});
 
   useEffect(() => {
-    if (!user?.uid) {
+    if (!user) {
       setFavorites([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
-    const userFavoritesRef = collection(db, "users", user.uid, "favorites");
-
-    const unsub = onSnapshot(
-      userFavoritesRef,
-      (snap) => {
-        const favs = snap.docs.map((docSnap) => ({
-          id: docSnap.id,
-          ...docSnap.data(),
+    const favsRef = collection(db, "users", user.uid, "favorites");
+    const unsubscribe = onSnapshot(
+      favsRef,
+      async (snapshot) => {
+        const favData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
         }));
 
-        favs.sort(
-          (a, b) => (b.addedAt?.toMillis() || 0) - (a.addedAt?.toMillis() || 0)
-        );
+        // Load team roles for visibility checking
+        const roles = {};
+        const uniqueTeamIds = [...new Set(favData.map((f) => f.teamId))];
 
-        setFavorites(favs);
+        for (const teamId of uniqueTeamIds) {
+          try {
+            const teamDoc = await getDoc(doc(db, "teams", teamId));
+            if (teamDoc.exists()) {
+              const teamData = teamDoc.data();
+              roles[teamId] = teamData.members?.[user.uid] || null;
+            }
+          } catch (error) {
+            console.error("Error loading team role:", error);
+          }
+        }
+
+        setTeamRoles(roles);
+
+        // Filter out favorites that user can no longer view
+        const visibleFavorites = favData.filter((fav) => {
+          const userRole = roles[fav.teamId];
+          return canViewPrompt(fav, user.uid, userRole);
+        });
+
+        setFavorites(visibleFavorites);
         setLoading(false);
       },
       (error) => {
         console.error("Error loading favorites:", error);
-        setFavorites([]);
         setLoading(false);
       }
     );
 
-    return () => unsub();
-  }, [user?.uid]);
+    return () => unsubscribe();
+  }, [user]);
 
-  // ✅ FIXED: Get team name if missing
-  async function getTeamName(teamId) {
-    try {
-      const teamDoc = await getDoc(doc(db, "teams", teamId));
-      if (teamDoc.exists()) {
-        return teamDoc.data().name || "Unknown Team";
-      }
-      return "Unknown Team";
-    } catch (error) {
-      console.error("Error fetching team name:", error);
-      return "Unknown Team";
-    }
-  }
-
-  async function addToFavorites(prompt, teamId, teamName) {
-    if (!user || !prompt) {
-      console.error("Cannot add favorite: missing user or prompt");
-      return;
-    }
-
-    // ✅ FIXED: Fetch team name if not provided
-    let finalTeamName = teamName;
-    if (!finalTeamName && teamId) {
-      finalTeamName = await getTeamName(teamId);
-    }
-
-    // ✅ FIXED: Validate all required fields
-    const favoriteData = {
-      promptId: prompt.id || null,
-      teamId: teamId || null,
-      teamName: finalTeamName || "Unknown Team",
-      title: prompt.title || "Untitled Prompt",
-      text: prompt.text || "",
-      tags: Array.isArray(prompt.tags) ? prompt.tags : [],
-      originalAuthor: prompt.createdBy || null,
-      addedAt: serverTimestamp(),
-      originalCreatedAt: prompt.createdAt || null,
-    };
-
-    console.log("Adding favorite:", favoriteData);
+  async function handleRemoveFavorite(favorite) {
+    if (!confirm("Remove this prompt from favorites?")) return;
 
     try {
-      const favoriteRef = doc(db, "users", user.uid, "favorites", prompt.id);
-      await setDoc(favoriteRef, favoriteData);
-    } catch (error) {
-      console.error("Error adding favorite:", error);
-      throw error;
-    }
-  }
-
-  async function removeFromFavorites(favoriteId) {
-    if (!user || !favoriteId) return;
-    
-    try {
-      const favoriteRef = doc(db, "users", user.uid, "favorites", favoriteId);
-      await deleteDoc(favoriteRef);
+      await toggleFavorite(user.uid, favorite, true);
     } catch (error) {
       console.error("Error removing favorite:", error);
-      throw error;
     }
   }
 
-  async function toggleFavorite(prompt, teamId, teamName) {
-    if (!prompt) return;
-
-    const exists = favorites.some((f) => f.id === prompt.id);
-    if (exists) {
-      await removeFromFavorites(prompt.id);
-    } else {
-      await addToFavorites(prompt, teamId, teamName);
-    }
-  }
-
-  return {
-    favorites,
-    loading,
-    isFavorite: (promptId) => favorites.some((f) => f.id === promptId),
-    addToFavorites,
-    removeFromFavorites,
-    toggleFavorite,
-  };
-}
-
-// Component: FavoriteButton
-export function FavoriteButton({
-  prompt,
-  teamId,
-  teamName,
-  size = "normal",
-  className = "",
-}) {
-  const { user } = useAuth();
-  const { isFavorite, toggleFavorite } = useFavorites();
-  const [isToggling, setIsToggling] = useState(false);
-
-  if (!user) return null;
-
-  async function handleToggle(e) {
-    e.stopPropagation();
-    if (isToggling || !prompt) return;
-
-    setIsToggling(true);
-    try {
-      // ✅ FIXED: Ensure user profile exists
-      const userRef = doc(db, "users", user.uid);
-      await setDoc(
-        userRef,
-        {
-          name: user.displayName || "",
-          email: user.email || "",
-          avatar: user.photoURL || "",
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
-
-      await toggleFavorite(prompt, teamId, teamName);
-
-      const action = isFavorite(prompt.id) ? "removed from" : "added to";
-      const toast = document.createElement("div");
-      toast.innerHTML = `
-        <div class="flex items-center gap-2">
-          <span>${isFavorite(prompt.id) ? "💔" : "⭐"}</span>
-          <span>Prompt ${action} favorites!</span>
-        </div>
-      `;
-      toast.className =
-        "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-50 text-sm";
-      toast.style.backgroundColor = "var(--card)";
-      toast.style.color = "var(--foreground)";
-      toast.style.border = "1px solid var(--primary)";
-      document.body.appendChild(toast);
-      setTimeout(() => {
-        if (document.body.contains(toast)) {
-          document.body.removeChild(toast);
-        }
-      }, 3000);
-    } catch (error) {
-      console.error("Error updating favorites:", error);
-      alert("Failed to update favorites. Please try again.");
-    } finally {
-      setIsToggling(false);
-    }
-  }
-
-  const isFav = isFavorite(prompt.id);
-  const sizeClass = size === "small" ? "p-1.5" : "p-2";
-
-  return (
-    <button
-      onClick={handleToggle}
-      disabled={isToggling}
-      className={`rounded-lg transition-all duration-200 ${sizeClass} ${className} ${
-        isFav
-          ? "text-yellow-400 bg-yellow-400/10 hover:bg-yellow-400/20"
-          : "hover:bg-gray-100/10"
-      }`}
-      style={{
-        color: isFav ? "#fbbf24" : "var(--muted-foreground)",
-      }}
-      title={isFav ? "Remove from favorites" : "Add to favorites"}
-    >
-      {isToggling ? (
-        <div className="neo-spinner w-4 h-4"></div>
-      ) : (
-        <span className="text-lg">{isFav ? "★" : "☆"}</span>
-      )}
-    </button>
-  );
-}
-
-// Component: FavoritesList
-export default function FavoritesList() {
-  const { user } = useAuth();
-  const { favorites, loading, removeFromFavorites } = useFavorites();
-  const [profiles, setProfiles] = useState({});
-  const [search, setSearch] = useState("");
-
-  // Load author profiles
-  useEffect(() => {
-    async function fetchProfiles() {
-      const authorIds = [
-        ...new Set(favorites.map((f) => f.originalAuthor).filter(Boolean)),
-      ];
-      const profilesData = {};
-
-      for (const authorId of authorIds) {
-        try {
-          const userDoc = await getDoc(doc(db, "users", authorId));
-          if (userDoc.exists()) {
-            profilesData[authorId] = userDoc.data();
-          }
-        } catch (error) {
-          console.error("Error loading author profile:", error);
-        }
-      }
-
-      setProfiles(profilesData);
-    }
-
-    if (favorites.length > 0) fetchProfiles();
-  }, [favorites]);
-
-  async function copyToClipboard(text) {
+  async function handleCopy(text) {
     try {
       await navigator.clipboard.writeText(text);
-      const toast = document.createElement("div");
-      toast.innerHTML = `
-        <div class="flex items-center gap-2">
-          <span>📋</span>
-          <span>Prompt copied to clipboard!</span>
-        </div>
-      `;
-      toast.className =
-        "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-50 text-sm";
-      toast.style.backgroundColor = "var(--card)";
-      toast.style.color = "var(--foreground)";
-      toast.style.border = "1px solid var(--primary)";
-      document.body.appendChild(toast);
-      setTimeout(() => {
-        if (document.body.contains(toast)) {
-          document.body.removeChild(toast);
-        }
-      }, 3000);
+      showNotification("Copied to clipboard!", "success");
     } catch (error) {
-      console.error("Failed to copy:", error);
-      alert("Failed to copy to clipboard.");
+      console.error("Error copying:", error);
+      showNotification("Failed to copy", "error");
     }
   }
 
-  const filteredFavorites = favorites.filter((favorite) => {
-    if (!search.trim()) return true;
-    return (
-      favorite.title?.toLowerCase().includes(search.toLowerCase()) ||
-      favorite.text?.toLowerCase().includes(search.toLowerCase()) ||
-      (Array.isArray(favorite.tags) &&
-        favorite.tags.some((tag) =>
-          tag.toLowerCase().includes(search.toLowerCase())
-        ))
-    );
-  });
+  function toggleExpanded(id) {
+    setExpandedFavorites((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  }
+
+  function showNotification(message, type = "info") {
+    const notification = document.createElement("div");
+    const icons = { success: "✅", error: "❌", info: "ℹ️" };
+
+    notification.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span>${icons[type]}</span>
+        <span>${message}</span>
+      </div>
+    `;
+
+    notification.className =
+      "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-50 text-sm transition-opacity duration-300";
+    notification.style.backgroundColor = "var(--card)";
+    notification.style.color = "var(--foreground)";
+    notification.style.border = `1px solid var(--${
+      type === "error" ? "destructive" : "primary"
+    })`;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      notification.style.opacity = "0";
+      setTimeout(() => {
+        if (notification.parentNode) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }, 3000);
+  }
 
   function formatDate(timestamp) {
     if (!timestamp) return "";
@@ -308,6 +200,25 @@ export default function FavoritesList() {
     }
   }
 
+  function getVisibilityBadge(visibility) {
+    const isPrivate = visibility === "private";
+    return {
+      icon: isPrivate ? "🔒" : "🔓",
+      label: isPrivate ? "Private" : "Public",
+      style: {
+        padding: "2px 8px",
+        borderRadius: "12px",
+        fontSize: "0.75rem",
+        fontWeight: "500",
+        backgroundColor: isPrivate ? "var(--accent)" : "var(--secondary)",
+        color: isPrivate
+          ? "var(--accent-foreground)"
+          : "var(--secondary-foreground)",
+        border: "1px solid var(--border)",
+      },
+    };
+  }
+
   if (loading) {
     return (
       <div className="glass-card p-8 text-center">
@@ -319,225 +230,204 @@ export default function FavoritesList() {
     );
   }
 
+  if (favorites.length === 0) {
+    return (
+      <div className="glass-card p-12 text-center">
+        <div className="text-6xl mb-4">⭐</div>
+        <h3
+          className="text-xl font-semibold mb-2"
+          style={{ color: "var(--foreground)" }}
+        >
+          No Favorites Yet
+        </h3>
+        <p style={{ color: "var(--muted-foreground)" }}>
+          Star prompts from any team to save them here for quick access
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="glass-card p-6">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-2">
           <div
             className="w-10 h-10 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: "var(--primary)" }}
+            style={{ backgroundColor: "var(--accent)" }}
           >
-            <span
-              className="text-lg"
-              style={{ color: "var(--primary-foreground)" }}
-            >
-              ⭐
-            </span>
+            <span className="text-lg">⭐</span>
           </div>
           <div>
             <h2
-              className="text-xl font-bold"
+              className="text-2xl font-bold"
               style={{ color: "var(--foreground)" }}
             >
               My Favorites
             </h2>
             <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-              {favorites.length} {favorites.length === 1 ? "prompt" : "prompts"}{" "}
-              saved across all teams
+              {favorites.length} saved{" "}
+              {favorites.length === 1 ? "prompt" : "prompts"}
             </p>
           </div>
         </div>
-
-        {/* Search */}
-        {favorites.length > 0 && (
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search your favorites..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="search-input"
-            />
-          </div>
-        )}
       </div>
 
-      {/* Empty State */}
-      {filteredFavorites.length === 0 ? (
-        <div className="glass-card p-12 text-center">
-          {favorites.length === 0 ? (
-            <>
-              <div className="text-6xl mb-4">⭐</div>
-              <h3
-                className="text-lg font-semibold mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
-                No favorites yet
-              </h3>
-              <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
-                Click the star icon on any prompt to save it to your favorites
-              </p>
-              <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  borderColor: "var(--border)",
-                  color: "var(--muted-foreground)",
-                }}
-              >
-                <span>💡</span>
-                <span className="text-sm">
-                  Favorites sync across all your teams
-                </span>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-6xl mb-4">🔍</div>
-              <h3
-                className="text-lg font-semibold mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
-                No matching favorites
-              </h3>
-              <p style={{ color: "var(--muted-foreground)" }}>
-                Try adjusting your search terms
-              </p>
-            </>
-          )}
-        </div>
-      ) : (
-        /* Favorites Grid */
-        <div className="grid gap-4">
-          {filteredFavorites.map((favorite) => {
-            const author = profiles[favorite.originalAuthor];
+      {/* Favorites List */}
+      <div className="space-y-4">
+        {favorites.map((favorite) => {
+          const isExpanded = expandedFavorites[favorite.id];
+          const visibilityBadge = getVisibilityBadge(
+            favorite.visibility || "public"
+          );
 
-            return (
-              <div
-                key={favorite.id}
-                className="glass-card p-6 hover:border-primary/50 transition-all duration-300"
-              >
-                {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1 min-w-0">
+          return (
+            <div
+              key={favorite.id}
+              className="glass-card p-6 transition-all duration-300 hover:border-primary/50"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
                     <h3
-                      className="font-semibold text-lg mb-2"
+                      className="text-lg font-semibold"
                       style={{ color: "var(--foreground)" }}
                     >
                       {favorite.title}
                     </h3>
-                    <div
-                      className="flex items-center gap-3 text-xs flex-wrap"
-                      style={{ color: "var(--muted-foreground)" }}
+                    <span
+                      style={visibilityBadge.style}
+                      className="flex items-center gap-1"
                     >
-                      <div className="flex items-center gap-1">
-                        <span>🏢</span>
-                        <span>{favorite.teamName || "Unknown Team"}</span>
-                      </div>
-                      {author && (
-                        <>
-                          <span>•</span>
-                          <div className="flex items-center gap-1">
-                            <span>👤</span>
-                            <span>{author.name || author.email}</span>
-                          </div>
-                        </>
-                      )}
-                      <span>•</span>
-                      <div className="flex items-center gap-1">
-                        <span>📅</span>
-                        <span>Saved: {formatDate(favorite.addedAt)}</span>
-                      </div>
-                    </div>
+                      {visibilityBadge.icon} {visibilityBadge.label}
+                    </span>
                   </div>
+                  <div
+                    className="flex items-center gap-3 text-xs"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    <span>Saved {formatDate(favorite.createdAt)}</span>
+                    <span>•</span>
+                    <span>{favorite.text?.length || 0} characters</span>
+                  </div>
+                </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-                    <button
-                      onClick={() => copyToClipboard(favorite.text)}
-                      className="p-2 rounded-lg transition-colors"
+                <div className="flex items-center gap-2 ml-4">
+                  <button
+                    onClick={() => handleCopy(favorite.text)}
+                    className="p-2 rounded-lg transition-colors hover:scale-105"
+                    style={{
+                      backgroundColor: "var(--secondary)",
+                      color: "var(--foreground)",
+                    }}
+                    title="Copy to clipboard"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </button>
+
+                  <button
+                    onClick={() => handleRemoveFavorite(favorite)}
+                    className="p-2 rounded-lg transition-colors hover:scale-105"
+                    style={{
+                      backgroundColor: "var(--destructive)",
+                      color: "var(--destructive-foreground)",
+                    }}
+                    title="Remove from favorites"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+
+                  <button
+                    onClick={() => toggleExpanded(favorite.id)}
+                    className="p-2 rounded-lg transition-colors hover:scale-105"
+                    style={{
+                      backgroundColor: "var(--secondary)",
+                      color: "var(--foreground)",
+                    }}
+                    title={isExpanded ? "Collapse" : "Expand"}
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d={isExpanded ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"}
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Prompt Preview */}
+              <div
+                className="p-4 rounded-lg border"
+                style={{
+                  backgroundColor: "var(--muted)",
+                  borderColor: "var(--border)",
+                }}
+              >
+                <pre
+                  className={`whitespace-pre-wrap text-sm font-mono ${
+                    !isExpanded ? "line-clamp-3" : ""
+                  }`}
+                  style={{ color: "var(--foreground)" }}
+                >
+                  {favorite.text}
+                </pre>
+              </div>
+
+              {/* Tags */}
+              {favorite.tags && favorite.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {favorite.tags.map((tag, index) => (
+                    <span
+                      key={index}
+                      className="inline-block px-2 py-1 rounded-full text-xs font-medium border"
                       style={{
                         backgroundColor: "var(--secondary)",
-                        color: "var(--foreground)",
+                        color: "var(--secondary-foreground)",
+                        borderColor: "var(--border)",
                       }}
-                      title="Copy to clipboard"
                     >
-                      📋
-                    </button>
-
-                    <button
-                      onClick={() => removeFromFavorites(favorite.id)}
-                      className="p-2 rounded-lg transition-colors"
-                      style={{
-                        backgroundColor: "var(--destructive)",
-                        color: "var(--destructive-foreground)",
-                      }}
-                      title="Remove from favorites"
-                    >
-                      🗑️
-                    </button>
-                  </div>
+                      #{tag}
+                    </span>
+                  ))}
                 </div>
-
-                {/* Content */}
-                <div className="mb-4">
-                  <div
-                    className="p-4 rounded-lg border"
-                    style={{
-                      backgroundColor: "var(--muted)",
-                      borderColor: "var(--border)",
-                    }}
-                  >
-                    <pre
-                      className="whitespace-pre-wrap text-sm leading-relaxed font-mono"
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      {favorite.text}
-                    </pre>
-                  </div>
-                </div>
-
-                {/* Tags */}
-                {favorite.tags && favorite.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {favorite.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-block px-2 py-1 rounded-full text-xs font-medium border"
-                        style={{
-                          backgroundColor: "var(--secondary)",
-                          color: "var(--secondary-foreground)",
-                          borderColor: "var(--border)",
-                        }}
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Footer Stats */}
-      {favorites.length > 0 && (
-        <div className="glass-card p-4">
-          <div
-            className="flex items-center justify-between text-sm"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            <span>
-              {filteredFavorites.length} of {favorites.length} favorites shown
-            </span>
-            <span>
-              Across {new Set(favorites.map((f) => f.teamId)).size} teams
-            </span>
-          </div>
-        </div>
-      )}
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
