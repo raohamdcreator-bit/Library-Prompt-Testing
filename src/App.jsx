@@ -1,4 +1,4 @@
-// src/App.jsx - Complete with Waitlist Route
+// src/App.jsx - Complete with Waitlist, Admin Routes, and Plagiarism Checker
 import { useEffect, useState } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -23,6 +23,7 @@ import FavoritesList from "./components/Favorites";
 import { TeamAnalytics } from "./components/PromptAnalytics";
 import ActivityFeed from "./components/ActivityFeed";
 import TeamChat from "./components/TeamChat";
+import PlagiarismChecker from "./components/PlagiarismChecker"; // ✅ NEW IMPORT
 
 // Import Legal/Info Pages
 import Contact from "./pages/Contact";
@@ -30,8 +31,12 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import About from "./pages/About";
 import JoinTeam from "./pages/JoinTeam";
-import Waitlist from "./pages/Waitlist"; // ✅ NEW IMPORT
+import Waitlist from "./pages/Waitlist";
+import AdminDashboard from "./pages/AdminDashboard";
 import { NavigationProvider } from "./components/LegalLayout";
+
+// Admin email configuration - CHANGE THIS TO YOUR EMAIL
+const ADMIN_EMAIL = "rao.hamd.creator@gmail.com";
 
 // ===================================
 // IMPROVED ROUTER COMPONENTS
@@ -40,9 +45,7 @@ function Router({ currentPath, children }) {
   const routes = Array.isArray(children) ? children : [children];
   const route = routes.find((r) => {
     const routePath = r.props.path;
-    // Exact match for paths without query parameters
     if (currentPath === routePath) return true;
-    // Match base path even with query parameters (e.g., /join?teamId=123)
     if (currentPath.startsWith(routePath + "?")) return true;
     return false;
   });
@@ -78,7 +81,9 @@ function Logo({ size = "normal", onClick }) {
 // ===================================
 // NAVIGATION COMPONENT
 // ===================================
-function Navigation({ onSignIn, isAuthenticated, onNavigate }) {
+function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
+  const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+
   return (
     <nav
       className="border-b"
@@ -98,29 +103,46 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate }) {
               Prism
             </span>
           </div>
+
           <div className="hidden md:flex items-center gap-6">
             <button
               onClick={() => onNavigate("/")}
-              className="transition-colors"
+              className="transition-colors hover:text-foreground"
               style={{ color: "var(--muted-foreground)" }}
             >
               Home
             </button>
             <button
               onClick={() => onNavigate("/about")}
-              className="transition-colors"
+              className="transition-colors hover:text-foreground"
               style={{ color: "var(--muted-foreground)" }}
             >
               About
             </button>
             <button
               onClick={() => onNavigate("/contact")}
-              className="transition-colors"
+              className="transition-colors hover:text-foreground"
               style={{ color: "var(--muted-foreground)" }}
             >
               Contact
             </button>
+
+            {isAdmin && (
+              <button
+                onClick={() => onNavigate("/admin")}
+                className="px-4 py-2 rounded-lg font-semibold transition-all duration-300 ai-glow"
+                style={{
+                  backgroundColor: "var(--primary)",
+                  color: "var(--primary-foreground)",
+                  border: "1px solid var(--primary)",
+                }}
+                title="Admin Dashboard - Manage Waitlist"
+              >
+                🔒 Admin Dashboard
+              </button>
+            )}
           </div>
+
           <div className="flex items-center gap-3">
             {!isAuthenticated && (
               <button
@@ -132,6 +154,45 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate }) {
             )}
           </div>
         </div>
+
+        {isAuthenticated && (
+          <div className="md:hidden mt-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => onNavigate("/")}
+              className="px-3 py-1 rounded text-sm"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              Home
+            </button>
+            <button
+              onClick={() => onNavigate("/about")}
+              className="px-3 py-1 rounded text-sm"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              About
+            </button>
+            <button
+              onClick={() => onNavigate("/contact")}
+              className="px-3 py-1 rounded text-sm"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              Contact
+            </button>
+
+            {isAdmin && (
+              <button
+                onClick={() => onNavigate("/admin")}
+                className="px-3 py-1 rounded text-sm font-semibold"
+                style={{
+                  backgroundColor: "var(--primary)",
+                  color: "var(--primary-foreground)",
+                }}
+              >
+                🔒 Admin
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </nav>
   );
@@ -287,7 +348,7 @@ function Footer({ onNavigate }) {
 }
 
 // ===================================
-// LANDING PAGE COMPONENT
+// LANDING PAGE COMPONENT WITH VIDEO
 // ===================================
 function LandingPage({ onSignIn, onNavigate }) {
   return (
@@ -296,41 +357,71 @@ function LandingPage({ onSignIn, onNavigate }) {
         onSignIn={onSignIn}
         isAuthenticated={false}
         onNavigate={onNavigate}
+        user={null}
       />
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-20 text-center">
-        <div className="max-w-4xl mx-auto">
-          <div
-            className="mb-6 ai-glow inline-flex items-center gap-2 px-3 py-1 rounded-full border"
-            style={{
-              backgroundColor: "var(--primary)",
-              color: "var(--secondary-foreground)",
-              borderColor: "var(--border)",
-              boxShadow: "0 0 10px var(--glow-purple-bright)",
-            }}
-          >
-            <span className="text-sm">⚡</span>
-            <span className="text-sm font-medium">
-              AI-Powered Prompt Collaboration
-            </span>
+      {/* Hero Section with Video */}
+      <section className="container mx-auto px-4 py-20">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <div
+              className="mb-6 ai-glow inline-flex items-center gap-2 px-3 py-1 rounded-full border"
+              style={{
+                backgroundColor: "var(--primary)",
+                color: "var(--secondary-foreground)",
+                borderColor: "var(--border)",
+                boxShadow: "0 0 10px var(--glow-purple-bright)",
+              }}
+            >
+              <span className="text-sm">⚡</span>
+              <span className="text-sm font-medium">
+                AI-Powered Prompt Collaboration
+              </span>
+            </div>
+
+            <h1
+              className="text-5xl md:text-7xl font-normal mb-6"
+              style={{ color: "var(--foreground)" }}
+            >
+              Build Better Prompts with{" "}
+              <span style={{ color: "var(--primary)" }}>Your Team</span>
+            </h1>
+
+            <p
+              className="text-xl mb-8 max-w-2xl mx-auto leading-relaxed"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              Collaborate on AI prompts with your team. Store, share, and
+              discover the best prompts for your projects with advanced neural
+              interface design.
+            </p>
           </div>
 
-          <h1
-            className="text-5xl md:text-7xl font-normal mb-6"
-            style={{ color: "var(--foreground)" }}
-          >
-            The Governance Layer for {" "}
-            <span style={{ color: "var(--primary)" }}>Prompt-Driven World</span>
-          </h1>
+          {/* Video Section */}
+          <div className="mb-12">
+            <div
+              className="glass-card p-4 rounded-xl border overflow-hidden"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                controls
+                className="rounded-lg w-full h-auto"
+                style={{
+                  maxHeight: "600px",
+                  objectFit: "cover",
+                }}
+              >
+                <source src="/Prism_AI_Collaboration.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
 
-          <p
-            className="text-xl mb-8 max-w-2xl mx-auto leading-relaxed"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            Build, govern, and audit prompts in one unified workspace. Designed for the AI era.
-          </p>
-
+          {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
             <button
               onClick={onSignIn}
@@ -347,12 +438,14 @@ function LandingPage({ onSignIn, onNavigate }) {
               Join Waitlist
             </button>
           </div>
-
           <div
             className="flex items-center justify-center gap-2 text-sm"
             style={{ color: "var(--muted-foreground)" }}
           >
-            <span>We’re building something transformative • Your feedback will help us shape it</span>
+            <span>
+              We’re building something transformative • Your feedback will help
+              us shape it
+            </span>
           </div>
         </div>
       </section>
@@ -459,7 +552,7 @@ function LandingPage({ onSignIn, onNavigate }) {
         </div>
       </section>
 
-      {/* Upcoming Features - AI Governance */}
+      {/* Upcoming Features */}
       <section
         className="container mx-auto px-4 py-20"
         style={{ backgroundColor: "var(--card)" }}
@@ -492,7 +585,6 @@ function LandingPage({ onSignIn, onNavigate }) {
           </div>
 
           <div className="grid md:grid-cols-2 gap-12 items-center mb-8">
-            {/* Left side - Features */}
             <div className="space-y-6">
               <div className="flex flex-wrap gap-3">
                 {[
@@ -527,25 +619,19 @@ function LandingPage({ onSignIn, onNavigate }) {
               </p>
             </div>
 
-            {/* Right side - Screenshot placeholder */}
             <div
               className="glass-card p-8 rounded-lg border aspect-video flex items-center justify-center"
               style={{ borderColor: "var(--border)" }}
             >
-              <div className="text-center">
-                <div className="text-6xl mb-4">💻</div>
-                <p
-                  className="text-lg font-semibold"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  IDE Plugin Interface
-                </p>
-                <p
-                  className="text-sm mt-2"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  Real-time AI prompt tracking & monitoring
-                </p>
+              <div className="w-full h-full">
+                <video
+                  src="/Prism_AI_Collaboration.mp4"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  className="rounded-md w-full h-full object-cover"
+                />
               </div>
             </div>
           </div>
@@ -683,9 +769,9 @@ function LandingPage({ onSignIn, onNavigate }) {
               Book EDU/Enterprise Demo
             </button>
           </div>
-
           <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-            We’re building something transformative • Your feedback will help us shape it
+            We’re building something transformative • Your feedback will help us
+            shape it
           </p>
         </div>
       </section>
@@ -715,25 +801,20 @@ export default function App() {
   // NAVIGATION HANDLER
   // ===================================
   const navigate = (path) => {
-    console.log("Navigate called with path:", path);
     setCurrentPath(path);
     window.history.pushState({}, "", path);
     window.scrollTo(0, 0);
   };
 
   // ===================================
-  // HANDLE URL CHANGES (Initial + Back/Forward)
+  // HANDLE URL CHANGES
   // ===================================
   useEffect(() => {
-    // Handle initial load
     const path = window.location.pathname;
-    console.log("Initial path:", path);
     setCurrentPath(path);
 
-    // Handle browser back/forward buttons
     const handlePopState = () => {
       const newPath = window.location.pathname;
-      console.log("PopState - new path:", newPath);
       setCurrentPath(newPath);
     };
 
@@ -1022,7 +1103,7 @@ export default function App() {
   }
 
   // ===================================
-  // RENDER SPECIAL ROUTES (Legal/Join)
+  // RENDER SPECIAL ROUTES
   // ===================================
   const isSpecialRoute = [
     "/contact",
@@ -1031,6 +1112,7 @@ export default function App() {
     "/about",
     "/join",
     "/waitlist",
+    "/admin",
   ].some(
     (route) => currentPath === route || currentPath.startsWith(route + "?")
   );
@@ -1039,12 +1121,12 @@ export default function App() {
     return (
       <NavigationProvider navigate={navigate}>
         <div style={{ background: "var(--background)", minHeight: "100vh" }}>
-          {/* Only show Navigation for non-waitlist pages */}
           {currentPath !== "/waitlist" && (
             <Navigation
               onSignIn={signInWithGoogle}
               isAuthenticated={!!user}
               onNavigate={navigate}
+              user={user}
             />
           )}
           <Router currentPath={currentPath.split("?")[0]}>
@@ -1066,13 +1148,18 @@ export default function App() {
             <Route path="/waitlist">
               <Waitlist onNavigate={navigate} />
             </Route>
+            <Route path="/admin">
+              <AdminDashboard onNavigate={navigate} />
+            </Route>
           </Router>
-          {/* Only show Footer for non-waitlist pages */}
-          {currentPath !== "/waitlist" && <Footer onNavigate={navigate} />}
+          {currentPath !== "/waitlist" && currentPath !== "/admin" && (
+            <Footer onNavigate={navigate} />
+          )}
         </div>
       </NavigationProvider>
     );
   }
+
   // ===================================
   // LOADING STATE
   // ===================================
@@ -1092,7 +1179,7 @@ export default function App() {
   }
 
   // ===================================
-  // NOT AUTHENTICATED - SHOW LANDING PAGE
+  // NOT AUTHENTICATED
   // ===================================
   if (!user) {
     return <LandingPage onSignIn={signInWithGoogle} onNavigate={navigate} />;
@@ -1169,6 +1256,40 @@ export default function App() {
             </div>
           </button>
         </div>
+
+        {/* Admin Dashboard Button */}
+        {user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
+          <div className="mb-4">
+            <button
+              onClick={() => navigate("/admin")}
+              className="w-full p-4 text-left rounded-lg transition-all duration-300 border glass-card hover:border-primary/50 ai-glow"
+              style={{ borderColor: "var(--primary)" }}
+            >
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: "var(--primary)" }}
+                >
+                  <span className="text-lg">🔒</span>
+                </div>
+                <div>
+                  <span
+                    className="font-semibold"
+                    style={{ color: "var(--foreground)" }}
+                  >
+                    Admin Dashboard
+                  </span>
+                  <p
+                    className="text-xs mt-1"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    Manage waitlist entries
+                  </p>
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
 
         {/* Team Chat Button */}
         {activeTeamObj && (
@@ -1398,9 +1519,16 @@ export default function App() {
               ) : null}
             </div>
 
+            {/* ✅ UPDATED: Added "plagiarism" to navigation tabs */}
             {activeTeamObj && (
               <div className="glass-card p-1 rounded-lg">
-                {["prompts", "members", "analytics", "activity"].map((view) => (
+                {[
+                  "prompts",
+                  "members",
+                  "analytics",
+                  "activity",
+                  "plagiarism",
+                ].map((view) => (
                   <button
                     key={view}
                     onClick={() => setActiveView(view)}
@@ -1418,7 +1546,7 @@ export default function App() {
                         : { color: "var(--muted-foreground)" }
                     }
                   >
-                    {view}
+                    {view === "plagiarism" ? "🔍 Plagiarism" : view}
                   </button>
                 ))}
               </div>
@@ -1461,6 +1589,11 @@ export default function App() {
 
           {activeTeamObj && activeView === "activity" && (
             <ActivityFeed teamId={activeTeamObj.id} />
+          )}
+
+          {/* ✅ NEW: Plagiarism Checker View */}
+          {activeTeamObj && activeView === "plagiarism" && (
+            <PlagiarismChecker teamId={activeTeamObj.id} userRole={role} />
           )}
 
           {activeView === "favorites" && !activeTeam && <FavoritesList />}
