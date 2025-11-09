@@ -383,7 +383,7 @@ function LandingPage({ onSignIn, onNavigate }) {
               className="text-5xl md:text-7xl font-normal mb-6"
               style={{ color: "var(--primary)" }}
             >
-              <span style={{ color: "var(--foreground)" }}>The</span>
+              <span style={{ color: "var(--foreground)" }}>The </span>
               Governance Layer{" "}
               <span style={{ color: "var(--foreground)" }}> in Prompt-Driven World</span>
             </h1>
