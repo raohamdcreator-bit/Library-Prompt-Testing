@@ -320,17 +320,15 @@ function LandingPage({ onSignIn, onNavigate }) {
             className="text-5xl md:text-7xl font-normal mb-6"
             style={{ color: "var(--foreground)" }}
           >
-            Build Better Prompts with{" "}
-            <span style={{ color: "var(--primary)" }}>Your Team</span>
+            The Governance Layer for {" "}
+            <span style={{ color: "var(--primary)" }}>Prompt-Driven World</span>
           </h1>
 
           <p
             className="text-xl mb-8 max-w-2xl mx-auto leading-relaxed"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Collaborate on AI prompts with your team. Store, share, and discover
-            the best prompts for your projects with advanced neural interface
-            design.
+            Build, govern, and audit prompts in one unified workspace. Designed for the AI era.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
@@ -354,7 +352,7 @@ function LandingPage({ onSignIn, onNavigate }) {
             className="flex items-center justify-center gap-2 text-sm"
             style={{ color: "var(--muted-foreground)" }}
           >
-            <span>Free forever • No credit card required</span>
+            <span>We’re building something transformative • Your feedback will help us shape it</span>
           </div>
         </div>
       </section>
@@ -687,7 +685,7 @@ function LandingPage({ onSignIn, onNavigate }) {
           </div>
 
           <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-            No credit card required • Free forever for individuals
+            We’re building something transformative • Your feedback will help us shape it
           </p>
         </div>
       </section>
