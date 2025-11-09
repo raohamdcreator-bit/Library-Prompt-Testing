@@ -2,7 +2,6 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1e293b" />
     <meta
@@ -11,9 +10,10 @@
     />
     <meta
       name="keywords"
-      content="AI prompts, team collaboration, prompt library, neural interface, AI tools"
+      content="AI prompts, team collaboration, prompt library, neural interface, AI tools, plagiarism detection"
     />
- <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    
     <!-- Enhanced Title -->
     <title>Prism - AI Collaboration Platform</title>
 
@@ -28,36 +28,25 @@
     />
 
     <!-- PWA Meta Tags -->
-    <meta name="application-name" content="Prompt Teams" />
+    <meta name="application-name" content="Prism" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#0f0f0f" />
-    <!-- Dark theme background -->
-
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
-    <meta name="apple-mobile-web-app-title" content="Prompt Teams" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Prism" />
 
     <!-- Open Graph Meta Tags -->
-    <meta
-      property="og:title"
-      content="Prompt Teams - AI Collaboration Platform"
-    />
+    <meta property="og:title" content="Prism - AI Collaboration Platform" />
     <meta
       property="og:description"
-      content="Professional AI prompt collaboration with advanced team features"
+      content="Professional AI prompt collaboration with advanced team features and plagiarism detection"
     />
     <meta property="og:type" content="website" />
     <meta property="og:image" content="/og-image.png" />
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Prompt Teams" />
-    <meta
-      name="twitter:description"
-      content="AI prompt collaboration platform"
-    />
+    <meta name="twitter:title" content="Prism" />
+    <meta name="twitter:description" content="AI prompt collaboration platform" />
 
     <!-- Critical CSS for initial loading -->
     <style>
@@ -93,7 +82,7 @@
         flex-direction: column;
       }
 
-      /* Professional loading screen */
+      /* ✅ SIMPLIFIED Professional loading screen - No breaking layout */
       .initial-loader {
         position: fixed;
         top: 0;
@@ -106,82 +95,27 @@
         justify-content: center;
         z-index: 9999;
         opacity: 1;
-        transition: opacity 0.5s ease-out;
+        transition: opacity 0.3s ease-out;
+        pointer-events: none;
       }
 
       .initial-loader.hidden {
         opacity: 0;
-        pointer-events: none;
       }
 
+      /* Simple spinner - lightweight and responsive */
       .professional-spinner {
         width: 40px;
         height: 40px;
-        border: 2px solid var(--border);
-        border-top: 2px solid var(--primary);
+        border: 3px solid rgba(168, 85, 247, 0.1);
+        border-top: 3px solid rgba(168, 85, 247, 0.8);
         border-radius: 50%;
-        animation: professionalSpin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55)
-          infinite;
+        animation: spin 0.8s linear infinite;
       }
 
-      @keyframes professionalSpin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-
-      .loading-card {
-        background: var(--card);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 32px;
-        text-align: center;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-      }
-
-      .loading-text {
-        margin-top: 16px;
-        color: var(--muted-foreground);
-        font-size: 14px;
-        animation: pulse 2s ease-in-out infinite;
-      }
-
-      @keyframes pulse {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.6;
-        }
-      }
-
-      .loading-brand {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        justify-content: center;
-        margin-bottom: 24px;
-      }
-
-      .loading-logo {
-        width: 32px;
-        height: 32px;
-        background: var(--primary);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 18px;
-      }
-
-      .loading-title {
-        font-size: 20px;
-        font-weight: 700;
-        color: var(--foreground);
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
 
       /* Prevent flash of incorrect theme */
@@ -191,18 +125,9 @@
     </style>
   </head>
   <body>
-    <!-- Professional Loading Screen -->
+    <!-- ✅ SIMPLIFIED Loading Screen - Won't break layout -->
     <div id="initial-loader" class="initial-loader">
-      <div class="loading-card">
-        <div class="loading-brand">
-          <div class="loading-logo">🤖</div>
-          <div class="loading-title">Prompt Teams</div>
-        </div>
-        <div class="professional-spinner"></div>
-        <div class="loading-text">
-          Initializing AI collaboration platform...
-        </div>
-      </div>
+      <div class="professional-spinner"></div>
     </div>
 
     <!-- Main App Container -->
@@ -210,71 +135,33 @@
 
     <!-- Enhanced initialization script -->
     <script>
-      // Professional loading experience
-      window.addEventListener("load", function () {
-        // Ensure minimum loading time for better UX
-        const minLoadTime = 1200;
-        const startTime = performance.now();
-
-        function hideLoader() {
-          const loader = document.getElementById("initial-loader");
+      // ✅ SIMPLIFIED loading - remove immediately when React renders
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          const loader = document.getElementById('initial-loader');
           if (loader) {
-            loader.classList.add("hidden");
-            setTimeout(() => {
-              if (loader.parentNode) {
-                loader.remove();
-              }
-            }, 500);
+            loader.classList.add('hidden');
+            setTimeout(() => loader.remove(), 300);
           }
-        }
-
-        const elapsed = performance.now() - startTime;
-        const remainingTime = Math.max(0, minLoadTime - elapsed);
-
-        setTimeout(hideLoader, remainingTime);
+        }, 100);
       });
 
       // Enhanced service worker registration
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", function () {
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
           navigator.serviceWorker
-            .register("/sw.js", { type: "module" }) // ✅ ensures ES module SW support
-            .then(() => console.log("Service Worker registered successfully"))
-            .catch((err) => console.log("SW registration failed:", err));
-        });
-      }
-
-      // Performance monitoring
-      if ("performance" in window) {
-        window.addEventListener("load", function () {
-          setTimeout(function () {
-            const perfData = performance.timing;
-            const loadTime = perfData.loadEventEnd - perfData.navigationStart;
-            console.log(`App loaded in ${loadTime}ms`);
-
-            // Report Core Web Vitals if available
-            if ("web-vital" in window) {
-              getCLS(console.log);
-              getFID(console.log);
-              getFCP(console.log);
-              getLCP(console.log);
-              getTTFB(console.log);
-            }
-          }, 100);
+            .register('/sw.js', { type: 'module' })
+            .then(() => console.log('Service Worker registered successfully'))
+            .catch((err) => console.log('SW registration failed:', err));
         });
       }
 
       // Enhanced error handling with user feedback
-      window.addEventListener("error", function (e) {
-        console.error("Application error:", e.error);
+      window.addEventListener('error', function(e) {
+        console.error('Application error:', e.error);
 
-        // Show user-friendly error for critical failures
-        if (
-          e.error &&
-          e.error.message &&
-          e.error.message.includes("Loading chunk")
-        ) {
-          const errorDiv = document.createElement("div");
+        if (e.error && e.error.message && e.error.message.includes('Loading chunk')) {
+          const errorDiv = document.createElement('div');
           errorDiv.innerHTML = `
             <div style="
               position: fixed; 
@@ -289,6 +176,7 @@
               font-size: 14px;
               z-index: 10000;
               box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+              max-width: 90vw;
             ">
               <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                 <span>⚠️</span>
@@ -299,7 +187,7 @@
               </div>
               <button onclick="window.location.reload()" style="
                 background: var(--primary);
-                color: var(--background);
+                color: white;
                 border: none;
                 padding: 6px 12px;
                 border-radius: 4px;
@@ -315,35 +203,12 @@
         }
       });
 
-      // Optimize for reduced motion preference
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        document.documentElement.style.setProperty(
-          "--animation-duration",
-          "0.01s"
-        );
-      }
-
-      // Theme detection and optimization
-      const prefersDark = window.matchMedia(
-        "(prefers-color-scheme: dark)"
-      ).matches;
-      const prefersLight = window.matchMedia(
-        "(prefers-color-scheme: light)"
-      ).matches;
-
-      // Log theme preference for analytics
-      console.log(
-        `Theme preference: ${
-          prefersDark ? "dark" : prefersLight ? "light" : "none"
-        }`
-      );
-
       // Connection status monitoring
       function updateConnectionStatus() {
         const isOnline = navigator.onLine;
         if (!isOnline) {
-          const offlineDiv = document.createElement("div");
-          offlineDiv.id = "offline-indicator";
+          const offlineDiv = document.createElement('div');
+          offlineDiv.id = 'offline-indicator';
           offlineDiv.innerHTML = `
             <div style="
               position: fixed; 
@@ -360,6 +225,7 @@
               display: flex;
               align-items: center;
               gap: 8px;
+              max-width: 90vw;
             ">
               <span style="color: #f59e0b;">⚠️</span>
               <span>You're offline. Some features may not work.</span>
@@ -367,27 +233,26 @@
           `;
           document.body.appendChild(offlineDiv);
         } else {
-          const offlineDiv = document.getElementById("offline-indicator");
-          if (offlineDiv) {
-            offlineDiv.remove();
-          }
+          const offlineDiv = document.getElementById('offline-indicator');
+          if (offlineDiv) offlineDiv.remove();
         }
       }
 
-      window.addEventListener("online", updateConnectionStatus);
-      window.addEventListener("offline", updateConnectionStatus);
+      window.addEventListener('online', updateConnectionStatus);
+      window.addEventListener('offline', updateConnectionStatus);
 
       // Initialize app metadata
-      window.promptTeamsConfig = {
-        version: "2.0.0",
+      window.prismConfig = {
+        version: '2.0.0',
         buildTime: new Date().toISOString(),
-        theme: "professional-ai",
+        theme: 'professional-ai',
         features: {
           realTimeSync: true,
           offlineSupport: false,
           darkMode: true,
           analytics: true,
-        },
+          plagiarismDetection: true
+        }
       };
     </script>
 
@@ -399,8 +264,8 @@
       {
         "@context": "https://schema.org",
         "@type": "WebApplication",
-        "name": "Prompt Teams",
-        "description": "Professional AI prompt collaboration platform with advanced team features and neural interface design",
+        "name": "Prism",
+        "description": "Professional AI prompt collaboration platform with advanced team features, plagiarism detection, and neural interface design",
         "url": "https://prompt-teams-five.vercel.app",
         "applicationCategory": "ProductivityApplication",
         "operatingSystem": "Web",
@@ -413,7 +278,7 @@
         },
         "author": {
           "@type": "Organization",
-          "name": "Prompt Teams"
+          "name": "Prism"
         },
         "datePublished": "2025",
         "softwareVersion": "2.0.0",
@@ -424,7 +289,9 @@
           "Real-time Sync",
           "Advanced Search",
           "Analytics Dashboard",
-          "Import/Export Tools"
+          "Import/Export Tools",
+          "Plagiarism Detection",
+          "Prompt Privacy Controls"
         ],
         "aggregateRating": {
           "@type": "AggregateRating",
@@ -441,63 +308,55 @@
       as="style"
       onload="this.onload=null;this.rel='stylesheet'"
     />
-    <noscript
-      ><link
+    <noscript>
+      <link
         rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-    /></noscript>
+      />
+    </noscript>
 
     <!-- Fallback for no JavaScript -->
     <noscript>
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 100vh;
-          background: var(--background);
-          color: var(--foreground);
-          font-family: Inter, sans-serif;
-          text-align: center;
-          padding: 20px;
-        "
-      >
-        <div
-          style="
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 40px;
-            max-width: 400px;
-          "
-        >
+      <div style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: var(--background);
+        color: var(--foreground);
+        font-family: Inter, sans-serif;
+        text-align: center;
+        padding: 20px;
+      ">
+        <div style="
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 40px;
+          max-width: 400px;
+        ">
           <div style="font-size: 48px; margin-bottom: 16px">⚠️</div>
           <h1 style="margin-bottom: 16px; font-size: 24px">
             JavaScript Required
           </h1>
-          <p
-            style="
-              color: var(--muted-foreground);
-              margin-bottom: 20px;
-              line-height: 1.5;
-            "
-          >
-            Prompt Teams requires JavaScript to function. Please enable
-            JavaScript in your browser settings and refresh the page.
+          <p style="
+            color: var(--muted-foreground);
+            margin-bottom: 20px;
+            line-height: 1.5;
+          ">
+            Prism requires JavaScript to function. Please enable JavaScript in 
+            your browser settings and refresh the page.
           </p>
-          <button
-            onclick="window.location.reload()"
-            style="
-              background: var(--primary);
-              color: var(--background);
-              border: none;
-              padding: 12px 24px;
-              border-radius: 8px;
-              font-size: 14px;
-              font-weight: 600;
-              cursor: pointer;
-            "
-          >
+          <button onclick="window.location.reload()" style="
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+          ">
             Refresh Page
           </button>
         </div>
@@ -505,4 +364,3 @@
     </noscript>
   </body>
 </html>
-);
