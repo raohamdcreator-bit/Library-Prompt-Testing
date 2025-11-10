@@ -256,7 +256,7 @@ export default function Waitlist({ onNavigate }) {
                 >
                   Institution / Company{" "}
                   <span style={{ color: "var(--muted-foreground)" }}>
-                    (optional)
+                    (required)
                   </span>
                 </label>
                 <input
@@ -278,9 +278,9 @@ export default function Waitlist({ onNavigate }) {
                   className="block text-sm font-medium mb-2"
                   style={{ color: "var(--foreground)" }}
                 >
-                  How will you use Prism?{" "}
+                  Suggestions about Prism?{" "}
                   <span style={{ color: "var(--muted-foreground)" }}>
-                    (optional)
+                    (required)
                   </span>
                 </label>
                 <textarea
