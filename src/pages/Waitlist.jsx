@@ -278,7 +278,7 @@ export default function Waitlist({ onNavigate }) {
                   className="block text-sm font-medium mb-2"
                   style={{ color: "var(--foreground)" }}
                 >
-                  Suggestions about Prism?{" "}
+                  Tell Us How You Plan to Use Prism?{" "}
                   <span style={{ color: "var(--muted-foreground)" }}>
                     (required)
                   </span>
@@ -395,7 +395,7 @@ export default function Waitlist({ onNavigate }) {
           <div className="grid md:grid-cols-3 gap-6">
             {[
               {
-                icon: "🎯",
+                icon: "⚡",
                 title: "Priority Access",
                 desc: "Be first to try new features and AI governance tools",
               },
@@ -405,7 +405,7 @@ export default function Waitlist({ onNavigate }) {
                 desc: "Shape the platform with your feedback and ideas",
               },
               {
-                icon: "🎓",
+                icon: "👑",
                 title: "Exclusive Resources",
                 desc: "Early access to guides, tutorials, and best practices",
               },
