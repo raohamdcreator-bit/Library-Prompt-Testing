@@ -1,4 +1,4 @@
-// src/App.jsx - Complete with Waitlist, Admin Routes, and Plagiarism Checker
+// src/App.jsx - Complete with Responsive Design
 import { useEffect, useState } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -23,7 +23,7 @@ import FavoritesList from "./components/Favorites";
 import { TeamAnalytics } from "./components/PromptAnalytics";
 import ActivityFeed from "./components/ActivityFeed";
 import TeamChat from "./components/TeamChat";
-import PlagiarismChecker from "./components/PlagiarismChecker"; // ✅ NEW IMPORT
+import PlagiarismChecker from "./components/PlagiarismChecker";
 
 // Import Legal/Info Pages
 import Contact from "./pages/Contact";
@@ -35,11 +35,11 @@ import Waitlist from "./pages/Waitlist";
 import AdminDashboard from "./pages/AdminDashboard";
 import { NavigationProvider } from "./components/LegalLayout";
 
-// Admin email configuration - CHANGE THIS TO YOUR EMAIL
+// Admin email configuration
 const ADMIN_EMAIL = "rao.hamd.creator@gmail.com";
 
 // ===================================
-// IMPROVED ROUTER COMPONENTS
+// ROUTER COMPONENTS
 // ===================================
 function Router({ currentPath, children }) {
   const routes = Array.isArray(children) ? children : [children];
@@ -79,9 +79,41 @@ function Logo({ size = "normal", onClick }) {
 }
 
 // ===================================
+// MOBILE MENU ICON
+// ===================================
+function MenuIcon({ isOpen }) {
+  return (
+    <svg
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {isOpen ? (
+        <>
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </>
+      ) : (
+        <>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </>
+      )}
+    </svg>
+  );
+}
+
+// ===================================
 // NAVIGATION COMPONENT
 // ===================================
 function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   return (
@@ -104,6 +136,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
             </span>
           </div>
 
+          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-6">
             <button
               onClick={() => onNavigate("/")}
@@ -138,12 +171,21 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
                 }}
                 title="Admin Dashboard - Manage Waitlist"
               >
-                🔒 Admin Dashboard
+                🔒 Admin
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Mobile Menu Button */}
+          <button
+            className="md:hidden mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            <MenuIcon isOpen={mobileMenuOpen} />
+          </button>
+
+          {/* Desktop Sign In */}
+          <div className="hidden md:flex items-center gap-3">
             {!isAuthenticated && (
               <button
                 onClick={onSignIn}
@@ -155,25 +197,35 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
           </div>
         </div>
 
-        {isAuthenticated && (
-          <div className="md:hidden mt-4 flex flex-wrap gap-2">
+        {/* Mobile Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden mt-4 pb-4 space-y-2">
             <button
-              onClick={() => onNavigate("/")}
-              className="px-3 py-1 rounded text-sm"
+              onClick={() => {
+                onNavigate("/");
+                setMobileMenuOpen(false);
+              }}
+              className="w-full text-left px-4 py-3 rounded-lg transition-colors"
               style={{ color: "var(--muted-foreground)" }}
             >
               Home
             </button>
             <button
-              onClick={() => onNavigate("/about")}
-              className="px-3 py-1 rounded text-sm"
+              onClick={() => {
+                onNavigate("/about");
+                setMobileMenuOpen(false);
+              }}
+              className="w-full text-left px-4 py-3 rounded-lg transition-colors"
               style={{ color: "var(--muted-foreground)" }}
             >
               About
             </button>
             <button
-              onClick={() => onNavigate("/contact")}
-              className="px-3 py-1 rounded text-sm"
+              onClick={() => {
+                onNavigate("/contact");
+                setMobileMenuOpen(false);
+              }}
+              className="w-full text-left px-4 py-3 rounded-lg transition-colors"
               style={{ color: "var(--muted-foreground)" }}
             >
               Contact
@@ -181,14 +233,29 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
 
             {isAdmin && (
               <button
-                onClick={() => onNavigate("/admin")}
-                className="px-3 py-1 rounded text-sm font-semibold"
+                onClick={() => {
+                  onNavigate("/admin");
+                  setMobileMenuOpen(false);
+                }}
+                className="w-full text-left px-4 py-3 rounded-lg font-semibold"
                 style={{
                   backgroundColor: "var(--primary)",
                   color: "var(--primary-foreground)",
                 }}
               >
-                🔒 Admin
+                🔒 Admin Dashboard
+              </button>
+            )}
+
+            {!isAuthenticated && (
+              <button
+                onClick={() => {
+                  onSignIn();
+                  setMobileMenuOpen(false);
+                }}
+                className="btn-primary w-full"
+              >
+                Sign in with Google
               </button>
             )}
           </div>
@@ -348,7 +415,7 @@ function Footer({ onNavigate }) {
 }
 
 // ===================================
-// LANDING PAGE COMPONENT WITH VIDEO
+// LANDING PAGE COMPONENT
 // ===================================
 function LandingPage({ onSignIn, onNavigate }) {
   return (
@@ -361,11 +428,11 @@ function LandingPage({ onSignIn, onNavigate }) {
       />
 
       {/* Hero Section with Video */}
-      <section className="container mx-auto px-4 py-20">
+      <section className="container mx-auto px-4 py-12 md:py-20">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8 md:mb-12">
             <div
-              className="mb-6 ai-glow inline-flex items-center gap-2 px-3 py-1 rounded-full border"
+              className="mb-6 ai-glow inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs md:text-sm"
               style={{
                 backgroundColor: "var(--primary)",
                 color: "var(--secondary-foreground)",
@@ -373,14 +440,14 @@ function LandingPage({ onSignIn, onNavigate }) {
                 boxShadow: "0 0 10px var(--glow-purple-bright)",
               }}
             >
-              <span className="text-sm">⚡</span>
-              <span className="text-sm font-medium">
+              <span>⚡</span>
+              <span className="font-medium">
                 AI-Powered Prompt Collaboration
               </span>
             </div>
 
             <h1
-              className="text-5xl md:text-7xl font-normal mb-6"
+              className="text-3xl md:text-5xl lg:text-7xl font-normal mb-4 md:mb-6 px-4"
               style={{ color: "var(--foreground)" }}
             >
               Build Better Prompts with{" "}
@@ -388,19 +455,18 @@ function LandingPage({ onSignIn, onNavigate }) {
             </h1>
 
             <p
-              className="text-xl mb-8 max-w-2xl mx-auto leading-relaxed"
+              className="text-base md:text-xl mb-6 md:mb-8 max-w-2xl mx-auto leading-relaxed px-4"
               style={{ color: "var(--muted-foreground)" }}
             >
               Collaborate on AI prompts with your team. Store, share, and
-              discover the best prompts for your projects with advanced neural
-              interface design.
+              discover the best prompts for your projects.
             </p>
           </div>
 
           {/* Video Section */}
-          <div className="mb-12">
+          <div className="mb-8 md:mb-12">
             <div
-              className="glass-card p-4 rounded-xl border overflow-hidden"
+              className="glass-card p-2 md:p-4 rounded-xl border overflow-hidden"
               style={{ borderColor: "var(--border)" }}
             >
               <video
@@ -422,53 +488,52 @@ function LandingPage({ onSignIn, onNavigate }) {
           </div>
 
           {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 md:mb-12 px-4">
             <button
               onClick={onSignIn}
-              className="btn-primary ai-glow px-8 py-3 text-lg font-medium"
+              className="btn-primary ai-glow px-6 md:px-8 py-3 text-base md:text-lg font-medium w-full sm:w-auto"
             >
               <span className="mr-2">⚡</span>
               Get Started
             </button>
             <button
               onClick={() => onNavigate("/waitlist")}
-              className="btn-secondary px-8 py-3 text-lg font-medium ai-pulse-border"
+              className="btn-secondary px-6 md:px-8 py-3 text-base md:text-lg font-medium ai-pulse-border w-full sm:w-auto"
             >
               <span className="mr-2">🚀</span>
               Join Waitlist
             </button>
           </div>
           <div
-            className="flex items-center justify-center gap-2 text-sm"
+            className="flex items-center justify-center gap-2 text-xs md:text-sm px-4"
             style={{ color: "var(--muted-foreground)" }}
           >
-            <span>
-              We’re building something transformative • Your feedback will help
+            <span className="text-center">
+              We're building something transformative • Your feedback will help
               us shape it
             </span>
           </div>
         </div>
       </section>
 
-      {/* Current Features Grid */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="text-center mb-16">
+      {/* Features Grid */}
+      <section className="container mx-auto px-4 py-12 md:py-20">
+        <div className="text-center mb-12 md:mb-16">
           <h2
-            className="text-3xl md:text-4xl font-bold mb-4"
+            className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4"
             style={{ color: "var(--foreground)" }}
           >
             Everything you need to collaborate on AI prompts
           </h2>
           <p
-            className="text-lg max-w-2xl mx-auto"
+            className="text-base md:text-lg max-w-2xl mx-auto px-4"
             style={{ color: "var(--muted-foreground)" }}
           >
-            Comprehensive tools designed for modern AI prompt development and
-            team collaboration
+            Comprehensive tools designed for modern AI prompt development
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
           {[
             {
               icon: "⚡",
@@ -492,7 +557,7 @@ function LandingPage({ onSignIn, onNavigate }) {
             },
             {
               icon: "🔍",
-              title: "Plagiarism & Similarity Detection",
+              title: "Plagiarism Detection",
               desc: "Ensure originality with built-in similarity checks.",
             },
             {
@@ -502,32 +567,32 @@ function LandingPage({ onSignIn, onNavigate }) {
             },
             {
               icon: "📊",
-              title: "Prompt History & Analytics",
+              title: "Analytics",
               desc: "Track usage patterns and optimize performance.",
             },
             {
               icon: "👥",
-              title: "Team Workspace Roles",
+              title: "Team Workspace",
               desc: "Owner, Admin, and Member roles with custom permissions.",
             },
             {
               icon: "⚙️",
-              title: "Execute & Export Prompts",
+              title: "Execute & Export",
               desc: "Run prompts directly and export to JSON/API formats.",
             },
           ].map((feature, index) => (
             <div
               key={index}
-              className="glass-card p-6 hover:border-primary/50 transition-all duration-300"
+              className="glass-card p-4 md:p-6 hover:border-primary/50 transition-all duration-300"
             >
               <div
-                className="w-12 h-12 rounded-lg flex items-center justify-center mb-4"
+                className="w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center mb-4"
                 style={{ backgroundColor: "var(--secondary)" }}
               >
-                <span className="text-2xl">{feature.icon}</span>
+                <span className="text-xl md:text-2xl">{feature.icon}</span>
               </div>
               <h3
-                className="text-lg font-semibold mb-2"
+                className="text-base md:text-lg font-semibold mb-2"
                 style={{ color: "var(--foreground)" }}
               >
                 {feature.title}
@@ -544,7 +609,7 @@ function LandingPage({ onSignIn, onNavigate }) {
 
         <div className="text-center">
           <button
-            className="btn-primary ai-glow px-8 py-3 text-lg font-medium"
+            className="btn-primary ai-glow px-6 md:px-8 py-3 text-base md:text-lg font-medium"
             onClick={onSignIn}
           >
             Explore Features
@@ -552,204 +617,20 @@ function LandingPage({ onSignIn, onNavigate }) {
         </div>
       </section>
 
-      {/* Upcoming Features */}
-      <section
-        className="container mx-auto px-4 py-20"
-        style={{ backgroundColor: "var(--card)" }}
-      >
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <div
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border"
-              style={{
-                backgroundColor: "var(--accent)",
-                borderColor: "var(--border)",
-                color: "var(--accent-foreground)",
-              }}
-            >
-              <span>🎓</span>
-              <span className="font-semibold">Enterprise & EDU Only</span>
-            </div>
-            <h4
-              className="text-2xl md:text-2xl font-bold mb-4"
-              style={{ color: "var(--foreground)" }}
-            >
-              Upcoming Features
-            </h4>
-            <h2
-              className="text-3xl md:text-4xl font-bold mb-4"
-              style={{ color: "var(--foreground)" }}
-            >
-              AI Governance & Learning Intelligence
-            </h2>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-12 items-center mb-8">
-            <div className="space-y-6">
-              <div className="flex flex-wrap gap-3">
-                {[
-                  "Live LLM prompt tracking",
-                  "VS Code & Cursor monitoring",
-                  "Capture errors, pasted code & AI-generated code",
-                  "Skill scoring & competency reports",
-                  "Student learning analysis",
-                ].map((feature, index) => (
-                  <div
-                    key={index}
-                    className="px-4 py-2 rounded-full border text-sm"
-                    style={{
-                      backgroundColor: "var(--secondary)",
-                      borderColor: "var(--border)",
-                      color: "var(--secondary-foreground)",
-                    }}
-                  >
-                    ✓ {feature}
-                  </div>
-                ))}
-              </div>
-
-              <p
-                className="text-lg leading-relaxed"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                Monitor AI usage in real-time across your organization. Track
-                student learning patterns, detect code plagiarism, and generate
-                comprehensive skill analytics - all while maintaining privacy
-                and compliance.
-              </p>
-            </div>
-
-            <div
-              className="glass-card p-8 rounded-lg border aspect-video flex items-center justify-center"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <div className="w-full h-full">
-                <video
-                  src="/Prism_AI_Collaboration.mp4"
-                  autoPlay
-                  muted
-                  loop
-                  playsInline
-                  className="rounded-md w-full h-full object-cover"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="text-center">
-            <button
-              onClick={() => onNavigate("/waitlist")}
-              className="btn-secondary px-8 py-3 text-lg font-medium"
-            >
-              Request Access
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Competitive Advantage */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2
-              className="text-3xl md:text-4xl font-bold mb-4"
-              style={{ color: "var(--foreground)" }}
-            >
-              Why This Platform?
-            </h2>
-            <p className="text-lg" style={{ color: "var(--muted-foreground)" }}>
-              The only platform that combines prompt collaboration with AI
-              governance
-            </p>
-          </div>
-
-          <div
-            className="glass-card p-8 rounded-lg border overflow-x-auto"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <table className="w-full">
-              <thead>
-                <tr
-                  className="border-b"
-                  style={{ borderColor: "var(--border)" }}
-                >
-                  <th
-                    className="text-left py-4 px-4 font-semibold"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    Focus
-                  </th>
-                  <th
-                    className="text-center py-4 px-4 font-semibold"
-                    style={{ color: "var(--primary)" }}
-                  >
-                    Prism
-                  </th>
-                  <th
-                    className="text-center py-4 px-4 font-semibold"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    Others
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  "Prompt collab + governance",
-                  "Prompt privacy controls",
-                  "Plagiarism & student ethics",
-                  "Real-time IDE AI tracking",
-                  "Skill analytics",
-                ].map((feature, index) => (
-                  <tr
-                    key={index}
-                    className="border-b"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    <td
-                      className="py-4 px-4"
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      {feature}
-                    </td>
-                    <td className="text-center py-4 px-4">
-                      <span className="text-2xl text-green-500">✅</span>
-                    </td>
-                    <td className="text-center py-4 px-4">
-                      <span className="text-2xl text-red-500">❌</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="text-center mt-8">
-            <p
-              className="text-xl font-semibold"
-              style={{ color: "var(--foreground)" }}
-            >
-              We are the AI workspace + monitoring layer the world has been
-              waiting for.
-            </p>
-          </div>
-        </div>
-      </section>
-
       {/* Final CTA */}
       <section
-        className="container mx-auto px-4 py-20"
+        className="container mx-auto px-4 py-12 md:py-20"
         style={{ backgroundColor: "var(--card)" }}
       >
         <div className="max-w-4xl mx-auto text-center">
           <h2
-            className="text-3xl md:text-5xl font-bold mb-6"
+            className="text-2xl md:text-3xl lg:text-5xl font-bold mb-4 md:mb-6"
             style={{ color: "var(--foreground)" }}
           >
             Ready to build smarter AI workflows?
           </h2>
           <p
-            className="text-xl mb-8"
+            className="text-base md:text-xl mb-6 md:mb-8"
             style={{ color: "var(--muted-foreground)" }}
           >
             Join teams already transforming their AI collaboration
@@ -758,21 +639,17 @@ function LandingPage({ onSignIn, onNavigate }) {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
             <button
               onClick={onSignIn}
-              className="btn-primary ai-glow px-8 py-4 text-lg font-semibold min-w-[200px]"
+              className="btn-primary ai-glow px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-semibold w-full sm:w-auto sm:min-w-[200px]"
             >
               Start Free
             </button>
             <button
               onClick={() => onNavigate("/waitlist")}
-              className="btn-secondary px-8 py-4 text-lg font-semibold min-w-[200px]"
+              className="btn-secondary px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-semibold w-full sm:w-auto sm:min-w-[200px]"
             >
-              Book EDU/Enterprise Demo
+              Book Demo
             </button>
           </div>
-          <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-            We’re building something transformative • Your feedback will help us
-            shape it
-          </p>
         </div>
       </section>
 
@@ -796,6 +673,7 @@ export default function App() {
   const [activeView, setActiveView] = useState("prompts");
   const [teamStats, setTeamStats] = useState({});
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ===================================
   // NAVIGATION HANDLER
@@ -1189,9 +1067,35 @@ export default function App() {
   // MAIN APPLICATION UI
   // ===================================
   return (
-    <div className="app-container flex min-h-screen">
+    <div className="app-container flex min-h-screen relative">
+      {/* Sidebar Overlay for Mobile */}
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? "visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      ></div>
+
       {/* Sidebar */}
-      <div className="team-sidebar w-72 p-4 flex flex-col">
+      <div
+        className={`team-sidebar w-72 p-4 flex flex-col ${
+          sidebarOpen ? "mobile-visible" : "mobile-hidden"
+        }`}
+      >
+        {/* Mobile Close Button */}
+        <div className="md:hidden flex justify-between items-center mb-4">
+          <h2
+            className="text-lg font-bold"
+            style={{ color: "var(--foreground)" }}
+          >
+            Menu
+          </h2>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="mobile-menu-btn"
+          >
+            <MenuIcon isOpen={true} />
+          </button>
+        </div>
+
         {/* User Profile Card */}
         <div className="glass-card p-4 mb-4">
           <div className="flex items-center gap-3 mb-3">
@@ -1225,6 +1129,7 @@ export default function App() {
               setActiveTeam(null);
               setActiveView("favorites");
               setIsChatOpen(false);
+              setSidebarOpen(false);
             }}
             className={`w-full p-4 text-left rounded-lg transition-all duration-300 border ${
               activeView === "favorites" && !activeTeam
@@ -1261,7 +1166,10 @@ export default function App() {
         {user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
           <div className="mb-4">
             <button
-              onClick={() => navigate("/admin")}
+              onClick={() => {
+                navigate("/admin");
+                setSidebarOpen(false);
+              }}
               className="w-full p-4 text-left rounded-lg transition-all duration-300 border glass-card hover:border-primary/50 ai-glow"
               style={{ borderColor: "var(--primary)" }}
             >
@@ -1295,7 +1203,10 @@ export default function App() {
         {activeTeamObj && (
           <div className="mb-4">
             <button
-              onClick={() => setIsChatOpen(!isChatOpen)}
+              onClick={() => {
+                setIsChatOpen(!isChatOpen);
+                setSidebarOpen(false);
+              }}
               className={`w-full p-4 text-left rounded-lg transition-all duration-300 border ${
                 isChatOpen
                   ? "ai-glow border-primary"
@@ -1403,6 +1314,7 @@ export default function App() {
                   onClick={() => {
                     setActiveTeam(team.id);
                     setActiveView("prompts");
+                    setSidebarOpen(false);
                   }}
                   className="flex items-start gap-3"
                 >
@@ -1470,9 +1382,37 @@ export default function App() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Mobile Header */}
+        <div className="md:hidden mobile-header">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="mobile-menu-btn"
+          >
+            <MenuIcon isOpen={false} />
+          </button>
+          <div className="flex-1 min-w-0">
+            {activeTeamObj ? (
+              <h1
+                className="text-lg font-bold truncate"
+                style={{ color: "var(--foreground)" }}
+              >
+                {activeTeamObj.name}
+              </h1>
+            ) : activeView === "favorites" ? (
+              <h1
+                className="text-lg font-bold"
+                style={{ color: "var(--foreground)" }}
+              >
+                My Favorites
+              </h1>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Desktop Header */}
         <div
-          className="p-6 border-b"
+          className="hidden md:block p-6 border-b"
           style={{
             borderColor: "var(--border)",
             backgroundColor: "var(--card)",
@@ -1519,7 +1459,6 @@ export default function App() {
               ) : null}
             </div>
 
-            {/* ✅ UPDATED: Added "plagiarism" to navigation tabs */}
             {activeTeamObj && (
               <div className="glass-card p-1 rounded-lg">
                 {[
@@ -1554,8 +1493,49 @@ export default function App() {
           </div>
         </div>
 
+        {/* Mobile View Tabs */}
+        {activeTeamObj && (
+          <div
+            className="md:hidden view-tabs-container border-b"
+            style={{ borderColor: "var(--border)" }}
+          >
+            <div className="view-tabs">
+              {[
+                "prompts",
+                "members",
+                "analytics",
+                "activity",
+                "plagiarism",
+              ].map((view) => (
+                <button
+                  key={view}
+                  onClick={() => setActiveView(view)}
+                  className={`view-tab rounded-lg transition-all duration-200 capitalize ${
+                    activeView === view ? "ai-glow" : ""
+                  }`}
+                  style={
+                    activeView === view
+                      ? {
+                          backgroundColor: "var(--primary)",
+                          color: "var(--primary-foreground)",
+                          border: "1px solid var(--primary)",
+                        }
+                      : {
+                          backgroundColor: "var(--card)",
+                          color: "var(--muted-foreground)",
+                          border: "1px solid var(--border)",
+                        }
+                  }
+                >
+                  {view === "plagiarism" ? "🔍" : view}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div
-          className="flex-1 p-6 overflow-y-auto"
+          className="flex-1 p-4 md:p-6 overflow-y-auto"
           style={{ backgroundColor: "var(--background)" }}
         >
           {activeTeamObj && activeView === "prompts" && (
@@ -1591,7 +1571,6 @@ export default function App() {
             <ActivityFeed teamId={activeTeamObj.id} />
           )}
 
-          {/* ✅ NEW: Plagiarism Checker View */}
           {activeTeamObj && activeView === "plagiarism" && (
             <PlagiarismChecker teamId={activeTeamObj.id} userRole={role} />
           )}
@@ -1601,16 +1580,16 @@ export default function App() {
           {!activeTeamObj && activeView !== "favorites" && (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center py-12">
-                <div className="glass-card p-8 max-w-md mx-auto">
-                  <div className="text-6xl mb-4">🚀</div>
+                <div className="glass-card p-6 md:p-8 max-w-md mx-auto">
+                  <div className="text-4xl md:text-6xl mb-4">🚀</div>
                   <h2
-                    className="text-xl font-semibold mb-4"
+                    className="text-lg md:text-xl font-semibold mb-4"
                     style={{ color: "var(--foreground)" }}
                   >
                     No Team Selected
                   </h2>
                   <p
-                    className="mb-6"
+                    className="mb-6 text-sm md:text-base"
                     style={{ color: "var(--muted-foreground)" }}
                   >
                     Select a team from the sidebar or create a new one to get
