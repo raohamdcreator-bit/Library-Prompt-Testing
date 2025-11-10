@@ -381,11 +381,10 @@ function LandingPage({ onSignIn, onNavigate }) {
 
             <h1
               className="text-5xl md:text-7xl font-normal mb-6"
-              style={{ color: "var(--primary)" }}
+              style={{ color: "var(--foreground)" }}
             >
-              <span style={{ color: "var(--foreground)" }}>The </span>
-              Governance Layer{" "}
-              <span style={{ color: "var(--foreground)" }}> in Prompt-Driven World</span>
+              Build Better Prompts with{" "}
+              <span style={{ color: "var(--primary)" }}>Your Team</span>
             </h1>
 
             <p
