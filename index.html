@@ -13,7 +13,7 @@
       content="AI prompts, team collaboration, prompt library, neural interface, AI tools, plagiarism detection"
     />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    
+
     <!-- Enhanced Title -->
     <title>Prism - AI Collaboration Platform</title>
 
@@ -27,11 +27,25 @@
       rel="stylesheet"
     />
 
+    <!-- ✅ Google Analytics 4 (Prism) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-L9G2B4S3JH"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag("js", new Date());
+      gtag("config", "G-L9G2B4S3JH");
+    </script>
+
     <!-- PWA Meta Tags -->
     <meta name="application-name" content="Prism" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#0f0f0f" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <meta name="apple-mobile-web-app-title" content="Prism" />
 
     <!-- Open Graph Meta Tags -->
@@ -46,11 +60,13 @@
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Prism" />
-    <meta name="twitter:description" content="AI prompt collaboration platform" />
+    <meta
+      name="twitter:description"
+      content="AI prompt collaboration platform"
+    />
 
     <!-- Critical CSS for initial loading -->
     <style>
-      /* Color variables matching demo */
       :root {
         --background: oklch(0.08 0 0);
         --foreground: oklch(0.95 0 0);
@@ -67,7 +83,6 @@
         background: var(--background);
         color: var(--foreground);
         font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
-        /* Subtle grid pattern background */
         background-image: linear-gradient(
             rgba(255, 255, 255, 0.02) 1px,
             transparent 1px
@@ -82,7 +97,6 @@
         flex-direction: column;
       }
 
-      /* ✅ SIMPLIFIED Professional loading screen - No breaking layout */
       .initial-loader {
         position: fixed;
         top: 0;
@@ -103,7 +117,6 @@
         opacity: 0;
       }
 
-      /* Simple spinner - lightweight and responsive */
       .professional-spinner {
         width: 40px;
         height: 40px;
@@ -114,101 +127,55 @@
       }
 
       @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
       }
 
-      /* Prevent flash of incorrect theme */
       * {
         box-sizing: border-box;
       }
     </style>
   </head>
   <body>
-    <!-- ✅ SIMPLIFIED Loading Screen - Won't break layout -->
     <div id="initial-loader" class="initial-loader">
       <div class="professional-spinner"></div>
     </div>
 
-    <!-- Main App Container -->
     <div id="root"></div>
 
-    <!-- Enhanced initialization script -->
     <script>
-      // ✅ SIMPLIFIED loading - remove immediately when React renders
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          const loader = document.getElementById('initial-loader');
+      window.addEventListener("load", function () {
+        setTimeout(function () {
+          const loader = document.getElementById("initial-loader");
           if (loader) {
-            loader.classList.add('hidden');
+            loader.classList.add("hidden");
             setTimeout(() => loader.remove(), 300);
           }
         }, 100);
       });
 
-      // Enhanced service worker registration
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", function () {
           navigator.serviceWorker
-            .register('/sw.js', { type: 'module' })
-            .then(() => console.log('Service Worker registered successfully'))
-            .catch((err) => console.log('SW registration failed:', err));
+            .register("/sw.js", { type: "module" })
+            .then(() => console.log("Service Worker registered successfully"))
+            .catch((err) => console.log("SW registration failed:", err));
         });
       }
 
-      // Enhanced error handling with user feedback
-      window.addEventListener('error', function(e) {
-        console.error('Application error:', e.error);
-
-        if (e.error && e.error.message && e.error.message.includes('Loading chunk')) {
-          const errorDiv = document.createElement('div');
-          errorDiv.innerHTML = `
-            <div style="
-              position: fixed; 
-              top: 20px; 
-              right: 20px; 
-              background: var(--card);
-              border: 1px solid var(--border);
-              padding: 16px 20px; 
-              border-radius: 8px;
-              color: var(--foreground);
-              font-family: Inter, sans-serif;
-              font-size: 14px;
-              z-index: 10000;
-              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-              max-width: 90vw;
-            ">
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                <span>⚠️</span>
-                <strong>Update Available</strong>
-              </div>
-              <div style="color: var(--muted-foreground); margin-bottom: 12px;">
-                Please refresh the page to load the latest version.
-              </div>
-              <button onclick="window.location.reload()" style="
-                background: var(--primary);
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                cursor: pointer;
-                font-size: 12px;
-                font-weight: 500;
-              ">
-                Refresh Now
-              </button>
-            </div>
-          `;
-          document.body.appendChild(errorDiv);
-        }
+      window.addEventListener("error", function (e) {
+        console.error("Application error:", e.error);
       });
 
-      // Connection status monitoring
       function updateConnectionStatus() {
         const isOnline = navigator.onLine;
         if (!isOnline) {
-          const offlineDiv = document.createElement('div');
-          offlineDiv.id = 'offline-indicator';
+          const offlineDiv = document.createElement("div");
+          offlineDiv.id = "offline-indicator";
           offlineDiv.innerHTML = `
             <div style="
               position: fixed; 
@@ -233,134 +200,28 @@
           `;
           document.body.appendChild(offlineDiv);
         } else {
-          const offlineDiv = document.getElementById('offline-indicator');
+          const offlineDiv = document.getElementById("offline-indicator");
           if (offlineDiv) offlineDiv.remove();
         }
       }
 
-      window.addEventListener('online', updateConnectionStatus);
-      window.addEventListener('offline', updateConnectionStatus);
+      window.addEventListener("online", updateConnectionStatus);
+      window.addEventListener("offline", updateConnectionStatus);
 
-      // Initialize app metadata
       window.prismConfig = {
-        version: '2.0.0',
+        version: "2.0.0",
         buildTime: new Date().toISOString(),
-        theme: 'professional-ai',
+        theme: "professional-ai",
         features: {
           realTimeSync: true,
           offlineSupport: false,
           darkMode: true,
           analytics: true,
-          plagiarismDetection: true
-        }
+          plagiarismDetection: true,
+        },
       };
     </script>
 
-    <!-- Main React Application -->
     <script type="module" src="/src/main.jsx"></script>
-
-    <!-- Enhanced Schema.org structured data -->
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "Prism",
-        "description": "Professional AI prompt collaboration platform with advanced team features, plagiarism detection, and neural interface design",
-        "url": "https://prompt-teams-five.vercel.app",
-        "applicationCategory": "ProductivityApplication",
-        "operatingSystem": "Web",
-        "browserRequirements": "Requires JavaScript. Modern browser recommended.",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD",
-          "availability": "https://schema.org/InStock"
-        },
-        "author": {
-          "@type": "Organization",
-          "name": "Prism"
-        },
-        "datePublished": "2025",
-        "softwareVersion": "2.0.0",
-        "screenshot": "/screenshots/dashboard.png",
-        "featureList": [
-          "AI Prompt Library",
-          "Team Collaboration",
-          "Real-time Sync",
-          "Advanced Search",
-          "Analytics Dashboard",
-          "Import/Export Tools",
-          "Plagiarism Detection",
-          "Prompt Privacy Controls"
-        ],
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": "4.8",
-          "ratingCount": "500"
-        }
-      }
-    </script>
-
-    <!-- Preload critical fonts -->
-    <link
-      rel="preload"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      as="style"
-      onload="this.onload=null;this.rel='stylesheet'"
-    />
-    <noscript>
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      />
-    </noscript>
-
-    <!-- Fallback for no JavaScript -->
-    <noscript>
-      <div style="
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        background: var(--background);
-        color: var(--foreground);
-        font-family: Inter, sans-serif;
-        text-align: center;
-        padding: 20px;
-      ">
-        <div style="
-          background: var(--card);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 40px;
-          max-width: 400px;
-        ">
-          <div style="font-size: 48px; margin-bottom: 16px">⚠️</div>
-          <h1 style="margin-bottom: 16px; font-size: 24px">
-            JavaScript Required
-          </h1>
-          <p style="
-            color: var(--muted-foreground);
-            margin-bottom: 20px;
-            line-height: 1.5;
-          ">
-            Prism requires JavaScript to function. Please enable JavaScript in 
-            your browser settings and refresh the page.
-          </p>
-          <button onclick="window.location.reload()" style="
-            background: var(--primary);
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-          ">
-            Refresh Page
-          </button>
-        </div>
-      </div>
-    </noscript>
   </body>
 </html>
