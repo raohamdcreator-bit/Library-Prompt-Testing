@@ -1,4 +1,4 @@
-/* src/App.css - Deep Blue AI Interface Theme */
+/* src/App.css - Deep Blue AI Interface Theme - Complete */
 
 @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;600&display=swap");
 
@@ -641,27 +641,6 @@ h6 {
   outline-offset: 2px;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .team-sidebar {
-    width: 100%;
-    min-height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
 /* Particle effects container */
 .particles-container {
   position: fixed;
@@ -820,3 +799,928 @@ h6 {
   border-radius: 50%;
   box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
 }
+
+/* ========================================
+   RESPONSIVE STYLES - MOBILE OPTIMIZATION
+   ======================================== */
+
+/* Tablet devices */
+@media (max-width: 1024px) {
+  .team-sidebar {
+    width: 250px;
+  }
+
+  .btn-primary,
+  .neo-btn {
+    padding: 14px 32px;
+    font-size: 0.813rem;
+  }
+
+  .btn-secondary,
+  .btn-danger {
+    padding: 11px 24px;
+    font-size: 0.813rem;
+  }
+
+  h1 {
+    font-size: 2rem;
+  }
+
+  h2 {
+    font-size: 1.75rem;
+  }
+}
+
+/* Mobile devices */
+@media (max-width: 768px) {
+  /* Container adjustments */
+  body {
+    font-size: 14px;
+  }
+
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  /* Team sidebar - stack on mobile */
+  .team-sidebar {
+    width: 100%;
+    min-height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Button sizing for mobile */
+  .btn-primary,
+  .neo-btn {
+    padding: 12px 24px;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .btn-secondary {
+    padding: 10px 20px;
+    font-size: 0.75rem;
+    width: 100%;
+  }
+
+  .btn-danger {
+    padding: 10px 20px;
+    font-size: 0.75rem;
+  }
+
+  /* Form inputs for mobile */
+  .form-input,
+  .search-input {
+    padding: 12px 14px;
+    font-size: 0.938rem;
+  }
+
+  /* Navigation items smaller on mobile */
+  .nav {
+    width: 60px;
+  }
+
+  .nav-item {
+    width: 40px;
+    height: 40px;
+  }
+
+  .nav-item svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Glass cards padding for mobile */
+  .glass-card,
+  .prompt-card {
+    padding: 1rem;
+  }
+
+  /* Team items on mobile */
+  .team-item {
+    padding: 0.75rem;
+  }
+
+  /* Heading sizes for mobile */
+  h1 {
+    font-size: 1.75rem;
+    letter-spacing: 1px;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    letter-spacing: 1px;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+  }
+
+  h4 {
+    font-size: 1.125rem;
+  }
+
+  /* Action icons smaller on mobile */
+  .action-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .action-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Modal content on mobile */
+  .modal-content {
+    margin: 1rem;
+    max-width: calc(100% - 2rem);
+  }
+
+  /* Avatar sizes */
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+  }
+
+  .user-avatar-small {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Reduce ambient effects on mobile */
+  body::after,
+  .ambient-sphere {
+    opacity: 0.05;
+    filter: blur(80px);
+  }
+
+  /* Simplified animations on mobile */
+  .glass-card:hover,
+  .prompt-card:hover {
+    transform: none;
+  }
+
+  /* Tag styles on mobile */
+  .prompt-tag {
+    padding: 4px 10px;
+    font-size: 0.688rem;
+  }
+
+  /* Logo on mobile */
+  .logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .logo::before {
+    width: 10px;
+    height: 10px;
+  }
+
+  /* Ambient spheres smaller on mobile */
+  .ambient-sphere-1 {
+    width: 300px;
+    height: 300px;
+  }
+
+  .ambient-sphere-2 {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+/* Continuation from Small mobile devices section */
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  /* Even smaller buttons for very small screens */
+  .btn-primary,
+  .neo-btn {
+    padding: 10px 20px;
+    font-size: 0.688rem;
+    letter-spacing: 0.5px;
+  }
+
+  .btn-secondary,
+  .btn-danger {
+    padding: 8px 16px;
+    font-size: 0.688rem;
+  }
+
+  /* Headings for small mobile */
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  h3 {
+    font-size: 1.1rem;
+  }
+
+  h4 {
+    font-size: 1rem;
+  }
+
+  /* Tighter spacing */
+  .glass-card,
+  .prompt-card {
+    padding: 0.75rem;
+  }
+
+  .team-item {
+    padding: 0.625rem;
+  }
+
+  /* Navigation for small mobile */
+  .nav {
+    width: 50px;
+  }
+
+  .nav-item {
+    width: 36px;
+    height: 36px;
+  }
+
+  .nav-item svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Form inputs */
+  .form-input,
+  .search-input {
+    padding: 10px 12px;
+    font-size: 0.875rem;
+  }
+
+  /* Avatars even smaller */
+  .user-avatar {
+    width: 24px;
+    height: 24px;
+  }
+
+  .user-avatar-small {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* Tags */
+  .prompt-tag {
+    padding: 3px 8px;
+    font-size: 0.625rem;
+  }
+
+  /* Logo */
+  .logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .logo::before {
+    width: 8px;
+    height: 8px;
+  }
+
+  /* Spinner */
+  .neo-spinner {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Action icons */
+  .action-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .action-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  /* Modal */
+  .modal-content {
+    margin: 0.5rem;
+    max-width: calc(100% - 1rem);
+    padding: 1rem;
+  }
+
+  /* Avatar initials */
+  .avatar-initials {
+    font-size: 0.625rem;
+  }
+
+  /* Status dot */
+  .status-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  /* Scrollbar thinner on mobile */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+}
+
+/* Landscape mobile orientation */
+@media (max-width: 768px) and (orientation: landscape) {
+  .team-sidebar {
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+
+  .btn-primary,
+  .neo-btn {
+    padding: 8px 20px;
+  }
+
+  .btn-secondary,
+  .btn-danger {
+    padding: 6px 16px;
+  }
+
+  h1 {
+    font-size: 1.5rem;
+  }
+
+  h2 {
+    font-size: 1.25rem;
+  }
+
+  /* Reduce vertical spacing in landscape */
+  .glass-card,
+  .prompt-card {
+    padding: 0.75rem;
+  }
+
+  /* Compact form inputs in landscape */
+  .form-input,
+  .search-input {
+    padding: 8px 12px;
+  }
+}
+
+/* Extra large screens */
+@media (min-width: 1920px) {
+  .container {
+    max-width: 1800px;
+  }
+
+  .btn-primary,
+  .neo-btn {
+    padding: 20px 50px;
+    font-size: 1rem;
+  }
+
+  h1 {
+    font-size: 3.5rem;
+  }
+
+  h2 {
+    font-size: 2.5rem;
+  }
+
+  .glass-card,
+  .prompt-card {
+    padding: 2rem;
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* Keep essential transitions */
+  .btn-primary,
+  .neo-btn,
+  .btn-secondary,
+  .btn-danger,
+  .form-input,
+  .search-input {
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  :root {
+    --border: rgba(168, 85, 247, 1);
+    --foreground: #ffffff;
+    --muted-foreground: #cccccc;
+  }
+
+  .glass-card,
+  .prompt-card {
+    border-width: 2px;
+  }
+
+  .btn-primary,
+  .neo-btn {
+    border: 2px solid rgba(168, 85, 247, 1);
+  }
+}
+
+/* Dark mode override (in case system prefers light) */
+@media (prefers-color-scheme: light) {
+  /* Keep dark theme - this app is designed for dark mode */
+  :root {
+    --background: rgb(5, 5, 5);
+    --foreground: #d1d0d3;
+  }
+}
+
+/* Print styles */
+@media print {
+  body::before,
+  body::after,
+  .ambient-sphere,
+  .particles-container,
+  .grid-overlay {
+    display: none;
+  }
+
+  .glass-card,
+  .prompt-card {
+    border: 1px solid #333;
+    background: white;
+    color: black;
+  }
+
+  .btn-primary,
+  .neo-btn,
+  .btn-secondary,
+  .btn-danger {
+    border: 1px solid #333;
+    background: white;
+    color: black;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Larger touch targets */
+  .btn-primary,
+  .neo-btn,
+  .btn-secondary,
+  .btn-danger {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .nav-item {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .action-icon {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Remove hover effects on touch devices */
+  .glass-card:hover,
+  .prompt-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .btn-primary:hover,
+  .neo-btn:hover {
+    transform: none;
+  }
+
+  /* Increase tap area */
+  .team-item {
+    padding: 1rem;
+  }
+
+  /* Better spacing for touch */
+  .prompt-tag {
+    margin: 0.25rem;
+  }
+}
+
+/* Keyboard navigation focus styles */
+.btn-primary:focus-visible,
+.neo-btn:focus-visible,
+.btn-secondary:focus-visible,
+.btn-danger:focus-visible {
+  outline: 3px solid rgba(168, 85, 247, 0.8);
+  outline-offset: 2px;
+}
+
+.form-input:focus-visible,
+.search-input:focus-visible {
+  outline: 3px solid rgba(168, 85, 247, 0.8);
+  outline-offset: 2px;
+}
+
+/* Loading states */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.loading::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(168, 85, 247, 0.2);
+  border-top: 2px solid rgba(168, 85, 247, 1);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+/* Disabled states */
+.btn-primary:disabled,
+.neo-btn:disabled,
+.btn-secondary:disabled,
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-input:disabled,
+.search-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--muted);
+}
+
+/* Error states */
+.form-input.error,
+.search-input.error {
+  border-color: var(--destructive);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.error-message {
+  color: var(--destructive);
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Success states */
+.form-input.success,
+.search-input.success {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.success-message {
+  color: #10b981;
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* Utility classes */
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.h-full {
+  height: 100%;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rounded {
+  border-radius: var(--radius);
+}
+
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+.hidden {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .md\:flex {
+    display: flex;
+  }
+
+  .md\:hidden {
+    display: none;
+  }
+
+  .md\:block {
+    display: block;
+  }
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 0%,
+    rgba(168, 85, 247, 0.1) 50%,
+    var(--muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: var(--radius);
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Tooltip */
+.tooltip {
+  position: relative;
+}
+
+.tooltip::before {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  padding: 0.5rem 0.75rem;
+  background: var(--popover);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  z-index: 1000;
+}
+
+.tooltip:hover::before {
+  opacity: 1;
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.badge-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: rgba(168, 85, 247, 0.5);
+}
+
+.badge-destructive {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--destructive);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: var(--border);
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.divider-vertical {
+  width: 1px;
+  height: 100%;
+  background: var(--border);
+  margin: 0 1rem;
+}
+
+/* Card variants */
+.card-hover:hover {
+  border-color: rgba(168, 85, 247, 0.6);
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.3);
+  transform: translateY(-2px);
+}
+
+.card-clickable {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.card-clickable:active {
+  transform: scale(0.98);
+}
+
+/* Alert */
+.alert {
+  padding: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+  margin-bottom: 1rem;
+}
+
+.alert-info {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(59, 130, 246, 0.1);
+  color: #60a5fa;
+}
+
+.alert-success {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.1);
+  color: #34d399;
+}
+
+.alert-warning {
+  border-color: rgba(245, 158, 11, 0.5);
+  background: rgba(245, 158, 11, 0.1);
+  color: #fbbf24;
+}
+
+.alert-error {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Slide in animations */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.3s ease-in-out;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-in-out;
+}
+
+/* Zoom in animation */
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.zoom-in {
+  animation: zoomIn 0.3s ease-in-out;
+}
+
+/* Accessibility - Screen reader only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus visible for better keyboard navigation */
+*:focus-visible {
+  outline: 2px solid rgba(168, 85, 247, 0.8);
+  outline-offset: 2px;
+}
+
+/* Improve text rendering */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Prevent text selection on buttons */
+button {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* End of App.css */
