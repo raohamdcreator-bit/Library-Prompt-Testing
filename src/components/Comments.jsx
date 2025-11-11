@@ -1,4 +1,4 @@
-// src/components/Comments.jsx - Updated to match PromptList UI style
+// src/components/Comments.jsx - Fully Responsive
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -102,7 +102,8 @@ export function Comment({
 
   function UserAvatar({ src, name, email, size = "small", className = "" }) {
     const [imageError, setImageError] = useState(false);
-    const avatarClass = size === "small" ? "w-8 h-8" : "w-10 h-10";
+    const avatarClass =
+      size === "small" ? "w-7 h-7 md:w-8 md:h-8" : "w-9 h-9 md:w-10 md:h-10";
     const initialsClass = size === "small" ? "text-xs" : "text-sm";
 
     if (!src || imageError) {
@@ -165,8 +166,8 @@ export function Comment({
 
   return (
     <div
-      className={`group flex gap-4 p-4 rounded-lg border transition-all duration-300 hover:border-primary/50 ${
-        comment.parentId ? "ml-8 bg-muted/30" : ""
+      className={`group flex gap-2 md:gap-4 p-3 md:p-4 rounded-lg border transition-all duration-300 hover:border-primary/50 ${
+        comment.parentId ? "ml-4 md:ml-8 bg-muted/30" : ""
       }`}
       style={{
         backgroundColor: comment.parentId ? "var(--muted)" : "var(--card)",
@@ -182,12 +183,18 @@ export function Comment({
       />
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+            <span
+              className="text-xs md:text-sm font-semibold truncate"
+              style={{ color: "var(--foreground)" }}
+            >
               {profile?.name || profile?.email || "Unknown user"}
             </span>
-            <div className="flex items-center gap-2 text-xs" style={{ color: "var(--muted-foreground)" }}>
+            <div
+              className="flex items-center gap-2 text-xs"
+              style={{ color: "var(--muted-foreground)" }}
+            >
               <span>{formatDate(comment.createdAt)}</span>
               {comment.updatedAt && (
                 <span className="font-medium">(edited)</span>
@@ -196,10 +203,10 @@ export function Comment({
           </div>
 
           {canModify && (
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300">
+            <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300">
               <button
                 onClick={() => setIsEditing(!isEditing)}
-                className="text-xs px-3 py-1.5 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+                className="text-xs px-2 md:px-3 py-1 md:py-1.5 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
                 style={{
                   backgroundColor: "var(--secondary)",
                   color: "var(--foreground)",
@@ -209,7 +216,7 @@ export function Comment({
               </button>
               <button
                 onClick={() => onDelete(comment.id)}
-                className="text-xs px-3 py-1.5 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
+                className="text-xs px-2 md:px-3 py-1 md:py-1.5 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
                 style={{
                   backgroundColor: "var(--destructive)",
                   color: "var(--destructive-foreground)",
@@ -222,11 +229,11 @@ export function Comment({
         </div>
 
         {isEditing ? (
-          <div className="space-y-3">
+          <div className="space-y-2 md:space-y-3">
             <textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
-              className="form-input resize-none"
+              className="form-input resize-none text-sm md:text-base"
               rows={3}
               placeholder="Edit your comment..."
             />
@@ -234,7 +241,7 @@ export function Comment({
               <button
                 onClick={handleEdit}
                 disabled={!editText.trim()}
-                className="btn-primary text-xs px-4 py-2"
+                className="btn-primary text-xs px-3 md:px-4 py-1.5 md:py-2"
               >
                 Save
               </button>
@@ -243,7 +250,7 @@ export function Comment({
                   setIsEditing(false);
                   setEditText(comment.text);
                 }}
-                className="btn-secondary text-xs px-4 py-2"
+                className="btn-secondary text-xs px-3 md:px-4 py-1.5 md:py-2"
               >
                 Cancel
               </button>
@@ -251,12 +258,15 @@ export function Comment({
           </div>
         ) : (
           <div>
-            <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: "var(--foreground)" }}>
+            <p
+              className="text-xs md:text-sm whitespace-pre-wrap leading-relaxed"
+              style={{ color: "var(--foreground)" }}
+            >
               {comment.text}
             </p>
 
             {!comment.parentId && (
-              <div className="mt-3">
+              <div className="mt-2 md:mt-3">
                 <button
                   onClick={() => setShowReplyForm(!showReplyForm)}
                   className="text-xs font-semibold transition-all duration-200 hover:underline"
@@ -270,7 +280,13 @@ export function Comment({
         )}
 
         {showReplyForm && (
-          <div className="mt-4 p-3 rounded-lg border" style={{ backgroundColor: "var(--muted)", borderColor: "var(--border)" }}>
+          <div
+            className="mt-3 md:mt-4 p-2 md:p-3 rounded-lg border"
+            style={{
+              backgroundColor: "var(--muted)",
+              borderColor: "var(--border)",
+            }}
+          >
             <CommentForm
               onSubmit={(text) => {
                 onReply(comment.id, text);
@@ -314,17 +330,17 @@ export function CommentForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-2 md:space-y-3">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder={placeholder}
-        className="form-input resize-none"
+        className="form-input resize-none text-sm md:text-base"
         rows={3}
         autoFocus={autoFocus}
         disabled={isSubmitting}
       />
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
           <span
             className={`font-medium ${
@@ -339,13 +355,13 @@ export function CommentForm({
           </span>
           <span className="ml-1">characters</span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           {onCancel && (
             <button
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="btn-secondary text-xs px-4 py-2"
+              className="btn-secondary text-xs px-3 md:px-4 py-1.5 md:py-2 flex-1 sm:flex-none"
             >
               Cancel
             </button>
@@ -353,7 +369,7 @@ export function CommentForm({
           <button
             type="submit"
             disabled={!text.trim() || isSubmitting || text.length > 500}
-            className="btn-primary text-xs px-4 py-2 flex items-center gap-2"
+            className="btn-primary text-xs px-3 md:px-4 py-1.5 md:py-2 flex items-center justify-center gap-2 flex-1 sm:flex-none"
           >
             {isSubmitting && <div className="neo-spinner w-3 h-3"></div>}
             {submitText}
@@ -447,9 +463,12 @@ export default function Comments({ teamId, promptId, userRole }) {
 
   if (loading) {
     return (
-      <div className="glass-card p-6 text-center">
+      <div className="glass-card p-4 md:p-6 text-center">
         <div className="neo-spinner mx-auto mb-4"></div>
-        <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+        <span
+          className="text-xs md:text-sm"
+          style={{ color: "var(--muted-foreground)" }}
+        >
           Loading comments...
         </span>
       </div>
@@ -459,12 +478,24 @@ export default function Comments({ teamId, promptId, userRole }) {
   return (
     <div className="glass-card overflow-hidden">
       {/* Header */}
-      <div className="p-6 border-b" style={{ borderColor: "var(--border)" }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h3 className="font-bold" style={{ color: "var(--foreground)" }}>
+      <div
+        className="p-4 md:p-6 border-b"
+        style={{ borderColor: "var(--border)" }}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
+            <h3
+              className="text-sm md:text-base font-bold"
+              style={{ color: "var(--foreground)" }}
+            >
               💬 Comments
-              <span className="ml-2 px-2 py-1 text-xs rounded-full" style={{ backgroundColor: "var(--secondary)", color: "var(--foreground)" }}>
+              <span
+                className="ml-2 px-2 py-0.5 md:py-1 text-xs rounded-full"
+                style={{
+                  backgroundColor: "var(--secondary)",
+                  color: "var(--foreground)",
+                }}
+              >
                 {commentCount}
               </span>
             </h3>
@@ -473,7 +504,7 @@ export default function Comments({ teamId, promptId, userRole }) {
           {!showCommentForm && (
             <button
               onClick={() => setShowCommentForm(true)}
-              className="btn-primary text-sm px-4 py-2"
+              className="btn-primary text-xs md:text-sm px-3 md:px-4 py-1.5 md:py-2 w-full sm:w-auto"
             >
               <span className="mr-2">+</span>
               Add Comment
@@ -484,7 +515,13 @@ export default function Comments({ teamId, promptId, userRole }) {
 
       {/* Comment Form */}
       {showCommentForm && (
-        <div className="p-6 border-b" style={{ borderColor: "var(--border)", backgroundColor: "var(--muted)" }}>
+        <div
+          className="p-4 md:p-6 border-b"
+          style={{
+            borderColor: "var(--border)",
+            backgroundColor: "var(--muted)",
+          }}
+        >
           <CommentForm
             onSubmit={(text) => {
               handleAddComment(text);
@@ -498,19 +535,25 @@ export default function Comments({ teamId, promptId, userRole }) {
       )}
 
       {/* Comments List */}
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         {topLevelComments.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-4xl mb-4">💬</div>
-            <p className="text-lg font-medium mb-2" style={{ color: "var(--foreground)" }}>
+          <div className="text-center py-8 md:py-12">
+            <div className="text-3xl md:text-4xl mb-4">💬</div>
+            <p
+              className="text-base md:text-lg font-medium mb-2"
+              style={{ color: "var(--foreground)" }}
+            >
               No comments yet
             </p>
-            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            <p
+              className="text-xs md:text-sm"
+              style={{ color: "var(--muted-foreground)" }}
+            >
               Be the first to share your thoughts!
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3 md:space-y-4">
             {topLevelComments.map((comment) => (
               <div key={comment.id}>
                 <Comment
@@ -524,7 +567,7 @@ export default function Comments({ teamId, promptId, userRole }) {
 
                 {/* Replies */}
                 {comment.replies && comment.replies.length > 0 && (
-                  <div className="mt-4 space-y-4">
+                  <div className="mt-3 md:mt-4 space-y-3 md:space-y-4">
                     {comment.replies.map((reply) => (
                       <Comment
                         key={reply.id}
