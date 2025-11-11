@@ -1,5 +1,5 @@
-// src/components/AdvancedSearch.jsx - FIXED VERSION (No infinite loop)
-import { useState, useEffect, useMemo, useCallback } from "react";
+// src/components/AdvancedSearch.jsx - UPDATED with Visibility Filter
+import { useState, useEffect, useMemo } from "react";
 
 export default function AdvancedSearch({
   prompts,
@@ -16,6 +16,7 @@ export default function AdvancedSearch({
     sortBy: "newest",
     minLength: "",
     maxLength: "",
+    visibility: "all", // Added visibility filter
   });
 
   const [showAdvanced, setShowAdvanced] = useState(isExpanded);
@@ -49,6 +50,13 @@ export default function AdvancedSearch({
     if (filters.author !== "all") {
       filtered = filtered.filter(
         (prompt) => prompt.createdBy === filters.author
+      );
+    }
+
+    // Visibility filter
+    if (filters.visibility !== "all") {
+      filtered = filtered.filter(
+        (prompt) => (prompt.visibility || "public") === filters.visibility
       );
     }
 
@@ -159,6 +167,7 @@ export default function AdvancedSearch({
       sortBy: "newest",
       minLength: "",
       maxLength: "",
+      visibility: "all",
     });
   }
 
@@ -170,7 +179,8 @@ export default function AdvancedSearch({
       filters.dateRange !== "all" ||
       filters.sortBy !== "newest" ||
       filters.minLength !== "" ||
-      filters.maxLength !== ""
+      filters.maxLength !== "" ||
+      filters.visibility !== "all"
     );
   }
 
@@ -292,6 +302,27 @@ export default function AdvancedSearch({
                     {author.name}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Visibility Filter Dropdown */}
+            <div>
+              <label
+                className="block text-sm font-medium mb-2"
+                style={{ color: "var(--foreground)" }}
+              >
+                🔐 Visibility
+              </label>
+              <select
+                value={filters.visibility}
+                onChange={(e) =>
+                  handleFilterChange("visibility", e.target.value)
+                }
+                className="form-input w-full"
+              >
+                <option value="all">All Prompts</option>
+                <option value="public">🔓 Public Only</option>
+                <option value="private">🔒 Private Only</option>
               </select>
             </div>
 
@@ -455,7 +486,8 @@ export default function AdvancedSearch({
                 style={{ color: "var(--muted-foreground)" }}
               >
                 Search by title, content, or tags. Use advanced filters for
-                precise results.
+                precise results. Use visibility buttons to filter by
+                public/private.
               </p>
             </div>
           </div>
