@@ -1,4 +1,4 @@
-//src/components/AddResultModal.jsx
+//src/components/AddResultModal.jsx - Fully Responsive
 // Modal for adding new results
 
 import { useState } from "react";
@@ -27,13 +27,11 @@ export default function AddResultModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       alert("Please select an image file");
       return;
     }
 
-    // Validate file size (max 10MB)
     if (file.size > 10 * 1024 * 1024) {
       alert("Image must be less than 10MB");
       return;
@@ -135,16 +133,19 @@ export default function AddResultModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay"
+      onClick={onClose}
+    >
       <div
         className="modal-content w-full max-w-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4 md:mb-6">
             <h3
-              className="text-xl font-bold"
+              className="text-lg md:text-xl font-bold"
               style={{ color: "var(--foreground)" }}
             >
               Add AI Output Result
@@ -172,15 +173,15 @@ export default function AddResultModal({
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Result Type Selection */}
+            {/* Result Type Selection - Mobile Optimized */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="block text-xs md:text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
                 Result Type
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 md:gap-3">
                 {[
                   { value: "text", icon: "📝", label: "Text" },
                   { value: "code", icon: "💻", label: "Code" },
@@ -190,7 +191,7 @@ export default function AddResultModal({
                     key={type.value}
                     type="button"
                     onClick={() => setResultType(type.value)}
-                    className={`p-4 rounded-lg border-2 transition-all ${
+                    className={`p-3 md:p-4 rounded-lg border-2 transition-all ${
                       resultType === type.value
                         ? "border-primary"
                         : "border-border"
@@ -202,9 +203,9 @@ export default function AddResultModal({
                           : "var(--card)",
                     }}
                   >
-                    <div className="text-2xl mb-1">{type.icon}</div>
+                    <div className="text-xl md:text-2xl mb-1">{type.icon}</div>
                     <div
-                      className="text-sm font-medium"
+                      className="text-xs md:text-sm font-medium"
                       style={{ color: "var(--foreground)" }}
                     >
                       {type.label}
@@ -217,7 +218,7 @@ export default function AddResultModal({
             {/* Title */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="block text-xs md:text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
                 Title *
@@ -226,8 +227,8 @@ export default function AddResultModal({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Generated Blog Post, API Response, Product Image"
-                className="form-input"
+                placeholder="e.g., Generated Blog Post, API Response"
+                className="form-input text-sm md:text-base"
                 required
                 disabled={uploading}
               />
@@ -237,7 +238,7 @@ export default function AddResultModal({
             {resultType === "text" && (
               <div>
                 <label
-                  className="block text-sm font-medium mb-2"
+                  className="block text-xs md:text-sm font-medium mb-2"
                   style={{ color: "var(--foreground)" }}
                 >
                   Text Content *
@@ -246,7 +247,7 @@ export default function AddResultModal({
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Paste your AI-generated text output here..."
-                  className="form-input min-h-[200px] font-mono text-sm"
+                  className="form-input min-h-[150px] md:min-h-[200px] font-mono text-xs md:text-sm"
                   required
                   disabled={uploading}
                 />
@@ -264,7 +265,7 @@ export default function AddResultModal({
               <>
                 <div>
                   <label
-                    className="block text-sm font-medium mb-2"
+                    className="block text-xs md:text-sm font-medium mb-2"
                     style={{ color: "var(--foreground)" }}
                   >
                     Programming Language
@@ -272,7 +273,7 @@ export default function AddResultModal({
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
-                    className="form-input"
+                    className="form-input text-sm md:text-base"
                     disabled={uploading}
                   >
                     <option value="javascript">JavaScript</option>
@@ -298,7 +299,7 @@ export default function AddResultModal({
                 </div>
                 <div>
                   <label
-                    className="block text-sm font-medium mb-2"
+                    className="block text-xs md:text-sm font-medium mb-2"
                     style={{ color: "var(--foreground)" }}
                   >
                     Code Content *
@@ -307,7 +308,7 @@ export default function AddResultModal({
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     placeholder="Paste your AI-generated code here..."
-                    className="form-input min-h-[300px] font-mono text-sm"
+                    className="form-input min-h-[200px] md:min-h-[300px] font-mono text-xs md:text-sm"
                     required
                     disabled={uploading}
                     style={{
@@ -324,11 +325,11 @@ export default function AddResultModal({
               </>
             )}
 
-            {/* Content (Image) */}
+            {/* Content (Image) - Mobile Optimized */}
             {resultType === "image" && (
               <div>
                 <label
-                  className="block text-sm font-medium mb-2"
+                  className="block text-xs md:text-sm font-medium mb-2"
                   style={{ color: "var(--foreground)" }}
                 >
                   Upload Image *
@@ -344,11 +345,11 @@ export default function AddResultModal({
                       disabled={uploading}
                     />
                     <div
-                      className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
+                      className="border-2 border-dashed rounded-lg p-6 md:p-8 text-center cursor-pointer hover:border-primary transition-colors"
                       style={{ borderColor: "var(--border)" }}
                     >
                       <svg
-                        className="w-12 h-12 mx-auto mb-3"
+                        className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-3"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -362,7 +363,7 @@ export default function AddResultModal({
                         />
                       </svg>
                       <p
-                        className="text-sm font-medium mb-1"
+                        className="text-xs md:text-sm font-medium mb-1"
                         style={{ color: "var(--foreground)" }}
                       >
                         Click to upload image
@@ -383,7 +384,7 @@ export default function AddResultModal({
                     <img
                       src={imagePreview}
                       alt="Preview"
-                      className="w-full h-auto max-h-96 object-contain bg-black/5"
+                      className="w-full h-auto max-h-64 md:max-h-96 object-contain bg-black/5"
                     />
                     <button
                       type="button"
@@ -423,7 +424,7 @@ export default function AddResultModal({
             {uploading && (
               <div className="space-y-2">
                 <div
-                  className="flex items-center justify-between text-sm"
+                  className="flex items-center justify-between text-xs md:text-sm"
                   style={{ color: "var(--muted-foreground)" }}
                 >
                   <span>Uploading...</span>
@@ -441,12 +442,12 @@ export default function AddResultModal({
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex gap-3 pt-4">
+            {/* Actions - Mobile Optimized */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <button
                 type="submit"
                 disabled={uploading}
-                className="btn-primary flex-1 py-3"
+                className="btn-primary flex-1 py-2 md:py-3 text-sm md:text-base"
               >
                 {uploading ? "Adding Result..." : "Add Result"}
               </button>
@@ -454,7 +455,7 @@ export default function AddResultModal({
                 type="button"
                 onClick={onClose}
                 disabled={uploading}
-                className="btn-secondary px-6 py-3"
+                className="btn-secondary px-6 py-2 md:py-3 text-sm md:text-base sm:w-auto"
               >
                 Cancel
               </button>
