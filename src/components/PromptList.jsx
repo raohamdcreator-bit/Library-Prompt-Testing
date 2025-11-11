@@ -1,4 +1,4 @@
-// src/components/PromptList.jsx - Updated with Visibility Controls
+// src/components/PromptList.jsx - Fully Responsive with Visibility Controls
 import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -145,6 +145,14 @@ function Icon({ name, className = "w-5 h-5" }) {
         d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
       />
     ),
+    menu: (
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 6h16M4 12h16M4 18h16"
+      />
+    ),
   };
 
   return (
@@ -183,7 +191,8 @@ export default function PromptList({ activeTeam, userRole }) {
   const [teamName, setTeamName] = useState("");
   const [showAIEnhancer, setShowAIEnhancer] = useState(false);
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
-  const [visibilityFilter, setVisibilityFilter] = useState("all"); // all, public, private
+  const [visibilityFilter, setVisibilityFilter] = useState("all");
+  const [showMobileActions, setShowMobileActions] = useState({});
 
   const pagination = usePagination(filteredPrompts, 10);
 
@@ -215,7 +224,6 @@ export default function PromptList({ activeTeam, userRole }) {
           new Map(data.map((item) => [item.id, item])).values()
         );
 
-        // Filter based on visibility permissions
         const visiblePrompts = filterVisiblePrompts(
           uniqueData,
           user.uid,
@@ -429,6 +437,13 @@ export default function PromptList({ activeTeam, userRole }) {
 
   function toggleResults(promptId) {
     setShowResults((prev) => ({
+      ...prev,
+      [promptId]: !prev[promptId],
+    }));
+  }
+
+  function toggleMobileActions(promptId) {
+    setShowMobileActions((prev) => ({
       ...prev,
       [promptId]: !prev[promptId],
     }));
@@ -654,18 +669,21 @@ export default function PromptList({ activeTeam, userRole }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="glass-card p-4 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <div>
             <h2
-              className="text-2xl font-bold mb-2"
+              className="text-xl md:text-2xl font-bold mb-1 md:mb-2"
               style={{ color: "var(--foreground)" }}
             >
               Prompt Library
             </h2>
-            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            <p
+              className="text-xs md:text-sm"
+              style={{ color: "var(--muted-foreground)" }}
+            >
               {prompts.length} {prompts.length === 1 ? "prompt" : "prompts"} in
               this team
             </p>
@@ -673,49 +691,24 @@ export default function PromptList({ activeTeam, userRole }) {
 
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="btn-primary px-6 py-3 flex items-center gap-2"
+            className="btn-primary px-4 md:px-6 py-2 md:py-3 flex items-center justify-center gap-2 w-full sm:w-auto"
           >
-            <Icon name={showCreateForm ? "close" : "add"} />
-            <span>{showCreateForm ? "Cancel" : "New Prompt"}</span>
+            <Icon
+              name={showCreateForm ? "close" : "add"}
+              className="w-4 h-4 md:w-5 md:h-5"
+            />
+            <span className="text-sm md:text-base">
+              {showCreateForm ? "Cancel" : "New Prompt"}
+            </span>
           </button>
-        </div>
-
-        {/* Visibility Filter */}
-        <div className="flex items-center gap-3 mt-4">
-          <span
-            className="text-sm font-medium"
-            style={{ color: "var(--foreground)" }}
-          >
-            Show:
-          </span>
-          <div className="flex gap-2">
-            {[
-              { value: "all", label: "All", icon: "eye" },
-              { value: "public", label: "Public", icon: "unlock" },
-              { value: "private", label: "Private", icon: "lock" },
-            ].map((filter) => (
-              <button
-                key={filter.value}
-                onClick={() => setVisibilityFilter(filter.value)}
-                className={`px-3 py-1 text-sm rounded-lg flex items-center gap-2 transition-all ${
-                  visibilityFilter === filter.value
-                    ? "btn-primary"
-                    : "btn-secondary"
-                }`}
-              >
-                <Icon name={filter.icon} className="w-4 h-4" />
-                <span>{filter.label}</span>
-              </button>
-            ))}
-          </div>
         </div>
       </div>
 
-      {/* Create Prompt Form */}
+      {/* Create Prompt Form - Mobile Optimized */}
       {showCreateForm && (
-        <div className="glass-card p-6">
+        <div className="glass-card p-4 md:p-6">
           <h3
-            className="text-lg font-semibold mb-4"
+            className="text-base md:text-lg font-semibold mb-4"
             style={{ color: "var(--foreground)" }}
           >
             Create New Prompt
@@ -723,7 +716,7 @@ export default function PromptList({ activeTeam, userRole }) {
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="block text-xs md:text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
                 Title *
@@ -731,7 +724,7 @@ export default function PromptList({ activeTeam, userRole }) {
               <input
                 type="text"
                 placeholder="e.g., Blog Post Generator"
-                className="form-input"
+                className="form-input text-sm md:text-base"
                 value={newPrompt.title}
                 onChange={(e) =>
                   setNewPrompt({ ...newPrompt, title: e.target.value })
@@ -742,14 +735,14 @@ export default function PromptList({ activeTeam, userRole }) {
 
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="block text-xs md:text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
                 Prompt Text *
               </label>
               <textarea
                 placeholder="Enter your prompt here..."
-                className="form-input min-h-[150px]"
+                className="form-input min-h-[120px] md:min-h-[150px] text-sm md:text-base"
                 value={newPrompt.text}
                 onChange={(e) =>
                   setNewPrompt({ ...newPrompt, text: e.target.value })
@@ -766,7 +759,7 @@ export default function PromptList({ activeTeam, userRole }) {
 
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="block text-xs md:text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
                 Tags (comma separated)
@@ -774,7 +767,7 @@ export default function PromptList({ activeTeam, userRole }) {
               <input
                 type="text"
                 placeholder="e.g., writing, creative, marketing"
-                className="form-input"
+                className="form-input text-sm md:text-base"
                 value={newPrompt.tags}
                 onChange={(e) =>
                   setNewPrompt({ ...newPrompt, tags: e.target.value })
@@ -782,15 +775,15 @@ export default function PromptList({ activeTeam, userRole }) {
               />
             </div>
 
-            {/* Visibility Control */}
+            {/* Visibility Control - Mobile Optimized */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="block text-xs md:text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
                 Visibility
               </label>
-              <div className="flex gap-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
@@ -803,7 +796,7 @@ export default function PromptList({ activeTeam, userRole }) {
                     className="form-radio"
                   />
                   <Icon name="unlock" className="w-4 h-4" />
-                  <span className="text-sm">
+                  <span className="text-xs md:text-sm">
                     Public - All team members can view
                   </span>
                 </label>
@@ -819,21 +812,24 @@ export default function PromptList({ activeTeam, userRole }) {
                     className="form-radio"
                   />
                   <Icon name="lock" className="w-4 h-4" />
-                  <span className="text-sm">
+                  <span className="text-xs md:text-sm">
                     Private - Only you and admins can view
                   </span>
                 </label>
               </div>
             </div>
 
-            <div className="flex gap-3">
-              <button type="submit" className="btn-primary px-6 py-2">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="submit"
+                className="btn-primary px-6 py-2 w-full sm:w-auto"
+              >
                 Create Prompt
               </button>
               <button
                 type="button"
                 onClick={() => setShowCreateForm(false)}
-                className="btn-secondary px-6 py-2"
+                className="btn-secondary px-6 py-2 w-full sm:w-auto"
               >
                 Cancel
               </button>
@@ -871,21 +867,24 @@ export default function PromptList({ activeTeam, userRole }) {
         />
       )}
 
-      {/* Prompts List */}
+      {/* Prompts List - Mobile Optimized */}
       {pagination.currentItems.length === 0 ? (
-        <div className="glass-card p-12 text-center">
+        <div className="glass-card p-8 md:p-12 text-center">
           <Icon
             name="document"
-            className="mx-auto mb-4 w-16 h-16"
+            className="mx-auto mb-4 w-12 h-12 md:w-16 md:h-16"
             style={{ color: "var(--muted-foreground)" }}
           />
           <h3
-            className="text-lg font-semibold mb-2"
+            className="text-base md:text-lg font-semibold mb-2"
             style={{ color: "var(--foreground)" }}
           >
             {pagination.isFiltered ? "No matching prompts" : "No prompts yet"}
           </h3>
-          <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
+          <p
+            className="mb-6 text-sm md:text-base"
+            style={{ color: "var(--muted-foreground)" }}
+          >
             {pagination.isFiltered
               ? "Try adjusting your search filters"
               : "Create your first prompt to get started"}
@@ -900,7 +899,7 @@ export default function PromptList({ activeTeam, userRole }) {
           )}
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 md:space-y-4">
           {pagination.currentItems.map((prompt) => {
             const author = teamMembers[prompt.createdBy];
             const isExpanded = expandedPromptId === prompt.id;
@@ -910,35 +909,39 @@ export default function PromptList({ activeTeam, userRole }) {
               prompt.visibility || "public"
             );
             const isPrivate = prompt.visibility === "private";
+            const showActions = showMobileActions[prompt.id];
 
             return (
               <div
                 key={prompt.id}
-                className={`glass-card p-6 transition-all duration-300 hover:border-primary/50 ${
+                className={`glass-card p-3 md:p-6 transition-all duration-300 hover:border-primary/50 ${
                   isPrivate ? "border-accent/30" : ""
                 }`}
               >
-                {/* Header */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-start gap-3 flex-1">
-                    <PromptSelector
-                      promptId={prompt.id}
-                      isSelected={isSelected}
-                      onSelectionChange={handleSelectionChange}
-                      className="mt-1"
-                    />
+                {/* Header - Mobile Optimized */}
+                <div className="flex items-start justify-between mb-3 md:mb-4">
+                  <div className="flex items-start gap-2 md:gap-3 flex-1 min-w-0">
+                    {/* Checkbox - Hidden on mobile by default */}
+                    <div className="hidden sm:block">
+                      <PromptSelector
+                        promptId={prompt.id}
+                        isSelected={isSelected}
+                        onSelectionChange={handleSelectionChange}
+                        className="mt-1"
+                      />
+                    </div>
 
                     <UserAvatar
                       src={author?.avatar}
                       name={author?.name}
                       email={author?.email}
-                      className="mt-1"
+                      className="mt-1 flex-shrink-0"
                     />
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
                         <h3
-                          className="text-lg font-semibold"
+                          className="text-base md:text-lg font-semibold truncate"
                           style={{ color: "var(--foreground)" }}
                         >
                           {prompt.title}
@@ -946,33 +949,38 @@ export default function PromptList({ activeTeam, userRole }) {
                         {/* Visibility Badge */}
                         <span
                           style={visibilityBadge.style}
-                          className="flex items-center gap-1"
+                          className="flex items-center gap-1 w-fit text-xs"
                         >
                           <Icon
                             name={visibilityBadge.icon}
                             className="w-3 h-3"
                           />
-                          {visibilityBadge.label}
+                          <span className="hidden sm:inline">
+                            {visibilityBadge.label}
+                          </span>
                         </span>
                       </div>
                       <div
-                        className="flex items-center gap-3 text-xs flex-wrap"
+                        className="flex items-center gap-2 text-xs flex-wrap"
                         style={{ color: "var(--muted-foreground)" }}
                       >
-                        <span>
-                          By {author?.name || author?.email || "Unknown"}
+                        <span className="truncate max-w-[120px] sm:max-w-none">
+                          {author?.name || author?.email || "Unknown"}
                         </span>
-                        <span>•</span>
-                        <span>{formatDate(prompt.createdAt)}</span>
-                        <span>•</span>
-                        <span>{prompt.text?.length || 0} chars</span>
+                        <span className="hidden sm:inline">•</span>
+                        <span className="hidden sm:inline">
+                          {formatDate(prompt.createdAt)}
+                        </span>
+                        <span className="hidden md:inline">•</span>
+                        <span className="hidden md:inline">
+                          {prompt.text?.length || 0} chars
+                        </span>
                         {resultsCount > 0 && (
                           <>
-                            <span>•</span>
-                            <span className="flex items-center gap-1">
+                            <span className="hidden sm:inline">•</span>
+                            <span className="hidden sm:flex items-center gap-1">
                               <Icon name="database" className="w-3 h-3" />
-                              {resultsCount}{" "}
-                              {resultsCount === 1 ? "result" : "results"}
+                              {resultsCount}
                             </span>
                           </>
                         )}
@@ -980,9 +988,20 @@ export default function PromptList({ activeTeam, userRole }) {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 ml-4">
-                    {/* Visibility Toggle */}
+                  {/* Mobile Actions Menu Button */}
+                  <button
+                    onClick={() => toggleMobileActions(prompt.id)}
+                    className="md:hidden p-2 rounded-lg transition-colors flex-shrink-0"
+                    style={{
+                      backgroundColor: "var(--secondary)",
+                      color: "var(--foreground)",
+                    }}
+                  >
+                    <Icon name="menu" className="w-5 h-5" />
+                  </button>
+
+                  {/* Desktop Action Buttons */}
+                  <div className="hidden md:flex items-center gap-2 ml-4 flex-shrink-0">
                     {canChangeVisibility(prompt, user.uid, userRole) && (
                       <button
                         onClick={() => handleToggleVisibility(prompt.id)}
@@ -1085,17 +1104,108 @@ export default function PromptList({ activeTeam, userRole }) {
                   </div>
                 </div>
 
-                {/* Prompt Text Preview */}
-                <div className="mb-4">
+                {/* Mobile Actions Dropdown */}
+                {showActions && (
                   <div
-                    className="p-4 rounded-lg border"
+                    className="md:hidden mb-3 p-3 rounded-lg border space-y-2"
+                    style={{
+                      backgroundColor: "var(--muted)",
+                      borderColor: "var(--border)",
+                    }}
+                  >
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => {
+                          handleCopy(prompt.text);
+                          toggleMobileActions(prompt.id);
+                        }}
+                        className="btn-secondary py-2 text-xs flex items-center justify-center gap-2"
+                      >
+                        <Icon name="copy" className="w-4 h-4" />
+                        Copy
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          handleAIEnhance(prompt);
+                          toggleMobileActions(prompt.id);
+                        }}
+                        className="btn-primary py-2 text-xs flex items-center justify-center gap-2"
+                      >
+                        <Icon name="sparkles" className="w-4 h-4" />
+                        AI Enhance
+                      </button>
+
+                      {canChangeVisibility(prompt, user.uid, userRole) && (
+                        <button
+                          onClick={() => {
+                            handleToggleVisibility(prompt.id);
+                            toggleMobileActions(prompt.id);
+                          }}
+                          className="btn-secondary py-2 text-xs flex items-center justify-center gap-2"
+                        >
+                          <Icon
+                            name={isPrivate ? "eyeOff" : "eye"}
+                            className="w-4 h-4"
+                          />
+                          {isPrivate ? "Public" : "Private"}
+                        </button>
+                      )}
+
+                      {canEditPrompt(prompt) && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditingPrompt(prompt);
+                              setShowEditModal(true);
+                              toggleMobileActions(prompt.id);
+                            }}
+                            className="btn-secondary py-2 text-xs flex items-center justify-center gap-2"
+                          >
+                            <Icon name="edit" className="w-4 h-4" />
+                            Edit
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              handleDelete(prompt.id);
+                              toggleMobileActions(prompt.id);
+                            }}
+                            className="btn-danger py-2 text-xs flex items-center justify-center gap-2 col-span-2"
+                          >
+                            <Icon name="trash" className="w-4 h-4" />
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        setExpandedPromptId(isExpanded ? null : prompt.id)
+                      }
+                      className="btn-secondary w-full py-2 text-xs flex items-center justify-center gap-2"
+                    >
+                      <Icon
+                        name={isExpanded ? "chevronUp" : "chevronDown"}
+                        className="w-4 h-4"
+                      />
+                      {isExpanded ? "Collapse" : "Expand"}
+                    </button>
+                  </div>
+                )}
+
+                {/* Prompt Text Preview */}
+                <div className="mb-3 md:mb-4">
+                  <div
+                    className="p-3 md:p-4 rounded-lg border"
                     style={{
                       backgroundColor: "var(--muted)",
                       borderColor: "var(--border)",
                     }}
                   >
                     <pre
-                      className={`whitespace-pre-wrap text-sm font-mono ${
+                      className={`whitespace-pre-wrap text-xs md:text-sm font-mono ${
                         !isExpanded ? "line-clamp-3" : ""
                       }`}
                       style={{ color: "var(--foreground)" }}
@@ -1107,11 +1217,11 @@ export default function PromptList({ activeTeam, userRole }) {
 
                 {/* Tags */}
                 {prompt.tags && prompt.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="flex flex-wrap gap-1.5 md:gap-2 mb-3 md:mb-4">
                     {prompt.tags.map((tag, index) => (
                       <span
                         key={index}
-                        className="inline-block px-2 py-1 rounded-full text-xs font-medium border"
+                        className="inline-block px-2 py-0.5 md:py-1 rounded-full text-xs font-medium border"
                         style={{
                           backgroundColor: "var(--secondary)",
                           color: "var(--secondary-foreground)",
@@ -1127,7 +1237,7 @@ export default function PromptList({ activeTeam, userRole }) {
                 {/* Expanded Content */}
                 {isExpanded && (
                   <div
-                    className="space-y-4 border-t pt-4"
+                    className="space-y-3 md:space-y-4 border-t pt-3 md:pt-4"
                     style={{ borderColor: "var(--border)" }}
                   >
                     <CompactAITools text={prompt.text} />
@@ -1136,7 +1246,7 @@ export default function PromptList({ activeTeam, userRole }) {
                     <div>
                       <button
                         onClick={() => toggleResults(prompt.id)}
-                        className="btn-secondary w-full py-2 text-sm flex items-center justify-center gap-2"
+                        className="btn-secondary w-full py-2 text-xs md:text-sm flex items-center justify-center gap-2"
                       >
                         <Icon name="database" className="w-4 h-4" />
                         <span>
@@ -1147,7 +1257,7 @@ export default function PromptList({ activeTeam, userRole }) {
                       </button>
 
                       {showResults[prompt.id] && (
-                        <div className="mt-4">
+                        <div className="mt-3 md:mt-4">
                           <PromptResults
                             key={`results-${prompt.id}`}
                             teamId={activeTeam}
@@ -1164,7 +1274,7 @@ export default function PromptList({ activeTeam, userRole }) {
                     {/* Comments Section */}
                     <button
                       onClick={() => toggleComments(prompt.id)}
-                      className="btn-secondary w-full py-2 text-sm"
+                      className="btn-secondary w-full py-2 text-xs md:text-sm"
                     >
                       {showComments[prompt.id] ? "Hide" : "Show"} Comments
                     </button>
