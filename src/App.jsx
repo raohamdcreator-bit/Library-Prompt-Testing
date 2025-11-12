@@ -464,7 +464,7 @@ function LandingPage({ onSignIn, onNavigate }) {
           </div>
 
           {/* Video Section */}
-          <div className="mb-8 md:mb-12">
+          {/* <div className="mb-8 md:mb-12">
             <div
               className="glass-card p-2 md:p-4 rounded-xl border overflow-hidden"
               style={{ borderColor: "var(--border)" }}
@@ -485,7 +485,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                 Your browser does not support the video tag.
               </video>
             </div>
-          </div>
+          </div> */}
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 md:mb-12 px-4">
