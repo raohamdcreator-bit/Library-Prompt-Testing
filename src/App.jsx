@@ -1,4 +1,4 @@
-// src/App.jsx - Complete with Responsive Design
+// src/App.jsx - Enhanced with Professional Icons
 import { useEffect, useState } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -24,6 +24,28 @@ import { TeamAnalytics } from "./components/PromptAnalytics";
 import ActivityFeed from "./components/ActivityFeed";
 import TeamChat from "./components/TeamChat";
 import PlagiarismChecker from "./components/PlagiarismChecker";
+
+// Lucide React Icons
+import {
+  Menu,
+  X,
+  Zap,
+  Sparkles,
+  Users,
+  FileText,
+  BarChart3,
+  Activity,
+  Search,
+  MessageSquare,
+  Star,
+  Shield,
+  LogOut,
+  Plus,
+  ChevronDown,
+  Crown,
+  UserCog,
+  User,
+} from "lucide-react";
 
 // Import Legal/Info Pages
 import Contact from "./pages/Contact";
@@ -72,7 +94,7 @@ function Logo({ size = "normal", onClick }) {
         src="/logo.png"
         alt="Prism Logo"
         className="w-full h-full object-contain"
-        style={{ filter: "drop-shadow(0 0 8px rgba(168, 85, 247, 0.4))" }}
+        style={{ filter: "drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))" }}
       />
     </div>
   );
@@ -82,31 +104,7 @@ function Logo({ size = "normal", onClick }) {
 // MOBILE MENU ICON
 // ===================================
 function MenuIcon({ isOpen }) {
-  return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {isOpen ? (
-        <>
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </>
-      ) : (
-        <>
-          <line x1="3" y1="12" x2="21" y2="12"></line>
-          <line x1="3" y1="6" x2="21" y2="6"></line>
-          <line x1="3" y1="18" x2="21" y2="18"></line>
-        </>
-      )}
-    </svg>
-  );
+  return isOpen ? <X size={24} /> : <Menu size={24} />;
 }
 
 // ===================================
@@ -163,7 +161,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
             {isAdmin && (
               <button
                 onClick={() => onNavigate("/admin")}
-                className="px-4 py-2 rounded-lg font-semibold transition-all duration-300 ai-glow"
+                className="px-4 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2"
                 style={{
                   backgroundColor: "var(--primary)",
                   color: "var(--primary-foreground)",
@@ -171,7 +169,8 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
                 }}
                 title="Admin Dashboard - Manage Waitlist"
               >
-                🔒 Admin
+                <Shield size={16} />
+                Admin
               </button>
             )}
           </div>
@@ -189,8 +188,9 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
             {!isAuthenticated && (
               <button
                 onClick={onSignIn}
-                className="btn-primary ai-glow px-6 py-2"
+                className="btn-primary px-6 py-2 flex items-center gap-2"
               >
+                <Zap size={18} />
                 Sign in with Google
               </button>
             )}
@@ -237,13 +237,14 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
                   onNavigate("/admin");
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-4 py-3 rounded-lg font-semibold"
+                className="w-full text-left px-4 py-3 rounded-lg font-semibold flex items-center gap-2"
                 style={{
                   backgroundColor: "var(--primary)",
                   color: "var(--primary-foreground)",
                 }}
               >
-                🔒 Admin Dashboard
+                <Shield size={18} />
+                Admin Dashboard
               </button>
             )}
 
@@ -253,8 +254,9 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
                   onSignIn();
                   setMobileMenuOpen(false);
                 }}
-                className="btn-primary w-full"
+                className="btn-primary w-full flex items-center justify-center gap-2"
               >
+                <Zap size={18} />
                 Sign in with Google
               </button>
             )}
@@ -282,16 +284,14 @@ function Footer({ onNavigate }) {
                 className="w-6 h-6 rounded flex items-center justify-center"
                 style={{ backgroundColor: "var(--primary)" }}
               >
-                <span>
-                  <img
-                    src="/logo.png"
-                    alt="Prompt Teams Logo"
-                    className="w-full h-full object-contain"
-                    style={{
-                      filter: "drop-shadow(0 0 8px rgba(168, 85, 247, 0.4))",
-                    }}
-                  />
-                </span>
+                <img
+                  src="/logo.png"
+                  alt="Prompt Teams Logo"
+                  className="w-full h-full object-contain"
+                  style={{
+                    filter: "drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))",
+                  }}
+                />
               </div>
               <span
                 className="font-bold"
@@ -427,27 +427,26 @@ function LandingPage({ onSignIn, onNavigate }) {
         user={null}
       />
 
-      {/* Hero Section with Video */}
+      {/* Hero Section */}
       <section className="container mx-auto px-4 py-12 md:py-20">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-8 md:mb-12">
             <div
-              className="mb-6 ai-glow inline-flex items-center gap-2 px-3 py-1 rounded-full border text-xs md:text-sm"
+              className="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full border text-xs md:text-sm"
               style={{
-                backgroundColor: "var(--primary)",
-                color: "var(--secondary-foreground)",
+                backgroundColor: "var(--secondary)",
+                color: "var(--foreground)",
                 borderColor: "var(--border)",
-                boxShadow: "0 0 10px var(--glow-purple-bright)",
               }}
             >
-              <span>⚡</span>
+              <Sparkles size={16} />
               <span className="font-medium">
                 AI-Powered Prompt Collaboration
               </span>
             </div>
 
             <h1
-              className="text-3xl md:text-5xl lg:text-7xl font-normal mb-4 md:mb-6 px-4"
+              className="text-3xl md:text-5xl lg:text-7xl font-bold mb-4 md:mb-6 px-4"
               style={{ color: "var(--foreground)" }}
             >
               Build Better Prompts with{" "}
@@ -463,44 +462,20 @@ function LandingPage({ onSignIn, onNavigate }) {
             </p>
           </div>
 
-          {/* Video Section */}
-          {/* <div className="mb-8 md:mb-12">
-            <div
-              className="glass-card p-2 md:p-4 rounded-xl border overflow-hidden"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <video
-                autoPlay
-                muted
-                loop
-                playsInline
-                controls
-                className="rounded-lg w-full h-auto"
-                style={{
-                  maxHeight: "600px",
-                  objectFit: "cover",
-                }}
-              >
-                <source src="/Prism_AI_Collaboration.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
-              </video>
-            </div>
-          </div> */}
-
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 md:mb-12 px-4">
             <button
               onClick={onSignIn}
-              className="btn-primary ai-glow px-6 md:px-8 py-3 text-base md:text-lg font-medium w-full sm:w-auto"
+              className="btn-primary px-6 md:px-8 py-3 text-base md:text-lg font-medium w-full sm:w-auto flex items-center justify-center gap-2"
             >
-              <span className="mr-2">⚡</span>
+              <Zap size={20} />
               Get Started
             </button>
             <button
               onClick={() => onNavigate("/waitlist")}
-              className="btn-secondary px-6 md:px-8 py-3 text-base md:text-lg font-medium ai-pulse-border w-full sm:w-auto"
+              className="btn-secondary px-6 md:px-8 py-3 text-base md:text-lg font-medium w-full sm:w-auto flex items-center justify-center gap-2"
             >
-              <span className="mr-2">🚀</span>
+              <Sparkles size={20} />
               Join Waitlist
             </button>
           </div>
@@ -536,60 +511,63 @@ function LandingPage({ onSignIn, onNavigate }) {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
           {[
             {
-              icon: "⚡",
+              icon: <Users size={24} />,
               title: "Real-time Collaboration",
               desc: "Work together seamlessly with live updates and team chat.",
             },
             {
-              icon: "📜",
+              icon: <FileText size={24} />,
               title: "Prompt Version Control",
               desc: "Track changes and revert to previous versions effortlessly.",
             },
             {
-              icon: "🤖",
+              icon: <Sparkles size={24} />,
               title: "Multi-Model Testing",
               desc: "Test prompts across different AI models simultaneously.",
             },
             {
-              icon: "🔒",
+              icon: <Shield size={24} />,
               title: "Prompt Privacy Controls",
               desc: "Granular permissions to control who sees what.",
             },
             {
-              icon: "🔍",
+              icon: <Search size={24} />,
               title: "Plagiarism Detection",
               desc: "Ensure originality with built-in similarity checks.",
             },
             {
-              icon: "📎",
+              icon: <FileText size={24} />,
               title: "Attach Outputs",
               desc: "Save text, code, images and results alongside prompts.",
             },
             {
-              icon: "📊",
+              icon: <BarChart3 size={24} />,
               title: "Analytics",
               desc: "Track usage patterns and optimize performance.",
             },
             {
-              icon: "👥",
+              icon: <Users size={24} />,
               title: "Team Workspace",
               desc: "Owner, Admin, and Member roles with custom permissions.",
             },
             {
-              icon: "⚙️",
+              icon: <Zap size={24} />,
               title: "Execute & Export",
               desc: "Run prompts directly and export to JSON/API formats.",
             },
           ].map((feature, index) => (
             <div
               key={index}
-              className="glass-card p-4 md:p-6 hover:border-primary/50 transition-all duration-300"
+              className="glass-card p-4 md:p-6 hover:border-primary transition-all duration-300"
             >
               <div
                 className="w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center mb-4"
-                style={{ backgroundColor: "var(--secondary)" }}
+                style={{
+                  backgroundColor: "var(--secondary)",
+                  color: "var(--primary)",
+                }}
               >
-                <span className="text-xl md:text-2xl">{feature.icon}</span>
+                {feature.icon}
               </div>
               <h3
                 className="text-base md:text-lg font-semibold mb-2"
@@ -609,9 +587,10 @@ function LandingPage({ onSignIn, onNavigate }) {
 
         <div className="text-center">
           <button
-            className="btn-primary ai-glow px-6 md:px-8 py-3 text-base md:text-lg font-medium"
+            className="btn-primary px-6 md:px-8 py-3 text-base md:text-lg font-medium flex items-center gap-2 mx-auto"
             onClick={onSignIn}
           >
+            <Sparkles size={20} />
             Explore Features
           </button>
         </div>
@@ -639,14 +618,16 @@ function LandingPage({ onSignIn, onNavigate }) {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
             <button
               onClick={onSignIn}
-              className="btn-primary ai-glow px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-semibold w-full sm:w-auto sm:min-w-[200px]"
+              className="btn-primary px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-semibold w-full sm:w-auto sm:min-w-[200px] flex items-center justify-center gap-2"
             >
+              <Zap size={20} />
               Start Free
             </button>
             <button
               onClick={() => onNavigate("/waitlist")}
-              className="btn-secondary px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-semibold w-full sm:w-auto sm:min-w-[200px]"
+              className="btn-secondary px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-semibold w-full sm:w-auto sm:min-w-[200px] flex items-center justify-center gap-2"
             >
+              <MessageSquare size={20} />
               Book Demo
             </button>
           </div>
@@ -941,39 +922,49 @@ export default function App() {
 
   function getRoleBadge(role) {
     const baseStyle = {
-      padding: "2px 8px",
-      borderRadius: "12px",
+      padding: "4px 12px",
+      borderRadius: "6px",
       fontSize: "0.75rem",
       fontWeight: "500",
       border: "1px solid var(--border)",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "4px",
     };
 
-    switch (role) {
-      case "owner":
-        return {
-          ...baseStyle,
-          backgroundColor: "var(--accent)",
-          color: "var(--accent-foreground)",
-        };
-      case "admin":
-        return {
-          ...baseStyle,
-          backgroundColor: "var(--primary)",
-          color: "var(--primary-foreground)",
-        };
-      case "member":
-        return {
-          ...baseStyle,
-          backgroundColor: "var(--secondary)",
-          color: "var(--secondary-foreground)",
-        };
-      default:
-        return {
-          ...baseStyle,
-          backgroundColor: "var(--muted)",
-          color: "var(--muted-foreground)",
-        };
-    }
+    const icons = {
+      owner: <Crown size={12} />,
+      admin: <UserCog size={12} />,
+      member: <User size={12} />,
+    };
+
+    const styles = {
+      owner: {
+        ...baseStyle,
+        backgroundColor: "var(--primary)",
+        color: "var(--primary-foreground)",
+        borderColor: "var(--primary)",
+      },
+      admin: {
+        ...baseStyle,
+        backgroundColor: "var(--accent)",
+        color: "var(--accent-foreground)",
+        borderColor: "var(--accent)",
+      },
+      member: {
+        ...baseStyle,
+        backgroundColor: "var(--secondary)",
+        color: "var(--secondary-foreground)",
+        borderColor: "var(--border)",
+      },
+    };
+
+    return (
+      <span style={styles[role] || styles.member}>
+        {icons[role] || icons.member}
+        {role}
+      </span>
+    );
   }
 
   function canManageMembers() {
@@ -1092,7 +1083,7 @@ export default function App() {
             onClick={() => setSidebarOpen(false)}
             className="mobile-menu-btn"
           >
-            <MenuIcon isOpen={true} />
+            <X size={24} />
           </button>
         </div>
 
@@ -1118,7 +1109,7 @@ export default function App() {
                 {teams.length} {teams.length === 1 ? "team" : "teams"}
               </p>
             </div>
-            <div className="w-2 h-2 bg-green-500 rounded-full ai-pulse-border"></div>
+            <div className="w-2 h-2 bg-green-500 rounded-full status-dot"></div>
           </div>
         </div>
 
@@ -1133,16 +1124,19 @@ export default function App() {
             }}
             className={`w-full p-4 text-left rounded-lg transition-all duration-300 border ${
               activeView === "favorites" && !activeTeam
-                ? "ai-glow border-primary"
+                ? "border-primary bg-popover"
                 : "glass-card hover:border-primary/50"
             }`}
           >
             <div className="flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: "var(--secondary)" }}
+                style={{
+                  backgroundColor: "var(--secondary)",
+                  color: "var(--primary)",
+                }}
               >
-                <span className="text-lg">⭐</span>
+                <Star size={20} />
               </div>
               <div>
                 <span
@@ -1170,15 +1164,17 @@ export default function App() {
                 navigate("/admin");
                 setSidebarOpen(false);
               }}
-              className="w-full p-4 text-left rounded-lg transition-all duration-300 border glass-card hover:border-primary/50 ai-glow"
-              style={{ borderColor: "var(--primary)" }}
+              className="w-full p-4 text-left rounded-lg transition-all duration-300 border glass-card hover:border-primary/50"
             >
               <div className="flex items-center gap-3">
                 <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: "var(--primary)" }}
+                  style={{
+                    backgroundColor: "var(--primary)",
+                    color: "var(--primary-foreground)",
+                  }}
                 >
-                  <span className="text-lg">🔒</span>
+                  <Shield size={20} />
                 </div>
                 <div>
                   <span
@@ -1209,16 +1205,19 @@ export default function App() {
               }}
               className={`w-full p-4 text-left rounded-lg transition-all duration-300 border ${
                 isChatOpen
-                  ? "ai-glow border-primary"
+                  ? "border-primary bg-popover"
                   : "glass-card hover:border-primary/50"
               }`}
             >
               <div className="flex items-center gap-3">
                 <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: "var(--secondary)" }}
+                  style={{
+                    backgroundColor: "var(--secondary)",
+                    color: "var(--primary)",
+                  }}
                 >
-                  <span className="text-lg">💬</span>
+                  <MessageSquare size={20} />
                 </div>
                 <div>
                   <span
@@ -1259,14 +1258,14 @@ export default function App() {
               className="form-input"
               required
             />
-            <button type="submit" className="btn-primary w-full">
-              <span className="mr-2">+</span>
+            <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2">
+              <Plus size={18} />
               Create Team
             </button>
           </form>
 
-          <button onClick={logout} className="btn-secondary w-full">
-            <span className="mr-2">👋</span>
+          <button onClick={logout} className="btn-secondary w-full flex items-center justify-center gap-2">
+            <LogOut size={18} />
             Sign Out
           </button>
         </div>
@@ -1333,17 +1332,19 @@ export default function App() {
                       >
                         {team.name}
                       </p>
-                      <span style={getRoleBadge(myRole)}>{myRole}</span>
+                      {getRoleBadge(myRole)}
                     </div>
                     <div
                       className="flex items-center gap-4 text-xs"
                       style={{ color: "var(--muted-foreground)" }}
                     >
                       <span className="flex items-center gap-1">
-                        👥 {stats.memberCount}
+                        <Users size={12} />
+                        {stats.memberCount}
                       </span>
                       <span className="flex items-center gap-1">
-                        📝 {stats.promptCount}
+                        <FileText size={12} />
+                        {stats.promptCount}
                       </span>
                     </div>
                   </div>
@@ -1389,7 +1390,7 @@ export default function App() {
             onClick={() => setSidebarOpen(true)}
             className="mobile-menu-btn"
           >
-            <MenuIcon isOpen={false} />
+            <Menu size={24} />
           </button>
           <div className="flex-1 min-w-0">
             {activeTeamObj ? (
@@ -1434,9 +1435,10 @@ export default function App() {
                   >
                     <span className="flex items-center gap-2">
                       Your role:
-                      <span style={getRoleBadge(role)}>{role}</span>
+                      {getRoleBadge(role)}
                     </span>
-                    <span>
+                    <span className="flex items-center gap-2">
+                      <Users size={14} />
                       {Object.keys(activeTeamObj.members || {}).length} members
                     </span>
                   </div>
@@ -1462,22 +1464,22 @@ export default function App() {
             {activeTeamObj && (
               <div className="glass-card p-1 rounded-lg">
                 {[
-                  "prompts",
-                  "members",
-                  "analytics",
-                  "activity",
-                  "plagiarism",
+                  { id: "prompts", icon: FileText, label: "Prompts" },
+                  { id: "members", icon: Users, label: "Members" },
+                  { id: "analytics", icon: BarChart3, label: "Analytics" },
+                  { id: "activity", icon: Activity, label: "Activity" },
+                  { id: "plagiarism", icon: Search, label: "Plagiarism" },
                 ].map((view) => (
                   <button
-                    key={view}
-                    onClick={() => setActiveView(view)}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 capitalize ${
-                      activeView === view
+                    key={view.id}
+                    onClick={() => setActiveView(view.id)}
+                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 capitalize flex items-center gap-2 ${
+                      activeView === view.id
                         ? "text-primary-foreground"
                         : "hover:text-foreground"
                     }`}
                     style={
-                      activeView === view
+                      activeView === view.id
                         ? {
                             backgroundColor: "var(--primary)",
                             color: "var(--primary-foreground)",
@@ -1485,7 +1487,8 @@ export default function App() {
                         : { color: "var(--muted-foreground)" }
                     }
                   >
-                    {view === "plagiarism" ? "🔍 Plagiarism" : view}
+                    <view.icon size={16} />
+                    {view.label}
                   </button>
                 ))}
               </div>
@@ -1501,20 +1504,20 @@ export default function App() {
           >
             <div className="view-tabs">
               {[
-                "prompts",
-                "members",
-                "analytics",
-                "activity",
-                "plagiarism",
+                { id: "prompts", icon: FileText },
+                { id: "members", icon: Users },
+                { id: "analytics", icon: BarChart3 },
+                { id: "activity", icon: Activity },
+                { id: "plagiarism", icon: Search },
               ].map((view) => (
                 <button
-                  key={view}
-                  onClick={() => setActiveView(view)}
-                  className={`view-tab rounded-lg transition-all duration-200 capitalize ${
-                    activeView === view ? "ai-glow" : ""
+                  key={view.id}
+                  onClick={() => setActiveView(view.id)}
+                  className={`view-tab rounded-lg transition-all duration-200 capitalize flex items-center gap-2 ${
+                    activeView === view.id ? "border-primary" : ""
                   }`}
                   style={
-                    activeView === view
+                    activeView === view.id
                       ? {
                           backgroundColor: "var(--primary)",
                           color: "var(--primary-foreground)",
@@ -1527,7 +1530,7 @@ export default function App() {
                         }
                   }
                 >
-                  {view === "plagiarism" ? "🔍" : view}
+                  <view.icon size={16} />
                 </button>
               ))}
             </div>
@@ -1581,7 +1584,11 @@ export default function App() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center py-12">
                 <div className="glass-card p-6 md:p-8 max-w-md mx-auto">
-                  <div className="text-4xl md:text-6xl mb-4">🚀</div>
+                  <Sparkles
+                    size={48}
+                    className="mx-auto mb-4"
+                    style={{ color: "var(--primary)" }}
+                  />
                   <h2
                     className="text-lg md:text-xl font-semibold mb-4"
                     style={{ color: "var(--foreground)" }}
