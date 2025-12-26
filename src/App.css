@@ -80,7 +80,7 @@ body {
   filter: blur(80px);
   pointer-events: none;
   z-index: 0;
-  animation: float-orb 20s ease-in-out infinite;
+  animation: float-orb 10s ease-in-out infinite;
 }
 
 .gradient-orb-1 {
@@ -234,7 +234,7 @@ body {
   letter-spacing: -0.01em;
   font-size: 0.938rem;
   border: none;
-  border-radius: 12px;
+  border-radius: 42px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: inline-flex;
@@ -298,7 +298,7 @@ body {
   border: 1.5px solid rgba(139, 92, 246, 0.3);
   padding: 14px 28px;
   font-weight: 600;
-  border-radius: 12px;
+  border-radius: 42px;
   transition: all 0.3s ease;
 }
 
