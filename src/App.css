@@ -307,8 +307,8 @@ body {
 .btn-secondary:hover {
   background: rgba(139, 92, 246, 0.1);
   border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+  transform: translateY(2px);
 }
 
 /* ======================================
