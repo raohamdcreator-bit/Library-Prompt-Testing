@@ -415,21 +415,23 @@ function LandingPage({ onSignIn, onNavigate }) {
               </p>
 
               {/* CTA Buttons */}
-              <div className="hero-cta flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 px-4">
-                <button onClick={onSignIn} className="btn-premium ">
-                  
-                  Get Started
-                  <ArrowRight size={20} className="btn-arrow" />
-                </button>
-               <button
-  onClick={() => onNavigate("/waitlist")}
-  className="btn-secondary inline-flex items-center gap-2 whitespace-nowrap"
->
-  <span>Join Waitlist</span>
-  <ArrowUpRight size={20} className="btn-arrow" />
-</button>
+              <div className="hero-cta flex flex-row gap-4 justify-center items-center mb-8 px-4 whitespace-nowrap">
+  <button
+    onClick={onSignIn}
+    className="btn-premium inline-flex items-center gap-2"
+  >
+    <span>Get Started</span>
+    <ArrowRight size={20} className="btn-arrow" />
+  </button>
 
-              </div>
+  <button
+    onClick={() => onNavigate("/waitlist")}
+    className="btn-secondary inline-flex items-center gap-2"
+  >
+    <span>Join Waitlist</span>
+    <ArrowUpRight size={20} className="btn-arrow" />
+  </button>
+</div>
 
               <div className="flex items-center justify-center gap-2 text-sm px-4"
                 style={{ color: "var(--muted-foreground)" }}>
