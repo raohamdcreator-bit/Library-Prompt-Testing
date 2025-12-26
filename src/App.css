@@ -248,7 +248,9 @@ body {
   padding: 14px 28px;
   background: var(--black-background);
   color: var(--primary-foreground);
-  box-shadow:0 0 0 2px rgba(139, 92, 246, 0.7);
+  box-shadow:
+    0 0 0 2px rgba(139, 92, 246, 0.7),
+    0 0 20px rgba(139, 92, 246, 0.55);
 }
 
 .btn-premium::before {
