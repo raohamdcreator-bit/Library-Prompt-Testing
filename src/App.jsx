@@ -538,9 +538,9 @@ function LandingPage({ onSignIn, onNavigate }) {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
               <button onClick={onSignIn} className="btn-premium">
-                <Zap size={20} />
-                Start Free
                 
+                Start Free
+                <Zap size={20} />
               </button>
               <button
   onClick={() => onNavigate("/waitlist")}
