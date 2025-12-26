@@ -397,16 +397,16 @@ function LandingPage({ onSignIn, onNavigate }) {
                 <span className="font-medium">AI-Powered Prompt Collaboration</span>
               </div>
 
-              <h1 className="hero-title text-4xl md:text-6xl lg:text-7xl font-bold mb-6 px-4">
-                Build Better Prompts with{" "}
+              <h1 className="hero-title text-4xl md:text-6xl lg:text-7xl mb-6 px-4">
+                Build {" "}
                 <span style={{ 
                   background: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text'
                 }}>
-                  Your Team
-                </span>
+                Better Prompt </span>
+                with Your Team{" "}
               </h1>
 
               <p className="hero-description text-lg md:text-xl mb-8 max-w-2xl mx-auto leading-relaxed px-4"
