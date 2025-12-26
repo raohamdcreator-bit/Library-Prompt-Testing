@@ -789,7 +789,7 @@ body {
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  justify-center;
+  justify-content: center;
 }
 
 .mobile-menu-btn:hover {
