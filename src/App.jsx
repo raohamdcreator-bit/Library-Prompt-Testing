@@ -394,7 +394,7 @@ function LandingPage({ onSignIn, onNavigate }) {
             <div className="text-center mb-12">
               <div className="hero-badge mb-6">
                 <Sparkles size={16} />
-                <span className="font-medium">AI-Powered Prompt Collaboration</span>
+                <span className="font-medium pulse-glow">AI-Powered Prompt Collaboration</span>
               </div>
 
               <h1 className="hero-title text-4xl md:text-6xl lg:text-7xl mb-6 px-4">
@@ -405,7 +405,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text'
                 }}>
-                Better Prompt </span>
+                Better Prompts </span>
                 with Your Team{" "}
               </h1>
 
