@@ -421,7 +421,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                   Get Started
                   <ArrowRight size={20} className="btn-arrow" />
                 </button>
-                <button onClick={() => onNavigate("/waitlist")} className="btn-secondary">
+                <button onClick={() => onNavigate("/waitlist")} className="btn-secondary ">
                   
                   Join Waitlist
                   <ArrowUpRight size={20} className="btn-arrow" />
@@ -539,7 +539,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                 Start Free
                 
               </button>
-              <button onClick={() => onNavigate("/waitlist")} className="btn-secondary">
+              <button onClick={() => onNavigate("/waitlist")} className="btn-secondary mx-auto">
                 
                 Book Demo
                 <ArrowUpRight size={20} className="btn-arrow" />
