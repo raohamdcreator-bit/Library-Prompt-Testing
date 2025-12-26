@@ -538,7 +538,7 @@ function LandingPage({ onSignIn, onNavigate }) {
               Join teams already transforming their AI collaboration
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
+            <div className="flex flex-row gap-4 justify-center items-center mb-8 px-4 whitespace-nowrap">
               <button onClick={onSignIn} className="btn-premium">
                 
                 Start Free
