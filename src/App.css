@@ -25,7 +25,7 @@
   --input: #1a202c;
   --ring: #8b5cf6;
   --radius: 16px;
-
+  --black-background: #000000
   /* Semantic Colors */
   --success: #10b981;
   --warning: #f59e0b;
@@ -246,7 +246,7 @@ body {
   overflow: hidden;
   white-space: nowrap;
   padding: 14px 28px;
-  background: var(--primary);
+  background: var(--black-background);
   color: var(--primary-foreground);
   box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
 }
@@ -293,7 +293,7 @@ body {
 }
 
 .btn-secondary {
-  background: transparent;
+  background: var(--primary);
   color: var(--foreground);
   border: 1.5px solid rgba(139, 92, 246, 0.3);
   padding: 14px 28px;
