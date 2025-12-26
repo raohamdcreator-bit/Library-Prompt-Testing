@@ -93,7 +93,7 @@ body {
   bottom: -300px;
   left: -200px;
   animation-delay: 10s;
-  background: radial-gradient(circle, rgba(124, 58, 237, 1.25) 0%, rgba(124, 58, 237, 1.08) 40%, transparent 50%);
+  background: radial-gradient(circle, rgba(124, 58, 237, 1.05) 0%, rgba(124, 58, 237, 1.08) 60%, transparent 60%);
 }
 
 @keyframes float-orb {
