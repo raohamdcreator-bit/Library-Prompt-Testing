@@ -411,7 +411,7 @@ function LandingPage({ onSignIn, onNavigate }) {
 
               <p className="hero-description text-lg md:text-xl mb-8 max-w-2xl mx-auto leading-relaxed px-4"
                 style={{ color: "var(--muted-foreground)" }}>
-                Collaborate on AI prompts with your team. Store, share, and discover the best prompts for your projects.
+                Store, share, and discover the best prompts for your projects.
               </p>
 
               {/* CTA Buttons */}
