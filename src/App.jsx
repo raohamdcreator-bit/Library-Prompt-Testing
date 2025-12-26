@@ -392,9 +392,9 @@ function LandingPage({ onSignIn, onNavigate }) {
         <section className="container mx-auto px-4 py-20 md:py-32">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
-              <div className="hero-badge mb-6">
+              <div className="hero-badge mb-6 pulse-glow">
                 <Sparkles size={16} />
-                <span className="font-medium pulse-glow">AI-Powered Prompt Collaboration</span>
+                <span className="font-medium">AI-Powered Prompt Collaboration</span>
               </div>
 
               <h1 className="hero-title text-4xl md:text-6xl lg:text-7xl mb-6 px-4">
