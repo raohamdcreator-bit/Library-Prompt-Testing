@@ -542,11 +542,14 @@ function LandingPage({ onSignIn, onNavigate }) {
                 Start Free
                 
               </button>
-              <button onClick={() => onNavigate("/waitlist")} className="btn-secondary mx-auto">
-                
-                Book Demo
-                <ArrowUpRight size={20} className="btn-arrow" />
-              </button>
+              <button
+  onClick={() => onNavigate("/waitlist")}
+  className="btn-secondary inline-flex items-center gap-2 whitespace-nowrap"
+>
+  <span>Book Demo</span>
+  <ArrowUpRight size={20} className="btn-arrow" />
+</button>
+
             </div>
           </div>
         </section>
