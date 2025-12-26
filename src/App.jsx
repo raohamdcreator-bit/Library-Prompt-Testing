@@ -200,7 +200,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
         <div className="hidden md:flex items-center gap-3">
           {!isAuthenticated && (
             <button onClick={onSignIn} className="btn-premium">
-              <Zap size={18} />
+              
               Sign in with Google
               <ArrowRight size={18} className="btn-arrow" />
             </button>
