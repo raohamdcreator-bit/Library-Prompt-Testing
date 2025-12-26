@@ -1,4 +1,4 @@
-// src/components/PromptList.jsx - Fully Responsive with Visibility Controls
+// src/components/PromptList.jsx - Premium Enterprise UI
 import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -15,7 +15,6 @@ import {
   updatePrompt,
   deletePrompt,
   togglePromptVisibility,
-  canViewPrompt,
   canChangeVisibility,
   filterVisiblePrompts,
 } from "../lib/prompts";
@@ -30,139 +29,24 @@ import usePagination, { PaginationControls } from "../hooks/usePagination";
 import AIPromptEnhancer from "./AIPromptEnhancer";
 import PromptResults from "./PromptResults";
 
-// SVG Icon Component
+// Icon Component
 function Icon({ name, className = "w-5 h-5" }) {
   const icons = {
-    add: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M12 4v16m8-8H4"
-      />
-    ),
-    close: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M6 18L18 6M6 6l12 12"
-      />
-    ),
-    sparkles: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-      />
-    ),
-    copy: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-      />
-    ),
-    edit: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-      />
-    ),
-    trash: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-      />
-    ),
-    chevronUp: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M5 15l7-7 7 7"
-      />
-    ),
-    chevronDown: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M19 9l-7 7-7-7"
-      />
-    ),
-    document: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-      />
-    ),
-    database: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
-      />
-    ),
-    lock: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-      />
-    ),
-    unlock: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"
-      />
-    ),
-    eye: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-      />
-    ),
-    eyeOff: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-      />
-    ),
-    menu: (
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={2}
-        d="M4 6h16M4 12h16M4 18h16"
-      />
-    ),
+    add: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />,
+    close: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />,
+    sparkles: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />,
+    copy: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />,
+    edit: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />,
+    trash: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />,
+    chevronDown: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />,
+    moreVertical: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />,
+    eye: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />,
+    lock: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />,
+    unlock: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />,
   };
 
   return (
-    <svg
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
       {icons[name]}
     </svg>
   );
@@ -191,12 +75,11 @@ export default function PromptList({ activeTeam, userRole }) {
   const [teamName, setTeamName] = useState("");
   const [showAIEnhancer, setShowAIEnhancer] = useState(false);
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
-  const [visibilityFilter, setVisibilityFilter] = useState("all");
-  const [showMobileActions, setShowMobileActions] = useState({});
+  const [openKebabMenu, setOpenKebabMenu] = useState(null);
 
   const pagination = usePagination(filteredPrompts, 10);
 
-  // Load prompts from Firestore with visibility filtering
+  // Load prompts
   useEffect(() => {
     if (!activeTeam) {
       setPrompts([]);
@@ -224,12 +107,7 @@ export default function PromptList({ activeTeam, userRole }) {
           new Map(data.map((item) => [item.id, item])).values()
         );
 
-        const visiblePrompts = filterVisiblePrompts(
-          uniqueData,
-          user.uid,
-          userRole
-        );
-
+        const visiblePrompts = filterVisiblePrompts(uniqueData, user.uid, userRole);
         setPrompts(visiblePrompts);
         setFilteredPrompts(visiblePrompts);
         setLoading(false);
@@ -242,17 +120,6 @@ export default function PromptList({ activeTeam, userRole }) {
 
     return () => unsub();
   }, [activeTeam, user.uid, userRole]);
-
-  // Apply visibility filter
-  useEffect(() => {
-    if (visibilityFilter === "all") {
-      setFilteredPrompts(prompts);
-    } else {
-      setFilteredPrompts(
-        prompts.filter((p) => p.visibility === visibilityFilter)
-      );
-    }
-  }, [visibilityFilter, prompts]);
 
   // Load team name
   useEffect(() => {
@@ -276,7 +143,7 @@ export default function PromptList({ activeTeam, userRole }) {
     loadTeamName();
   }, [activeTeam]);
 
-  // Load team member profiles
+  // Load team members
   useEffect(() => {
     async function loadMembers() {
       if (!activeTeam) return;
@@ -316,17 +183,14 @@ export default function PromptList({ activeTeam, userRole }) {
   const handleResultsChange = useCallback((promptId, count) => {
     setResultCounts((prev) => {
       if (prev[promptId] === count) return prev;
-      return {
-        ...prev,
-        [promptId]: count,
-      };
+      return { ...prev, [promptId]: count };
     });
   }, []);
 
   async function handleCreate(e) {
     e.preventDefault();
     if (!newPrompt.title.trim() || !newPrompt.text.trim()) {
-      alert("Title and prompt text are required");
+      showNotification("Title and prompt text are required", "error");
       return;
     }
 
@@ -336,10 +200,7 @@ export default function PromptList({ activeTeam, userRole }) {
         {
           title: newPrompt.title.trim(),
           text: newPrompt.text.trim(),
-          tags: newPrompt.tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean),
+          tags: newPrompt.tags.split(",").map((t) => t.trim()).filter(Boolean),
           visibility: newPrompt.visibility,
         },
         activeTeam
@@ -347,7 +208,7 @@ export default function PromptList({ activeTeam, userRole }) {
 
       setNewPrompt({ title: "", tags: "", text: "", visibility: "public" });
       setShowCreateForm(false);
-      showNotification("Prompt created successfully!", "success");
+      showSuccessToast("Prompt created successfully!");
     } catch (error) {
       console.error("Error creating prompt:", error);
       showNotification("Failed to create prompt", "error");
@@ -359,7 +220,7 @@ export default function PromptList({ activeTeam, userRole }) {
       await updatePrompt(activeTeam, promptId, updates);
       setShowEditModal(false);
       setEditingPrompt(null);
-      showNotification("Prompt updated successfully!", "success");
+      showSuccessToast("Prompt updated successfully!");
     } catch (error) {
       console.error("Error updating prompt:", error);
       showNotification("Failed to update prompt", "error");
@@ -375,7 +236,7 @@ export default function PromptList({ activeTeam, userRole }) {
       userRole !== "owner" &&
       userRole !== "admin"
     ) {
-      alert("You don't have permission to delete this prompt");
+      showNotification("You don't have permission to delete this prompt", "error");
       return;
     }
 
@@ -383,7 +244,8 @@ export default function PromptList({ activeTeam, userRole }) {
 
     try {
       await deletePrompt(activeTeam, promptId);
-      showNotification("Prompt deleted", "success");
+      showSuccessToast("Prompt deleted");
+      setOpenKebabMenu(null);
     } catch (error) {
       console.error("Error deleting prompt:", error);
       showNotification("Failed to delete prompt", "error");
@@ -395,10 +257,7 @@ export default function PromptList({ activeTeam, userRole }) {
     if (!prompt) return;
 
     if (!canChangeVisibility(prompt, user.uid, userRole)) {
-      showNotification(
-        "You don't have permission to change visibility",
-        "error"
-      );
+      showNotification("You don't have permission to change visibility", "error");
       return;
     }
 
@@ -408,10 +267,10 @@ export default function PromptList({ activeTeam, userRole }) {
         promptId,
         prompt.visibility || "public"
       );
-      showNotification(
-        `Prompt is now ${newVisibility === "private" ? "private" : "public"}`,
-        "success"
+      showSuccessToast(
+        `Prompt is now ${newVisibility === "private" ? "private" : "public"}`
       );
+      setOpenKebabMenu(null);
     } catch (error) {
       console.error("Error toggling visibility:", error);
       showNotification("Failed to change visibility", "error");
@@ -421,94 +280,17 @@ export default function PromptList({ activeTeam, userRole }) {
   async function handleCopy(text) {
     try {
       await navigator.clipboard.writeText(text);
-      showNotification("Copied to clipboard!", "success");
+      showSuccessToast("Copied to clipboard!");
     } catch (error) {
       console.error("Error copying to clipboard:", error);
       showNotification("Failed to copy", "error");
     }
   }
 
-  function toggleComments(promptId) {
-    setShowComments((prev) => ({
-      ...prev,
-      [promptId]: !prev[promptId],
-    }));
-  }
-
-  function toggleResults(promptId) {
-    setShowResults((prev) => ({
-      ...prev,
-      [promptId]: !prev[promptId],
-    }));
-  }
-
-  function toggleMobileActions(promptId) {
-    setShowMobileActions((prev) => ({
-      ...prev,
-      [promptId]: !prev[promptId],
-    }));
-  }
-
-  function handleSelectionChange(promptId, isSelected) {
-    setSelectedPrompts((prev) =>
-      isSelected ? [...prev, promptId] : prev.filter((id) => id !== promptId)
-    );
-  }
-
-  async function handleBulkDelete(promptIds) {
-    try {
-      await Promise.all(promptIds.map((id) => deletePrompt(activeTeam, id)));
-      setSelectedPrompts([]);
-      showNotification(`Deleted ${promptIds.length} prompts`, "success");
-    } catch (error) {
-      console.error("Bulk delete error:", error);
-      showNotification("Some prompts failed to delete", "error");
-    }
-  }
-
-  function handleBulkExport(promptsToExport, format) {
-    const filename = `prompts-${new Date().toISOString().split("T")[0]}`;
-    switch (format) {
-      case "json":
-        ExportUtils.exportAsJSON(promptsToExport, filename);
-        break;
-      case "csv":
-        ExportUtils.exportAsCSV(promptsToExport, filename);
-        break;
-      case "txt":
-        ExportUtils.exportAsTXT(promptsToExport, filename);
-        break;
-    }
-    showNotification(`Exported ${promptsToExport.length} prompts`, "success");
-  }
-
-  async function handleImport(importedPrompts) {
-    let successCount = 0;
-    let failCount = 0;
-
-    for (const prompt of importedPrompts) {
-      try {
-        await savePrompt(user.uid, prompt, activeTeam);
-        successCount++;
-      } catch (error) {
-        console.error("Import error:", error);
-        failCount++;
-      }
-    }
-
-    if (successCount > 0) {
-      showNotification(
-        `Imported ${successCount} prompts${
-          failCount > 0 ? `, ${failCount} failed` : ""
-        }`,
-        successCount > failCount ? "success" : "error"
-      );
-    }
-  }
-
   function handleAIEnhance(prompt) {
     setCurrentPromptForAI(prompt);
     setShowAIEnhancer(true);
+    setOpenKebabMenu(null);
   }
 
   async function handleApplyAIEnhancement(enhancedPrompt) {
@@ -519,7 +301,7 @@ export default function PromptList({ activeTeam, userRole }) {
       });
       setShowAIEnhancer(false);
       setCurrentPromptForAI(null);
-      showNotification("AI enhancement applied!", "success");
+      showSuccessToast("AI enhancement applied!");
     } catch (error) {
       console.error("Error applying enhancement:", error);
       showNotification("Failed to apply enhancement", "error");
@@ -540,20 +322,34 @@ export default function PromptList({ activeTeam, userRole }) {
       );
       setShowAIEnhancer(false);
       setCurrentPromptForAI(null);
-      showNotification("AI enhanced prompt saved as new!", "success");
+      showSuccessToast("AI enhanced prompt saved as new!");
     } catch (error) {
       console.error("Error saving enhanced prompt:", error);
       showNotification("Failed to save enhanced prompt", "error");
     }
   }
 
-  function showNotification(message, type = "info") {
-    const icons = {
-      success: "✓",
-      error: "✕",
-      info: "ℹ",
-    };
+  function showSuccessToast(message) {
+    const toast = document.createElement("div");
+    toast.className = "success-toast";
+    toast.innerHTML = `
+      <div class="success-icon">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <span>${message}</span>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      if (toast.parentNode) {
+        document.body.removeChild(toast);
+      }
+    }, 3000);
+  }
 
+  function showNotification(message, type = "info") {
+    const icons = { success: "✓", error: "✕", info: "ℹ" };
     const notification = document.createElement("div");
     notification.innerHTML = `
       <div class="flex items-center gap-2">
@@ -579,46 +375,6 @@ export default function PromptList({ activeTeam, userRole }) {
     }, 3000);
   }
 
-  function getUserInitials(name, email) {
-    if (name) {
-      return name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-    }
-    if (email) {
-      return email[0].toUpperCase();
-    }
-    return "U";
-  }
-
-  function UserAvatar({ src, name, email, size = "small", className = "" }) {
-    const [imageError, setImageError] = useState(false);
-    const avatarClass = size === "small" ? "w-8 h-8" : "w-10 h-10";
-
-    if (!src || imageError) {
-      return (
-        <div
-          className={`${avatarClass} ${className} rounded-full flex items-center justify-center text-white font-semibold text-xs`}
-          style={{ backgroundColor: "var(--primary)" }}
-        >
-          {getUserInitials(name, email)}
-        </div>
-      );
-    }
-
-    return (
-      <img
-        src={src}
-        alt="avatar"
-        className={`${avatarClass} ${className} rounded-full object-cover border-2 border-white/20`}
-        onError={() => setImageError(true)}
-      />
-    );
-  }
-
   function formatDate(timestamp) {
     if (!timestamp) return "";
     try {
@@ -640,165 +396,139 @@ export default function PromptList({ activeTeam, userRole }) {
     );
   }
 
-  function getVisibilityBadge(visibility) {
-    const isPrivate = visibility === "private";
-    return {
-      icon: isPrivate ? "lock" : "unlock",
-      label: isPrivate ? "Private" : "Public",
-      style: {
-        padding: "2px 8px",
-        borderRadius: "12px",
-        fontSize: "0.75rem",
-        fontWeight: "500",
-        backgroundColor: isPrivate ? "var(--accent)" : "var(--secondary)",
-        color: isPrivate
-          ? "var(--accent-foreground)"
-          : "var(--secondary-foreground)",
-        border: "1px solid var(--border)",
-      },
-    };
+  function getUserInitials(name, email) {
+    if (name) {
+      return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+    }
+    if (email) {
+      return email[0].toUpperCase();
+    }
+    return "U";
+  }
+
+  function UserAvatar({ src, name, email }) {
+    const [imageError, setImageError] = useState(false);
+
+    if (!src || imageError) {
+      return (
+        <div
+          className="author-avatar flex items-center justify-center text-white font-semibold text-sm"
+          style={{ backgroundColor: "var(--primary)" }}
+        >
+          {getUserInitials(name, email)}
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={src}
+        alt="avatar"
+        className="author-avatar"
+        onError={() => setImageError(true)}
+      />
+    );
   }
 
   if (loading) {
     return (
-      <div className="glass-card p-8 text-center">
-        <div className="neo-spinner mx-auto mb-4"></div>
-        <p style={{ color: "var(--muted-foreground)" }}>Loading prompts...</p>
+      <div className="space-y-4">
+        <div className="skeleton-card"></div>
+        <div className="skeleton-card"></div>
+        <div className="skeleton-card"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4 md:space-y-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="glass-card p-4 md:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+      <div className="glass-card p-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h2
-              className="text-xl md:text-2xl font-bold mb-1 md:mb-2"
-              style={{ color: "var(--foreground)" }}
-            >
+            <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>
               Prompt Library
             </h2>
-            <p
-              className="text-xs md:text-sm"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              {prompts.length} {prompts.length === 1 ? "prompt" : "prompts"} in
-              this team
+            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+              {prompts.length} {prompts.length === 1 ? "prompt" : "prompts"} in this team
             </p>
           </div>
 
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
-            className="btn-primary px-4 md:px-6 py-2 md:py-3 flex items-center justify-center gap-2 w-full sm:w-auto"
+            className="btn-primary px-6 py-3 flex items-center gap-2"
           >
-            <Icon
-              name={showCreateForm ? "close" : "add"}
-              className="w-4 h-4 md:w-5 md:h-5"
-            />
-            <span className="text-sm md:text-base">
-              {showCreateForm ? "Cancel" : "New Prompt"}
-            </span>
+            <Icon name={showCreateForm ? "close" : "add"} className="w-5 h-5" />
+            <span>{showCreateForm ? "Cancel" : "New Prompt"}</span>
           </button>
         </div>
       </div>
 
-      {/* Create Prompt Form - Mobile Optimized */}
+      {/* Create Form */}
       {showCreateForm && (
-        <div className="glass-card p-4 md:p-6">
-          <h3
-            className="text-base md:text-lg font-semibold mb-4"
-            style={{ color: "var(--foreground)" }}
-          >
+        <div className="glass-card p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--foreground)" }}>
             Create New Prompt
           </h3>
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
-              <label
-                className="block text-xs md:text-sm font-medium mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
+              <label className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                 Title *
               </label>
               <input
                 type="text"
                 placeholder="e.g., Blog Post Generator"
-                className="form-input text-sm md:text-base"
+                className="form-input"
                 value={newPrompt.title}
-                onChange={(e) =>
-                  setNewPrompt({ ...newPrompt, title: e.target.value })
-                }
+                onChange={(e) => setNewPrompt({ ...newPrompt, title: e.target.value })}
                 required
               />
             </div>
 
             <div>
-              <label
-                className="block text-xs md:text-sm font-medium mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
+              <label className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                 Prompt Text *
               </label>
               <textarea
                 placeholder="Enter your prompt here..."
-                className="form-input min-h-[120px] md:min-h-[150px] text-sm md:text-base"
+                className="form-input min-h-[150px]"
                 value={newPrompt.text}
-                onChange={(e) =>
-                  setNewPrompt({ ...newPrompt, text: e.target.value })
-                }
+                onChange={(e) => setNewPrompt({ ...newPrompt, text: e.target.value })}
                 required
               />
-              <p
-                className="text-xs mt-1"
-                style={{ color: "var(--muted-foreground)" }}
-              >
+              <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
                 {newPrompt.text.length} characters
               </p>
             </div>
 
             <div>
-              <label
-                className="block text-xs md:text-sm font-medium mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
+              <label className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                 Tags (comma separated)
               </label>
               <input
                 type="text"
                 placeholder="e.g., writing, creative, marketing"
-                className="form-input text-sm md:text-base"
+                className="form-input"
                 value={newPrompt.tags}
-                onChange={(e) =>
-                  setNewPrompt({ ...newPrompt, tags: e.target.value })
-                }
+                onChange={(e) => setNewPrompt({ ...newPrompt, tags: e.target.value })}
               />
             </div>
 
-            {/* Visibility Control - Mobile Optimized */}
             <div>
-              <label
-                className="block text-xs md:text-sm font-medium mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
+              <label className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                 Visibility
               </label>
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+              <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
                     name="visibility"
                     value="public"
                     checked={newPrompt.visibility === "public"}
-                    onChange={(e) =>
-                      setNewPrompt({ ...newPrompt, visibility: e.target.value })
-                    }
-                    className="form-radio"
+                    onChange={(e) => setNewPrompt({ ...newPrompt, visibility: e.target.value })}
                   />
                   <Icon name="unlock" className="w-4 h-4" />
-                  <span className="text-xs md:text-sm">
-                    Public - All team members can view
-                  </span>
+                  <span className="text-sm">Public</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -806,30 +536,22 @@ export default function PromptList({ activeTeam, userRole }) {
                     name="visibility"
                     value="private"
                     checked={newPrompt.visibility === "private"}
-                    onChange={(e) =>
-                      setNewPrompt({ ...newPrompt, visibility: e.target.value })
-                    }
-                    className="form-radio"
+                    onChange={(e) => setNewPrompt({ ...newPrompt, visibility: e.target.value })}
                   />
                   <Icon name="lock" className="w-4 h-4" />
-                  <span className="text-xs md:text-sm">
-                    Private - Only you and admins can view
-                  </span>
+                  <span className="text-sm">Private</span>
                 </label>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                type="submit"
-                className="btn-primary px-6 py-2 w-full sm:w-auto"
-              >
+            <div className="flex gap-3">
+              <button type="submit" className="btn-primary px-6 py-2">
                 Create Prompt
               </button>
               <button
                 type="button"
                 onClick={() => setShowCreateForm(false)}
-                className="btn-secondary px-6 py-2 w-full sm:w-auto"
+                className="btn-secondary px-6 py-2"
               >
                 Cancel
               </button>
@@ -838,7 +560,7 @@ export default function PromptList({ activeTeam, userRole }) {
         </div>
       )}
 
-      {/* Advanced Search */}
+      {/* Search & Filters */}
       <AdvancedSearch
         prompts={prompts}
         onFilteredResults={handleFilteredResults}
@@ -851,14 +573,32 @@ export default function PromptList({ activeTeam, userRole }) {
           prompts={filteredPrompts}
           selectedPrompts={selectedPrompts}
           onSelectionChange={setSelectedPrompts}
-          onBulkDelete={handleBulkDelete}
-          onBulkExport={handleBulkExport}
+          onBulkDelete={async (ids) => {
+            await Promise.all(ids.map((id) => deletePrompt(activeTeam, id)));
+            setSelectedPrompts([]);
+            showSuccessToast(`Deleted ${ids.length} prompts`);
+          }}
+          onBulkExport={(promptsToExport, format) => {
+            const filename = `prompts-${new Date().toISOString().split("T")[0]}`;
+            switch (format) {
+              case "json":
+                ExportUtils.exportAsJSON(promptsToExport, filename);
+                break;
+              case "csv":
+                ExportUtils.exportAsCSV(promptsToExport, filename);
+                break;
+              case "txt":
+                ExportUtils.exportAsTXT(promptsToExport, filename);
+                break;
+            }
+            showSuccessToast(`Exported ${promptsToExport.length} prompts`);
+          }}
           userRole={userRole}
           userId={user.uid}
         />
       )}
 
-      {/* Pagination Controls */}
+      {/* Pagination */}
       {filteredPrompts.length > 0 && (
         <PaginationControls
           pagination={pagination}
@@ -867,425 +607,226 @@ export default function PromptList({ activeTeam, userRole }) {
         />
       )}
 
-      {/* Prompts List - Mobile Optimized */}
+      {/* Prompts List */}
       {pagination.currentItems.length === 0 ? (
-        <div className="glass-card p-8 md:p-12 text-center">
-          <Icon
-            name="document"
-            className="mx-auto mb-4 w-12 h-12 md:w-16 md:h-16"
-            style={{ color: "var(--muted-foreground)" }}
-          />
-          <h3
-            className="text-base md:text-lg font-semibold mb-2"
-            style={{ color: "var(--foreground)" }}
-          >
+        <div className="glass-card p-12 text-center">
+          <div className="text-6xl mb-4">📝</div>
+          <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--foreground)" }}>
             {pagination.isFiltered ? "No matching prompts" : "No prompts yet"}
           </h3>
-          <p
-            className="mb-6 text-sm md:text-base"
-            style={{ color: "var(--muted-foreground)" }}
-          >
+          <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
             {pagination.isFiltered
               ? "Try adjusting your search filters"
               : "Create your first prompt to get started"}
           </p>
-          {pagination.isFiltered && (
-            <button
-              onClick={pagination.clearSearch}
-              className="btn-secondary mt-4"
-            >
-              Clear Filters
-            </button>
-          )}
         </div>
       ) : (
-        <div className="space-y-3 md:space-y-4">
+        <div className="space-y-5">
           {pagination.currentItems.map((prompt) => {
             const author = teamMembers[prompt.createdBy];
             const isExpanded = expandedPromptId === prompt.id;
-            const isSelected = selectedPrompts.includes(prompt.id);
-            const resultsCount = resultCounts[prompt.id] || 0;
-            const visibilityBadge = getVisibilityBadge(
-              prompt.visibility || "public"
-            );
             const isPrivate = prompt.visibility === "private";
-            const showActions = showMobileActions[prompt.id];
+            const resultsCount = resultCounts[prompt.id] || 0;
 
             return (
-              <div
-                key={prompt.id}
-                className={`glass-card p-3 md:p-6 transition-all duration-300 hover:border-primary/50 ${
-                  isPrivate ? "border-accent/30" : ""
-                }`}
-              >
-                {/* Header - Mobile Optimized */}
-                <div className="flex items-start justify-between mb-3 md:mb-4">
-                  <div className="flex items-start gap-2 md:gap-3 flex-1 min-w-0">
-                    {/* Checkbox - Hidden on mobile by default */}
-                    <div className="hidden sm:block">
-                      <PromptSelector
-                        promptId={prompt.id}
-                        isSelected={isSelected}
-                        onSelectionChange={handleSelectionChange}
-                        className="mt-1"
-                      />
+              <div key={prompt.id} className="prompt-card-premium">
+                {/* Author Info */}
+                <div className="author-info">
+                  <UserAvatar
+                    src={author?.avatar}
+                    name={author?.name}
+                    email={author?.email}
+                  />
+                  <div className="author-details">
+                    <div className="author-name">
+                      {author?.name || author?.email || "Unknown"}
                     </div>
-
-                    <UserAvatar
-                      src={author?.avatar}
-                      name={author?.name}
-                      email={author?.email}
-                      className="mt-1 flex-shrink-0"
-                    />
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
-                        <h3
-                          className="text-base md:text-lg font-semibold truncate"
-                          style={{ color: "var(--foreground)" }}
-                        >
-                          {prompt.title}
-                        </h3>
-                        {/* Visibility Badge */}
-                        <span
-                          style={visibilityBadge.style}
-                          className="flex items-center gap-1 w-fit text-xs"
-                        >
-                          <Icon
-                            name={visibilityBadge.icon}
-                            className="w-3 h-3"
-                          />
-                          <span className="hidden sm:inline">
-                            {visibilityBadge.label}
-                          </span>
-                        </span>
-                      </div>
-                      <div
-                        className="flex items-center gap-2 text-xs flex-wrap"
-                        style={{ color: "var(--muted-foreground)" }}
-                      >
-                        <span className="truncate max-w-[120px] sm:max-w-none">
-                          {author?.name || author?.email || "Unknown"}
-                        </span>
-                        <span className="hidden sm:inline">•</span>
-                        <span className="hidden sm:inline">
-                          {formatDate(prompt.createdAt)}
-                        </span>
-                        <span className="hidden md:inline">•</span>
-                        <span className="hidden md:inline">
-                          {prompt.text?.length || 0} chars
-                        </span>
-                        {resultsCount > 0 && (
-                          <>
-                            <span className="hidden sm:inline">•</span>
-                            <span className="hidden sm:flex items-center gap-1">
-                              <Icon name="database" className="w-3 h-3" />
-                              {resultsCount}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
+                    <div className="author-timestamp">{formatDate(prompt.createdAt)}</div>
                   </div>
-
-                  {/* Mobile Actions Menu Button */}
-                  <button
-                    onClick={() => toggleMobileActions(prompt.id)}
-                    className="md:hidden p-2 rounded-lg transition-colors flex-shrink-0"
-                    style={{
-                      backgroundColor: "var(--secondary)",
-                      color: "var(--foreground)",
-                    }}
-                  >
-                    <Icon name="menu" className="w-5 h-5" />
-                  </button>
-
-                  {/* Desktop Action Buttons */}
-                  <div className="hidden md:flex items-center gap-2 ml-4 flex-shrink-0">
-                    {canChangeVisibility(prompt, user.uid, userRole) && (
-                      <button
-                        onClick={() => handleToggleVisibility(prompt.id)}
-                        className="p-2 rounded-lg transition-all duration-200 hover:scale-110"
-                        style={{
-                          backgroundColor: isPrivate
-                            ? "var(--accent)"
-                            : "var(--secondary)",
-                          color: isPrivate
-                            ? "var(--accent-foreground)"
-                            : "var(--foreground)",
-                        }}
-                        title={`Make ${isPrivate ? "public" : "private"}`}
-                      >
-                        <Icon
-                          name={isPrivate ? "eyeOff" : "eye"}
-                          className="w-5 h-5"
-                        />
-                      </button>
-                    )}
-
-                    <FavoriteButton
-                      prompt={prompt}
-                      teamId={activeTeam}
-                      teamName={teamName}
-                      size="small"
-                    />
-
-                    <button
-                      onClick={() => handleAIEnhance(prompt)}
-                      className="p-2 rounded-lg transition-all duration-200 hover:scale-110"
-                      style={{
-                        backgroundColor: "var(--primary)",
-                        color: "var(--primary-foreground)",
-                      }}
-                      title="Enhance with AI"
-                    >
-                      <Icon name="sparkles" className="w-5 h-5" />
-                    </button>
-
-                    <button
-                      onClick={() => handleCopy(prompt.text)}
-                      className="p-2 rounded-lg transition-colors"
-                      style={{
-                        backgroundColor: "var(--secondary)",
-                        color: "var(--foreground)",
-                      }}
-                      title="Copy to clipboard"
-                    >
-                      <Icon name="copy" className="w-5 h-5" />
-                    </button>
-
-                    {canEditPrompt(prompt) && (
-                      <>
-                        <button
-                          onClick={() => {
-                            setEditingPrompt(prompt);
-                            setShowEditModal(true);
-                          }}
-                          className="p-2 rounded-lg transition-colors"
-                          style={{
-                            backgroundColor: "var(--secondary)",
-                            color: "var(--foreground)",
-                          }}
-                          title="Edit"
-                        >
-                          <Icon name="edit" className="w-5 h-5" />
-                        </button>
-
-                        <button
-                          onClick={() => handleDelete(prompt.id)}
-                          className="p-2 rounded-lg transition-colors"
-                          style={{
-                            backgroundColor: "var(--destructive)",
-                            color: "var(--destructive-foreground)",
-                          }}
-                          title="Delete prompt"
-                        >
-                          <Icon name="trash" className="w-5 h-5" />
-                        </button>
-                      </>
-                    )}
-
-                    <button
-                      onClick={() =>
-                        setExpandedPromptId(isExpanded ? null : prompt.id)
-                      }
-                      className="p-2 rounded-lg transition-colors"
-                      style={{
-                        backgroundColor: "var(--secondary)",
-                        color: "var(--foreground)",
-                      }}
-                      title={isExpanded ? "Collapse" : "Expand"}
-                    >
-                      <Icon
-                        name={isExpanded ? "chevronUp" : "chevronDown"}
-                        className="w-5 h-5"
-                      />
-                    </button>
+                  <div className="ml-auto">
+                    <span className={`visibility-badge ${isPrivate ? "private" : ""}`}>
+                      <Icon name={isPrivate ? "lock" : "unlock"} className="w-3 h-3" />
+                      {isPrivate ? "Private" : "Public"}
+                    </span>
                   </div>
                 </div>
 
-                {/* Mobile Actions Dropdown */}
-                {showActions && (
-                  <div
-                    className="md:hidden mb-3 p-3 rounded-lg border space-y-2"
-                    style={{
-                      backgroundColor: "var(--muted)",
-                      borderColor: "var(--border)",
-                    }}
-                  >
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => {
-                          handleCopy(prompt.text);
-                          toggleMobileActions(prompt.id);
-                        }}
-                        className="btn-secondary py-2 text-xs flex items-center justify-center gap-2"
-                      >
-                        <Icon name="copy" className="w-4 h-4" />
-                        Copy
-                      </button>
+                {/* Title & Content */}
+                <h3 className="prompt-title-premium">{prompt.title}</h3>
 
-                      <button
-                        onClick={() => {
-                          handleAIEnhance(prompt);
-                          toggleMobileActions(prompt.id);
-                        }}
-                        className="btn-primary py-2 text-xs flex items-center justify-center gap-2"
-                      >
-                        <Icon name="sparkles" className="w-4 h-4" />
-                        AI Enhance
-                      </button>
+                <div className="content-preview-box">
+                  <pre className="content-preview-text">
+                    {prompt.text.slice(0, 200)}
+                    {prompt.text.length > 200 && "..."}
+                  </pre>
+                </div>
 
-                      {canChangeVisibility(prompt, user.uid, userRole) && (
-                        <button
-                          onClick={() => {
-                            handleToggleVisibility(prompt.id);
-                            toggleMobileActions(prompt.id);
-                          }}
-                          className="btn-secondary py-2 text-xs flex items-center justify-center gap-2"
-                        >
-                          <Icon
-                            name={isPrivate ? "eyeOff" : "eye"}
-                            className="w-4 h-4"
-                          />
-                          {isPrivate ? "Public" : "Private"}
-                        </button>
-                      )}
-
-                      {canEditPrompt(prompt) && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setEditingPrompt(prompt);
-                              setShowEditModal(true);
-                              toggleMobileActions(prompt.id);
-                            }}
-                            className="btn-secondary py-2 text-xs flex items-center justify-center gap-2"
-                          >
-                            <Icon name="edit" className="w-4 h-4" />
-                            Edit
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              handleDelete(prompt.id);
-                              toggleMobileActions(prompt.id);
-                            }}
-                            className="btn-danger py-2 text-xs flex items-center justify-center gap-2 col-span-2"
-                          >
-                            <Icon name="trash" className="w-4 h-4" />
-                            Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={() =>
-                        setExpandedPromptId(isExpanded ? null : prompt.id)
-                      }
-                      className="btn-secondary w-full py-2 text-xs flex items-center justify-center gap-2"
-                    >
-                      <Icon
-                        name={isExpanded ? "chevronUp" : "chevronDown"}
-                        className="w-4 h-4"
-                      />
-                      {isExpanded ? "Collapse" : "Expand"}
-                    </button>
-                  </div>
-                )}
-
-                {/* Prompt Text Preview */}
-                <div className="mb-3 md:mb-4">
-                  <div
-                    className="p-3 md:p-4 rounded-lg border"
-                    style={{
-                      backgroundColor: "var(--muted)",
-                      borderColor: "var(--border)",
-                    }}
-                  >
-                    <pre
-                      className={`whitespace-pre-wrap text-xs md:text-sm font-mono ${
-                        !isExpanded ? "line-clamp-3" : ""
-                      }`}
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      {prompt.text}
-                    </pre>
-                  </div>
+                {/* Metadata */}
+                <div className="prompt-metadata">
+                  <span>{prompt.text.length} chars</span>
+                  {resultsCount > 0 && (
+                    <>
+                      <span>•</span>
+                      <span>{resultsCount} results</span>
+                    </>
+                  )}
                 </div>
 
                 {/* Tags */}
                 {prompt.tags && prompt.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 md:gap-2 mb-3 md:mb-4">
+                  <div className="flex flex-wrap gap-2 mb-4">
                     {prompt.tags.map((tag, index) => (
-                      <span
-                        key={index}
-                        className="inline-block px-2 py-0.5 md:py-1 rounded-full text-xs font-medium border"
-                        style={{
-                          backgroundColor: "var(--secondary)",
-                          color: "var(--secondary-foreground)",
-                          borderColor: "var(--border)",
-                        }}
-                      >
+                      <span key={index} className="tag-chip-premium">
                         #{tag}
                       </span>
                     ))}
                   </div>
                 )}
 
-                {/* Expanded Content */}
-                {isExpanded && (
-                  <div
-                    className="space-y-3 md:space-y-4 border-t pt-3 md:pt-4"
-                    style={{ borderColor: "var(--border)" }}
-                  >
-                    <CompactAITools text={prompt.text} />
+                {/* Actions */}
+                <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+                  <div className="flex items-center gap-2">
+                    {/* Primary Actions (Always Visible) */}
+                    <button
+                      onClick={() => handleCopy(prompt.text)}
+                      className="action-btn-premium"
+                      title="Copy to clipboard"
+                    >
+                      <Icon name="copy" className="w-4 h-4" />
+                    </button>
 
-                    {/* Results Section */}
-                    <div>
+                    <button
+                      onClick={() => setExpandedPromptId(isExpanded ? null : prompt.id)}
+                      className="action-btn-premium"
+                      title={isExpanded ? "Collapse" : "Expand"}
+                    >
+                      <Icon name="chevronDown" className="w-4 h-4" />
+                    </button>
+
+                    <FavoriteButton
+                      prompt={prompt}
+                      teamId={activeTeam}
+                      teamName={teamName}
+                      size="small"
+                      className="action-btn-premium primary"
+                    />
+
+                    {/* Kebab Menu */}
+                    <div className="kebab-menu-container">
                       <button
-                        onClick={() => toggleResults(prompt.id)}
-                        className="btn-secondary w-full py-2 text-xs md:text-sm flex items-center justify-center gap-2"
+                        onClick={() =>
+                          setOpenKebabMenu(openKebabMenu === prompt.id ? null : prompt.id)
+                        }
+                        className="action-btn-premium"
+                        title="More actions"
                       >
-                        <Icon name="database" className="w-4 h-4" />
-                        <span>
-                          {showResults[prompt.id] ? "Hide" : "Show"} AI Output
-                          Results
-                          {resultsCount > 0 && ` (${resultsCount})`}
-                        </span>
+                        <Icon name="moreVertical" className="w-4 h-4" />
                       </button>
 
-                      {showResults[prompt.id] && (
-                        <div className="mt-3 md:mt-4">
-                          <PromptResults
-                            key={`results-${prompt.id}`}
-                            teamId={activeTeam}
-                            promptId={prompt.id}
-                            userRole={userRole}
-                            onResultsChange={(count) =>
-                              handleResultsChange(prompt.id, count)
-                            }
-                          />
+                      {openKebabMenu === prompt.id && (
+                        <div className="kebab-menu">
+                          <button
+                            onClick={() => handleAIEnhance(prompt)}
+                            className="kebab-menu-item"
+                          >
+                            <Icon name="sparkles" className="w-4 h-4" />
+                            <span>Enhance with AI</span>
+                          </button>
+
+                          {canChangeVisibility(prompt, user.uid, userRole) && (
+                            <button
+                              onClick={() => handleToggleVisibility(prompt.id)}
+                              className="kebab-menu-item"
+                            >
+                              <Icon name={isPrivate ? "unlock" : "lock"} className="w-4 h-4" />
+                              <span>Make {isPrivate ? "Public" : "Private"}</span>
+                            </button>
+                          )}
+
+                          {canEditPrompt(prompt) && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setEditingPrompt(prompt);
+                                  setShowEditModal(true);
+                                  setOpenKebabMenu(null);
+                                }}
+                                className="kebab-menu-item"
+                              >
+                                <Icon name="edit" className="w-4 h-4" />
+                                <span>Edit Prompt</span>
+                              </button>
+
+                              <button
+                                onClick={() => handleDelete(prompt.id)}
+                                className="kebab-menu-item danger"
+                              >
+                                <Icon name="trash" className="w-4 h-4" />
+                                <span>Delete</span>
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
 
-                    {/* Comments Section */}
-                    <button
-                      onClick={() => toggleComments(prompt.id)}
-                      className="btn-secondary w-full py-2 text-xs md:text-sm"
-                    >
-                      {showComments[prompt.id] ? "Hide" : "Show"} Comments
-                    </button>
+                {/* Expanded Content */}
+                {isExpanded && (
+                  <div className="expandable-section expanded">
+                    <div className="space-y-4 mt-6 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
+                      <CompactAITools text={prompt.text} />
 
-                    {showComments[prompt.id] && (
-                      <Comments
-                        teamId={activeTeam}
-                        promptId={prompt.id}
-                        userRole={userRole}
-                      />
-                    )}
+                      {/* Results Section */}
+                      <div>
+                        <button
+                          onClick={() =>
+                            setShowResults((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
+                          }
+                          className="expand-toggle"
+                        >
+                          <span>
+                            {showResults[prompt.id] ? "Hide" : "Show"} AI Output Results
+                            {resultsCount > 0 && ` (${resultsCount})`}
+                          </span>
+                          <Icon
+                            name="chevronDown"
+                            className={`w-4 h-4 ${showResults[prompt.id] ? "expanded" : ""}`}
+                          />
+                        </button>
+
+                        {showResults[prompt.id] && (
+                          <div className="mt-4">
+                            <PromptResults
+                              key={`results-${prompt.id}`}
+                              teamId={activeTeam}
+                              promptId={prompt.id}
+                              userRole={userRole}
+                              onResultsChange={(count) => handleResultsChange(prompt.id, count)}
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Comments */}
+                      <button
+                        onClick={() =>
+                          setShowComments((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
+                        }
+                        className="expand-toggle"
+                      >
+                        <span>{showComments[prompt.id] ? "Hide" : "Show"} Comments</span>
+                        <Icon
+                          name="chevronDown"
+                          className={`w-4 h-4 ${showComments[prompt.id] ? "expanded" : ""}`}
+                        />
+                      </button>
+
+                      {showComments[prompt.id] && (
+                        <Comments teamId={activeTeam} promptId={prompt.id} userRole={userRole} />
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1305,13 +846,26 @@ export default function PromptList({ activeTeam, userRole }) {
 
       {/* Import/Export */}
       <ExportImport
-        onImport={handleImport}
+        onImport={async (importedPrompts) => {
+          let successCount = 0;
+          for (const prompt of importedPrompts) {
+            try {
+              await savePrompt(user.uid, prompt, activeTeam);
+              successCount++;
+            } catch (error) {
+              console.error("Import error:", error);
+            }
+          }
+          if (successCount > 0) {
+            showSuccessToast(`Imported ${successCount} prompts`);
+          }
+        }}
         teamId={activeTeam}
         teamName={teamName}
         userRole={userRole}
       />
 
-      {/* Edit Modal */}
+      {/* Modals */}
       {showEditModal && editingPrompt && (
         <EditPromptModal
           open={showEditModal}
@@ -1324,7 +878,6 @@ export default function PromptList({ activeTeam, userRole }) {
         />
       )}
 
-      {/* AI Enhancement Modals */}
       {showAIEnhancer && currentPromptForAI && (
         <AIPromptEnhancer
           prompt={currentPromptForAI}
