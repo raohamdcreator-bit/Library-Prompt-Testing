@@ -1,20 +1,28 @@
-//src/components/ResultCard.jsx
-// Individual result card component - Using CSS-only syntax highlighting
-
+// src/components/ResultCard.jsx - Premium Result Card Design
 import { useState } from "react";
 
-export default function ResultCard({
-  result,
-  isExpanded,
-  onToggleExpand,
-  onDelete,
-}) {
+function Icon({ name, className = "w-4 h-4" }) {
+  const icons = {
+    copy: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />,
+    download: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />,
+    trash: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />,
+    chevronDown: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />,
+  };
+
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {icons[name]}
+    </svg>
+  );
+}
+
+export default function ResultCard({ result, isExpanded, onToggleExpand, onDelete }) {
   const [imageError, setImageError] = useState(false);
 
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(result.content);
-      showNotification("Copied to clipboard!", "success");
+      showSuccessToast("Copied to clipboard!");
     } catch (error) {
       console.error("Error copying:", error);
       showNotification("Failed to copy", "error");
@@ -34,7 +42,7 @@ export default function ResultCard({
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showNotification("Download started", "success");
+        showSuccessToast("Download started");
       } catch (error) {
         console.error("Error downloading:", error);
         showNotification("Failed to download", "error");
@@ -51,7 +59,7 @@ export default function ResultCard({
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      showNotification("Download started", "success");
+      showSuccessToast("Download started");
     }
   }
 
@@ -86,34 +94,58 @@ export default function ResultCard({
   function getTypeBadgeStyle() {
     const baseStyle = {
       padding: "4px 12px",
-      borderRadius: "12px",
+      borderRadius: "10px",
       fontSize: "0.75rem",
-      fontWeight: "500",
-      border: "1px solid var(--border)",
+      fontWeight: "600",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "6px",
     };
 
     switch (result.type) {
       case "text":
         return {
           ...baseStyle,
-          backgroundColor: "var(--secondary)",
-          color: "var(--secondary-foreground)",
+          backgroundColor: "rgba(59, 130, 246, 0.15)",
+          color: "rgba(59, 130, 246, 0.95)",
+          border: "1px solid rgba(59, 130, 246, 0.25)",
         };
       case "code":
         return {
           ...baseStyle,
-          backgroundColor: "var(--primary)",
-          color: "var(--primary-foreground)",
+          backgroundColor: "rgba(139, 92, 246, 0.15)",
+          color: "rgba(139, 92, 246, 0.95)",
+          border: "1px solid rgba(139, 92, 246, 0.25)",
         };
       case "image":
         return {
           ...baseStyle,
-          backgroundColor: "var(--accent)",
-          color: "var(--accent-foreground)",
+          backgroundColor: "rgba(236, 72, 153, 0.15)",
+          color: "rgba(236, 72, 153, 0.95)",
+          border: "1px solid rgba(236, 72, 153, 0.25)",
         };
       default:
         return baseStyle;
     }
+  }
+
+  function showSuccessToast(message) {
+    const toast = document.createElement("div");
+    toast.className = "success-toast";
+    toast.innerHTML = `
+      <div class="success-icon">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <span>${message}</span>
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      if (toast.parentNode) {
+        document.body.removeChild(toast);
+      }
+    }, 3000);
   }
 
   function showNotification(message, type = "info") {
@@ -144,28 +176,26 @@ export default function ResultCard({
   }
 
   return (
-    <div className="glass-card p-4 transition-all duration-300 hover:border-primary/50">
+    <div className="result-card-premium">
       {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-start gap-3 flex-1">
-          <div className="text-2xl">{getTypeIcon()}</div>
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <div className="text-2xl flex-shrink-0">{getTypeIcon()}</div>
           <div className="flex-1 min-w-0">
             <h5
-              className="font-semibold mb-1"
+              className="font-semibold text-base mb-2 truncate"
               style={{ color: "var(--foreground)" }}
             >
               {result.title}
             </h5>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-3 flex-wrap">
               <span style={getTypeBadgeStyle()}>
                 {result.type.charAt(0).toUpperCase() + result.type.slice(1)}
-                {result.type === "code" &&
-                  result.language &&
-                  ` (${result.language})`}
+                {result.type === "code" && result.language && ` • ${result.language}`}
               </span>
               <span
                 className="text-xs"
-                style={{ color: "var(--muted-foreground)" }}
+                style={{ color: "rgba(228, 228, 231, 0.5)" }}
               >
                 {formatDate(result.createdAt)}
               </span>
@@ -173,145 +203,106 @@ export default function ResultCard({
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2">
+        {/* Actions */}
+        <div className="flex items-center gap-2 flex-shrink-0 ml-4">
           {result.type !== "image" && (
             <button
               onClick={handleCopy}
-              className="p-2 rounded-lg transition-colors hover:scale-105"
-              style={{
-                backgroundColor: "var(--secondary)",
-                color: "var(--foreground)",
-              }}
+              className="action-btn-premium"
               title="Copy to clipboard"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                />
-              </svg>
+              <Icon name="copy" />
             </button>
           )}
 
           <button
             onClick={handleDownload}
-            className="p-2 rounded-lg transition-colors hover:scale-105"
-            style={{
-              backgroundColor: "var(--secondary)",
-              color: "var(--foreground)",
-            }}
+            className="action-btn-premium"
             title="Download"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-              />
-            </svg>
+            <Icon name="download" />
           </button>
 
           {onDelete && (
             <button
               onClick={onDelete}
-              className="p-2 rounded-lg transition-colors hover:scale-105"
-              style={{
-                backgroundColor: "var(--destructive)",
-                color: "var(--destructive-foreground)",
-              }}
+              className="action-btn-premium danger"
               title="Delete result"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                />
-              </svg>
+              <Icon name="trash" />
             </button>
           )}
 
           <button
             onClick={onToggleExpand}
-            className="p-2 rounded-lg transition-colors hover:scale-105"
-            style={{
-              backgroundColor: "var(--secondary)",
-              color: "var(--foreground)",
-            }}
+            className="action-btn-premium"
             title={isExpanded ? "Collapse" : "Expand"}
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d={isExpanded ? "M5 15l7-7 7 7" : "M19 9l-7 7-7-7"}
-              />
-            </svg>
+            <Icon name="chevronDown" />
           </button>
         </div>
       </div>
 
-      {/* Content Preview */}
+      {/* Content Preview (Collapsed) */}
       {!isExpanded && (
         <>
           {result.type === "text" && (
             <div
-              className="p-3 rounded-lg border text-sm line-clamp-3"
+              className="p-4 rounded-lg border text-sm"
               style={{
-                backgroundColor: "var(--muted)",
-                borderColor: "var(--border)",
-                color: "var(--foreground)",
+                backgroundColor: "rgba(0, 0, 0, 0.2)",
+                borderColor: "rgba(139, 92, 246, 0.1)",
+                color: "rgba(228, 228, 231, 0.7)",
+                maxHeight: "80px",
+                overflow: "hidden",
+                position: "relative",
               }}
             >
-              {result.content}
+              <div style={{
+                background: "linear-gradient(to bottom, transparent 60%, rgba(0, 0, 0, 0.3))",
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                right: 0,
+                height: "30px",
+                pointerEvents: "none",
+              }}></div>
+              {result.content.slice(0, 150)}...
             </div>
           )}
+
           {result.type === "code" && (
             <div
               className="rounded-lg overflow-hidden border"
-              style={{ borderColor: "var(--border)" }}
+              style={{ borderColor: "rgba(139, 92, 246, 0.2)" }}
             >
               <pre
-                className="p-3 text-xs font-mono line-clamp-3 overflow-x-auto"
+                className="p-4 text-xs font-mono overflow-hidden"
                 style={{
                   backgroundColor: "#1e1e1e",
                   color: "#d4d4d4",
+                  maxHeight: "80px",
+                  position: "relative",
                 }}
               >
-                {result.content}
+                <div style={{
+                  background: "linear-gradient(to bottom, transparent 60%, #1e1e1e)",
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: "30px",
+                  pointerEvents: "none",
+                }}></div>
+                {result.content.slice(0, 200)}...
               </pre>
             </div>
           )}
+
           {result.type === "image" && !imageError && result.imageUrl && (
             <div
               className="rounded-lg overflow-hidden border"
-              style={{ borderColor: "var(--border)" }}
+              style={{ borderColor: "rgba(139, 92, 246, 0.2)" }}
             >
               <img
                 src={result.imageUrl}
@@ -327,20 +318,20 @@ export default function ResultCard({
       {/* Expanded Content */}
       {isExpanded && (
         <div
-          className="space-y-3 mt-3 border-t pt-3"
-          style={{ borderColor: "var(--border)" }}
+          className="space-y-4 mt-4 pt-4 border-t"
+          style={{ borderColor: "rgba(139, 92, 246, 0.15)" }}
         >
           {result.type === "text" && (
             <div
               className="p-4 rounded-lg border"
               style={{
-                backgroundColor: "var(--muted)",
-                borderColor: "var(--border)",
+                backgroundColor: "rgba(0, 0, 0, 0.2)",
+                borderColor: "rgba(139, 92, 246, 0.1)",
               }}
             >
               <pre
-                className="whitespace-pre-wrap text-sm"
-                style={{ color: "var(--foreground)" }}
+                className="whitespace-pre-wrap text-sm font-sans"
+                style={{ color: "rgba(228, 228, 231, 0.85)", lineHeight: "1.6" }}
               >
                 {result.content}
               </pre>
@@ -350,7 +341,7 @@ export default function ResultCard({
           {result.type === "code" && (
             <div
               className="rounded-lg overflow-hidden border"
-              style={{ borderColor: "var(--border)" }}
+              style={{ borderColor: "rgba(139, 92, 246, 0.2)" }}
             >
               <div
                 className="px-4 py-2 text-xs font-medium border-b flex items-center justify-between"
@@ -360,7 +351,7 @@ export default function ResultCard({
                   color: "#d4d4d4",
                 }}
               >
-                <span>{result.language || "code"}</span>
+                <span className="font-semibold">{result.language || "code"}</span>
                 <span className="text-gray-400">
                   {result.content?.split("\n").length || 0} lines
                 </span>
@@ -377,7 +368,7 @@ export default function ResultCard({
                   style={{
                     color: "#d4d4d4",
                     margin: 0,
-                    fontFamily: "JetBrains Mono, Consolas, monospace",
+                    fontFamily: "'JetBrains Mono', 'Consolas', monospace",
                   }}
                 >
                   {result.content?.split("\n").map((line, i) => (
@@ -402,12 +393,13 @@ export default function ResultCard({
           {result.type === "image" && !imageError && result.imageUrl && (
             <div
               className="rounded-lg overflow-hidden border"
-              style={{ borderColor: "var(--border)" }}
+              style={{ borderColor: "rgba(139, 92, 246, 0.2)" }}
             >
               <img
                 src={result.imageUrl}
                 alt={result.title}
-                className="w-full h-auto max-h-[600px] object-contain bg-black/5"
+                className="w-full h-auto max-h-[600px] object-contain"
+                style={{ backgroundColor: "rgba(0, 0, 0, 0.2)" }}
                 onError={() => setImageError(true)}
               />
             </div>
@@ -417,15 +409,12 @@ export default function ResultCard({
             <div
               className="p-8 text-center rounded-lg border"
               style={{
-                backgroundColor: "var(--muted)",
-                borderColor: "var(--border)",
+                backgroundColor: "rgba(0, 0, 0, 0.2)",
+                borderColor: "rgba(239, 68, 68, 0.3)",
               }}
             >
-              <div className="text-4xl mb-2">⚠</div>
-              <p
-                className="text-sm"
-                style={{ color: "var(--muted-foreground)" }}
-              >
+              <div className="text-4xl mb-2">⚠️</div>
+              <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
                 Failed to load image
               </p>
             </div>
@@ -433,8 +422,11 @@ export default function ResultCard({
 
           {/* Metadata */}
           <div
-            className="flex items-center gap-4 text-xs"
-            style={{ color: "var(--muted-foreground)" }}
+            className="flex items-center gap-4 text-xs pt-3 border-t"
+            style={{ 
+              color: "rgba(228, 228, 231, 0.5)",
+              borderColor: "rgba(139, 92, 246, 0.1)",
+            }}
           >
             {result.type === "text" && (
               <span>{result.content?.length || 0} characters</span>
