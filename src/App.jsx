@@ -416,13 +416,13 @@ function LandingPage({ onSignIn, onNavigate }) {
 
               {/* CTA Buttons */}
               <div className="hero-cta flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 px-4">
-                <button onClick={onSignIn} className="btn-premium w-full sm:w-auto">
-                  <Zap size={20} />
+                <button onClick={onSignIn} className="btn-premium ">
+                  
                   Get Started
                   <ArrowRight size={20} className="btn-arrow" />
                 </button>
-                <button onClick={() => onNavigate("/waitlist")} className="btn-secondary w-full sm:w-auto">
-                  <Sparkles size={20} />
+                <button onClick={() => onNavigate("/waitlist")} className="btn-secondary">
+                  
                   Join Waitlist
                   <ArrowUpRight size={20} className="btn-arrow" />
                 </button>
@@ -515,7 +515,7 @@ function LandingPage({ onSignIn, onNavigate }) {
 
           <div className="text-center scroll-reveal">
             <button className="btn-premium" onClick={onSignIn}>
-              <Sparkles size={20} />
+              
               Explore Features
               <ArrowRight size={20} className="btn-arrow" />
             </button>
@@ -534,13 +534,13 @@ function LandingPage({ onSignIn, onNavigate }) {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
-              <button onClick={onSignIn} className="btn-premium w-full sm:w-auto">
+              <button onClick={onSignIn} className="btn-premium">
                 <Zap size={20} />
                 Start Free
-                <ArrowRight size={20} className="btn-arrow" />
+                
               </button>
-              <button onClick={() => onNavigate("/waitlist")} className="btn-secondary w-full sm:w-auto">
-                <MessageSquare size={20} />
+              <button onClick={() => onNavigate("/waitlist")} className="btn-secondary">
+                
                 Book Demo
                 <ArrowUpRight size={20} className="btn-arrow" />
               </button>
