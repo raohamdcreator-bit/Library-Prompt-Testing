@@ -1,5 +1,5 @@
-// src/App.jsx - Enhanced with Professional Icons
-import { useEffect, useState } from "react";
+// src/App.jsx - Enhanced with Premium UI/UX
+import { useEffect, useState, useRef } from "react";
 import { db } from "./lib/firebase";
 import {
   collection,
@@ -45,6 +45,8 @@ import {
   Crown,
   UserCog,
   User,
+  ArrowRight,
+  ArrowUpRight,
 } from "lucide-react";
 
 // Import Legal/Info Pages
@@ -59,6 +61,51 @@ import { NavigationProvider } from "./components/LegalLayout";
 
 // Admin email configuration
 const ADMIN_EMAIL = "rao.hamd.creator@gmail.com";
+
+// ===================================
+// SCROLL REVEAL HOOK
+// ===================================
+function useScrollReveal() {
+  useEffect(() => {
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: "0px 0px -50px 0px"
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('revealed');
+        }
+      });
+    }, observerOptions);
+
+    const elements = document.querySelectorAll('.scroll-reveal, .scroll-reveal-left, .scroll-reveal-right, .feature-card-3d');
+    elements.forEach(el => observer.observe(el));
+
+    return () => {
+      elements.forEach(el => observer.unobserve(el));
+    };
+  }, []);
+}
+
+// ===================================
+// NAVBAR SCROLL EFFECT HOOK
+// ===================================
+function useNavbarScroll() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return scrolled;
+}
 
 // ===================================
 // ROUTER COMPONENTS
@@ -87,7 +134,7 @@ function Logo({ size = "normal", onClick }) {
 
   return (
     <div
-      className={`${dimensions} flex items-center justify-center`}
+      className={`${dimensions} flex items-center justify-center interactive-icon`}
       onClick={onClick}
     >
       <img
@@ -101,112 +148,81 @@ function Logo({ size = "normal", onClick }) {
 }
 
 // ===================================
-// MOBILE MENU ICON
-// ===================================
-function MenuIcon({ isOpen }) {
-  return isOpen ? <X size={24} /> : <Menu size={24} />;
-}
-
-// ===================================
-// NAVIGATION COMPONENT
+// NAVIGATION COMPONENT - ENHANCED
 // ===================================
 function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const scrolled = useNavbarScroll();
   const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
 
   return (
-    <nav
-      className="border-b"
-      style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}
-    >
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <div
-            className="flex items-center gap-3 cursor-pointer"
-            onClick={() => onNavigate("/")}
-          >
-            <Logo />
-            <span
-              className="text-xl font-bold"
-              style={{ color: "var(--foreground)" }}
-            >
-              Prism
-            </span>
-          </div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-6">
-            <button
-              onClick={() => onNavigate("/")}
-              className="transition-colors hover:text-foreground"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              Home
-            </button>
-            <button
-              onClick={() => onNavigate("/about")}
-              className="transition-colors hover:text-foreground"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              About
-            </button>
-            <button
-              onClick={() => onNavigate("/contact")}
-              className="transition-colors hover:text-foreground"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              Contact
-            </button>
-
-            {isAdmin && (
-              <button
-                onClick={() => onNavigate("/admin")}
-                className="px-4 py-2 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2"
-                style={{
-                  backgroundColor: "var(--primary)",
-                  color: "var(--primary-foreground)",
-                  border: "1px solid var(--primary)",
-                }}
-                title="Admin Dashboard - Manage Waitlist"
-              >
-                <Shield size={16} />
-                Admin
-              </button>
-            )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden mobile-menu-btn"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          >
-            <MenuIcon isOpen={mobileMenuOpen} />
-          </button>
-
-          {/* Desktop Sign In */}
-          <div className="hidden md:flex items-center gap-3">
-            {!isAuthenticated && (
-              <button
-                onClick={onSignIn}
-                className="btn-primary px-6 py-2 flex items-center gap-2"
-              >
-                <Zap size={18} />
-                Sign in with Google
-              </button>
-            )}
-          </div>
+    <nav className={`modern-navbar ${scrolled ? 'scrolled' : ''}`}>
+      <div className="navbar-content">
+        <div className="navbar-logo" onClick={() => onNavigate("/")}>
+          <Logo />
+          <span className="navbar-logo-text">Prism</span>
         </div>
 
-        {/* Mobile Navigation Menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 space-y-2">
+        {/* Desktop Navigation */}
+        <div className="navbar-links hidden md:flex">
+          <button onClick={() => onNavigate("/")} className="navbar-link">
+            Home
+          </button>
+          <button onClick={() => onNavigate("/about")} className="navbar-link">
+            About
+          </button>
+          <button onClick={() => onNavigate("/contact")} className="navbar-link">
+            Contact
+          </button>
+
+          {isAdmin && (
+            <button
+              onClick={() => onNavigate("/admin")}
+              className="btn-premium"
+              style={{ padding: '10px 20px' }}
+            >
+              <Shield size={16} />
+              Admin
+              <ArrowRight size={16} className="btn-arrow" />
+            </button>
+          )}
+        </div>
+
+        {/* Mobile Menu Button */}
+        <button
+          className="md:hidden mobile-menu-btn"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+
+        {/* Desktop Sign In */}
+        <div className="hidden md:flex items-center gap-3">
+          {!isAuthenticated && (
+            <button onClick={onSignIn} className="btn-premium">
+              <Zap size={18} />
+              Sign in with Google
+              <ArrowRight size={18} className="btn-arrow" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Navigation Menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden" style={{ 
+          padding: '1rem 2rem 2rem',
+          borderTop: '1px solid rgba(139, 92, 246, 0.1)',
+          background: 'rgba(10, 13, 20, 0.95)',
+          backdropFilter: 'blur(20px)'
+        }}>
+          <div className="space-y-2">
             <button
               onClick={() => {
                 onNavigate("/");
                 setMobileMenuOpen(false);
               }}
-              className="w-full text-left px-4 py-3 rounded-lg transition-colors"
-              style={{ color: "var(--muted-foreground)" }}
+              className="navbar-link w-full text-left px-4 py-3"
             >
               Home
             </button>
@@ -215,8 +231,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
                 onNavigate("/about");
                 setMobileMenuOpen(false);
               }}
-              className="w-full text-left px-4 py-3 rounded-lg transition-colors"
-              style={{ color: "var(--muted-foreground)" }}
+              className="navbar-link w-full text-left px-4 py-3"
             >
               About
             </button>
@@ -225,8 +240,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
                 onNavigate("/contact");
                 setMobileMenuOpen(false);
               }}
-              className="w-full text-left px-4 py-3 rounded-lg transition-colors"
-              style={{ color: "var(--muted-foreground)" }}
+              className="navbar-link w-full text-left px-4 py-3"
             >
               Contact
             </button>
@@ -237,14 +251,11 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
                   onNavigate("/admin");
                   setMobileMenuOpen(false);
                 }}
-                className="w-full text-left px-4 py-3 rounded-lg font-semibold flex items-center gap-2"
-                style={{
-                  backgroundColor: "var(--primary)",
-                  color: "var(--primary-foreground)",
-                }}
+                className="btn-premium w-full"
               >
                 <Shield size={18} />
                 Admin Dashboard
+                <ArrowRight size={18} className="btn-arrow" />
               </button>
             )}
 
@@ -254,15 +265,16 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
                   onSignIn();
                   setMobileMenuOpen(false);
                 }}
-                className="btn-primary w-full flex items-center justify-center gap-2"
+                className="btn-premium w-full"
               >
                 <Zap size={18} />
                 Sign in with Google
+                <ArrowRight size={18} className="btn-arrow" />
               </button>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </nav>
   );
 }
@@ -280,120 +292,64 @@ function Footer({ onNavigate }) {
         <div className="grid md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div
-                className="w-6 h-6 rounded flex items-center justify-center"
-                style={{ backgroundColor: "var(--primary)" }}
-              >
-                <img
-                  src="/logo.png"
-                  alt="Prompt Teams Logo"
-                  className="w-full h-full object-contain"
-                  style={{
-                    filter: "drop-shadow(0 0 8px rgba(139, 92, 246, 0.4))",
-                  }}
-                />
-              </div>
-              <span
-                className="font-bold"
-                style={{ color: "var(--foreground)" }}
-              >
-                Prism
-              </span>
+              <Logo size="small" />
+              <span className="font-bold navbar-logo-text">Prism</span>
             </div>
             <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
               Building the future of AI prompt collaboration
             </p>
           </div>
           <div>
-            <h4
-              className="font-semibold mb-3"
-              style={{ color: "var(--foreground)" }}
-            >
+            <h4 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>
               Platform
             </h4>
-            <ul
-              className="space-y-2 text-sm"
-              style={{ color: "var(--muted-foreground)" }}
-            >
+            <ul className="space-y-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
               <li>
-                <button
-                  onClick={() => onNavigate("/")}
-                  className="hover:text-foreground transition-colors"
-                >
+                <button onClick={() => onNavigate("/")} className="hover:text-foreground transition-colors">
                   Teams
                 </button>
               </li>
               <li>
-                <button
-                  onClick={() => onNavigate("/")}
-                  className="hover:text-foreground transition-colors"
-                >
+                <button onClick={() => onNavigate("/")} className="hover:text-foreground transition-colors">
                   Prompts
                 </button>
               </li>
               <li>
-                <button
-                  onClick={() => onNavigate("/")}
-                  className="hover:text-foreground transition-colors"
-                >
+                <button onClick={() => onNavigate("/")} className="hover:text-foreground transition-colors">
                   Analytics
                 </button>
               </li>
             </ul>
           </div>
           <div>
-            <h4
-              className="font-semibold mb-3"
-              style={{ color: "var(--foreground)" }}
-            >
+            <h4 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>
               Company
             </h4>
-            <ul
-              className="space-y-2 text-sm"
-              style={{ color: "var(--muted-foreground)" }}
-            >
+            <ul className="space-y-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
               <li>
-                <button
-                  onClick={() => onNavigate("/about")}
-                  className="hover:text-foreground transition-colors"
-                >
+                <button onClick={() => onNavigate("/about")} className="hover:text-foreground transition-colors">
                   About
                 </button>
               </li>
               <li>
-                <button
-                  onClick={() => onNavigate("/contact")}
-                  className="hover:text-foreground transition-colors"
-                >
+                <button onClick={() => onNavigate("/contact")} className="hover:text-foreground transition-colors">
                   Contact
                 </button>
               </li>
             </ul>
           </div>
           <div>
-            <h4
-              className="font-semibold mb-3"
-              style={{ color: "var(--foreground)" }}
-            >
+            <h4 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>
               Legal
             </h4>
-            <ul
-              className="space-y-2 text-sm"
-              style={{ color: "var(--muted-foreground)" }}
-            >
+            <ul className="space-y-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
               <li>
-                <button
-                  onClick={() => onNavigate("/privacy")}
-                  className="hover:text-foreground transition-colors"
-                >
+                <button onClick={() => onNavigate("/privacy")} className="hover:text-foreground transition-colors">
                   Privacy Policy
                 </button>
               </li>
               <li>
-                <button
-                  onClick={() => onNavigate("/terms")}
-                  className="hover:text-foreground transition-colors"
-                >
+                <button onClick={() => onNavigate("/terms")} className="hover:text-foreground transition-colors">
                   Terms of Use
                 </button>
               </li>
@@ -402,12 +358,9 @@ function Footer({ onNavigate }) {
         </div>
         <div
           className="border-t mt-8 pt-8 text-center text-sm"
-          style={{
-            borderColor: "var(--border)",
-            color: "var(--muted-foreground)",
-          }}
+          style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
         >
-          <p>© 2025 Prompt Teams. All rights reserved.</p>
+          <p>© 2025 Prism. All rights reserved.</p>
         </div>
       </div>
     </footer>
@@ -415,226 +368,188 @@ function Footer({ onNavigate }) {
 }
 
 // ===================================
-// LANDING PAGE COMPONENT
+// LANDING PAGE - ENHANCED WITH ANIMATIONS
 // ===================================
 function LandingPage({ onSignIn, onNavigate }) {
+  useScrollReveal();
+
   return (
-    <div className="min-h-screen" style={{ background: "var(--background)" }}>
-      <Navigation
-        onSignIn={onSignIn}
-        isAuthenticated={false}
-        onNavigate={onNavigate}
-        user={null}
-      />
+    <div className="landing-page-container">
+      {/* Animated Background Gradient Orbs */}
+      <div className="gradient-orb gradient-orb-1"></div>
+      <div className="gradient-orb gradient-orb-2"></div>
+      <div className="grid-overlay"></div>
 
-      {/* Hero Section */}
-      <section className="container mx-auto px-4 py-12 md:py-20">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-8 md:mb-12">
-            <div
-              className="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full border text-xs md:text-sm"
-              style={{
-                backgroundColor: "var(--secondary)",
-                color: "var(--foreground)",
-                borderColor: "var(--border)",
-              }}
-            >
-              <Sparkles size={16} />
-              <span className="font-medium">
-                AI-Powered Prompt Collaboration
-              </span>
+      <div className="relative z-10">
+        <Navigation
+          onSignIn={onSignIn}
+          isAuthenticated={false}
+          onNavigate={onNavigate}
+          user={null}
+        />
+
+        {/* Hero Section */}
+        <section className="container mx-auto px-4 py-20 md:py-32">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <div className="hero-badge mb-6">
+                <Sparkles size={16} />
+                <span className="font-medium">AI-Powered Prompt Collaboration</span>
+              </div>
+
+              <h1 className="hero-title text-4xl md:text-6xl lg:text-7xl font-bold mb-6 px-4">
+                Build Better Prompts with{" "}
+                <span style={{ 
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}>
+                  Your Team
+                </span>
+              </h1>
+
+              <p className="hero-description text-lg md:text-xl mb-8 max-w-2xl mx-auto leading-relaxed px-4"
+                style={{ color: "var(--muted-foreground)" }}>
+                Collaborate on AI prompts with your team. Store, share, and discover the best prompts for your projects.
+              </p>
+
+              {/* CTA Buttons */}
+              <div className="hero-cta flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 px-4">
+                <button onClick={onSignIn} className="btn-premium w-full sm:w-auto">
+                  <Zap size={20} />
+                  Get Started
+                  <ArrowRight size={20} className="btn-arrow" />
+                </button>
+                <button onClick={() => onNavigate("/waitlist")} className="btn-secondary w-full sm:w-auto">
+                  <Sparkles size={20} />
+                  Join Waitlist
+                  <ArrowUpRight size={20} className="btn-arrow" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 text-sm px-4"
+                style={{ color: "var(--muted-foreground)" }}>
+                <span className="text-center">
+                  We're building something transformative • Your feedback will help us shape it
+                </span>
+              </div>
             </div>
+          </div>
+        </section>
 
-            <h1
-              className="text-3xl md:text-5xl lg:text-7xl font-bold mb-4 md:mb-6 px-4"
-              style={{ color: "var(--foreground)" }}
-            >
-              Build Better Prompts with{" "}
-              <span style={{ color: "var(--primary)" }}>Your Team</span>
-            </h1>
-
-            <p
-              className="text-base md:text-xl mb-6 md:mb-8 max-w-2xl mx-auto leading-relaxed px-4"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              Collaborate on AI prompts with your team. Store, share, and
-              discover the best prompts for your projects.
+        {/* Features Grid - 3D Rotation Cards */}
+        <section className="container mx-auto px-4 py-20">
+          <div className="section-header scroll-reveal">
+            <h2 className="section-title">
+              Everything you need to collaborate on AI prompts
+            </h2>
+            <p className="section-subtitle">
+              Comprehensive tools designed for modern AI prompt development
             </p>
           </div>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-8 md:mb-12 px-4">
-            <button
-              onClick={onSignIn}
-              className="btn-primary px-6 md:px-8 py-3 text-base md:text-lg font-medium w-full sm:w-auto flex items-center justify-center gap-2"
-            >
-              <Zap size={20} />
-              Get Started
-            </button>
-            <button
-              onClick={() => onNavigate("/waitlist")}
-              className="btn-secondary px-6 md:px-8 py-3 text-base md:text-lg font-medium w-full sm:w-auto flex items-center justify-center gap-2"
-            >
-              <Sparkles size={20} />
-              Join Waitlist
-            </button>
-          </div>
-          <div
-            className="flex items-center justify-center gap-2 text-xs md:text-sm px-4"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            <span className="text-center">
-              We're building something transformative • Your feedback will help
-              us shape it
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="container mx-auto px-4 py-12 md:py-20">
-        <div className="text-center mb-12 md:mb-16">
-          <h2
-            className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4"
-            style={{ color: "var(--foreground)" }}
-          >
-            Everything you need to collaborate on AI prompts
-          </h2>
-          <p
-            className="text-base md:text-lg max-w-2xl mx-auto px-4"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            Comprehensive tools designed for modern AI prompt development
-          </p>
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-8">
-          {[
-            {
-              icon: <Users size={24} />,
-              title: "Real-time Collaboration",
-              desc: "Work together seamlessly with live updates and team chat.",
-            },
-            {
-              icon: <FileText size={24} />,
-              title: "Prompt Version Control",
-              desc: "Track changes and revert to previous versions effortlessly.",
-            },
-            {
-              icon: <Sparkles size={24} />,
-              title: "Multi-Model Testing",
-              desc: "Test prompts across different AI models simultaneously.",
-            },
-            {
-              icon: <Shield size={24} />,
-              title: "Prompt Privacy Controls",
-              desc: "Granular permissions to control who sees what.",
-            },
-            {
-              icon: <Search size={24} />,
-              title: "Plagiarism Detection",
-              desc: "Ensure originality with built-in similarity checks.",
-            },
-            {
-              icon: <FileText size={24} />,
-              title: "Attach Outputs",
-              desc: "Save text, code, images and results alongside prompts.",
-            },
-            {
-              icon: <BarChart3 size={24} />,
-              title: "Analytics",
-              desc: "Track usage patterns and optimize performance.",
-            },
-            {
-              icon: <Users size={24} />,
-              title: "Team Workspace",
-              desc: "Owner, Admin, and Member roles with custom permissions.",
-            },
-            {
-              icon: <Zap size={24} />,
-              title: "Execute & Export",
-              desc: "Run prompts directly and export to JSON/API formats.",
-            },
-          ].map((feature, index) => (
-            <div
-              key={index}
-              className="glass-card p-4 md:p-6 hover:border-primary transition-all duration-300"
-            >
-              <div
-                className="w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center mb-4"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  color: "var(--primary)",
-                }}
-              >
-                {feature.icon}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {[
+              {
+                icon: <Users size={24} />,
+                title: "Real-time Collaboration",
+                desc: "Work together seamlessly with live updates and team chat.",
+              },
+              {
+                icon: <FileText size={24} />,
+                title: "Prompt Version Control",
+                desc: "Track changes and revert to previous versions effortlessly.",
+              },
+              {
+                icon: <Sparkles size={24} />,
+                title: "Multi-Model Testing",
+                desc: "Test prompts across different AI models simultaneously.",
+              },
+              {
+                icon: <Shield size={24} />,
+                title: "Prompt Privacy Controls",
+                desc: "Granular permissions to control who sees what.",
+              },
+              {
+                icon: <Search size={24} />,
+                title: "Plagiarism Detection",
+                desc: "Ensure originality with built-in similarity checks.",
+              },
+              {
+                icon: <FileText size={24} />,
+                title: "Attach Outputs",
+                desc: "Save text, code, images and results alongside prompts.",
+              },
+              {
+                icon: <BarChart3 size={24} />,
+                title: "Analytics",
+                desc: "Track usage patterns and optimize performance.",
+              },
+              {
+                icon: <Users size={24} />,
+                title: "Team Workspace",
+                desc: "Owner, Admin, and Member roles with custom permissions.",
+              },
+              {
+                icon: <Zap size={24} />,
+                title: "Execute & Export",
+                desc: "Run prompts directly and export to JSON/API formats.",
+              },
+            ].map((feature, index) => (
+              <div key={index} className="capsule-card feature-card-3d scroll-reveal">
+                <div className="feature-icon-container">
+                  <div style={{ color: "var(--primary)" }}>
+                    {feature.icon}
+                  </div>
+                </div>
+                <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--foreground)" }}>
+                  {feature.title}
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+                  {feature.desc}
+                </p>
               </div>
-              <h3
-                className="text-base md:text-lg font-semibold mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
-                {feature.title}
-              </h3>
-              <p
-                className="text-sm leading-relaxed"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                {feature.desc}
-              </p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="text-center">
-          <button
-            className="btn-primary px-6 md:px-8 py-3 text-base md:text-lg font-medium flex items-center gap-2 mx-auto"
-            onClick={onSignIn}
-          >
-            <Sparkles size={20} />
-            Explore Features
-          </button>
-        </div>
-      </section>
-
-      {/* Final CTA */}
-      <section
-        className="container mx-auto px-4 py-12 md:py-20"
-        style={{ backgroundColor: "var(--card)" }}
-      >
-        <div className="max-w-4xl mx-auto text-center">
-          <h2
-            className="text-2xl md:text-3xl lg:text-5xl font-bold mb-4 md:mb-6"
-            style={{ color: "var(--foreground)" }}
-          >
-            Ready to build smarter AI workflows?
-          </h2>
-          <p
-            className="text-base md:text-xl mb-6 md:mb-8"
-            style={{ color: "var(--muted-foreground)" }}
-          >
-            Join teams already transforming their AI collaboration
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
-            <button
-              onClick={onSignIn}
-              className="btn-primary px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-semibold w-full sm:w-auto sm:min-w-[200px] flex items-center justify-center gap-2"
-            >
-              <Zap size={20} />
-              Start Free
-            </button>
-            <button
-              onClick={() => onNavigate("/waitlist")}
-              className="btn-secondary px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-semibold w-full sm:w-auto sm:min-w-[200px] flex items-center justify-center gap-2"
-            >
-              <MessageSquare size={20} />
-              Book Demo
+          <div className="text-center scroll-reveal">
+            <button className="btn-premium" onClick={onSignIn}>
+              <Sparkles size={20} />
+              Explore Features
+              <ArrowRight size={20} className="btn-arrow" />
             </button>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <Footer onNavigate={onNavigate} />
+        {/* Final CTA */}
+        <section className="container mx-auto px-4 py-20">
+          <div className="capsule-card max-w-4xl mx-auto text-center pulse-glow scroll-reveal" 
+            style={{ padding: '4rem 2rem' }}>
+            <h2 className="text-3xl md:text-5xl font-bold mb-6" style={{ color: "var(--foreground)" }}>
+              Ready to build smarter AI workflows?
+            </h2>
+            <p className="text-lg md:text-xl mb-8" style={{ color: "var(--muted-foreground)" }}>
+              Join teams already transforming their AI collaboration
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-6">
+              <button onClick={onSignIn} className="btn-premium w-full sm:w-auto">
+                <Zap size={20} />
+                Start Free
+                <ArrowRight size={20} className="btn-arrow" />
+              </button>
+              <button onClick={() => onNavigate("/waitlist")} className="btn-secondary w-full sm:w-auto">
+                <MessageSquare size={20} />
+                Book Demo
+                <ArrowUpRight size={20} className="btn-arrow" />
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <Footer onNavigate={onNavigate} />
+      </div>
     </div>
   );
 }
@@ -656,18 +571,14 @@ export default function App() {
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // ===================================
-  // NAVIGATION HANDLER
-  // ===================================
+  // Navigation handler
   const navigate = (path) => {
     setCurrentPath(path);
     window.history.pushState({}, "", path);
     window.scrollTo(0, 0);
   };
 
-  // ===================================
-  // HANDLE URL CHANGES
-  // ===================================
+  // Handle URL changes
   useEffect(() => {
     const path = window.location.pathname;
     setCurrentPath(path);
@@ -681,17 +592,10 @@ export default function App() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  // ===================================
-  // HELPER FUNCTIONS
-  // ===================================
+  // Helper functions
   function getUserInitials(name, email) {
     if (name) {
-      return name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
+      return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
     }
     if (email) {
       return email[0].toUpperCase();
@@ -702,10 +606,7 @@ export default function App() {
   function UserAvatar({ src, name, email, size = "normal", className = "" }) {
     const [imageError, setImageError] = useState(false);
     const avatarClass = size === "small" ? "user-avatar-small" : "user-avatar";
-    const initialsClass =
-      size === "small"
-        ? "avatar-initials avatar-initials-small"
-        : "avatar-initials";
+    const initialsClass = size === "small" ? "avatar-initials avatar-initials-small" : "avatar-initials";
 
     if (!src || imageError) {
       return (
@@ -725,9 +626,7 @@ export default function App() {
     );
   }
 
-  // ===================================
-  // LOAD TEAMS FROM FIRESTORE
-  // ===================================
+  // Load teams from Firestore
   useEffect(() => {
     if (!user) {
       setTeams([]);
@@ -736,10 +635,7 @@ export default function App() {
       return;
     }
 
-    const q = query(
-      collection(db, "teams"),
-      where(`members.${user.uid}`, "!=", null)
-    );
+    const q = query(collection(db, "teams"), where(`members.${user.uid}`, "!=", null));
 
     const unsub = onSnapshot(
       q,
@@ -757,9 +653,7 @@ export default function App() {
     return () => unsub();
   }, [user, setActiveTeam]);
 
-  // ===================================
-  // SET FIRST TEAM IF NO ACTIVE TEAM
-  // ===================================
+  // Set first team if no active team
   useEffect(() => {
     if (!user || loading) return;
 
@@ -768,9 +662,7 @@ export default function App() {
     }
   }, [teams.length, activeTeam, activeView, user, loading, setActiveTeam]);
 
-  // ===================================
-  // VALIDATE ACTIVE TEAM STILL EXISTS
-  // ===================================
+  // Validate active team still exists
   useEffect(() => {
     if (!user || loading || !activeTeam || teams.length === 0) return;
 
@@ -783,9 +675,7 @@ export default function App() {
     }
   }, [teams, activeTeam, user, loading, setActiveTeam, activeView]);
 
-  // ===================================
-  // LOAD CURRENT USER'S ROLE
-  // ===================================
+  // Load current user's role
   useEffect(() => {
     if (!activeTeam || !user) {
       setRole(null);
@@ -811,9 +701,7 @@ export default function App() {
     fetchRole();
   }, [activeTeam, user]);
 
-  // ===================================
-  // LOAD AVATARS AND TEAM STATS
-  // ===================================
+  // Load avatars and team stats
   useEffect(() => {
     async function loadTeamData() {
       const avatarResults = {};
@@ -863,18 +751,14 @@ export default function App() {
     if (teams.length > 0) loadTeamData();
   }, [teams]);
 
-  // ===================================
-  // CREATE NEW TEAM
-  // ===================================
+  // Create new team
   async function createTeam(name) {
     if (!name || !user) return;
     try {
       await addDoc(collection(db, "teams"), {
         name,
         ownerId: user.uid,
-        members: {
-          [user.uid]: "owner",
-        },
+        members: { [user.uid]: "owner" },
         createdAt: serverTimestamp(),
       });
     } catch (error) {
@@ -883,9 +767,7 @@ export default function App() {
     }
   }
 
-  // ===================================
-  // DELETE TEAM (OWNER ONLY)
-  // ===================================
+  // Delete team (owner only)
   async function deleteTeam(teamId) {
     if (!user) return;
     const team = teams.find((t) => t.id === teamId);
@@ -915,9 +797,6 @@ export default function App() {
     }
   }
 
-  // ===================================
-  // HELPER FUNCTIONS FOR UI
-  // ===================================
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
 
   function getRoleBadge(role) {
@@ -971,9 +850,7 @@ export default function App() {
     return role === "owner" || role === "admin";
   }
 
-  // ===================================
-  // RENDER SPECIAL ROUTES
-  // ===================================
+  // Render special routes
   const isSpecialRoute = [
     "/contact",
     "/privacy",
@@ -982,9 +859,7 @@ export default function App() {
     "/join",
     "/waitlist",
     "/admin",
-  ].some(
-    (route) => currentPath === route || currentPath.startsWith(route + "?")
-  );
+  ].some((route) => currentPath === route || currentPath.startsWith(route + "?"));
 
   if (isSpecialRoute) {
     return (
@@ -999,64 +874,40 @@ export default function App() {
             />
           )}
           <Router currentPath={currentPath.split("?")[0]}>
-            <Route path="/contact">
-              <Contact />
-            </Route>
-            <Route path="/privacy">
-              <PrivacyPolicy />
-            </Route>
-            <Route path="/terms">
-              <TermsOfUse />
-            </Route>
-            <Route path="/about">
-              <About />
-            </Route>
-            <Route path="/join">
-              <JoinTeam onNavigate={navigate} />
-            </Route>
-            <Route path="/waitlist">
-              <Waitlist onNavigate={navigate} />
-            </Route>
-            <Route path="/admin">
-              <AdminDashboard onNavigate={navigate} />
-            </Route>
+            <Route path="/contact"><Contact /></Route>
+            <Route path="/privacy"><PrivacyPolicy /></Route>
+            <Route path="/terms"><TermsOfUse /></Route>
+            <Route path="/about"><About /></Route>
+            <Route path="/join"><JoinTeam onNavigate={navigate} /></Route>
+            <Route path="/waitlist"><Waitlist onNavigate={navigate} /></Route>
+            <Route path="/admin"><AdminDashboard onNavigate={navigate} /></Route>
           </Router>
-          {currentPath !== "/waitlist" && currentPath !== "/admin" && (
-            <Footer onNavigate={navigate} />
-          )}
+          {currentPath !== "/waitlist" && currentPath !== "/admin" && <Footer onNavigate={navigate} />}
         </div>
       </NavigationProvider>
     );
   }
 
-  // ===================================
-  // LOADING STATE
-  // ===================================
+  // Loading state
   if (loading) {
     return (
       <div className="app-container">
         <div className="min-h-screen flex items-center justify-center">
-          <div className="glass-card p-8 text-center">
+          <div className="capsule-card p-8 text-center">
             <div className="neo-spinner mx-auto mb-4"></div>
-            <p style={{ color: "var(--muted-foreground)" }}>
-              Loading your teams...
-            </p>
+            <p style={{ color: "var(--muted-foreground)" }}>Loading your teams...</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // ===================================
-  // NOT AUTHENTICATED
-  // ===================================
+  // Not authenticated
   if (!user) {
     return <LandingPage onSignIn={signInWithGoogle} onNavigate={navigate} />;
   }
 
-  // ===================================
-  // MAIN APPLICATION UI
-  // ===================================
+  // Main application UI
   return (
     <div className="app-container flex min-h-screen relative">
       {/* Sidebar Overlay for Mobile */}
@@ -1066,23 +917,11 @@ export default function App() {
       ></div>
 
       {/* Sidebar */}
-      <div
-        className={`team-sidebar w-72 p-4 flex flex-col ${
-          sidebarOpen ? "mobile-visible" : "mobile-hidden"
-        }`}
-      >
+      <div className={`team-sidebar w-72 p-4 flex flex-col ${sidebarOpen ? "mobile-visible" : "mobile-hidden"}`}>
         {/* Mobile Close Button */}
         <div className="md:hidden flex justify-between items-center mb-4">
-          <h2
-            className="text-lg font-bold"
-            style={{ color: "var(--foreground)" }}
-          >
-            Menu
-          </h2>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="mobile-menu-btn"
-          >
+          <h2 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>Menu</h2>
+          <button onClick={() => setSidebarOpen(false)} className="mobile-menu-btn">
             <X size={24} />
           </button>
         </div>
@@ -1090,22 +929,12 @@ export default function App() {
         {/* User Profile Card */}
         <div className="glass-card p-4 mb-4">
           <div className="flex items-center gap-3 mb-3">
-            <UserAvatar
-              src={user.photoURL}
-              name={user.displayName}
-              email={user.email}
-            />
+            <UserAvatar src={user.photoURL} name={user.displayName} email={user.email} />
             <div className="flex-1 min-w-0">
-              <p
-                className="text-sm font-semibold truncate"
-                style={{ color: "var(--foreground)" }}
-              >
+              <p className="text-sm font-semibold truncate" style={{ color: "var(--foreground)" }}>
                 {user.displayName || user.email}
               </p>
-              <p
-                className="text-xs"
-                style={{ color: "var(--muted-foreground)" }}
-              >
+              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
                 {teams.length} {teams.length === 1 ? "team" : "teams"}
               </p>
             </div>
@@ -1129,28 +958,13 @@ export default function App() {
             }`}
           >
             <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  color: "var(--primary)",
-                }}
-              >
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: "var(--secondary)", color: "var(--primary)" }}>
                 <Star size={20} />
               </div>
               <div>
-                <span
-                  className="font-semibold"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  My Favorites
-                </span>
-                <p
-                  className="text-xs mt-1"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  Your saved prompts
-                </p>
+                <span className="font-semibold" style={{ color: "var(--foreground)" }}>My Favorites</span>
+                <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>Your saved prompts</p>
               </div>
             </div>
           </button>
@@ -1167,28 +981,13 @@ export default function App() {
               className="w-full p-4 text-left rounded-lg transition-all duration-300 border glass-card hover:border-primary/50"
             >
               <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{
-                    backgroundColor: "var(--primary)",
-                    color: "var(--primary-foreground)",
-                  }}
-                >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}>
                   <Shield size={20} />
                 </div>
                 <div>
-                  <span
-                    className="font-semibold"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    Admin Dashboard
-                  </span>
-                  <p
-                    className="text-xs mt-1"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    Manage waitlist entries
-                  </p>
+                  <span className="font-semibold" style={{ color: "var(--foreground)" }}>Admin Dashboard</span>
+                  <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>Manage waitlist entries</p>
                 </div>
               </div>
             </button>
@@ -1204,32 +1003,17 @@ export default function App() {
                 setSidebarOpen(false);
               }}
               className={`w-full p-4 text-left rounded-lg transition-all duration-300 border ${
-                isChatOpen
-                  ? "border-primary bg-popover"
-                  : "glass-card hover:border-primary/50"
+                isChatOpen ? "border-primary bg-popover" : "glass-card hover:border-primary/50"
               }`}
             >
               <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{
-                    backgroundColor: "var(--secondary)",
-                    color: "var(--primary)",
-                  }}
-                >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: "var(--secondary)", color: "var(--primary)" }}>
                   <MessageSquare size={20} />
                 </div>
                 <div>
-                  <span
-                    className="font-semibold"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    Team Chat
-                  </span>
-                  <p
-                    className="text-xs mt-1"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
+                  <span className="font-semibold" style={{ color: "var(--foreground)" }}>Team Chat</span>
+                  <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
                     {isChatOpen ? "Close chat" : "Open chat"}
                   </p>
                 </div>
@@ -1251,13 +1035,7 @@ export default function App() {
             }}
             className="space-y-2"
           >
-            <input
-              type="text"
-              name="teamName"
-              placeholder="New team name"
-              className="form-input"
-              required
-            />
+            <input type="text" name="teamName" placeholder="New team name" className="form-input" required />
             <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2">
               <Plus size={18} />
               Create Team
@@ -1272,20 +1050,10 @@ export default function App() {
 
         {/* Teams List */}
         <div className="flex items-center justify-between mb-4">
-          <h2
-            className="text-lg font-bold"
-            style={{ color: "var(--foreground)" }}
-          >
-            Teams
-          </h2>
+          <h2 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>Teams</h2>
           {teams.length > 0 && (
-            <span
-              className="text-xs px-2 py-1 rounded-full"
-              style={{
-                backgroundColor: "var(--secondary)",
-                color: "var(--secondary-foreground)",
-              }}
-            >
+            <span className="text-xs px-2 py-1 rounded-full"
+              style={{ backgroundColor: "var(--secondary)", color: "var(--secondary-foreground)" }}>
               {teams.length}
             </span>
           )}
@@ -1297,18 +1065,10 @@ export default function App() {
             const myRole = team.members?.[user.uid];
             const ownerData = avatars[team.ownerId];
             const isActive = activeTeam === team.id;
-            const stats = teamStats[team.id] || {
-              memberCount: 0,
-              promptCount: 0,
-            };
+            const stats = teamStats[team.id] || { memberCount: 0, promptCount: 0 };
 
             return (
-              <div
-                key={team.id}
-                className={`team-item p-4 cursor-pointer ${
-                  isActive ? "active" : ""
-                }`}
-              >
+              <div key={team.id} className={`team-item p-4 cursor-pointer ${isActive ? "active" : ""}`}>
                 <div
                   onClick={() => {
                     setActiveTeam(team.id);
@@ -1326,18 +1086,12 @@ export default function App() {
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
-                      <p
-                        className="font-semibold truncate"
-                        style={{ color: "var(--foreground)" }}
-                      >
+                      <p className="font-semibold truncate" style={{ color: "var(--foreground)" }}>
                         {team.name}
                       </p>
                       {getRoleBadge(myRole)}
                     </div>
-                    <div
-                      className="flex items-center gap-4 text-xs"
-                      style={{ color: "var(--muted-foreground)" }}
-                    >
+                    <div className="flex items-center gap-4 text-xs" style={{ color: "var(--muted-foreground)" }}>
                       <span className="flex items-center gap-1">
                         <Users size={12} />
                         {stats.memberCount}
@@ -1351,14 +1105,9 @@ export default function App() {
                 </div>
 
                 {isActive && (
-                  <div
-                    className="flex justify-between items-center mt-3 pt-3"
-                    style={{ borderTop: "1px solid var(--border)" }}
-                  >
-                    <div
-                      className="text-xs"
-                      style={{ color: "var(--muted-foreground)" }}
-                    >
+                  <div className="flex justify-between items-center mt-3 pt-3"
+                    style={{ borderTop: "1px solid var(--border)" }}>
+                    <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
                       Owner: {ownerData?.name || ownerData?.email || "Unknown"}
                     </div>
                     {isOwner && (
@@ -1386,53 +1135,31 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Mobile Header */}
         <div className="md:hidden mobile-header">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="mobile-menu-btn"
-          >
+          <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn">
             <Menu size={24} />
           </button>
           <div className="flex-1 min-w-0">
             {activeTeamObj ? (
-              <h1
-                className="text-lg font-bold truncate"
-                style={{ color: "var(--foreground)" }}
-              >
+              <h1 className="text-lg font-bold truncate" style={{ color: "var(--foreground)" }}>
                 {activeTeamObj.name}
               </h1>
             ) : activeView === "favorites" ? (
-              <h1
-                className="text-lg font-bold"
-                style={{ color: "var(--foreground)" }}
-              >
-                My Favorites
-              </h1>
+              <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>My Favorites</h1>
             ) : null}
           </div>
         </div>
 
         {/* Desktop Header */}
-        <div
-          className="hidden md:block p-6 border-b"
-          style={{
-            borderColor: "var(--border)",
-            backgroundColor: "var(--card)",
-          }}
-        >
+        <div className="hidden md:block p-6 border-b"
+          style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}>
           <div className="flex items-center justify-between">
             <div>
               {activeTeamObj ? (
                 <>
-                  <h1
-                    className="text-2xl font-bold mb-2"
-                    style={{ color: "var(--foreground)" }}
-                  >
+                  <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>
                     {activeTeamObj.name}
                   </h1>
-                  <div
-                    className="flex items-center gap-4 text-sm"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
+                  <div className="flex items-center gap-4 text-sm" style={{ color: "var(--muted-foreground)" }}>
                     <span className="flex items-center gap-2">
                       Your role:
                       {getRoleBadge(role)}
@@ -1445,16 +1172,8 @@ export default function App() {
                 </>
               ) : activeView === "favorites" ? (
                 <>
-                  <h1
-                    className="text-2xl font-bold mb-2"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    My Favorites
-                  </h1>
-                  <p
-                    className="text-sm"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
+                  <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>My Favorites</h1>
+                  <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
                     Your bookmarked prompts from all teams
                   </p>
                 </>
@@ -1474,16 +1193,11 @@ export default function App() {
                     key={view.id}
                     onClick={() => setActiveView(view.id)}
                     className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 capitalize flex items-center gap-2 ${
-                      activeView === view.id
-                        ? "text-primary-foreground"
-                        : "hover:text-foreground"
+                      activeView === view.id ? "text-primary-foreground" : "hover:text-foreground"
                     }`}
                     style={
                       activeView === view.id
-                        ? {
-                            backgroundColor: "var(--primary)",
-                            color: "var(--primary-foreground)",
-                          }
+                        ? { backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }
                         : { color: "var(--muted-foreground)" }
                     }
                   >
@@ -1498,10 +1212,7 @@ export default function App() {
 
         {/* Mobile View Tabs */}
         {activeTeamObj && (
-          <div
-            className="md:hidden view-tabs-container border-b"
-            style={{ borderColor: "var(--border)" }}
-          >
+          <div className="md:hidden view-tabs-container border-b" style={{ borderColor: "var(--border)" }}>
             <div className="view-tabs">
               {[
                 { id: "prompts", icon: FileText },
@@ -1537,31 +1248,18 @@ export default function App() {
           </div>
         )}
 
-        <div
-          className="flex-1 p-4 md:p-6 overflow-y-auto"
-          style={{ backgroundColor: "var(--background)" }}
-        >
+        <div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
           {activeTeamObj && activeView === "prompts" && (
             <>
               <PromptList activeTeam={activeTeamObj.id} userRole={role} />
-
               {canManageMembers() && (
-                <TeamInviteForm
-                  teamId={activeTeamObj.id}
-                  teamName={activeTeamObj.name}
-                  role={role}
-                />
+                <TeamInviteForm teamId={activeTeamObj.id} teamName={activeTeamObj.name} role={role} />
               )}
             </>
           )}
 
           {activeTeamObj && activeView === "members" && (
-            <TeamMembers
-              teamId={activeTeamObj.id}
-              teamName={activeTeamObj.name}
-              userRole={role}
-              teamData={activeTeamObj}
-            />
+            <TeamMembers teamId={activeTeamObj.id} teamName={activeTeamObj.name} userRole={role} teamData={activeTeamObj} />
           )}
 
           {activeTeamObj && activeView === "analytics" && (
@@ -1570,9 +1268,7 @@ export default function App() {
             </div>
           )}
 
-          {activeTeamObj && activeView === "activity" && (
-            <ActivityFeed teamId={activeTeamObj.id} />
-          )}
+          {activeTeamObj && activeView === "activity" && <ActivityFeed teamId={activeTeamObj.id} />}
 
           {activeTeamObj && activeView === "plagiarism" && (
             <PlagiarismChecker teamId={activeTeamObj.id} userRole={role} />
@@ -1584,31 +1280,16 @@ export default function App() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center py-12">
                 <div className="glass-card p-6 md:p-8 max-w-md mx-auto">
-                  <Sparkles
-                    size={48}
-                    className="mx-auto mb-4"
-                    style={{ color: "var(--primary)" }}
-                  />
-                  <h2
-                    className="text-lg md:text-xl font-semibold mb-4"
-                    style={{ color: "var(--foreground)" }}
-                  >
+                  <Sparkles size={48} className="mx-auto mb-4" style={{ color: "var(--primary)" }} />
+                  <h2 className="text-lg md:text-xl font-semibold mb-4" style={{ color: "var(--foreground)" }}>
                     No Team Selected
                   </h2>
-                  <p
-                    className="mb-6 text-sm md:text-base"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    Select a team from the sidebar or create a new one to get
-                    started.
+                  <p className="mb-6 text-sm md:text-base" style={{ color: "var(--muted-foreground)" }}>
+                    Select a team from the sidebar or create a new one to get started.
                   </p>
                   {teams.length === 0 && (
-                    <p
-                      className="text-sm"
-                      style={{ color: "var(--muted-foreground)" }}
-                    >
-                      Create your first team to start collaborating on AI
-                      prompts!
+                    <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                      Create your first team to start collaborating on AI prompts!
                     </p>
                   )}
                 </div>
