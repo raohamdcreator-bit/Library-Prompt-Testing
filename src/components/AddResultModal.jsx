@@ -1,7 +1,5 @@
-//src/components/AddResultModal.jsx - Fully Responsive
-// Modal for adding new results
-
-import { useState } from "react";
+//src/components/AddResultModal.jsx - Fixed Overlap Issue (Styles in App.css)
+import { useState, useEffect } from "react";
 import { addResultToPrompt } from "../lib/results";
 import { uploadResultImage } from "../lib/storage";
 
@@ -20,6 +18,20 @@ export default function AddResultModal({
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('modal-open');
+      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.setProperty('--scrollbar-width', `${scrollbarWidth}px`);
+    }
+    
+    return () => {
+      document.body.classList.remove('modal-open');
+      document.body.style.removeProperty('--scrollbar-width');
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -95,6 +107,12 @@ export default function AddResultModal({
       setUploadProgress(100);
 
       showNotification("Result added successfully!", "success");
+      
+      // Reset form
+      setTitle("");
+      setContent("");
+      setImageFile(null);
+      setImagePreview(null);
       onClose();
     } catch (error) {
       console.error("Error adding result:", error);
@@ -120,6 +138,7 @@ export default function AddResultModal({
       background-color: var(--card);
       color: var(--foreground);
       border: 1px solid var(--${type === "error" ? "destructive" : "primary"});
+      z-index: 10000;
     `;
     document.body.appendChild(notification);
     setTimeout(() => {
@@ -133,28 +152,21 @@ export default function AddResultModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay"
-      onClick={onClose}
-    >
+    <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-content w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="modal-content w-full max-w-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 md:p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4 md:mb-6">
-            <h3
-              className="text-lg md:text-xl font-bold"
-              style={{ color: "var(--foreground)" }}
-            >
+        {/* Fixed Header */}
+        <div className="modal-header">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-bold" style={{ color: "var(--foreground)" }}>
               Add AI Output Result
             </h3>
             <button
               onClick={onClose}
               disabled={uploading}
-              className="p-2 rounded-lg hover:bg-secondary transition-colors"
-              style={{ color: "var(--muted-foreground)" }}
+              className="modal-close-btn"
             >
               <svg
                 className="w-5 h-5"
@@ -171,17 +183,20 @@ export default function AddResultModal({
               </svg>
             </button>
           </div>
+        </div>
 
+        {/* Scrollable Body */}
+        <div className="modal-body">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Result Type Selection - Mobile Optimized */}
+            {/* Result Type Selection */}
             <div>
               <label
-                className="block text-xs md:text-sm font-medium mb-2"
+                className="block text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
                 Result Type
               </label>
-              <div className="grid grid-cols-3 gap-2 md:gap-3">
+              <div className="modal-type-selector">
                 {[
                   { value: "text", icon: "📝", label: "Text" },
                   { value: "code", icon: "💻", label: "Code" },
@@ -191,25 +206,12 @@ export default function AddResultModal({
                     key={type.value}
                     type="button"
                     onClick={() => setResultType(type.value)}
-                    className={`p-3 md:p-4 rounded-lg border-2 transition-all ${
-                      resultType === type.value
-                        ? "border-primary"
-                        : "border-border"
+                    className={`modal-type-btn ${
+                      resultType === type.value ? "active" : ""
                     }`}
-                    style={{
-                      backgroundColor:
-                        resultType === type.value
-                          ? "var(--secondary)"
-                          : "var(--card)",
-                    }}
                   >
-                    <div className="text-xl md:text-2xl mb-1">{type.icon}</div>
-                    <div
-                      className="text-xs md:text-sm font-medium"
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      {type.label}
-                    </div>
+                    <div className="modal-type-icon">{type.icon}</div>
+                    <div className="modal-type-label">{type.label}</div>
                   </button>
                 ))}
               </div>
@@ -218,7 +220,7 @@ export default function AddResultModal({
             {/* Title */}
             <div>
               <label
-                className="block text-xs md:text-sm font-medium mb-2"
+                className="block text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
                 Title *
@@ -228,7 +230,7 @@ export default function AddResultModal({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g., Generated Blog Post, API Response"
-                className="form-input text-sm md:text-base"
+                className="form-input"
                 required
                 disabled={uploading}
               />
@@ -238,7 +240,7 @@ export default function AddResultModal({
             {resultType === "text" && (
               <div>
                 <label
-                  className="block text-xs md:text-sm font-medium mb-2"
+                  className="block text-sm font-medium mb-2"
                   style={{ color: "var(--foreground)" }}
                 >
                   Text Content *
@@ -247,9 +249,15 @@ export default function AddResultModal({
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   placeholder="Paste your AI-generated text output here..."
-                  className="form-input min-h-[150px] md:min-h-[200px] font-mono text-xs md:text-sm"
+                  className="form-input"
                   required
                   disabled={uploading}
+                  style={{
+                    minHeight: '200px',
+                    fontFamily: 'JetBrains Mono, Consolas, monospace',
+                    lineHeight: '1.6',
+                    resize: 'vertical',
+                  }}
                 />
                 <p
                   className="text-xs mt-1"
@@ -265,7 +273,7 @@ export default function AddResultModal({
               <>
                 <div>
                   <label
-                    className="block text-xs md:text-sm font-medium mb-2"
+                    className="block text-sm font-medium mb-2"
                     style={{ color: "var(--foreground)" }}
                   >
                     Programming Language
@@ -273,7 +281,7 @@ export default function AddResultModal({
                   <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
-                    className="form-input text-sm md:text-base"
+                    className="form-input"
                     disabled={uploading}
                   >
                     <option value="javascript">JavaScript</option>
@@ -299,7 +307,7 @@ export default function AddResultModal({
                 </div>
                 <div>
                   <label
-                    className="block text-xs md:text-sm font-medium mb-2"
+                    className="block text-sm font-medium mb-2"
                     style={{ color: "var(--foreground)" }}
                   >
                     Code Content *
@@ -308,11 +316,16 @@ export default function AddResultModal({
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     placeholder="Paste your AI-generated code here..."
-                    className="form-input min-h-[200px] md:min-h-[300px] font-mono text-xs md:text-sm"
+                    className="form-input"
                     required
                     disabled={uploading}
                     style={{
-                      fontFamily: "JetBrains Mono, Consolas, monospace",
+                      minHeight: '300px',
+                      background: '#1e1e1e',
+                      color: '#d4d4d4',
+                      fontFamily: 'JetBrains Mono, Consolas, monospace',
+                      lineHeight: '1.6',
+                      resize: 'vertical',
                     }}
                   />
                   <p
@@ -325,11 +338,11 @@ export default function AddResultModal({
               </>
             )}
 
-            {/* Content (Image) - Mobile Optimized */}
+            {/* Content (Image) */}
             {resultType === "image" && (
               <div>
                 <label
-                  className="block text-xs md:text-sm font-medium mb-2"
+                  className="block text-sm font-medium mb-2"
                   style={{ color: "var(--foreground)" }}
                 >
                   Upload Image *
@@ -344,12 +357,9 @@ export default function AddResultModal({
                       className="hidden"
                       disabled={uploading}
                     />
-                    <div
-                      className="border-2 border-dashed rounded-lg p-6 md:p-8 text-center cursor-pointer hover:border-primary transition-colors"
-                      style={{ borderColor: "var(--border)" }}
-                    >
+                    <div className="modal-image-upload-area">
                       <svg
-                        className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-3"
+                        className="w-12 h-12 mx-auto mb-3"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -363,7 +373,7 @@ export default function AddResultModal({
                         />
                       </svg>
                       <p
-                        className="text-xs md:text-sm font-medium mb-1"
+                        className="text-sm font-medium mb-1"
                         style={{ color: "var(--foreground)" }}
                       >
                         Click to upload image
@@ -377,20 +387,17 @@ export default function AddResultModal({
                     </div>
                   </label>
                 ) : (
-                  <div
-                    className="relative rounded-lg overflow-hidden border"
-                    style={{ borderColor: "var(--border)" }}
-                  >
+                  <div className="modal-image-preview">
                     <img
                       src={imagePreview}
                       alt="Preview"
-                      className="w-full h-auto max-h-64 md:max-h-96 object-contain bg-black/5"
+                      className="w-full h-auto"
                     />
                     <button
                       type="button"
                       onClick={clearImage}
                       disabled={uploading}
-                      className="absolute top-2 right-2 p-2 rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity"
+                      className="modal-image-delete-btn"
                     >
                       <svg
                         className="w-4 h-4"
@@ -424,43 +431,51 @@ export default function AddResultModal({
             {uploading && (
               <div className="space-y-2">
                 <div
-                  className="flex items-center justify-between text-xs md:text-sm"
+                  className="flex items-center justify-between text-sm"
                   style={{ color: "var(--muted-foreground)" }}
                 >
                   <span>Uploading...</span>
                   <span>{uploadProgress}%</span>
                 </div>
-                <div className="h-2 bg-secondary rounded-full overflow-hidden">
+                <div className="modal-progress-bar">
                   <div
-                    className="h-full transition-all duration-300"
-                    style={{
-                      width: `${uploadProgress}%`,
-                      backgroundColor: "var(--primary)",
-                    }}
+                    className="modal-progress-fill"
+                    style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
               </div>
             )}
-
-            {/* Actions - Mobile Optimized */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-4">
-              <button
-                type="submit"
-                disabled={uploading}
-                className="btn-primary flex-1 py-2 md:py-3 text-sm md:text-base"
-              >
-                {uploading ? "Adding Result..." : "Add Result"}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={uploading}
-                className="btn-secondary px-6 py-2 md:py-3 text-sm md:text-base sm:w-auto"
-              >
-                Cancel
-              </button>
-            </div>
           </form>
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="modal-footer">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="submit"
+              onClick={handleSubmit}
+              disabled={uploading}
+              className="btn-primary flex-1"
+              style={{
+                opacity: uploading ? 0.5 : 1,
+                cursor: uploading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {uploading ? "Adding Result..." : "Add Result"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={uploading}
+              className="btn-secondary sm:w-auto"
+              style={{
+                opacity: uploading ? 0.5 : 1,
+                cursor: uploading ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     </div>
