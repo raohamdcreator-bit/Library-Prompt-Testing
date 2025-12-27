@@ -1,483 +1,1669 @@
-//src/components/AddResultModal.jsx - Fixed Overlap Issue (Styles in App.css)
-import { useState, useEffect } from "react";
-import { addResultToPrompt } from "../lib/results";
-import { uploadResultImage } from "../lib/storage";
+/* src/App.css - Premium SaaS Theme - Enhanced with Modern Animations */
 
-export default function AddResultModal({
-  isOpen,
-  onClose,
-  promptId,
-  teamId,
-  userId,
-}) {
-  const [resultType, setResultType] = useState("text");
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [language, setLanguage] = useState("javascript");
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
 
-  // Prevent body scroll when modal is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.classList.add('modal-open');
-      const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-      document.body.style.setProperty('--scrollbar-width', `${scrollbarWidth}px`);
-    }
-    
-    return () => {
-      document.body.classList.remove('modal-open');
-      document.body.style.removeProperty('--scrollbar-width');
-    };
-  }, [isOpen]);
+:root {
+  /* Refined Professional Color Palette */
+  --background: #0a0d14;
+  --foreground: #e4e4e7;
+  --card: #111318;
+  --card-foreground: #e4e4e7;
+  --popover: #1a1d24;
+  --popover-foreground: #e4e4e7;
+  --primary: #8b5cf6;
+  --primary-hover: #7c3aed;
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-foreground: #cbd5e1;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #8b5cf6;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #2d3748;
+  --input: #1a202c;
+  --ring: #8b5cf6;
+  --radius: 16px;
+  --black-background: #000000;
+  
+  /* Semantic Colors */
+  --success: #10b981;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+  
+  /* Subtle Effects */
+  --glow-subtle: rgba(139, 92, 246, 0.15);
+  --glow-medium: rgba(139, 92, 246, 0.25);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
 
-  if (!isOpen) return null;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
-  function handleImageSelect(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
 
-    if (!file.type.startsWith("image/")) {
-      alert("Please select an image file");
-      return;
-    }
+/* Prevent body scroll when modal is open */
+body.modal-open {
+  overflow: hidden;
+  padding-right: var(--scrollbar-width, 0);
+}
 
-    if (file.size > 10 * 1024 * 1024) {
-      alert("Image must be less than 10MB");
-      return;
-    }
+/* ======================================
+   ANIMATED BACKGROUND GRADIENT GLOW
+====================================== */
 
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+.landing-page-container {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* Main animated gradient orb */
+.gradient-orb {
+  position: fixed;
+  width: 800px;
+  height: 800px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, rgba(139, 92, 246, 0.7) 30%, transparent 30%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  animation: float-orb 10s ease-in-out infinite;
+}
+
+.gradient-orb-1 {
+  top: -200px;
+  right: -200px;
+  animation-delay: 0s;
+}
+
+.gradient-orb-2 {
+  bottom: -300px;
+  left: -200px;
+  animation-delay: 10s;
+  background: radial-gradient(circle, rgba(124, 58, 237, 1.05) 0%, rgba(124, 58, 237, 1.08) 20%, transparent 20%);
+}
+
+@keyframes float-orb {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.8;
   }
-
-  function clearImage() {
-    setImageFile(null);
-    setImagePreview(null);
+  33% {
+    transform: translate(-50px, 80px) scale(1.1);
+    opacity: 0.6;
   }
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-
-    if (!title.trim()) {
-      alert("Title is required");
-      return;
-    }
-
-    if (resultType !== "image" && !content.trim()) {
-      alert("Content is required");
-      return;
-    }
-
-    if (resultType === "image" && !imageFile) {
-      alert("Please select an image");
-      return;
-    }
-
-    setUploading(true);
-    setUploadProgress(0);
-
-    try {
-      let resultData = {
-        type: resultType,
-        title: title.trim(),
-      };
-
-      if (resultType === "text") {
-        resultData.content = content.trim();
-      } else if (resultType === "code") {
-        resultData.content = content.trim();
-        resultData.language = language;
-      } else if (resultType === "image") {
-        setUploadProgress(30);
-        const imageData = await uploadResultImage(imageFile, promptId, userId);
-        setUploadProgress(70);
-
-        resultData.imageUrl = imageData.url;
-        resultData.imagePath = imageData.path;
-        resultData.imageFilename = imageData.filename;
-        resultData.imageSize = imageData.size;
-        resultData.imageType = imageData.type;
-      }
-
-      setUploadProgress(90);
-      await addResultToPrompt(teamId, promptId, userId, resultData);
-      setUploadProgress(100);
-
-      showNotification("Result added successfully!", "success");
-      
-      // Reset form
-      setTitle("");
-      setContent("");
-      setImageFile(null);
-      setImagePreview(null);
-      onClose();
-    } catch (error) {
-      console.error("Error adding result:", error);
-      showNotification(error.message || "Failed to add result", "error");
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-    }
+  66% {
+    transform: translate(80px, -50px) scale(0.9);
+    opacity: 0.7;
   }
+}
 
-  function showNotification(message, type = "info") {
-    const icons = { success: "✓", error: "✕", info: "ℹ" };
-    const notification = document.createElement("div");
-    notification.innerHTML = `
-      <div class="flex items-center gap-2">
-        <span>${icons[type] || icons.info}</span>
-        <span>${message}</span>
-      </div>
-    `;
-    notification.className =
-      "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-50 text-sm transition-opacity duration-300";
-    notification.style.cssText = `
-      background-color: var(--card);
-      color: var(--foreground);
-      border: 1px solid var(--${type === "error" ? "destructive" : "primary"});
-      z-index: 10000;
-    `;
-    document.body.appendChild(notification);
-    setTimeout(() => {
-      notification.style.opacity = "0";
-      setTimeout(() => {
-        if (notification.parentNode) {
-          document.body.removeChild(notification);
-        }
-      }, 300);
-    }, 3000);
+/* Subtle Grid Overlay */
+.grid-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.5;
+}
+
+.app-container {
+  min-height: 100vh;
+  background: var(--background);
+  position: relative;
+  z-index: 1;
+}
+
+/* ======================================
+   MODERN NAVBAR
+====================================== */
+
+.modern-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(10, 13, 20, 0.8);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+  transition: all 0.3s ease;
+}
+
+.modern-navbar.scrolled {
+  background: rgba(10, 13, 20, 0.95);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.navbar-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.navbar-logo:hover {
+  transform: translateY(-2px);
+}
+
+.navbar-logo-text {
+  font-size: 1.25rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ffffff 0%, #8b5cf6 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.navbar-link {
+  color: var(--muted-foreground);
+  font-size: 0.938rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  position: relative;
+  padding: 0.5rem 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.navbar-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+
+.navbar-link:hover {
+  color: var(--foreground);
+}
+
+.navbar-link:hover::after {
+  width: 100%;
+}
+
+/* ======================================
+   PREMIUM BUTTON STYLES WITH ARROWS
+====================================== */
+
+.btn-premium,
+.neo-btn,
+.btn-primary {
+  font-family: "Inter", sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-size: 0.938rem;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 12px 24px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3), 0 4px 12px rgba(139, 92, 246, 0.25);
+}
+
+.btn-premium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn-premium:hover::before {
+  left: 100%;
+}
+
+.btn-premium:hover,
+.neo-btn:hover,
+.btn-primary:hover {
+  background: var(--primary-hover);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-premium:active,
+.neo-btn:active,
+.btn-primary:active {
+  transform: translateY(0) scale(0.98);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+}
+
+/* Arrow icon animation */
+.btn-arrow {
+  transition: transform 0.3s ease;
+}
+
+.btn-premium:hover .btn-arrow,
+.neo-btn:hover .btn-arrow,
+.btn-primary:hover .btn-arrow {
+  transform: translateX(4px);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--foreground);
+  border: 1.5px solid rgba(139, 92, 246, 0.3);
+  padding: 12px 24px;
+  font-weight: 600;
+  border-radius: 12px;
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+  transform: translateY(-1px);
+}
+
+/* ======================================
+   CAPSULE-STYLE CARDS
+====================================== */
+
+.capsule-card,
+.glass-card,
+.prompt-card {
+  background: rgba(17, 19, 24, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.12);
+  border-radius: 16px;
+  padding: 2rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.capsule-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.capsule-card:hover::before {
+  opacity: 1;
+}
+
+.capsule-card:hover,
+.glass-card:hover,
+.prompt-card:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(139, 92, 246, 0.1);
+  transform: translateY(-2px);
+}
+
+/* ======================================
+   PROMPT CARD PREMIUM STYLES
+====================================== */
+
+.prompt-card-premium {
+  background: rgba(17, 19, 24, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.12);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  animation: fadeInUp 0.5s ease-out backwards;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.prompt-card-premium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.3), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.prompt-card-premium:hover {
+  border-color: rgba(139, 92, 246, 0.25);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(139, 92, 246, 0.15);
+  transform: translateY(-1px);
+}
+
+.prompt-card-premium:hover::before {
+  opacity: 1;
+}
+
+/* Staggered animation for cards */
+.prompt-card-premium:nth-child(1) { animation-delay: 0.05s; }
+.prompt-card-premium:nth-child(2) { animation-delay: 0.1s; }
+.prompt-card-premium:nth-child(3) { animation-delay: 0.15s; }
+.prompt-card-premium:nth-child(4) { animation-delay: 0.2s; }
+.prompt-card-premium:nth-child(5) { animation-delay: 0.25s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal-content w-full max-w-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Fixed Header */}
-        <div className="modal-header">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold" style={{ color: "var(--foreground)" }}>
-              Add AI Output Result
-            </h3>
-            <button
-              onClick={onClose}
-              disabled={uploading}
-              className="modal-close-btn"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
-          </div>
-        </div>
+/* ======================================
+   TYPOGRAPHY HIERARCHY - IMPROVED
+====================================== */
 
-        {/* Scrollable Body */}
-        <div className="modal-body">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Result Type Selection */}
-            <div>
-              <label
-                className="block text-sm font-medium mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
-                Result Type
-              </label>
-              <div className="modal-type-selector">
-                {[
-                  { value: "text", icon: "📝", label: "Text" },
-                  { value: "code", icon: "💻", label: "Code" },
-                  { value: "image", icon: "🖼️", label: "Image" },
-                ].map((type) => (
-                  <button
-                    key={type.value}
-                    type="button"
-                    onClick={() => setResultType(type.value)}
-                    className={`modal-type-btn ${
-                      resultType === type.value ? "active" : ""
-                    }`}
-                  >
-                    <div className="modal-type-icon">{type.icon}</div>
-                    <div className="modal-type-label">{type.label}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
+.prompt-title-premium {
+  font-size: 1.125rem;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--foreground);
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+}
 
-            {/* Title */}
-            <div>
-              <label
-                className="block text-sm font-medium mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
-                Title *
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Generated Blog Post, API Response"
-                className="form-input"
-                required
-                disabled={uploading}
-              />
-            </div>
+.prompt-content-preview {
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: rgba(228, 228, 231, 0.65);
+  margin-bottom: 12px;
+}
 
-            {/* Content (Text) */}
-            {resultType === "text" && (
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  Text Content *
-                </label>
-                <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="Paste your AI-generated text output here..."
-                  className="form-input"
-                  required
-                  disabled={uploading}
-                  style={{
-                    minHeight: '200px',
-                    fontFamily: 'JetBrains Mono, Consolas, monospace',
-                    lineHeight: '1.6',
-                    resize: 'vertical',
-                  }}
-                />
-                <p
-                  className="text-xs mt-1"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  {content.length} characters
-                </p>
-              </div>
-            )}
+.prompt-metadata {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: rgba(228, 228, 231, 0.4);
+  margin-bottom: 16px;
+  font-weight: 500;
+}
 
-            {/* Content (Code) */}
-            {resultType === "code" && (
-              <>
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-2"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    Programming Language
-                  </label>
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="form-input"
-                    disabled={uploading}
-                  >
-                    <option value="javascript">JavaScript</option>
-                    <option value="typescript">TypeScript</option>
-                    <option value="python">Python</option>
-                    <option value="java">Java</option>
-                    <option value="csharp">C#</option>
-                    <option value="cpp">C++</option>
-                    <option value="go">Go</option>
-                    <option value="rust">Rust</option>
-                    <option value="php">PHP</option>
-                    <option value="ruby">Ruby</option>
-                    <option value="swift">Swift</option>
-                    <option value="kotlin">Kotlin</option>
-                    <option value="html">HTML</option>
-                    <option value="css">CSS</option>
-                    <option value="sql">SQL</option>
-                    <option value="bash">Bash</option>
-                    <option value="json">JSON</option>
-                    <option value="yaml">YAML</option>
-                    <option value="markdown">Markdown</option>
-                  </select>
-                </div>
-                <div>
-                  <label
-                    className="block text-sm font-medium mb-2"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    Code Content *
-                  </label>
-                  <textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="Paste your AI-generated code here..."
-                    className="form-input"
-                    required
-                    disabled={uploading}
-                    style={{
-                      minHeight: '300px',
-                      background: '#1e1e1e',
-                      color: '#d4d4d4',
-                      fontFamily: 'JetBrains Mono, Consolas, monospace',
-                      lineHeight: '1.6',
-                      resize: 'vertical',
-                    }}
-                  />
-                  <p
-                    className="text-xs mt-1"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    {content.length} characters
-                  </p>
-                </div>
-              </>
-            )}
+/* ======================================
+   TAG CHIPS - GLASS STYLE
+====================================== */
 
-            {/* Content (Image) */}
-            {resultType === "image" && (
-              <div>
-                <label
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  Upload Image *
-                </label>
+.tag-chip-premium {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 14px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(139, 92, 246, 0.95);
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
 
-                {!imagePreview ? (
-                  <label className="block">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageSelect}
-                      className="hidden"
-                      disabled={uploading}
-                    />
-                    <div className="modal-image-upload-area">
-                      <svg
-                        className="w-12 h-12 mx-auto mb-3"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        style={{ color: "var(--muted-foreground)" }}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
-                      <p
-                        className="text-sm font-medium mb-1"
-                        style={{ color: "var(--foreground)" }}
-                      >
-                        Click to upload image
-                      </p>
-                      <p
-                        className="text-xs"
-                        style={{ color: "var(--muted-foreground)" }}
-                      >
-                        PNG, JPG, GIF, WebP (max 10MB)
-                      </p>
-                    </div>
-                  </label>
-                ) : (
-                  <div className="modal-image-preview">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="w-full h-auto"
-                    />
-                    <button
-                      type="button"
-                      onClick={clearImage}
-                      disabled={uploading}
-                      className="modal-image-delete-btn"
-                    >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                )}
+.tag-chip-premium:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.35);
+  transform: translateY(-1px);
+}
 
-                {imageFile && (
-                  <p
-                    className="text-xs mt-2"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    {imageFile.name} ({(imageFile.size / 1024).toFixed(1)} KB)
-                  </p>
-                )}
-              </div>
-            )}
+/* ======================================
+   ACTION BUTTONS - HIDDEN BY DEFAULT
+====================================== */
 
-            {/* Upload Progress */}
-            {uploading && (
-              <div className="space-y-2">
-                <div
-                  className="flex items-center justify-between text-sm"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  <span>Uploading...</span>
-                  <span>{uploadProgress}%</span>
-                </div>
-                <div className="modal-progress-bar">
-                  <div
-                    className="modal-progress-fill"
-                    style={{ width: `${uploadProgress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </form>
-        </div>
+.action-btn-premium {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  color: rgba(228, 228, 231, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
 
-        {/* Fixed Footer */}
-        <div className="modal-footer">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <button
-              type="submit"
-              onClick={handleSubmit}
-              disabled={uploading}
-              className="btn-primary flex-1"
-              style={{
-                opacity: uploading ? 0.5 : 1,
-                cursor: uploading ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {uploading ? "Adding Result..." : "Add Result"}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={uploading}
-              className="btn-secondary sm:w-auto"
-              style={{
-                opacity: uploading ? 0.5 : 1,
-                cursor: uploading ? 'not-allowed' : 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+.action-btn-premium:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(139, 92, 246, 0.4);
+  color: rgba(139, 92, 246, 0.95);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+}
+
+.action-btn-premium:active {
+  transform: translateY(0) scale(0.95);
+}
+
+.action-btn-premium.primary {
+  background: rgba(139, 92, 246, 0.12);
+  border-color: rgba(139, 92, 246, 0.25);
+  color: var(--primary);
+}
+
+.action-btn-premium.primary:hover {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: rgba(139, 92, 246, 0.4);
+}
+
+.action-btn-premium.danger {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.15);
+  color: var(--destructive);
+}
+
+.action-btn-premium.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* ======================================
+   KEBAB MENU (MORE ACTIONS)
+====================================== */
+
+.kebab-menu-container {
+  position: relative;
+}
+
+.kebab-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  min-width: 200px;
+  background: rgba(17, 19, 24, 0.98);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  z-index: 100;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.kebab-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kebab-menu-item:hover {
+  background: rgba(139, 92, 246, 0.15);
+  color: var(--primary);
+}
+
+.kebab-menu-item.danger {
+  color: var(--destructive);
+}
+
+.kebab-menu-item.danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* ======================================
+   ADD RESULT CTA BUTTON - ENHANCED
+====================================== */
+
+.add-result-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 52px;
+  padding: 0 24px;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1.5px dashed rgba(139, 92, 246, 0.3);
+  border-radius: 12px;
+  color: var(--primary);
+  font-size: 0.938rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  margin-top: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.add-result-cta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent, rgba(139, 92, 246, 0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.add-result-cta:hover::before {
+  opacity: 1;
+}
+
+.add-result-cta:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.5);
+  border-style: solid;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+}
+
+.add-result-cta:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.add-result-cta svg {
+  transition: transform 0.3s ease;
+}
+
+.add-result-cta:hover svg:first-of-type {
+  transform: rotate(90deg);
+}
+
+.add-result-cta:hover svg:last-of-type {
+  transform: translateX(4px);
+}
+
+/* ======================================
+   RESULT CARDS - ENHANCED
+====================================== */
+
+.result-card-premium {
+  background: rgba(26, 29, 36, 0.7);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 12px;
+  padding: 18px;
+  margin-bottom: 12px;
+  transition: all 0.25s ease;
+  position: relative;
+  animation: slideInFromLeft 0.4s ease-out backwards;
+}
+
+.result-card-premium::after {
+  content: 'Result';
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 4px 10px;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 10px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: rgba(139, 92, 246, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.result-card-premium:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateX(2px);
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.result-card-premium:nth-child(1) { animation-delay: 0.05s; }
+.result-card-premium:nth-child(2) { animation-delay: 0.1s; }
+.result-card-premium:nth-child(3) { animation-delay: 0.15s; }
+.result-card-premium:nth-child(4) { animation-delay: 0.2s; }
+
+/* ======================================
+   MODAL STYLES - FIXED OVERLAP ISSUE
+====================================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: modalBackdropFadeIn 0.25s ease-out;
+}
+
+@keyframes modalBackdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  position: relative;
+  background: rgba(17, 19, 24, 0.98);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(139, 92, 246, 0.2);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  max-height: 90vh;
+  overflow: hidden;
+  animation: modalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  background: rgba(17, 19, 24, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  max-height: calc(90vh - 180px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.3);
+  border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.5);
+}
+
+.modal-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  padding: 1.5rem;
+  border-top: 1px solid rgba(139, 92, 246, 0.2);
+  background: rgba(17, 19, 24, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.modal-close-btn {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: none;
+  color: var(--muted-foreground);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-close-btn:hover {
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--foreground);
+}
+
+/* Modal Form Styles */
+.modal-type-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.modal-type-btn {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 2px solid rgba(139, 92, 246, 0.2);
+  background: rgba(17, 19, 24, 0.6);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-align: center;
+}
+
+.modal-type-btn:hover {
+  border-color: rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.08);
+  transform: translateY(-2px);
+}
+
+.modal-type-btn.active {
+  border-color: rgba(139, 92, 246, 0.5);
+  background: rgba(139, 92, 246, 0.15);
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.2);
+}
+
+.modal-type-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.modal-type-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.modal-image-upload-area {
+  border: 2px dashed rgba(139, 92, 246, 0.3);
+  border-radius: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.modal-image-upload-area:hover {
+  border-color: rgba(139, 92, 246, 0.5);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.modal-image-preview {
+  position: relative;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.modal-image-preview img {
+  width: 100%;
+  height: auto;
+  max-height: 24rem;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.modal-image-delete-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  padding: 0.5rem;
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-image-delete-btn:hover {
+  opacity: 0.9;
+  transform: scale(1.05);
+}
+
+.modal-progress-bar {
+  height: 0.5rem;
+  background: var(--secondary);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.modal-progress-fill {
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.3s ease;
+}
+
+/* ======================================
+   SUCCESS FEEDBACK TOAST
+====================================== */
+
+.success-toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 12px;
+  color: var(--success);
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 10000;
+  animation: toastSlideIn 0.3s ease-out, toastSlideOut 0.3s ease-in 2.7s forwards;
+}
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toastSlideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+}
+
+.success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: rgba(16, 185, 129, 0.2);
+  border-radius: 50%;
+  animation: checkmark 0.4s ease-out 0.2s backwards;
+}
+
+@keyframes checkmark {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ======================================
+   CONTENT PREVIEW BOX
+====================================== */
+
+.content-preview-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 16px 0;
+  max-height: 120px;
+  overflow: hidden;
+  position: relative;
+}
+
+.content-preview-box::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.4));
+  pointer-events: none;
+}
+
+.content-preview-text {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: rgba(228, 228, 231, 0.7);
+  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  white-space: pre-wrap;
+}
+
+/* ======================================
+   EXPANDABLE SECTIONS
+====================================== */
+
+.expandable-section {
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.expandable-section.collapsed {
+  max-height: 0;
+}
+
+.expandable-section.expanded {
+  max-height: 2000px;
+}
+
+.expand-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  color: rgba(228, 228, 231, 0.6);
+  font-size: 0.813rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 12px;
+}
+
+.expand-toggle:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(139, 92, 246, 0.3);
+  color: var(--primary);
+}
+
+.expand-toggle svg {
+  transition: transform 0.3s ease;
+}
+
+.expand-toggle.expanded svg {
+  transform: rotate(180deg);
+}
+
+/* ======================================
+   VISIBILITY BADGE
+====================================== */
+
+.visibility-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 12px;
+  font-size: 0.688rem;
+  font-weight: 600;
+  color: rgba(139, 92, 246, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.visibility-badge.private {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.2);
+  color: rgba(251, 191, 36, 0.9);
+}
+
+/* ======================================
+   AUTHOR INFO SECTION
+====================================== */
+
+.author-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.author-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid rgba(139, 92, 246, 0.2);
+  object-fit: cover;
+}
+
+.author-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.author-name {
+  font-size: 0.813rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.author-timestamp {
+  font-size: 0.688rem;
+  color: rgba(228, 228, 231, 0.5);
+}
+
+/* ======================================
+   LOADING STATES
+====================================== */
+
+.skeleton-card {
+  background: linear-gradient(
+    90deg,
+    rgba(139, 92, 246, 0.05) 0%,
+    rgba(139, 92, 246, 0.1) 50%,
+    rgba(139, 92, 246, 0.05) 100%
   );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 16px;
+  height: 200px;
+  margin-bottom: 20px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.neo-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top: 2px solid var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ======================================
+   SCROLL-BASED ANIMATIONS
+====================================== */
+
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(50px);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scroll-reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.scroll-reveal-left {
+  opacity: 0;
+  transform: translateX(-50px);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scroll-reveal-left.revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.scroll-reveal-right {
+  opacity: 0;
+  transform: translateX(50px);
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scroll-reveal-right.revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* Staggered animation delays */
+.scroll-reveal:nth-child(1) { transition-delay: 0.1s; }
+.scroll-reveal:nth-child(2) { transition-delay: 0.2s; }
+.scroll-reveal:nth-child(3) { transition-delay: 0.3s; }
+.scroll-reveal:nth-child(4) { transition-delay: 0.4s; }
+.scroll-reveal:nth-child(5) { transition-delay: 0.5s; }
+.scroll-reveal:nth-child(6) { transition-delay: 0.6s; }
+.scroll-reveal:nth-child(7) { transition-delay: 0.7s; }
+.scroll-reveal:nth-child(8) { transition-delay: 0.8s; }
+.scroll-reveal:nth-child(9) { transition-delay: 0.9s; }
+
+/* ======================================
+   HERO SECTION ENHANCEMENTS
+====================================== */
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  background: var(--black-background);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: 50px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+  animation: fadeInDown 0.8s ease-out;
+}
+
+.hero-badge:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.5);
+  transform: translateY(-2px);
+}
+
+@keyframes fadeInDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.hero-title {
+  animation: fadeInUp 1s ease-out;
+  animation-delay: 0.2s;
+  animation-fill-mode: both;
+}
+
+.hero-description {
+  animation: fadeIn 1s ease-out;
+  animation-delay: 0.4s;
+  animation-fill-mode: both;
+}
+
+@keyframes fadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.hero-cta {
+  animation: fadeInUp 1s ease-out;
+  animation-delay: 0.6s;
+  animation-fill-mode: both;
+}
+
+/* ======================================
+   MICRO-INTERACTIONS
+====================================== */
+
+.interactive-icon {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.interactive-icon:hover {
+  transform: scale(1.1) rotate(5deg);
+  filter: drop-shadow(0 4px 8px rgba(139, 92, 246, 0.4));
+}
+
+.pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(139, 92, 246, 0.5);
+  }
+}
+
+/* ======================================
+   FEATURE ICON CONTAINERS
+====================================== */
+
+.feature-icon-container {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(139, 92, 246, 0.1);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 16px;
+  margin-bottom: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.capsule-card:hover .feature-icon-container {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: rgba(139, 92, 246, 0.4);
+  transform: scale(1.05);
+}
+
+/* ======================================
+   SECTION HEADERS
+====================================== */
+
+.section-header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.section-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  background: linear-gradient(135deg, #ffffff 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.section-subtitle {
+  font-size: 1.125rem;
+  color: var(--muted-foreground);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* ======================================
+   SIDEBAR & EXISTING STYLES
+====================================== */
+
+.team-sidebar {
+  background: var(--background);
+  border-right: 1px solid var(--border);
+  min-height: 100vh;
+  position: relative;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.team-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.team-item::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 0;
+  background: linear-gradient(180deg, var(--primary), var(--primary-hover));
+  transition: height 0.3s ease;
+}
+
+.team-item:hover {
+  border-color: var(--primary);
+  background: var(--popover);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.team-item:hover::before {
+  height: 100%;
+}
+
+.team-item.active {
+  background: var(--popover);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.team-item.active::before {
+  height: 100%;
+}
+
+/* Form Inputs */
+.form-input,
+.search-input {
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  color: var(--foreground);
+  font-family: "Inter", sans-serif;
+  font-weight: 400;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.form-input:focus,
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--glow-subtle);
+  background: var(--popover);
+}
+
+.form-input::placeholder,
+.search-input::placeholder {
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+/* Avatar Styles */
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.user-avatar:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--glow-subtle);
+}
+
+/* ======================================
+   RESPONSIVE STYLES
+====================================== */
+
+@media (max-width: 1024px) {
+  .navbar-content {
+    padding: 1rem 1.5rem;
+  }
+  
+  .section-title {
+    font-size: 2rem;
+  }
+  
+  .modal-type-selector {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar-links {
+    display: none;
+  }
+  
+  .gradient-orb {
+    width: 500px;
+    height: 500px;
+  }
+  
+  .section-title {
+    font-size: 1.75rem;
+  }
+  
+  .capsule-card {
+    padding: 1.5rem;
+  }
+  
+  .prompt-card-premium {
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+
+  .prompt-title-premium {
+    font-size: 1rem;
+  }
+
+  .kebab-menu {
+    right: 0;
+    left: auto;
+  }
+
+  .result-card-premium {
+    padding: 16px;
+  }
+  
+  .team-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 260px;
+    height: 100vh;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+  }
+
+  .team-sidebar.mobile-hidden {
+    transform: translateX(-100%);
+  }
+
+  .team-sidebar.mobile-visible {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .sidebar-overlay.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+  
+  .modal-overlay {
+    padding: 0.5rem;
+  }
+  
+  .modal-content {
+    max-height: 95vh;
+  }
+  
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 1rem;
+  }
+  
+  .modal-body {
+    max-height: calc(95vh - 160px);
+  }
+  
+  .modal-type-selector {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+  
+  .modal-type-icon {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .author-info {
+    gap: 8px;
+  }
+  
+  .author-avatar {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .author-name {
+    font-size: 0.75rem;
+  }
+  
+  .author-timestamp {
+    font-size: 0.625rem;
+  }
+  
+  .action-btn-premium {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .add-result-cta {
+    height: 48px;
+    font-size: 0.875rem;
+    padding: 0 16px;
+  }
+}
+
+/* ======================================
+   UTILITY CLASSES
+====================================== */
+
+.relative { position: relative; }
+.z-10 { z-index: 10; }
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+.w-full { width: 100%; }
+.text-center { text-align: center; }
+.hidden { display: none; }
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+.space-y-3 > * + * {
+  margin-top: 0.75rem;
+}
+
+.space-y-2 > * + * {
+  margin-top: 0.5rem;
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
