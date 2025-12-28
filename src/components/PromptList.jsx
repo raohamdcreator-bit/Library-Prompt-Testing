@@ -1,4 +1,4 @@
-// src/components/PromptList.jsx - Premium Enterprise UI
+// src/components/PromptList.jsx - Premium Enterprise UI with Professional Icons
 import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -18,6 +18,21 @@ import {
   canChangeVisibility,
   filterVisiblePrompts,
 } from "../lib/prompts";
+import {
+  Plus,
+  X,
+  Sparkles,
+  Copy,
+  Edit2,
+  Trash2,
+  ChevronDown,
+  MoreVertical,
+  Eye,
+  Lock,
+  Unlock,
+  Maximize2,
+  Check,
+} from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
 import Comments from "./Comments";
 import { FavoriteButton } from "./Favorites";
@@ -28,30 +43,6 @@ import ExportImport, { ExportUtils } from "./ExportImport";
 import usePagination, { PaginationControls } from "../hooks/usePagination";
 import AIPromptEnhancer from "./AIPromptEnhancer";
 import PromptResults from "./PromptResults";
-
-// Icon Component
-function Icon({ name, className = "w-5 h-5" }) {
-  const icons = {
-    add: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />,
-    close: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />,
-    sparkles: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />,
-    copy: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />,
-    edit: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />,
-    trash: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />,
-    chevronDown: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />,
-    moreVertical: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />,
-    eye: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />,
-    lock: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />,
-    unlock: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />,
-    expand: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />,
-  };
-
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      {icons[name]}
-    </svg>
-  );
-}
 
 export default function PromptList({ activeTeam, userRole }) {
   const { user } = useAuth();
@@ -443,6 +434,65 @@ export default function PromptList({ activeTeam, userRole }) {
         >
           {getUserInitials(name, email)}
         </div>
+      )}
+
+      {/* Bottom Pagination */}
+      {filteredPrompts.length > 0 && (
+        <PaginationControls
+          pagination={pagination}
+          showPageSizeSelector={false}
+          showSearch={false}
+        />
+      )}
+
+      {/* Import/Export */}
+      <ExportImport
+        onImport={async (importedPrompts) => {
+          let successCount = 0;
+          for (const prompt of importedPrompts) {
+            try {
+              await savePrompt(user.uid, prompt, activeTeam);
+              successCount++;
+            } catch (error) {
+              console.error("Import error:", error);
+            }
+          }
+          if (successCount > 0) {
+            showSuccessToast(`Imported ${successCount} prompts`);
+          }
+        }}
+        teamId={activeTeam}
+        teamName={teamName}
+        userRole={userRole}
+      />
+
+      {/* Modals */}
+      {showEditModal && editingPrompt && (
+        <EditPromptModal
+          open={showEditModal}
+          prompt={editingPrompt}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingPrompt(null);
+          }}
+          onSave={(updates) => handleUpdate(editingPrompt.id, updates)}
+        />
+      )}
+
+      {showAIEnhancer && currentPromptForAI && (
+        <AIPromptEnhancer
+          prompt={currentPromptForAI}
+          onApply={handleApplyAIEnhancement}
+          onSaveAsNew={handleSaveAIAsNew}
+          onClose={() => {
+            setShowAIEnhancer(false);
+            setCurrentPromptForAI(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
       );
     }
 
@@ -484,7 +534,7 @@ export default function PromptList({ activeTeam, userRole }) {
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="btn-primary px-6 py-3 flex items-center gap-2"
           >
-            <Icon name={showCreateForm ? "close" : "add"} className="w-5 h-5" />
+            {showCreateForm ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
             <span>{showCreateForm ? "Cancel" : "New Prompt"}</span>
           </button>
         </div>
@@ -553,7 +603,7 @@ export default function PromptList({ activeTeam, userRole }) {
                     checked={newPrompt.visibility === "public"}
                     onChange={(e) => setNewPrompt({ ...newPrompt, visibility: e.target.value })}
                   />
-                  <Icon name="unlock" className="w-4 h-4" />
+                  <Unlock className="w-4 h-4" />
                   <span className="text-sm">Public</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -564,7 +614,7 @@ export default function PromptList({ activeTeam, userRole }) {
                     checked={newPrompt.visibility === "private"}
                     onChange={(e) => setNewPrompt({ ...newPrompt, visibility: e.target.value })}
                   />
-                  <Icon name="lock" className="w-4 h-4" />
+                  <Lock className="w-4 h-4" />
                   <span className="text-sm">Private</span>
                 </label>
               </div>
@@ -647,7 +697,7 @@ export default function PromptList({ activeTeam, userRole }) {
           </p>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {pagination.currentItems.map((prompt) => {
             const author = teamMembers[prompt.createdBy];
             const isExpanded = expandedPromptId === prompt.id;
@@ -673,7 +723,7 @@ export default function PromptList({ activeTeam, userRole }) {
                   </div>
                   <div className="ml-auto">
                     <span className={`visibility-badge ${isPrivate ? "private" : ""}`}>
-                      <Icon name={isPrivate ? "lock" : "unlock"} className="w-3 h-3" />
+                      {isPrivate ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                       {isPrivate ? "Private" : "Public"}
                     </span>
                   </div>
@@ -695,7 +745,7 @@ export default function PromptList({ activeTeam, userRole }) {
                   {shouldTruncate && (
                     <div className="expand-indicator">
                       <span>{isTextExpanded ? "Click to collapse" : "Click to expand"}</span>
-                      <Icon name="chevronDown" className="w-3.5 h-3.5" />
+                      <ChevronDown className="w-3.5 h-3.5" />
                     </div>
                   )}
                 </div>
@@ -722,28 +772,25 @@ export default function PromptList({ activeTeam, userRole }) {
                   </div>
                 )}
 
-                {/* Actions - Only 2-3 Primary Actions Visible */}
+                {/* Actions */}
                 <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: "var(--border)" }}>
                   <div className="primary-actions">
-                    {/* Primary Action: Copy */}
                     <button
                       onClick={() => handleCopy(prompt.text)}
                       className="action-btn-premium"
                       title="Copy to clipboard"
                     >
-                      <Icon name="copy" className="w-4 h-4" />
+                      <Copy className="w-4 h-4" />
                     </button>
 
-                    {/* Primary Action: Expand/Collapse */}
                     <button
                       onClick={() => setExpandedPromptId(isExpanded ? null : prompt.id)}
                       className="action-btn-premium"
                       title={isExpanded ? "Collapse" : "Expand details"}
                     >
-                      <Icon name="expand" className="w-4 h-4" />
+                      <Maximize2 className="w-4 h-4" />
                     </button>
 
-                    {/* Primary Action: Favorite */}
                     <FavoriteButton
                       prompt={prompt}
                       teamId={activeTeam}
@@ -752,7 +799,7 @@ export default function PromptList({ activeTeam, userRole }) {
                       className="action-btn-premium primary"
                     />
 
-                    {/* Kebab Menu - All Secondary Actions */}
+                    {/* Kebab Menu */}
                     <div className="kebab-menu-container">
                       <button
                         onClick={() =>
@@ -761,7 +808,7 @@ export default function PromptList({ activeTeam, userRole }) {
                         className="action-btn-premium"
                         title="More actions"
                       >
-                        <Icon name="moreVertical" className="w-4 h-4" />
+                        <MoreVertical className="w-4 h-4" />
                       </button>
 
                       {openKebabMenu === prompt.id && (
@@ -770,7 +817,7 @@ export default function PromptList({ activeTeam, userRole }) {
                             onClick={() => handleAIEnhance(prompt)}
                             className="kebab-menu-item"
                           >
-                            <Icon name="sparkles" className="w-4 h-4" />
+                            <Sparkles className="w-4 h-4" />
                             <span>Enhance with AI</span>
                           </button>
 
@@ -779,7 +826,7 @@ export default function PromptList({ activeTeam, userRole }) {
                               onClick={() => handleToggleVisibility(prompt.id)}
                               className="kebab-menu-item"
                             >
-                              <Icon name={isPrivate ? "unlock" : "lock"} className="w-4 h-4" />
+                              {isPrivate ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                               <span>Make {isPrivate ? "Public" : "Private"}</span>
                             </button>
                           )}
@@ -794,7 +841,7 @@ export default function PromptList({ activeTeam, userRole }) {
                                 }}
                                 className="kebab-menu-item"
                               >
-                                <Icon name="edit" className="w-4 h-4" />
+                                <Edit2 className="w-4 h-4" />
                                 <span>Edit Prompt</span>
                               </button>
 
@@ -802,7 +849,7 @@ export default function PromptList({ activeTeam, userRole }) {
                                 onClick={() => handleDelete(prompt.id)}
                                 className="kebab-menu-item danger"
                               >
-                                <Icon name="trash" className="w-4 h-4" />
+                                <Trash2 className="w-4 h-4" />
                                 <span>Delete</span>
                               </button>
                             </>
@@ -831,10 +878,7 @@ export default function PromptList({ activeTeam, userRole }) {
                             {showResults[prompt.id] ? "Hide" : "Show"} AI Output Results
                             {resultsCount > 0 && ` (${resultsCount})`}
                           </span>
-                          <Icon
-                            name="chevronDown"
-                            className={`w-4 h-4 ${showResults[prompt.id] ? "expanded" : ""}`}
-                          />
+                          <ChevronDown className={`w-4 h-4 ${showResults[prompt.id] ? "rotate-180" : ""}`} />
                         </button>
 
                         {showResults[prompt.id] && (
@@ -858,10 +902,7 @@ export default function PromptList({ activeTeam, userRole }) {
                         className="expand-toggle"
                       >
                         <span>{showComments[prompt.id] ? "Hide" : "Show"} Comments</span>
-                        <Icon
-                          name="chevronDown"
-                          className={`w-4 h-4 ${showComments[prompt.id] ? "expanded" : ""}`}
-                        />
+                        <ChevronDown className={`w-4 h-4 ${showComments[prompt.id] ? "rotate-180" : ""}`} />
                       </button>
 
                       {showComments[prompt.id] && (
@@ -874,62 +915,3 @@ export default function PromptList({ activeTeam, userRole }) {
             );
           })}
         </div>
-      )}
-
-      {/* Bottom Pagination */}
-      {filteredPrompts.length > 0 && (
-        <PaginationControls
-          pagination={pagination}
-          showPageSizeSelector={false}
-          showSearch={false}
-        />
-      )}
-
-      {/* Import/Export */}
-      <ExportImport
-        onImport={async (importedPrompts) => {
-          let successCount = 0;
-          for (const prompt of importedPrompts) {
-            try {
-              await savePrompt(user.uid, prompt, activeTeam);
-              successCount++;
-            } catch (error) {
-              console.error("Import error:", error);
-            }
-          }
-          if (successCount > 0) {
-            showSuccessToast(`Imported ${successCount} prompts`);
-          }
-        }}
-        teamId={activeTeam}
-        teamName={teamName}
-        userRole={userRole}
-      />
-
-      {/* Modals */}
-      {showEditModal && editingPrompt && (
-        <EditPromptModal
-          open={showEditModal}
-          prompt={editingPrompt}
-          onClose={() => {
-            setShowEditModal(false);
-            setEditingPrompt(null);
-          }}
-          onSave={(updates) => handleUpdate(editingPrompt.id, updates)}
-        />
-      )}
-
-      {showAIEnhancer && currentPromptForAI && (
-        <AIPromptEnhancer
-          prompt={currentPromptForAI}
-          onApply={handleApplyAIEnhancement}
-          onSaveAsNew={handleSaveAIAsNew}
-          onClose={() => {
-            setShowAIEnhancer(false);
-            setCurrentPromptForAI(null);
-          }}
-        />
-      )}
-    </div>
-  );
-}
