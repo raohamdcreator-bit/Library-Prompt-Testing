@@ -19,6 +19,7 @@ import PromptList from "./components/PromptList";
 import TeamInviteForm from "./components/TeamInviteForm";
 import MyInvites from "./components/MyInvites";
 import TeamMembers from "./components/TeamMembers";
+import TeamHeader from "./components/TeamHeader";
 import FavoritesList from "./components/Favorites";
 import { TeamAnalytics } from "./components/PromptAnalytics";
 import ActivityFeed from "./components/ActivityFeed";
