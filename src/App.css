@@ -1,4 +1,4 @@
-/* src/App.css - Premium SaaS Theme - Professional Enterprise UI */
+/* src/App.css - Premium SaaS Theme - Combined & Optimized */
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
 
@@ -59,6 +59,73 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+/* ======================================
+   ANIMATED BACKGROUND GRADIENT GLOW (Landing Page)
+====================================== */
+
+.landing-page-container {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* Main animated gradient orb */
+.gradient-orb {
+  position: fixed;
+  width: 800px;
+  height: 800px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, rgba(139, 92, 246, 0.7) 30%, transparent 30%);
+  filter: blur(80px);
+  pointer-events: none;
+  z-index: 0;
+  animation: float-orb 10s ease-in-out infinite;
+}
+
+.gradient-orb-1 {
+  top: -200px;
+  right: -200px;
+  animation-delay: 0s;
+}
+
+.gradient-orb-2 {
+  bottom: -300px;
+  left: -200px;
+  animation-delay: 10s;
+  background: radial-gradient(circle, rgba(124, 58, 237, 1.05) 0%, rgba(124, 58, 237, 1.08) 20%, transparent 20%);
+}
+
+@keyframes float-orb {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.8;
+  }
+  33% {
+    transform: translate(-50px, 80px) scale(1.1);
+    opacity: 0.6;
+  }
+  66% {
+    transform: translate(80px, -50px) scale(0.9);
+    opacity: 0.7;
+  }
+}
+
+/* Subtle Grid Overlay */
+.grid-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.5;
 }
 
 .app-container {
@@ -452,6 +519,17 @@ body {
   transform: translateY(0);
 }
 
+/* Arrow icon animation */
+.btn-arrow {
+  transition: transform 0.3s ease;
+}
+
+.btn-premium:hover .btn-arrow,
+.neo-btn:hover .btn-arrow,
+.btn-primary:hover .btn-arrow {
+  transform: translateX(4px);
+}
+
 .btn-secondary {
   background: transparent;
   color: var(--foreground);
@@ -469,6 +547,50 @@ body {
 }
 
 /* ======================================
+   CAPSULE-STYLE CARDS
+====================================== */
+
+.capsule-card,
+.glass-card,
+.prompt-card {
+  background: rgba(17, 19, 24, 0.6);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 24px;
+  padding: 2rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.capsule-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.capsule-card:hover::before {
+  opacity: 1;
+}
+
+.capsule-card:hover,
+.glass-card:hover,
+.prompt-card:hover {
+  border-color: rgba(139, 92, 246, 0.5);
+  box-shadow: 0 8px 32px rgba(139, 92, 246, 0.2);
+  transform: translateY(-4px);
+}
+
+/* ======================================
    MODERN PROMPT CARDS
 ====================================== */
 
@@ -478,16 +600,56 @@ body {
   border-radius: 12px;
   padding: 1.5rem;
   margin-bottom: 1rem;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   position: relative;
+  animation: fadeInUp 0.5s ease-out backwards;
+}
+
+.prompt-card-premium::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.3), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .prompt-card-premium:hover {
-  border-color: rgba(139, 92, 246, 0.2);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(139, 92, 246, 0.1);
+  transform: translateY(-2px);
 }
+
+.prompt-card-premium:hover::before {
+  opacity: 1;
+}
+
+/* Staggered animation for cards */
+.prompt-card-premium:nth-child(1) { animation-delay: 0.05s; }
+.prompt-card-premium:nth-child(2) { animation-delay: 0.1s; }
+.prompt-card-premium:nth-child(3) { animation-delay: 0.15s; }
+.prompt-card-premium:nth-child(4) { animation-delay: 0.2s; }
+.prompt-card-premium:nth-child(5) { animation-delay: 0.25s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ======================================
+   TYPOGRAPHY HIERARCHY
+====================================== */
 
 .prompt-title-premium {
   font-size: 1.125rem;
@@ -586,7 +748,7 @@ body {
 }
 
 /* ======================================
-   TAG CHIPS
+   TAG CHIPS - CAPSULE STYLE
 ====================================== */
 
 .tag-chip-premium {
@@ -608,7 +770,7 @@ body {
 }
 
 /* ======================================
-   ACTION BUTTONS
+   ACTION BUTTONS - MINIMALIST
 ====================================== */
 
 .primary-actions {
@@ -665,7 +827,7 @@ body {
 }
 
 /* ======================================
-   KEBAB MENU - FIXED Z-INDEX
+   KEBAB MENU (MORE ACTIONS)
 ====================================== */
 
 .kebab-menu-container {
@@ -674,7 +836,7 @@ body {
 
 .kebab-menu {
   position: absolute;
-  bottom: calc(100% + 8px); /* Open upward */
+  bottom: calc(100% + 8px);
   right: 0;
   min-width: 200px;
   background: rgba(17, 19, 24, 0.98);
@@ -740,346 +902,43 @@ body {
 }
 
 /* ======================================
-   VISIBILITY BADGE
+   ADD RESULT CTA BUTTON
 ====================================== */
 
-.visibility-badge {
+.add-result-cta {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.25rem 0.625rem;
-  background: rgba(139, 92, 246, 0.1);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 6px;
-  font-size: 0.688rem;
-  font-weight: 600;
-  color: rgba(139, 92, 246, 0.9);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.visibility-badge.private {
-  background: rgba(251, 191, 36, 0.1);
-  border-color: rgba(251, 191, 36, 0.2);
-  color: rgba(251, 191, 36, 0.9);
-}
-
-/* ======================================
-   AUTHOR INFO
-====================================== */
-
-.author-info {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  margin-bottom: 1rem;
-}
-
-.author-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 2px solid rgba(139, 92, 246, 0.2);
-  object-fit: cover;
-}
-
-.author-details {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.author-name {
-  font-size: 0.813rem;
-  font-weight: 600;
-  color: var(--foreground);
-}
-
-.author-timestamp {
-  font-size: 0.688rem;
-  color: rgba(228, 228, 231, 0.5);
-}
-
-/* ======================================
-   GLASS CARDS
-====================================== */
-
-.glass-card {
-  background: rgba(17, 19, 24, 0.6);
-  border: 1px solid rgba(139, 92, 246, 0.12);
-  border-radius: 12px;
-  padding: 1.5rem;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
-.glass-card:hover {
-  border-color: rgba(139, 92, 246, 0.2);
-}
-
-/* ======================================
-   SUCCESS TOAST
-====================================== */
-
-.success-toast {
-  position: fixed;
-  top: 24px;
-  right: 24px;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: 8px;
-  color: var(--success);
-  font-size: 0.875rem;
-  font-weight: 500;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  z-index: 2000;
-  animation: toastSlideIn 0.3s ease-out, toastSlideOut 0.3s ease-in 2.7s forwards;
-}
-
-@keyframes toastSlideIn {
-  from {
-    opacity: 0;
-    transform: translateX(100px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes toastSlideOut {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(100px);
-  }
-}
-
-.success-icon {
-  display: flex;
-  align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
-  background: rgba(16, 185, 129, 0.2);
-  border-radius: 50%;
-}
-
-/* ======================================
-   EXPANDABLE SECTIONS
-====================================== */
-
-.expandable-section {
-  overflow: hidden;
-  transition: max-height 0.3s ease;
-}
-
-.expandable-section.collapsed {
-  max-height: 0;
-}
-
-.expandable-section.expanded {
-  max-height: 2000px;
-}
-
-.expand-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+  gap: 10px;
   width: 100%;
-  padding: 0.625rem;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 6px;
-  color: rgba(228, 228, 231, 0.6);
-  font-size: 0.813rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: 0.75rem;
-}
-
-.expand-toggle:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(139, 92, 246, 0.3);
+  height: 50px;
+  padding: 0 24px;
+  background: rgba(139, 92, 246, 0.08);
+  border: 1.5px dashed rgba(139, 92, 246, 0.3);
+  border-radius: 12px;
   color: var(--primary);
+  font-size: 0.938rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 16px;
 }
 
-.expand-toggle svg {
+.add-result-cta:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.5);
+  border-style: solid;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+}
+
+.add-result-cta svg {
   transition: transform 0.3s ease;
 }
 
-.expand-toggle.expanded svg {
-  transform: rotate(180deg);
+.add-result-cta:hover svg {
+  transform: rotate(90deg);
 }
 
 /* ======================================
-   FORM INPUTS
-====================================== */
-
-.form-input,
-.search-input {
-  background: var(--input);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 0.625rem 0.875rem;
-  color: var(--foreground);
-  font-family: "Inter", sans-serif;
-  font-weight: 400;
-  font-size: 0.875rem;
-  transition: all 0.2s ease;
-  width: 100%;
-}
-
-.form-input:focus,
-.search-input:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px var(--glow-subtle);
-  background: var(--popover);
-}
-
-/* ======================================
-   LOADING STATES
-====================================== */
-
-.skeleton-card {
-  background: linear-gradient(
-    90deg,
-    rgba(139, 92, 246, 0.05) 0%,
-    rgba(139, 92, 246, 0.1) 50%,
-    rgba(139, 92, 246, 0.05) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s ease-in-out infinite;
-  border-radius: 12px;
-  height: 200px;
-  margin-bottom: 1rem;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.neo-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border);
-  border-top: 2px solid var(--primary);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* ======================================
-   RESPONSIVE
-====================================== */
-
-@media (max-width: 1024px) {
-  .navbar-content {
-    padding: 1rem 1.5rem;
-  }
-  
-  .tab-navigation {
-    padding: 0 1.5rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .navbar-links {
-    display: none;
-  }
-  
-  .team-sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: 260px;
-    height: 100vh;
-    z-index: 1000;
-    transition: transform 0.3s ease;
-  }
-
-  .team-sidebar.mobile-hidden {
-    transform: translateX(-100%);
-  }
-
-  .team-sidebar.mobile-visible {
-    transform: translateX(0);
-  }
-
-  .sidebar-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(4px);
-    z-index: 999;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-  }
-
-  .sidebar-overlay.visible {
-    opacity: 1;
-    pointer-events: all;
-  }
-
-  .tab-navigation {
-    padding: 0 1rem;
-  }
-
-  .tab-item {
-    padding: 0 1rem;
-  }
-
-  .prompt-card-premium {
-    padding: 1.25rem;
-  }
-}
-
-/* ======================================
-   UTILITY CLASSES
-====================================== */
-
-.relative { position: relative; }
-.z-10 { z-index: 10; }
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.items-center { align-items: center; }
-.justify-center { justify-content: center; }
-.gap-2 { gap: 0.5rem; }
-.gap-3 { gap: 0.75rem; }
-.gap-4 { gap: 1rem; }
-.w-full { width: 100%; }
-.text-center { text-align: center; }
-
-/* Reduced Motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
+   RESULT CARDS - DISTINCT
