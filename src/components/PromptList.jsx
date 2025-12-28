@@ -434,65 +434,6 @@ export default function PromptList({ activeTeam, userRole }) {
         >
           {getUserInitials(name, email)}
         </div>
-      )}
-
-      {/* Bottom Pagination */}
-      {filteredPrompts.length > 0 && (
-        <PaginationControls
-          pagination={pagination}
-          showPageSizeSelector={false}
-          showSearch={false}
-        />
-      )}
-
-      {/* Import/Export */}
-      <ExportImport
-        onImport={async (importedPrompts) => {
-          let successCount = 0;
-          for (const prompt of importedPrompts) {
-            try {
-              await savePrompt(user.uid, prompt, activeTeam);
-              successCount++;
-            } catch (error) {
-              console.error("Import error:", error);
-            }
-          }
-          if (successCount > 0) {
-            showSuccessToast(`Imported ${successCount} prompts`);
-          }
-        }}
-        teamId={activeTeam}
-        teamName={teamName}
-        userRole={userRole}
-      />
-
-      {/* Modals */}
-      {showEditModal && editingPrompt && (
-        <EditPromptModal
-          open={showEditModal}
-          prompt={editingPrompt}
-          onClose={() => {
-            setShowEditModal(false);
-            setEditingPrompt(null);
-          }}
-          onSave={(updates) => handleUpdate(editingPrompt.id, updates)}
-        />
-      )}
-
-      {showAIEnhancer && currentPromptForAI && (
-        <AIPromptEnhancer
-          prompt={currentPromptForAI}
-          onApply={handleApplyAIEnhancement}
-          onSaveAsNew={handleSaveAIAsNew}
-          onClose={() => {
-            setShowAIEnhancer(false);
-            setCurrentPromptForAI(null);
-          }}
-        />
-      )}
-    </div>
-  );
-}
       );
     }
 
@@ -915,3 +856,9 @@ export default function PromptList({ activeTeam, userRole }) {
             );
           })}
         </div>
+      )}
+
+      {/* Bottom Pagination */}
+      {filteredPrompts.length > 0 && (
+        <PaginationControls
+          pagination={pagination
