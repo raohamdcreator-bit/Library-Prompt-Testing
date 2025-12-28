@@ -48,6 +48,7 @@ import {
   User,
   ArrowRight,
   ArrowUpRight,
+  Trash2,
 } from "lucide-react";
 
 // Import Legal/Info Pages
