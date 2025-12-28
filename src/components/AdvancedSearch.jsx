@@ -1,4 +1,4 @@
-// src/components/AdvancedSearch.jsx - Professional Search with Icons
+// src/components/AdvancedSearch.jsx - Professional 
 import { useState, useEffect, useMemo } from "react";
 import { 
   Search, 
