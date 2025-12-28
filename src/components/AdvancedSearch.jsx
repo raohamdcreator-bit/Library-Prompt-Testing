@@ -1,5 +1,18 @@
-// src/components/AdvancedSearch.jsx - UPDATED with Visibility Filter
+// src/components/AdvancedSearch.jsx - Professional Search with Icons
 import { useState, useEffect, useMemo } from "react";
+import { 
+  Search, 
+  SlidersHorizontal, 
+  X, 
+  User, 
+  Lock, 
+  Calendar, 
+  Tag, 
+  Ruler, 
+  BarChart2, 
+  Lightbulb,
+  ChevronDown 
+} from "lucide-react";
 
 export default function AdvancedSearch({
   prompts,
@@ -16,20 +29,18 @@ export default function AdvancedSearch({
     sortBy: "newest",
     minLength: "",
     maxLength: "",
-    visibility: "all", // Added visibility filter
+    visibility: "all",
   });
 
   const [showAdvanced, setShowAdvanced] = useState(isExpanded);
 
-  // FIXED: Use useMemo to calculate filtered results without causing re-renders
   const filteredPrompts = useMemo(() => {
     return applyFilters(prompts);
-  }, [prompts, filters]); // Only recalculate when prompts or filters change
+  }, [prompts, filters]);
 
-  // FIXED: Use useEffect to call parent callback only when filtered results actually change
   useEffect(() => {
     onFilteredResults(filteredPrompts);
-  }, [filteredPrompts]); // Removed onFilteredResults from dependencies
+  }, [filteredPrompts]);
 
   function applyFilters(promptsList) {
     let filtered = [...promptsList];
@@ -191,13 +202,11 @@ export default function AdvancedSearch({
     }
   }
 
-  // Get unique authors for filter dropdown
   const authors = Object.entries(teamMembers).map(([uid, member]) => ({
     uid,
     name: member.name || member.email,
   }));
 
-  // Get active filter count for badge
   const activeFilterCount = Object.values(filters).filter((value, index) => {
     const keys = Object.keys(filters);
     const key = keys[index];
@@ -210,7 +219,7 @@ export default function AdvancedSearch({
     <div className="glass-card p-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <span className="text-2xl">🔍</span>
+        <Search className="w-5 h-5" style={{ color: "var(--primary)" }} />
         <h3
           className="text-lg font-bold"
           style={{ color: "var(--foreground)" }}
@@ -222,12 +231,16 @@ export default function AdvancedSearch({
       {/* Basic Search */}
       <div className="flex items-center gap-3 mb-4">
         <div className="flex-1 relative">
+          <Search 
+            className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2" 
+            style={{ color: "var(--muted-foreground)" }} 
+          />
           <input
             type="text"
             placeholder="Search prompts, titles, tags..."
             value={filters.search}
             onChange={(e) => handleFilterChange("search", e.target.value)}
-            className="search-input w-full"
+            className="search-input w-full pl-10"
           />
         </div>
 
@@ -235,22 +248,23 @@ export default function AdvancedSearch({
           value={filters.sortBy}
           onChange={(e) => handleFilterChange("sortBy", e.target.value)}
           className="form-input"
+          style={{ minWidth: "180px" }}
         >
-          <option value="newest">⏰ Newest First</option>
-          <option value="oldest">📅 Oldest First</option>
-          <option value="title">🔤 Title A-Z</option>
-          <option value="author">👤 Author A-Z</option>
-          <option value="length-desc">📏 Longest First</option>
-          <option value="length-asc">📐 Shortest First</option>
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="title">Title A-Z</option>
+          <option value="author">Author A-Z</option>
+          <option value="length-desc">Longest First</option>
+          <option value="length-asc">Shortest First</option>
         </select>
 
         <button
           onClick={toggleAdvanced}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-300 hover:scale-105 active:scale-95 ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 ${
             showAdvanced ? "btn-primary" : "btn-secondary"
           }`}
         >
-          <span>⚙️</span>
+          <SlidersHorizontal className="w-4 h-4" />
           <span className="font-medium">Filters</span>
           {activeFilterCount > 0 && (
             <span
@@ -263,13 +277,11 @@ export default function AdvancedSearch({
               {activeFilterCount}
             </span>
           )}
-          <span
-            className={`transition-transform duration-300 ${
+          <ChevronDown
+            className={`w-4 h-4 transition-transform duration-200 ${
               showAdvanced ? "rotate-180" : ""
             }`}
-          >
-            ↓
-          </span>
+          />
         </button>
       </div>
 
@@ -279,17 +291,17 @@ export default function AdvancedSearch({
           className="border-t pt-6 space-y-6"
           style={{
             borderColor: "var(--border)",
-            animation: "fadeIn 0.3s ease-out",
           }}
         >
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Author Filter */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="flex items-center gap-2 text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
-                👤 Author
+                <User className="w-4 h-4" />
+                Author
               </label>
               <select
                 value={filters.author}
@@ -305,13 +317,14 @@ export default function AdvancedSearch({
               </select>
             </div>
 
-            {/* Visibility Filter Dropdown */}
+            {/* Visibility Filter */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="flex items-center gap-2 text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
-                🔐 Visibility
+                <Lock className="w-4 h-4" />
+                Visibility
               </label>
               <select
                 value={filters.visibility}
@@ -321,18 +334,19 @@ export default function AdvancedSearch({
                 className="form-input w-full"
               >
                 <option value="all">All Prompts</option>
-                <option value="public">🔓 Public Only</option>
-                <option value="private">🔒 Private Only</option>
+                <option value="public">Public Only</option>
+                <option value="private">Private Only</option>
               </select>
             </div>
 
             {/* Date Range */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="flex items-center gap-2 text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
-                📅 Created
+                <Calendar className="w-4 h-4" />
+                Created
               </label>
               <select
                 value={filters.dateRange}
@@ -352,10 +366,11 @@ export default function AdvancedSearch({
             {/* Tags */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="flex items-center gap-2 text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
-                🏷️ Tags
+                <Tag className="w-4 h-4" />
+                Tags
               </label>
               <input
                 type="text"
@@ -375,10 +390,11 @@ export default function AdvancedSearch({
             {/* Length Range */}
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="flex items-center gap-2 text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
-                📏 Min Characters
+                <Ruler className="w-4 h-4" />
+                Min Characters
               </label>
               <input
                 type="number"
@@ -394,10 +410,11 @@ export default function AdvancedSearch({
 
             <div>
               <label
-                className="block text-sm font-medium mb-2"
+                className="flex items-center gap-2 text-sm font-medium mb-2"
                 style={{ color: "var(--foreground)" }}
               >
-                📐 Max Characters
+                <Ruler className="w-4 h-4" />
+                Max Characters
               </label>
               <input
                 type="number"
@@ -420,7 +437,7 @@ export default function AdvancedSearch({
                   borderColor: "var(--border)",
                 }}
               >
-                <span className="text-2xl">📊</span>
+                <BarChart2 className="w-5 h-5" style={{ color: "var(--primary)" }} />
                 <div>
                   <p
                     className="text-xs"
@@ -454,9 +471,10 @@ export default function AdvancedSearch({
               </p>
               <button
                 onClick={clearFilters}
-                className="btn-secondary text-sm px-4 py-2 hover:scale-105 active:scale-95 transition-all duration-200"
+                className="btn-secondary text-sm px-4 py-2 flex items-center gap-2"
               >
-                🗑️ Clear All Filters
+                <X className="w-4 h-4" />
+                Clear All Filters
               </button>
             </div>
           )}
@@ -473,7 +491,7 @@ export default function AdvancedSearch({
           }}
         >
           <div className="flex items-start gap-2">
-            <span className="text-lg">💡</span>
+            <Lightbulb className="w-4 h-4 mt-0.5" style={{ color: "var(--primary)" }} />
             <div>
               <p
                 className="text-xs font-medium mb-1"
@@ -486,8 +504,7 @@ export default function AdvancedSearch({
                 style={{ color: "var(--muted-foreground)" }}
               >
                 Search by title, content, or tags. Use advanced filters for
-                precise results. Use visibility buttons to filter by
-                public/private.
+                precise results.
               </p>
             </div>
           </div>
