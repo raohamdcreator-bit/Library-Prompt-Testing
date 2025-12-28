@@ -1157,66 +1157,25 @@ export default function App() {
           </div>
         </div>
 
-        {/* Desktop Header */}
-        <div className="hidden md:block p-6 border-b"
-          style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}>
-          <div className="flex items-center justify-between">
-            <div>
-              {activeTeamObj ? (
-                <>
-                  <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>
-                    {activeTeamObj.name}
-                  </h1>
-                  <div className="flex items-center gap-4 text-sm" style={{ color: "var(--muted-foreground)" }}>
-                    <span className="flex items-center gap-2">
-                      Your role:
-                      {getRoleBadge(role)}
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <Users size={14} />
-                      {Object.keys(activeTeamObj.members || {}).length} members
-                    </span>
-                  </div>
-                </>
-              ) : activeView === "favorites" ? (
-                <>
-                  <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>My Favorites</h1>
-                  <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                    Your bookmarked prompts from all teams
-                  </p>
-                </>
-              ) : null}
-            </div>
-
-            {activeTeamObj && (
-              <div className="glass-card p-1 rounded-lg">
-                {[
-                  { id: "prompts", icon: FileText, label: "Prompts" },
-                  { id: "members", icon: Users, label: "Members" },
-                  { id: "analytics", icon: BarChart3, label: "Analytics" },
-                  { id: "activity", icon: Activity, label: "Activity" },
-                  { id: "plagiarism", icon: Search, label: "Plagiarism" },
-                ].map((view) => (
-                  <button
-                    key={view.id}
-                    onClick={() => setActiveView(view.id)}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 capitalize flex items-center gap-2 ${
-                      activeView === view.id ? "text-primary-foreground" : "hover:text-foreground"
-                    }`}
-                    style={
-                      activeView === view.id
-                        ? { backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }
-                        : { color: "var(--muted-foreground)" }
-                    }
-                  >
-                    <view.icon size={16} />
-                    {view.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Desktop Header - Now using TeamHeader component */}
+{activeTeamObj ? (
+  <TeamHeader 
+    teamId={activeTeamObj.id}
+    userRole={role}
+    activeTab={activeView}
+    onTabChange={setActiveView}
+  />
+) : activeView === "favorites" ? (
+  <div className="hidden md:block p-6 border-b"
+    style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}>
+    <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>
+      My Favorites
+    </h1>
+    <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+      Your bookmarked prompts from all teams
+    </p>
+  </div>
+) : null}
 
         {/* Mobile View Tabs */}
         {activeTeamObj && (
