@@ -43,6 +43,7 @@ function Icon({ name, className = "w-5 h-5" }) {
     eye: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />,
     lock: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />,
     unlock: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />,
+    expand: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />,
   };
 
   return (
@@ -66,6 +67,7 @@ export default function PromptList({ activeTeam, userRole }) {
   const [editingPrompt, setEditingPrompt] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [expandedPromptId, setExpandedPromptId] = useState(null);
+  const [expandedTextIds, setExpandedTextIds] = useState(new Set());
   const [showComments, setShowComments] = useState({});
   const [showResults, setShowResults] = useState({});
   const [resultCounts, setResultCounts] = useState({});
@@ -176,6 +178,18 @@ export default function PromptList({ activeTeam, userRole }) {
     loadMembers();
   }, [activeTeam]);
 
+  // Close kebab menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (openKebabMenu && !event.target.closest('.kebab-menu-container')) {
+        setOpenKebabMenu(null);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [openKebabMenu]);
+
   function handleFilteredResults(filtered) {
     setFilteredPrompts(filtered);
   }
@@ -186,6 +200,18 @@ export default function PromptList({ activeTeam, userRole }) {
       return { ...prev, [promptId]: count };
     });
   }, []);
+
+  function toggleTextExpansion(promptId) {
+    setExpandedTextIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(promptId)) {
+        newSet.delete(promptId);
+      } else {
+        newSet.add(promptId);
+      }
+      return newSet;
+    });
+  }
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -621,12 +647,14 @@ export default function PromptList({ activeTeam, userRole }) {
           </p>
         </div>
       ) : (
-        <div className="space-y-5">
+        <div className="space-y-6">
           {pagination.currentItems.map((prompt) => {
             const author = teamMembers[prompt.createdBy];
             const isExpanded = expandedPromptId === prompt.id;
+            const isTextExpanded = expandedTextIds.has(prompt.id);
             const isPrivate = prompt.visibility === "private";
             const resultsCount = resultCounts[prompt.id] || 0;
+            const shouldTruncate = prompt.text.length > 200;
 
             return (
               <div key={prompt.id} className="prompt-card-premium">
@@ -651,14 +679,25 @@ export default function PromptList({ activeTeam, userRole }) {
                   </div>
                 </div>
 
-                {/* Title & Content */}
+                {/* Title */}
                 <h3 className="prompt-title-premium">{prompt.title}</h3>
 
-                <div className="content-preview-box">
+                {/* Expandable Content Preview */}
+                <div
+                  className={`content-preview-box ${isTextExpanded ? 'expanded' : 'collapsed'}`}
+                  onClick={() => shouldTruncate && toggleTextExpansion(prompt.id)}
+                  style={{ cursor: shouldTruncate ? 'pointer' : 'default' }}
+                >
                   <pre className="content-preview-text">
-                    {prompt.text.slice(0, 200)}
-                    {prompt.text.length > 200 && "..."}
+                    {isTextExpanded ? prompt.text : prompt.text.slice(0, 200)}
+                    {!isTextExpanded && prompt.text.length > 200 && "..."}
                   </pre>
+                  {shouldTruncate && (
+                    <div className="expand-indicator">
+                      <span>{isTextExpanded ? "Click to collapse" : "Click to expand"}</span>
+                      <Icon name="chevronDown" className="w-3.5 h-3.5" />
+                    </div>
+                  )}
                 </div>
 
                 {/* Metadata */}
@@ -683,10 +722,10 @@ export default function PromptList({ activeTeam, userRole }) {
                   </div>
                 )}
 
-                {/* Actions */}
+                {/* Actions - Only 2-3 Primary Actions Visible */}
                 <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: "var(--border)" }}>
-                  <div className="flex items-center gap-2">
-                    {/* Primary Actions (Always Visible) */}
+                  <div className="primary-actions">
+                    {/* Primary Action: Copy */}
                     <button
                       onClick={() => handleCopy(prompt.text)}
                       className="action-btn-premium"
@@ -695,14 +734,16 @@ export default function PromptList({ activeTeam, userRole }) {
                       <Icon name="copy" className="w-4 h-4" />
                     </button>
 
+                    {/* Primary Action: Expand/Collapse */}
                     <button
                       onClick={() => setExpandedPromptId(isExpanded ? null : prompt.id)}
                       className="action-btn-premium"
-                      title={isExpanded ? "Collapse" : "Expand"}
+                      title={isExpanded ? "Collapse" : "Expand details"}
                     >
-                      <Icon name="chevronDown" className="w-4 h-4" />
+                      <Icon name="expand" className="w-4 h-4" />
                     </button>
 
+                    {/* Primary Action: Favorite */}
                     <FavoriteButton
                       prompt={prompt}
                       teamId={activeTeam}
@@ -711,7 +752,7 @@ export default function PromptList({ activeTeam, userRole }) {
                       className="action-btn-premium primary"
                     />
 
-                    {/* Kebab Menu */}
+                    {/* Kebab Menu - All Secondary Actions */}
                     <div className="kebab-menu-container">
                       <button
                         onClick={() =>
