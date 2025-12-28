@@ -916,229 +916,224 @@ export default function App() {
     return <LandingPage onSignIn={signInWithGoogle} onNavigate={navigate} />;
   }
 
-  // Main application UI
-  return (
-    <div className="app-container flex min-h-screen relative">
-      {/* Sidebar Overlay for Mobile */}
-      <div
-        className={`sidebar-overlay ${sidebarOpen ? "visible" : ""}`}
-        onClick={() => setSidebarOpen(false)}
-      ></div>
+ // Main application UI with flattened sidebar
+return (
+  <div className="app-container flex min-h-screen relative">
+    {/* Sidebar Overlay for Mobile */}
+    <div
+      className={`sidebar-overlay ${sidebarOpen ? "visible" : ""}`}
+      onClick={() => setSidebarOpen(false)}
+    ></div>
 
-      {/* Sidebar */}
-      <div className={`team-sidebar w-72 p-4 flex flex-col ${sidebarOpen ? "mobile-visible" : "mobile-hidden"}`}>
-        {/* Mobile Close Button */}
-        <div className="md:hidden flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>Menu</h2>
-          <button onClick={() => setSidebarOpen(false)} className="mobile-menu-btn">
-            <X size={24} />
-          </button>
-        </div>
+    {/* Sidebar */}
+    <div className={`team-sidebar w-72 flex flex-col ${sidebarOpen ? "mobile-visible" : "mobile-hidden"}`}>
+      {/* Mobile Close Button */}
+      <div className="md:hidden flex justify-between items-center px-4 py-3">
+        <h2 className="menu-header">Menu</h2>
+        <button onClick={() => setSidebarOpen(false)} className="action-btn-premium">
+          <X size={20} />
+        </button>
+      </div>
 
-        {/* User Profile Card */}
-        <div className="glass-card p-4 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <UserAvatar src={user.photoURL} name={user.displayName} email={user.email} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold truncate" style={{ color: "var(--foreground)" }}>
-                {user.displayName || user.email}
-              </p>
-              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                {teams.length} {teams.length === 1 ? "team" : "teams"}
-              </p>
+      {/* User Profile Section - Flattened */}
+      <div className="sidebar-user-section">
+        <div className="user-info-header">
+          <div className="user-avatar-container">
+            <UserAvatar 
+              src={user.photoURL} 
+              name={user.displayName} 
+              email={user.email}
+              className="user-avatar"
+            />
+            <div className="user-status-dot"></div>
+          </div>
+          <div className="user-details">
+            <div className="user-name">
+              {user.displayName || user.email}
             </div>
-            <div className="w-2 h-2 bg-green-500 rounded-full status-dot"></div>
-          </div>
-        </div>
-
-        {/* My Favorites */}
-        <div className="mb-4">
-          <button
-            onClick={() => {
-              setActiveTeam(null);
-              setActiveView("favorites");
-              setIsChatOpen(false);
-              setSidebarOpen(false);
-            }}
-            className={`w-full p-4 text-left rounded-lg transition-all duration-300 border ${
-              activeView === "favorites" && !activeTeam
-                ? "border-primary bg-popover"
-                : "glass-card hover:border-primary/50"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: "var(--secondary)", color: "var(--primary)" }}>
-                <Star size={20} />
-              </div>
-              <div>
-                <span className="font-semibold" style={{ color: "var(--foreground)" }}>My Favorites</span>
-                <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>Your saved prompts</p>
-              </div>
+            <div className="user-team-count">
+              {teams.length} {teams.length === 1 ? "team" : "teams"}
             </div>
-          </button>
-        </div>
-
-        {/* Admin Dashboard Button */}
-        {user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
-          <div className="mb-4">
-            <button
-              onClick={() => {
-                navigate("/admin");
-                setSidebarOpen(false);
-              }}
-              className="w-full p-4 text-left rounded-lg transition-all duration-300 border glass-card hover:border-primary/50"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: "var(--primary)", color: "var(--primary-foreground)" }}>
-                  <Shield size={20} />
-                </div>
-                <div>
-                  <span className="font-semibold" style={{ color: "var(--foreground)" }}>Admin Dashboard</span>
-                  <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>Manage waitlist entries</p>
-                </div>
-              </div>
-            </button>
           </div>
-        )}
-
-        {/* Team Chat Button */}
-        {activeTeamObj && (
-          <div className="mb-4">
-            <button
-              onClick={() => {
-                setIsChatOpen(!isChatOpen);
-                setSidebarOpen(false);
-              }}
-              className={`w-full p-4 text-left rounded-lg transition-all duration-300 border ${
-                isChatOpen ? "border-primary bg-popover" : "glass-card hover:border-primary/50"
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-                  style={{ backgroundColor: "var(--secondary)", color: "var(--primary)" }}>
-                  <MessageSquare size={20} />
-                </div>
-                <div>
-                  <span className="font-semibold" style={{ color: "var(--foreground)" }}>Team Chat</span>
-                  <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
-                    {isChatOpen ? "Close chat" : "Open chat"}
-                  </p>
-                </div>
-              </div>
-            </button>
-          </div>
-        )}
-
-        {/* Create Team & Sign Out */}
-        <div className="space-y-3 mb-4">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const name = e.target.teamName.value.trim();
-              if (name) {
-                createTeam(name);
-                e.target.reset();
-              }
-            }}
-            className="space-y-2"
-          >
-            <input type="text" name="teamName" placeholder="New team name" className="form-input" required />
-            <button type="submit" className="btn-primary w-full flex items-center justify-center gap-2">
-              <Plus size={18} />
-              Create Team
-            </button>
-          </form>
-
-          <button onClick={logout} className="btn-secondary w-full flex items-center justify-center gap-2">
-            <LogOut size={18} />
-            Sign Out
-          </button>
-        </div>
-
-        {/* Teams List */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>Teams</h2>
-          {teams.length > 0 && (
-            <span className="text-xs px-2 py-1 rounded-full"
-              style={{ backgroundColor: "var(--secondary)", color: "var(--secondary-foreground)" }}>
-              {teams.length}
-            </span>
-          )}
-        </div>
-
-        <div className="flex-1 overflow-y-auto space-y-3">
-          {teams.map((team) => {
-            const isOwner = team.ownerId === user.uid;
-            const myRole = team.members?.[user.uid];
-            const ownerData = avatars[team.ownerId];
-            const isActive = activeTeam === team.id;
-            const stats = teamStats[team.id] || { memberCount: 0, promptCount: 0 };
-
-            return (
-              <div key={team.id} className={`team-item p-4 cursor-pointer ${isActive ? "active" : ""}`}>
-                <div
-                  onClick={() => {
-                    setActiveTeam(team.id);
-                    setActiveView("prompts");
-                    setSidebarOpen(false);
-                  }}
-                  className="flex items-start gap-3"
-                >
-                  <UserAvatar
-                    src={ownerData?.avatar}
-                    name={ownerData?.name}
-                    email={ownerData?.email}
-                    size="small"
-                    className="mt-1"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <p className="font-semibold truncate" style={{ color: "var(--foreground)" }}>
-                        {team.name}
-                      </p>
-                      {getRoleBadge(myRole)}
-                    </div>
-                    <div className="flex items-center gap-4 text-xs" style={{ color: "var(--muted-foreground)" }}>
-                      <span className="flex items-center gap-1">
-                        <Users size={12} />
-                        {stats.memberCount}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <FileText size={12} />
-                        {stats.promptCount}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {isActive && (
-                  <div className="flex justify-between items-center mt-3 pt-3"
-                    style={{ borderTop: "1px solid var(--border)" }}>
-                    <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                      Owner: {ownerData?.name || ownerData?.email || "Unknown"}
-                    </div>
-                    {isOwner && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteTeam(team.id);
-                        }}
-                        className="text-xs px-2 py-1 rounded transition-colors"
-                        style={{ color: "var(--destructive)" }}
-                        title="Delete team"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
         </div>
       </div>
+
+      <div className="sidebar-divider"></div>
+
+      {/* My Favorites - Flat Navigation Item */}
+      <button
+        onClick={() => {
+          setActiveTeam(null);
+          setActiveView("favorites");
+          setIsChatOpen(false);
+          setSidebarOpen(false);
+        }}
+        className={`sidebar-menu-item ${activeView === "favorites" && !activeTeam ? "active" : ""}`}
+      >
+        <Star size={16} />
+        <span>My Favorites</span>
+      </button>
+
+      {/* Admin Dashboard Button - Flat Navigation Item */}
+      {user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
+        <button
+          onClick={() => {
+            navigate("/admin");
+            setSidebarOpen(false);
+          }}
+          className="sidebar-menu-item primary"
+        >
+          <Shield size={16} />
+          <span>Admin Dashboard</span>
+        </button>
+      )}
+
+      {/* Team Chat Button - Flat Navigation Item */}
+      {activeTeamObj && (
+        <button
+          onClick={() => {
+            setIsChatOpen(!isChatOpen);
+            setSidebarOpen(false);
+          }}
+          className={`sidebar-menu-item ${isChatOpen ? "active" : ""}`}
+        >
+          <MessageSquare size={16} />
+          <span>Team Chat</span>
+        </button>
+      )}
+
+      <div className="sidebar-divider"></div>
+
+      {/* Create Team & Sign Out */}
+      <div className="px-4 py-2">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const name = e.target.teamName.value.trim();
+            if (name) {
+              createTeam(name);
+              e.target.reset();
+            }
+          }}
+          className="space-y-2"
+        >
+          <input 
+            type="text" 
+            name="teamName" 
+            placeholder="New team name" 
+            className="new-team-input" 
+            required 
+          />
+          <button type="submit" className="create-team-btn">
+            <Plus size={16} />
+            Create Team
+          </button>
+        </form>
+
+        <button onClick={logout} className="sign-out-btn">
+          <LogOut size={16} />
+          Sign Out
+        </button>
+      </div>
+
+      <div className="sidebar-divider"></div>
+
+      {/* Teams Section Header */}
+      <div className="flex items-center justify-between px-4">
+        <h2 className="sidebar-section-title">Teams</h2>
+        {teams.length > 0 && (
+          <span className="team-counter">
+            {teams.length}
+          </span>
+        )}
+      </div>
+
+      {/* Teams List - Flattened */}
+      <div className="flex-1 overflow-y-auto">
+        {teams.map((team) => {
+          const isOwner = team.ownerId === user.uid;
+          const myRole = team.members?.[user.uid];
+          const ownerData = avatars[team.ownerId];
+          const isActive = activeTeam === team.id;
+          const stats = teamStats[team.id] || { memberCount: 0, promptCount: 0 };
+
+          return (
+            <div key={team.id}>
+              <button
+                onClick={() => {
+                  setActiveTeam(team.id);
+                  setActiveView("prompts");
+                  setSidebarOpen(false);
+                }}
+                className={`team-list-item ${isActive ? "active" : ""}`}
+              >
+                <UserAvatar
+                  src={ownerData?.avatar}
+                  name={ownerData?.name}
+                  email={ownerData?.email}
+                  className="team-avatar"
+                />
+                <div className="team-info">
+                  <div className="team-name">{team.name}</div>
+                  <div className="team-meta">
+                    {myRole === "admin" && (
+                      <span className="role-badge-inline">admin</span>
+                    )}
+                    {myRole === "owner" && (
+                      <span className="role-badge-inline">owner</span>
+                    )}
+                    <span className="team-count-indicator">
+                      <Users size={12} />
+                      {stats.memberCount}
+                    </span>
+                    <span className="team-count-indicator">
+                      <FileText size={12} />
+                      {stats.promptCount}
+                    </span>
+                  </div>
+                </div>
+              </button>
+
+              {/* Expanded details when active */}
+              {isActive && (
+                <div className="px-4 py-2 flex items-center justify-between text-xs" 
+                  style={{ 
+                    color: "var(--muted-foreground)",
+                    backgroundColor: "rgba(139, 92, 246, 0.03)"
+                  }}>
+                  <span className="owner-label">
+                    Owner: {ownerData?.name || ownerData?.email || "Unknown"}
+                  </span>
+                  {isOwner && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (window.confirm(`Delete team "${team.name}"? This cannot be undone.`)) {
+                          deleteTeam(team.id);
+                        }
+                      }}
+                      className="action-btn-premium danger"
+                      title="Delete team"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {teams.length === 0 && (
+          <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--muted-foreground)" }}>
+            <p>No teams yet</p>
+            <p className="text-xs mt-1">Create your first team above</p>
+          </div>
+        )}
+      </div>
+    </div>
+
+   
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
