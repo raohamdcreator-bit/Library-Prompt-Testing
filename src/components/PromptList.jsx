@@ -27,18 +27,16 @@ import {
   Trash2,
   ChevronDown,
   MoreVertical,
-  Eye,
   Lock,
   Unlock,
   Maximize2,
-  Check,
 } from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
 import Comments from "./Comments";
 import { FavoriteButton } from "./Favorites";
 import { CompactAITools } from "./AIModelTools";
 import AdvancedSearch from "./AdvancedSearch";
-import BulkOperations, { PromptSelector } from "./BulkOperations";
+import BulkOperations from "./BulkOperations";
 import ExportImport, { ExportUtils } from "./ExportImport";
 import usePagination, { PaginationControls } from "../hooks/usePagination";
 import AIPromptEnhancer from "./AIPromptEnhancer";
@@ -861,4 +859,57 @@ export default function PromptList({ activeTeam, userRole }) {
       {/* Bottom Pagination */}
       {filteredPrompts.length > 0 && (
         <PaginationControls
-          pagination={pagination
+          pagination={pagination}
+          showPageSizeSelector={false}
+          showSearch={false}
+        />
+      )}
+
+      {/* Import/Export */}
+      <ExportImport
+        onImport={async (importedPrompts) => {
+          let successCount = 0;
+          for (const prompt of importedPrompts) {
+            try {
+              await savePrompt(user.uid, prompt, activeTeam);
+              successCount++;
+            } catch (error) {
+              console.error("Import error:", error);
+            }
+          }
+          if (successCount > 0) {
+            showSuccessToast(`Imported ${successCount} prompts`);
+          }
+        }}
+        teamId={activeTeam}
+        teamName={teamName}
+        userRole={userRole}
+      />
+
+      {/* Modals */}
+      {showEditModal && editingPrompt && (
+        <EditPromptModal
+          open={showEditModal}
+          prompt={editingPrompt}
+          onClose={() => {
+            setShowEditModal(false);
+            setEditingPrompt(null);
+          }}
+          onSave={(updates) => handleUpdate(editingPrompt.id, updates)}
+        />
+      )}
+
+      {showAIEnhancer && currentPromptForAI && (
+        <AIPromptEnhancer
+          prompt={currentPromptForAI}
+          onApply={handleApplyAIEnhancement}
+          onSaveAsNew={handleSaveAIAsNew}
+          onClose={() => {
+            setShowAIEnhancer(false);
+            setCurrentPromptForAI(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
