@@ -1,4 +1,4 @@
-// src/components/TeamSelector.jsx - ChatGPT-style Professional Sidebar
+// src/components/TeamSelector.jsx
 import { useEffect, useState } from "react";
 import { db } from "../lib/firebase";
 import { collection, onSnapshot, query, where } from "firebase/firestore";
