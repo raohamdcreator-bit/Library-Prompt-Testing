@@ -1,4 +1,5 @@
 // src/pages/About.jsx
+import { Target, Sparkles, Brain, Users, Star, BarChart, Settings, Mail } from "lucide-react";
 import LegalLayout from "../components/LegalLayout";
 
 export default function About() {
@@ -8,7 +9,7 @@ export default function About() {
         {/* Mission Section */}
         <section>
           <div className="flex items-center gap-3 mb-4">
-            <span className="text-3xl">🎯</span>
+            <Target className="w-8 h-8" style={{ color: "var(--primary)" }} />
             <h2
               className="text-2xl font-bold"
               style={{ color: "var(--foreground)" }}
@@ -38,7 +39,7 @@ export default function About() {
         {/* What We Offer */}
         <section>
           <div className="flex items-center gap-3 mb-4">
-            <span className="text-3xl">✨</span>
+            <Sparkles className="w-8 h-8" style={{ color: "var(--primary)" }} />
             <h2
               className="text-2xl font-bold"
               style={{ color: "var(--foreground)" }}
@@ -54,12 +55,15 @@ export default function About() {
                 borderColor: "var(--border)",
               }}
             >
-              <h3
-                className="font-semibold mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
-                🧠 Smart Library
-              </h3>
+              <div className="flex items-center gap-2 mb-2">
+                <Brain className="w-5 h-5" style={{ color: "var(--primary)" }} />
+                <h3
+                  className="font-semibold"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  Smart Library
+                </h3>
+              </div>
               <p
                 className="text-sm"
                 style={{ color: "var(--muted-foreground)" }}
@@ -75,12 +79,15 @@ export default function About() {
                 borderColor: "var(--border)",
               }}
             >
-              <h3
-                className="font-semibold mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
-                👥 Team Collaboration
-              </h3>
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-5 h-5" style={{ color: "var(--primary)" }} />
+                <h3
+                  className="font-semibold"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  Team Collaboration
+                </h3>
+              </div>
               <p
                 className="text-sm"
                 style={{ color: "var(--muted-foreground)" }}
@@ -96,12 +103,15 @@ export default function About() {
                 borderColor: "var(--border)",
               }}
             >
-              <h3
-                className="font-semibold mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
-                ⭐ Ratings & Favorites
-              </h3>
+              <div className="flex items-center gap-2 mb-2">
+                <Star className="w-5 h-5" style={{ color: "var(--primary)" }} />
+                <h3
+                  className="font-semibold"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  Ratings & Favorites
+                </h3>
+              </div>
               <p
                 className="text-sm"
                 style={{ color: "var(--muted-foreground)" }}
@@ -117,12 +127,15 @@ export default function About() {
                 borderColor: "var(--border)",
               }}
             >
-              <h3
-                className="font-semibold mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
-                📊 Analytics
-              </h3>
+              <div className="flex items-center gap-2 mb-2">
+                <BarChart className="w-5 h-5" style={{ color: "var(--primary)" }} />
+                <h3
+                  className="font-semibold"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  Analytics
+                </h3>
+              </div>
               <p
                 className="text-sm"
                 style={{ color: "var(--muted-foreground)" }}
@@ -137,7 +150,7 @@ export default function About() {
         {/* Technology */}
         <section>
           <div className="flex items-center gap-3 mb-4">
-            <span className="text-3xl">⚙️</span>
+            <Settings className="w-8 h-8" style={{ color: "var(--primary)" }} />
             <h2
               className="text-2xl font-bold"
               style={{ color: "var(--foreground)" }}
@@ -203,7 +216,8 @@ export default function About() {
           <p className="mb-4" style={{ color: "var(--muted-foreground)" }}>
             Have questions or feedback? We'd love to hear from you.
           </p>
-          <a href="/contact" className="btn-primary px-6 py-3 inline-block">
+          <a href="/contact" className="btn-primary px-6 py-3 inline-flex items-center gap-2">
+            <Mail className="w-4 h-4" />
             Contact Us
           </a>
         </section>
