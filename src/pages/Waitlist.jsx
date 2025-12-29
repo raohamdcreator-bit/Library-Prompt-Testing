@@ -1,5 +1,6 @@
-// src/pages/Waitlist.jsx - Complete Waitlist Page
+// src/pages/Waitlist.jsx
 import { useState } from "react";
+import { Rocket, CheckCircle2, XCircle, Zap, MessageCircle, Crown } from "lucide-react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
@@ -23,24 +24,28 @@ export default function Waitlist({ onNavigate }) {
     }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.email || !formData.role) {
+      setStatus({
+        type: "error",
+        message: "Please fill in all required fields",
+      });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      setStatus({
+        type: "error",
+        message: "Please enter a valid email address",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     setStatus({ type: "", message: "" });
 
     try {
-      // Validate required fields
-      if (!formData.name || !formData.email || !formData.role) {
-        throw new Error("Please fill in all required fields");
-      }
-
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.email)) {
-        throw new Error("Please enter a valid email address");
-      }
-
-      // Submit to Firestore
       await addDoc(collection(db, "waitlist"), {
         name: formData.name.trim(),
         email: formData.email.toLowerCase().trim(),
@@ -59,7 +64,6 @@ export default function Waitlist({ onNavigate }) {
           "You're on the list! We'll reach out soon with early access details.",
       });
 
-      // Reset form
       setFormData({
         name: "",
         email: "",
@@ -131,7 +135,7 @@ export default function Waitlist({ onNavigate }) {
               boxShadow: "0 0 10px var(--glow-purple-bright)",
             }}
           >
-            <span className="text-sm">🚀</span>
+            <Rocket className="w-4 h-4" />
             <span className="text-sm font-medium">Limited Early Access</span>
           </div>
 
@@ -175,7 +179,7 @@ export default function Waitlist({ onNavigate }) {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-6">
               {/* Name */}
               <div>
                 <label
@@ -191,7 +195,6 @@ export default function Waitlist({ onNavigate }) {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  required
                   className="form-input w-full"
                   placeholder="Your full name"
                   disabled={isSubmitting}
@@ -213,7 +216,6 @@ export default function Waitlist({ onNavigate }) {
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  required
                   className="form-input w-full"
                   placeholder="you@example.com"
                   disabled={isSubmitting}
@@ -234,7 +236,6 @@ export default function Waitlist({ onNavigate }) {
                   name="role"
                   value={formData.role}
                   onChange={handleChange}
-                  required
                   className="form-input w-full"
                   disabled={isSubmitting}
                 >
@@ -256,7 +257,7 @@ export default function Waitlist({ onNavigate }) {
                 >
                   Institution / Company{" "}
                   <span style={{ color: "var(--muted-foreground)" }}>
-                    (required)
+                    (optional)
                   </span>
                 </label>
                 <input
@@ -278,9 +279,9 @@ export default function Waitlist({ onNavigate }) {
                   className="block text-sm font-medium mb-2"
                   style={{ color: "var(--foreground)" }}
                 >
-                  Tell Us How You Plan to Use Prism?{" "}
+                  Tell Us How You Plan to Use Prism{" "}
                   <span style={{ color: "var(--muted-foreground)" }}>
-                    (required)
+                    (optional)
                   </span>
                 </label>
                 <textarea
@@ -334,9 +335,11 @@ export default function Waitlist({ onNavigate }) {
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">
-                      {status.type === "success" ? "✅" : "❌"}
-                    </span>
+                    {status.type === "success" ? (
+                      <CheckCircle2 className="w-5 h-5 text-green-300" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-red-300" />
+                    )}
                     <p
                       className={
                         status.type === "success"
@@ -352,7 +355,7 @@ export default function Waitlist({ onNavigate }) {
 
               {/* Submit Button */}
               <button
-                type="submit"
+                onClick={handleSubmit}
                 disabled={isSubmitting}
                 className="w-full btn-primary ai-glow py-4 text-lg font-semibold flex items-center justify-center gap-2"
                 style={{ opacity: isSubmitting ? 0.7 : 1 }}
@@ -378,7 +381,7 @@ export default function Waitlist({ onNavigate }) {
                 shape its development. We respect your privacy and won't share
                 your information.
               </p>
-            </form>
+            </div>
           </div>
         </div>
       </section>
@@ -395,17 +398,17 @@ export default function Waitlist({ onNavigate }) {
           <div className="grid md:grid-cols-3 gap-6">
             {[
               {
-                icon: "⚡",
+                Icon: Zap,
                 title: "Priority Access",
                 desc: "Be first to try new features and AI governance tools",
               },
               {
-                icon: "💬",
+                Icon: MessageCircle,
                 title: "Direct Input",
                 desc: "Shape the platform with your feedback and ideas",
               },
               {
-                icon: "👑",
+                Icon: Crown,
                 title: "Exclusive Resources",
                 desc: "Early access to guides, tutorials, and best practices",
               },
@@ -415,7 +418,9 @@ export default function Waitlist({ onNavigate }) {
                 className="glass-card p-6 rounded-lg border"
                 style={{ borderColor: "var(--border)" }}
               >
-                <div className="text-4xl mb-4">{benefit.icon}</div>
+                <div className="flex justify-center mb-4">
+                  <benefit.Icon className="w-10 h-10" style={{ color: "var(--primary)" }} />
+                </div>
                 <h4
                   className="font-semibold mb-2"
                   style={{ color: "var(--foreground)" }}
