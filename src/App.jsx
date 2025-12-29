@@ -391,7 +391,7 @@ function LandingPage({ onSignIn, onNavigate }) {
         />
 
         {/* Hero Section */}
-        <section className="container mx-auto px-4 py-20 md:py-32">
+        <section className="container mx-auto px-4 py-10 md:py-12">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
               <div className="hero-badge mb-6 pulse-glow">
