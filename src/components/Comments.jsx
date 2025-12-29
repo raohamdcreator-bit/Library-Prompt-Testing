@@ -535,7 +535,7 @@ export default function Comments({ teamId, promptId, userRole }) {
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div 
+            {/* <div 
               className="w-10 h-10 rounded-lg flex items-center justify-center"
               style={{ backgroundColor: "var(--primary)" }}
             >
@@ -543,7 +543,7 @@ export default function Comments({ teamId, promptId, userRole }) {
                 className="w-5 h-5"
                 style={{ color: "var(--primary-foreground)" }}
               />
-            </div>
+            </div> */}
             <div>
               <h3
                 className="text-base md:text-lg font-bold"
