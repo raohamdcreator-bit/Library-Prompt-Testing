@@ -343,7 +343,7 @@ export default function TeamChat({
         position === "right" ? "right-0 border-l" : "left-80 border-r"
       }`}
       style={{
-        top: "145px", // Below navbar
+        top: "125px", // Below navbar
         bottom: 0,
         width: "380px",
         backgroundColor: "var(--background)",
