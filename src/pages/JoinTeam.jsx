@@ -1,5 +1,6 @@
-// src/pages/JoinTeam.jsx - FIXED with atomic transactions and race condition prevention
+// src/pages/JoinTeam.jsx
 import { useEffect, useState } from "react";
+import { Lock, PartyPopper, XCircle, Search, Lightbulb, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { db } from "../lib/firebase";
 import {
@@ -51,9 +52,7 @@ export default function JoinTeam({ onNavigate }) {
       setStatus("processing");
       setMessage("Processing your invitation...");
 
-      // ✅ Use transaction to prevent race conditions
       await runTransaction(db, async (transaction) => {
-        // STEP 1: Get team data
         const teamRef = doc(db, "teams", teamId);
         const teamDoc = await transaction.get(teamRef);
 
@@ -64,12 +63,10 @@ export default function JoinTeam({ onNavigate }) {
         const teamData = teamDoc.data();
         setTeamName(teamData.name);
 
-        // STEP 2: Check if user is already a member
         if (teamData.members && teamData.members[user.uid]) {
           throw new Error("ALREADY_MEMBER");
         }
 
-        // STEP 3: Find valid pending invite
         const normalizedEmail = user.email.toLowerCase();
         console.log("🔍 Looking for invites with email:", normalizedEmail);
 
@@ -85,7 +82,6 @@ export default function JoinTeam({ onNavigate }) {
         console.log("📨 Found invites:", inviteSnapshot.size);
 
         if (inviteSnapshot.empty) {
-          // Get all pending invites for debugging
           const allInvitesQuery = query(
             invitesRef,
             where("teamId", "==", teamId),
@@ -105,7 +101,6 @@ export default function JoinTeam({ onNavigate }) {
           };
         }
 
-        // STEP 4: Validate invite and check expiration
         const inviteDoc = inviteSnapshot.docs[0];
         const inviteData = inviteDoc.data();
         const inviteRef = doc(db, "team-invites", inviteDoc.id);
@@ -116,18 +111,15 @@ export default function JoinTeam({ onNavigate }) {
           invitedBy: inviteData.inviterName,
         });
 
-        // Check if invite has expired
         const now = Timestamp.now();
         if (inviteData.expiresAt && inviteData.expiresAt.toMillis() < now.toMillis()) {
           throw new Error("INVITE_EXPIRED");
         }
 
-        // STEP 5: Update team members (add user)
         transaction.update(teamRef, {
           [`members.${user.uid}`]: inviteData.role || "member",
         });
 
-        // STEP 6: Mark invite as accepted
         transaction.update(inviteRef, {
           status: "accepted",
           acceptedAt: Timestamp.now(),
@@ -143,7 +135,6 @@ export default function JoinTeam({ onNavigate }) {
         };
       });
 
-      // Transaction succeeded
       console.log("✅ Successfully joined team!");
 
       setStatus("success");
@@ -151,7 +142,6 @@ export default function JoinTeam({ onNavigate }) {
         `Successfully joined "${teamName}" as member!`
       );
 
-      // Redirect to home after 2 seconds
       setTimeout(() => {
         onNavigate("/");
       }, 2000);
@@ -159,7 +149,6 @@ export default function JoinTeam({ onNavigate }) {
       console.error("❌ Error accepting invitation:", err);
       setError(err);
 
-      // Handle specific error cases
       if (err.message === "TEAM_NOT_FOUND") {
         setStatus("error");
         setMessage(
@@ -204,7 +193,6 @@ export default function JoinTeam({ onNavigate }) {
         return;
       }
 
-      // Generic error handling
       setStatus("error");
 
       let errorMessage = "Failed to accept invitation. ";
@@ -255,7 +243,9 @@ export default function JoinTeam({ onNavigate }) {
 
         {status === "signin_required" && (
           <div className="text-center">
-            <div className="text-6xl mb-4">🔐</div>
+            <div className="flex justify-center mb-4">
+              <Lock className="w-16 h-16" style={{ color: "var(--primary)" }} />
+            </div>
             <h2
               className="text-xl font-bold mb-4"
               style={{ color: "var(--foreground)" }}
@@ -296,7 +286,9 @@ export default function JoinTeam({ onNavigate }) {
 
         {status === "already_member" && (
           <div className="text-center">
-            <div className="text-6xl mb-4">✅</div>
+            <div className="flex justify-center mb-4">
+              <CheckCircle2 className="w-16 h-16" style={{ color: "var(--success)" }} />
+            </div>
             <h2
               className="text-xl font-bold mb-4"
               style={{ color: "var(--foreground)" }}
@@ -328,7 +320,9 @@ export default function JoinTeam({ onNavigate }) {
 
         {status === "success" && (
           <div className="text-center">
-            <div className="text-6xl mb-4">🎉</div>
+            <div className="flex justify-center mb-4">
+              <PartyPopper className="w-16 h-16" style={{ color: "var(--primary)" }} />
+            </div>
             <h2
               className="text-xl font-bold mb-4"
               style={{ color: "var(--foreground)" }}
@@ -360,7 +354,9 @@ export default function JoinTeam({ onNavigate }) {
 
         {status === "error" && (
           <div className="text-center">
-            <div className="text-6xl mb-4">❌</div>
+            <div className="flex justify-center mb-4">
+              <XCircle className="w-16 h-16" style={{ color: "var(--destructive)" }} />
+            </div>
             <h2
               className="text-xl font-bold mb-4"
               style={{ color: "var(--destructive)" }}
@@ -371,14 +367,14 @@ export default function JoinTeam({ onNavigate }) {
               {message}
             </p>
 
-            {/* Debug Information */}
             {debugInfo && process.env.NODE_ENV === "development" && (
               <details className="mb-4 text-left">
                 <summary
-                  className="text-sm cursor-pointer mb-2"
+                  className="text-sm cursor-pointer mb-2 flex items-center gap-2"
                   style={{ color: "var(--muted-foreground)" }}
                 >
-                  🔍 Debug Information (Dev Mode)
+                  <Search className="w-4 h-4" />
+                  Debug Information (Dev Mode)
                 </summary>
                 <div
                   className="mt-2 p-3 rounded text-xs"
@@ -391,7 +387,6 @@ export default function JoinTeam({ onNavigate }) {
               </details>
             )}
 
-            {/* User-friendly troubleshooting */}
             <div
               className="p-4 rounded-lg mb-4 text-left"
               style={{
@@ -400,10 +395,11 @@ export default function JoinTeam({ onNavigate }) {
               }}
             >
               <h3
-                className="font-semibold mb-2 text-sm"
+                className="font-semibold mb-2 text-sm flex items-center gap-2"
                 style={{ color: "var(--foreground)" }}
               >
-                💡 Troubleshooting Tips:
+                <Lightbulb className="w-4 h-4" style={{ color: "var(--primary)" }} />
+                Troubleshooting Tips:
               </h3>
               <ul
                 className="text-xs space-y-2"
@@ -448,7 +444,6 @@ export default function JoinTeam({ onNavigate }) {
           </div>
         )}
 
-        {/* Footer Help Text */}
         <div
           className="mt-6 text-center text-xs"
           style={{ color: "var(--muted-foreground)" }}
