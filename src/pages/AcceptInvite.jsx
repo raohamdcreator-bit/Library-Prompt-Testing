@@ -1,5 +1,6 @@
 // src/components/AcceptInvite.jsx
 import { useEffect, useState } from "react";
+import { Clock, CheckCircle2, XCircle, Info } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { db } from "../lib/firebase";
 import {
@@ -105,13 +106,13 @@ export default function AcceptInvite({
   const getStatusIcon = () => {
     switch (status) {
       case "processing":
-        return "⏳";
+        return <Clock className="w-12 h-12" />;
       case "success":
-        return "✅";
+        return <CheckCircle2 className="w-12 h-12" />;
       case "error":
-        return "❌";
+        return <XCircle className="w-12 h-12" />;
       default:
-        return "ℹ️";
+        return <Info className="w-12 h-12" />;
     }
   };
 
@@ -119,7 +120,9 @@ export default function AcceptInvite({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
         <div className="text-center">
-          <div className="text-4xl mb-4">{getStatusIcon()}</div>
+          <div className={`flex justify-center mb-4 ${getStatusColor()}`}>
+            {getStatusIcon()}
+          </div>
           <h3 className="text-lg font-semibold mb-2">
             {status === "processing" && "Processing Invite"}
             {status === "success" && "Invite Accepted!"}
