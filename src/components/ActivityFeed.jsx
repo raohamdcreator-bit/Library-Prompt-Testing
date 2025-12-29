@@ -1,4 +1,4 @@
-// src/components/ActivityFeed.jsx - Complete Updated to match demo UI
+// src/components/ActivityFeed.jsx - Modernized with Professional Icons
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -13,6 +13,11 @@ import {
   addDoc,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { 
+  Plus, Edit2, Trash2, Star, UserPlus, UserMinus, 
+  RefreshCw, Activity, Filter, Download, FileText,
+  MessageSquare, Copy, TrendingUp, Users
+} from 'lucide-react';
 
 // Activity Logger utility for creating activity records
 export const ActivityLogger = {
@@ -80,8 +85,8 @@ export default function ActivityFeed({ teamId }) {
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userProfiles, setUserProfiles] = useState({});
-  const [filter, setFilter] = useState("all"); // all, prompts, members, ratings
-  const [timeFilter, setTimeFilter] = useState("week"); // today, week, month, all
+  const [filter, setFilter] = useState("all");
+  const [timeFilter, setTimeFilter] = useState("week");
 
   useEffect(() => {
     if (!teamId) {
@@ -89,7 +94,6 @@ export default function ActivityFeed({ teamId }) {
       return;
     }
 
-    // Try to load from activities collection, fallback to generating from prompts
     const activitiesRef = collection(db, "teams", teamId, "activities");
     const q = query(activitiesRef, orderBy("timestamp", "desc"), limit(100));
 
@@ -99,7 +103,6 @@ export default function ActivityFeed({ teamId }) {
         let activityItems = [];
 
         if (snapshot.empty) {
-          // Fallback: Generate activities from prompts collection
           const promptsRef = collection(db, "teams", teamId, "prompts");
           const promptsQuery = query(
             promptsRef,
@@ -122,7 +125,6 @@ export default function ActivityFeed({ teamId }) {
           promptData.forEach((prompt) => {
             if (prompt.createdBy) userIds.add(prompt.createdBy);
 
-            // Add creation activity
             activityItems.push({
               id: `created-${prompt.id}`,
               type: "prompt_created",
@@ -136,7 +138,6 @@ export default function ActivityFeed({ teamId }) {
               },
             });
 
-            // Add update activity if updated
             if (prompt.updatedAt && prompt.updatedAt !== prompt.createdAt) {
               activityItems.push({
                 id: `updated-${prompt.id}`,
@@ -151,7 +152,6 @@ export default function ActivityFeed({ teamId }) {
               });
             }
 
-            // Add rating activity if exists
             if (prompt.stats?.lastRated && prompt.stats?.averageRating > 0) {
               activityItems.push({
                 id: `rated-${prompt.id}-${prompt.stats.lastRated.toMillis()}`,
@@ -168,7 +168,6 @@ export default function ActivityFeed({ teamId }) {
             }
           });
 
-          // Load user profiles
           const profiles = {};
           for (const userId of userIds) {
             try {
@@ -182,13 +181,11 @@ export default function ActivityFeed({ teamId }) {
           }
           setUserProfiles(profiles);
         } else {
-          // Use real activities collection
           activityItems = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
           }));
 
-          // Load user profiles for activities
           const userIds = new Set(
             activityItems.map((a) => a.userId).filter(Boolean)
           );
@@ -207,7 +204,6 @@ export default function ActivityFeed({ teamId }) {
           setUserProfiles(profiles);
         }
 
-        // Sort by timestamp
         activityItems.sort((a, b) => {
           const aTime = a.timestamp?.toMillis() || 0;
           const bTime = b.timestamp?.toMillis() || 0;
@@ -226,9 +222,7 @@ export default function ActivityFeed({ teamId }) {
     return () => unsub();
   }, [teamId]);
 
-  // Filter activities based on selected filters
   const filteredActivities = activities.filter((activity) => {
-    // Type filter
     const typeMatch = (() => {
       switch (filter) {
         case "prompts":
@@ -250,7 +244,6 @@ export default function ActivityFeed({ teamId }) {
 
     if (!typeMatch) return false;
 
-    // Time filter
     const timeMatch = (() => {
       if (timeFilter === "all" || !activity.timestamp) return true;
 
@@ -260,11 +253,11 @@ export default function ActivityFeed({ teamId }) {
 
       switch (timeFilter) {
         case "today":
-          return diffMs < 24 * 60 * 60 * 1000; // 24 hours
+          return diffMs < 24 * 60 * 60 * 1000;
         case "week":
-          return diffMs < 7 * 24 * 60 * 60 * 1000; // 7 days
+          return diffMs < 7 * 24 * 60 * 60 * 1000;
         case "month":
-          return diffMs < 30 * 24 * 60 * 60 * 1000; // 30 days
+          return diffMs < 30 * 24 * 60 * 60 * 1000;
         default:
           return true;
       }
@@ -276,21 +269,21 @@ export default function ActivityFeed({ teamId }) {
   function getActivityIcon(type) {
     switch (type) {
       case "prompt_created":
-        return "➕";
+        return Plus;
       case "prompt_updated":
-        return "✏️";
+        return Edit2;
       case "prompt_deleted":
-        return "🗑️";
+        return Trash2;
       case "prompt_rated":
-        return "⭐";
+        return Star;
       case "member_joined":
-        return "👋";
+        return UserPlus;
       case "member_left":
-        return "👋";
+        return UserMinus;
       case "role_changed":
-        return "🔄";
+        return RefreshCw;
       default:
-        return "📝";
+        return FileText;
     }
   }
 
@@ -303,7 +296,7 @@ export default function ActivityFeed({ teamId }) {
       case "prompt_deleted":
         return "var(--destructive)";
       case "prompt_rated":
-        return "#fbbf24"; // yellow
+        return "#fbbf24";
       case "member_joined":
         return "var(--primary)";
       case "member_left":
@@ -526,12 +519,7 @@ export default function ActivityFeed({ teamId }) {
               className="w-10 h-10 rounded-lg flex items-center justify-center"
               style={{ backgroundColor: "var(--primary)" }}
             >
-              <span
-                className="text-lg"
-                style={{ color: "var(--primary-foreground)" }}
-              >
-                ⚡
-              </span>
+              <Activity size={20} style={{ color: "var(--primary-foreground)" }} />
             </div>
             <div>
               <h3
@@ -549,7 +537,6 @@ export default function ActivityFeed({ teamId }) {
             </div>
           </div>
 
-          {/* Export Activity Button */}
           <button
             onClick={() => {
               const csvData = filteredActivities.map((activity) => ({
@@ -582,20 +569,19 @@ export default function ActivityFeed({ teamId }) {
               document.body.removeChild(a);
               URL.revokeObjectURL(url);
             }}
-            className="px-4 py-2 text-sm rounded-lg border transition-colors"
+            className="px-4 py-2 text-sm rounded-lg border transition-colors flex items-center gap-2"
             style={{
               backgroundColor: "var(--secondary)",
               borderColor: "var(--border)",
               color: "var(--secondary-foreground)",
             }}
           >
+            <Download size={16} />
             Export CSV
           </button>
         </div>
 
-        {/* Filters Row */}
         <div className="flex flex-col sm:flex-row gap-4">
-          {/* Activity Type Filter */}
           <div>
             <label
               className="text-sm font-medium mb-2 block"
@@ -611,36 +597,38 @@ export default function ActivityFeed({ teamId }) {
               }}
             >
               {[
-                { key: "all", label: "All", icon: "📋" },
-                { key: "prompts", label: "Prompts", icon: "📝" },
-                { key: "ratings", label: "Ratings", icon: "⭐" },
-                { key: "members", label: "Members", icon: "👥" },
-              ].map((filterOption) => (
-                <button
-                  key={filterOption.key}
-                  onClick={() => setFilter(filterOption.key)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-1 ${
-                    filter === filterOption.key
-                      ? "text-primary-foreground"
-                      : "hover:text-foreground"
-                  }`}
-                  style={
-                    filter === filterOption.key
-                      ? {
-                          backgroundColor: "var(--primary)",
-                          color: "var(--primary-foreground)",
-                        }
-                      : { color: "var(--muted-foreground)" }
-                  }
-                >
-                  <span className="text-xs">{filterOption.icon}</span>
-                  {filterOption.label}
-                </button>
-              ))}
+                { key: "all", label: "All", icon: FileText },
+                { key: "prompts", label: "Prompts", icon: FileText },
+                { key: "ratings", label: "Ratings", icon: Star },
+                { key: "members", label: "Members", icon: Users },
+              ].map((filterOption) => {
+                const Icon = filterOption.icon;
+                return (
+                  <button
+                    key={filterOption.key}
+                    onClick={() => setFilter(filterOption.key)}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-1.5 ${
+                      filter === filterOption.key
+                        ? "text-primary-foreground"
+                        : "hover:text-foreground"
+                    }`}
+                    style={
+                      filter === filterOption.key
+                        ? {
+                            backgroundColor: "var(--primary)",
+                            color: "var(--primary-foreground)",
+                          }
+                        : { color: "var(--muted-foreground)" }
+                    }
+                  >
+                    <Icon size={14} />
+                    {filterOption.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Time Filter */}
           <div>
             <label
               className="text-sm font-medium mb-2 block"
@@ -671,7 +659,9 @@ export default function ActivityFeed({ teamId }) {
       <div className="glass-card p-6">
         {filteredActivities.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-4xl mb-4">📭</div>
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--muted)' }}>
+              <Activity size={32} color="var(--muted-foreground)" />
+            </div>
             <h4
               className="font-medium mb-2"
               style={{ color: "var(--foreground)" }}
@@ -706,85 +696,82 @@ export default function ActivityFeed({ teamId }) {
               )}
             </div>
 
-            {filteredActivities.slice(0, 50).map((activity, index) => (
-              <div
-                key={`${activity.id}-${index}`}
-                className="flex items-start gap-3 p-3 rounded-lg transition-colors hover:bg-white/5"
-              >
-                {/* Activity Icon */}
+            {filteredActivities.slice(0, 50).map((activity, index) => {
+              const Icon = getActivityIcon(activity.type);
+              return (
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0"
-                  style={{
-                    backgroundColor: `${getActivityColor(activity.type)}20`,
-                    color: getActivityColor(activity.type),
-                  }}
+                  key={`${activity.id}-${index}`}
+                  className="flex items-start gap-3 p-3 rounded-lg transition-colors hover:bg-white/5"
                 >
-                  {getActivityIcon(activity.type)}
-                </div>
-
-                {/* User Avatar */}
-                <UserAvatar userId={activity.userId} />
-
-                {/* Activity Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm mb-1">
-                    {formatActivityMessage(activity)}
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0"
+                    style={{
+                      backgroundColor: `${getActivityColor(activity.type)}20`,
+                      color: getActivityColor(activity.type),
+                    }}
+                  >
+                    <Icon size={16} />
                   </div>
 
-                  {/* Activity Metadata */}
-                  <div
-                    className="flex items-center gap-3 text-xs flex-wrap"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    <span>{formatRelativeTime(activity.timestamp)}</span>
+                  <UserAvatar userId={activity.userId} />
 
-                    {activity.metadata?.tags &&
-                      activity.metadata.tags.length > 0 && (
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm mb-1">
+                      {formatActivityMessage(activity)}
+                    </div>
+
+                    <div
+                      className="flex items-center gap-3 text-xs flex-wrap"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      <span>{formatRelativeTime(activity.timestamp)}</span>
+
+                      {activity.metadata?.tags &&
+                        activity.metadata.tags.length > 0 && (
+                          <>
+                            <span>•</span>
+                            <div className="flex gap-1">
+                              {activity.metadata.tags.slice(0, 2).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="px-1.5 py-0.5 rounded text-xs"
+                                  style={{
+                                    backgroundColor: "var(--secondary)",
+                                    color: "var(--secondary-foreground)",
+                                  }}
+                                >
+                                  #{tag}
+                                </span>
+                              ))}
+                              {activity.metadata.tags.length > 2 && (
+                                <span
+                                  style={{ color: "var(--muted-foreground)" }}
+                                >
+                                  +{activity.metadata.tags.length - 2} more
+                                </span>
+                              )}
+                            </div>
+                          </>
+                        )}
+
+                      {activity.metadata?.totalRatings && (
                         <>
                           <span>•</span>
-                          <div className="flex gap-1">
-                            {activity.metadata.tags.slice(0, 2).map((tag) => (
-                              <span
-                                key={tag}
-                                className="px-1.5 py-0.5 rounded text-xs"
-                                style={{
-                                  backgroundColor: "var(--secondary)",
-                                  color: "var(--secondary-foreground)",
-                                }}
-                              >
-                                #{tag}
-                              </span>
-                            ))}
-                            {activity.metadata.tags.length > 2 && (
-                              <span
-                                style={{ color: "var(--muted-foreground)" }}
-                              >
-                                +{activity.metadata.tags.length - 2} more
-                              </span>
-                            )}
-                          </div>
+                          <span>
+                            {activity.metadata.totalRatings} total ratings
+                          </span>
                         </>
                       )}
-
-                    {activity.metadata?.totalRatings && (
-                      <>
-                        <span>•</span>
-                        <span>
-                          {activity.metadata.totalRatings} total ratings
-                        </span>
-                      </>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
 
-            {/* Show More Button */}
             {filteredActivities.length > 50 && (
               <div className="text-center pt-4">
                 <button
                   onClick={() => {
-                    // This would load more activities in a real implementation
                     alert(
                       `Showing ${Math.min(50, filteredActivities.length)} of ${
                         filteredActivities.length
