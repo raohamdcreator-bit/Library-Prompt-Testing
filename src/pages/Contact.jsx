@@ -1,5 +1,6 @@
-// src/pages/Contact.jsx - Updated for Custom Navigation
+// src/pages/Contact.jsx
 import { useState } from "react";
+import { Mail, MessageCircle, BookOpen, Send } from "lucide-react";
 import LegalLayout, { useNavigation } from "../components/LegalLayout";
 
 export default function Contact() {
@@ -19,8 +20,15 @@ export default function Contact() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.email || !formData.subject || !formData.message) {
+      setStatus({
+        type: "error",
+        message: "Please fill in all required fields.",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     setStatus({ type: "", message: "" });
 
@@ -72,12 +80,10 @@ export default function Contact() {
               className="w-12 h-12 rounded-lg mx-auto mb-4 flex items-center justify-center"
               style={{ backgroundColor: "var(--primary)" }}
             >
-              <span
-                className="text-2xl"
+              <Mail
+                className="w-6 h-6"
                 style={{ color: "var(--primary-foreground)" }}
-              >
-                📧
-              </span>
+              />
             </div>
             <h3
               className="font-semibold mb-2"
@@ -92,11 +98,11 @@ export default function Contact() {
               Get help via email
             </p>
             <a
-              href="mailto:support@prompt-teams.com"
+              href="mailto:research.prismhq@gmail.com"
               className="text-sm"
               style={{ color: "var(--primary)" }}
             >
-              support@prompt-teams.com
+              research.prismhq@gmail.com
             </a>
           </div>
 
@@ -111,12 +117,10 @@ export default function Contact() {
               className="w-12 h-12 rounded-lg mx-auto mb-4 flex items-center justify-center"
               style={{ backgroundColor: "var(--primary)" }}
             >
-              <span
-                className="text-2xl"
+              <MessageCircle
+                className="w-6 h-6"
                 style={{ color: "var(--primary-foreground)" }}
-              >
-                💬
-              </span>
+              />
             </div>
             <h3
               className="font-semibold mb-2"
@@ -149,12 +153,10 @@ export default function Contact() {
               className="w-12 h-12 rounded-lg mx-auto mb-4 flex items-center justify-center"
               style={{ backgroundColor: "var(--primary)" }}
             >
-              <span
-                className="text-2xl"
+              <BookOpen
+                className="w-6 h-6"
                 style={{ color: "var(--primary-foreground)" }}
-              >
-                📚
-              </span>
+              />
             </div>
             <h3
               className="font-semibold mb-2"
@@ -193,7 +195,7 @@ export default function Contact() {
               Send us a Message
             </h2>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label
@@ -209,7 +211,6 @@ export default function Contact() {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    required
                     className="w-full px-4 py-3 rounded-lg border"
                     style={{
                       backgroundColor: "var(--input)",
@@ -234,7 +235,6 @@ export default function Contact() {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    required
                     className="w-full px-4 py-3 rounded-lg border"
                     style={{
                       backgroundColor: "var(--input)",
@@ -259,7 +259,6 @@ export default function Contact() {
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
-                  required
                   className="w-full px-4 py-3 rounded-lg border"
                   style={{
                     backgroundColor: "var(--input)",
@@ -290,7 +289,6 @@ export default function Contact() {
                   name="subject"
                   value={formData.subject}
                   onChange={handleChange}
-                  required
                   className="w-full px-4 py-3 rounded-lg border"
                   style={{
                     backgroundColor: "var(--input)",
@@ -314,7 +312,6 @@ export default function Contact() {
                   name="message"
                   value={formData.message}
                   onChange={handleChange}
-                  required
                   rows={6}
                   className="w-full px-4 py-3 rounded-lg border resize-none"
                   style={{
@@ -353,7 +350,7 @@ export default function Contact() {
               )}
 
               <button
-                type="submit"
+                onClick={handleSubmit}
                 disabled={isSubmitting}
                 className="w-full btn-primary py-3 text-lg font-semibold flex items-center justify-center gap-2"
                 style={{ opacity: isSubmitting ? 0.7 : 1 }}
@@ -366,11 +363,11 @@ export default function Contact() {
                 ) : (
                   <>
                     <span>Send Message</span>
-                    <span>📤</span>
+                    <Send className="w-4 h-4" />
                   </>
                 )}
               </button>
-            </form>
+            </div>
           </div>
         </section>
 
@@ -398,7 +395,7 @@ export default function Contact() {
               },
               {
                 q: "How do I report a security issue?",
-                a: "For security-related concerns, please email security@prompt-teams.com directly. We take security reports very seriously.",
+                a: "For security-related concerns, please email research.prismhq@gmail.com directly. We take security reports very seriously.",
               },
             ].map((faq, index) => (
               <details
