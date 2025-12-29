@@ -13,7 +13,7 @@ export default function TermsOfUse() {
             1. Acceptance of Terms
           </h2>
           <p className="leading-relaxed">
-            By accessing and using Prompt Teams ("the Service"), you accept and
+            By accessing and using Prism ("the Service"), you accept and
             agree to be bound by these Terms of Use. If you do not agree to
             these terms, please do not use the Service.
           </p>
@@ -27,7 +27,7 @@ export default function TermsOfUse() {
             2. Description of Service
           </h2>
           <p className="leading-relaxed mb-3">
-            Prompt Teams provides a collaborative platform for creating,
+            Prism provides a collaborative platform for creating,
             sharing, and managing AI prompts within teams. The Service includes:
           </p>
           <ul className="space-y-2 ml-6">
@@ -239,7 +239,7 @@ export default function TermsOfUse() {
             <p>
               <strong>Contact Form:</strong>{" "}
               <a href="/contact" style={{ color: "var(--primary)" }}>
-                prompt-teams.com/contact
+                prism.com/contact
               </a>
             </p>
           </div>
@@ -253,7 +253,7 @@ export default function TermsOfUse() {
           }}
         >
           <p className="text-sm font-semibold">
-            By using Prompt Teams, you acknowledge that you have read,
+            By using Prism, you acknowledge that you have read,
             understood, and agree to be bound by these Terms of Use.
           </p>
         </section>
