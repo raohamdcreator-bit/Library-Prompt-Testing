@@ -1,4 +1,4 @@
-// src/components/Comments.jsx - Fully Responsive
+// src/components/Comments.jsx - Modernized UI/UX
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -14,6 +14,16 @@ import {
   query,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { 
+  MessageCircle, 
+  Send, 
+  Edit2, 
+  Trash2, 
+  Reply, 
+  X,
+  Loader2,
+  MoreVertical
+} from "lucide-react";
 
 // Comments hook
 export function useComments(teamId, promptId) {
@@ -84,6 +94,7 @@ export function Comment({
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(comment.text);
   const [showReplyForm, setShowReplyForm] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   function getUserInitials(name, email) {
     if (name) {
@@ -103,13 +114,13 @@ export function Comment({
   function UserAvatar({ src, name, email, size = "small", className = "" }) {
     const [imageError, setImageError] = useState(false);
     const avatarClass =
-      size === "small" ? "w-7 h-7 md:w-8 md:h-8" : "w-9 h-9 md:w-10 md:h-10";
+      size === "small" ? "w-8 h-8 md:w-9 md:h-9" : "w-10 h-10 md:w-11 md:h-11";
     const initialsClass = size === "small" ? "text-xs" : "text-sm";
 
     if (!src || imageError) {
       return (
         <div
-          className={`${avatarClass} ${className} rounded-full flex items-center justify-center text-white font-bold transition-transform duration-300 hover:scale-110`}
+          className={`${avatarClass} ${className} rounded-full flex items-center justify-center text-white font-bold transition-transform duration-200 hover:scale-105`}
           style={{ backgroundColor: "var(--primary)" }}
         >
           <span className={initialsClass}>{getUserInitials(name, email)}</span>
@@ -121,7 +132,7 @@ export function Comment({
       <img
         src={src}
         alt="avatar"
-        className={`${avatarClass} ${className} rounded-full border-2 transition-transform duration-300 hover:scale-110`}
+        className={`${avatarClass} ${className} rounded-full border-2 transition-transform duration-200 hover:scale-105`}
         style={{ borderColor: "var(--border)" }}
         onError={() => setImageError(true)}
       />
@@ -134,6 +145,7 @@ export function Comment({
     try {
       await onEdit(comment.id, editText.trim());
       setIsEditing(false);
+      setShowMenu(false);
     } catch (error) {
       alert("Failed to update comment. Please try again.");
     }
@@ -166,138 +178,169 @@ export function Comment({
 
   return (
     <div
-      className={`group flex gap-2 md:gap-4 p-3 md:p-4 rounded-lg border transition-all duration-300 hover:border-primary/50 ${
-        comment.parentId ? "ml-4 md:ml-8 bg-muted/30" : ""
+      className={`group relative p-4 md:p-5 rounded-xl border transition-all duration-200 hover:shadow-lg ${
+        comment.parentId ? "ml-6 md:ml-12" : ""
       }`}
       style={{
-        backgroundColor: comment.parentId ? "var(--muted)" : "var(--card)",
+        backgroundColor: comment.parentId 
+          ? "var(--muted)" 
+          : "var(--card)",
         borderColor: "var(--border)",
       }}
     >
-      <UserAvatar
-        src={profile?.avatar}
-        name={profile?.name}
-        email={profile?.email}
-        size="small"
-        className="mt-0.5 flex-shrink-0"
-      />
+      <div className="flex gap-3 md:gap-4">
+        <UserAvatar
+          src={profile?.avatar}
+          name={profile?.name}
+          email={profile?.email}
+          size="small"
+          className="flex-shrink-0"
+        />
 
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-            <span
-              className="text-xs md:text-sm font-semibold truncate"
-              style={{ color: "var(--foreground)" }}
-            >
-              {profile?.name || profile?.email || "Unknown user"}
-            </span>
-            <div
-              className="flex items-center gap-2 text-xs"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              <span>{formatDate(comment.createdAt)}</span>
-              {comment.updatedAt && (
-                <span className="font-medium">(edited)</span>
-              )}
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex flex-col gap-1">
+              <span
+                className="text-sm md:text-base font-semibold"
+                style={{ color: "var(--foreground)" }}
+              >
+                {profile?.name || profile?.email || "Unknown user"}
+              </span>
+              <div
+                className="flex items-center gap-2 text-xs"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                <span>{formatDate(comment.createdAt)}</span>
+                {comment.updatedAt && (
+                  <>
+                    <span>•</span>
+                    <span className="font-medium">(edited)</span>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
 
-          {canModify && (
-            <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300">
-              <button
-                onClick={() => setIsEditing(!isEditing)}
-                className="text-xs px-2 md:px-3 py-1 md:py-1.5 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  color: "var(--foreground)",
-                }}
-              >
-                {isEditing ? "Cancel" : "Edit"}
-              </button>
-              <button
-                onClick={() => onDelete(comment.id)}
-                className="text-xs px-2 md:px-3 py-1 md:py-1.5 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95"
-                style={{
-                  backgroundColor: "var(--destructive)",
-                  color: "var(--destructive-foreground)",
-                }}
-              >
-                Delete
-              </button>
-            </div>
-          )}
-        </div>
-
-        {isEditing ? (
-          <div className="space-y-2 md:space-y-3">
-            <textarea
-              value={editText}
-              onChange={(e) => setEditText(e.target.value)}
-              className="form-input resize-none text-sm md:text-base"
-              rows={3}
-              placeholder="Edit your comment..."
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={handleEdit}
-                disabled={!editText.trim()}
-                className="btn-primary text-xs px-3 md:px-4 py-1.5 md:py-2"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => {
-                  setIsEditing(false);
-                  setEditText(comment.text);
-                }}
-                className="btn-secondary text-xs px-3 md:px-4 py-1.5 md:py-2"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <p
-              className="text-xs md:text-sm whitespace-pre-wrap leading-relaxed"
-              style={{ color: "var(--foreground)" }}
-            >
-              {comment.text}
-            </p>
-
-            {!comment.parentId && (
-              <div className="mt-2 md:mt-3">
+            {canModify && (
+              <div className="relative">
                 <button
-                  onClick={() => setShowReplyForm(!showReplyForm)}
-                  className="text-xs font-semibold transition-all duration-200 hover:underline"
-                  style={{ color: "var(--primary)" }}
+                  onClick={() => setShowMenu(!showMenu)}
+                  className="p-1.5 rounded-lg hover:bg-white/10 transition-colors opacity-0 group-hover:opacity-100"
+                  style={{ color: "var(--muted-foreground)" }}
                 >
-                  💬 Reply
+                  <MoreVertical className="w-4 h-4" />
                 </button>
+
+                {showMenu && (
+                  <div
+                    className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-xl z-10"
+                    style={{
+                      backgroundColor: "var(--card)",
+                      borderColor: "var(--border)",
+                    }}
+                  >
+                    <button
+                      onClick={() => {
+                        setIsEditing(!isEditing);
+                        setShowMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/5 transition-colors rounded-t-lg"
+                      style={{ color: "var(--foreground)" }}
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      <span>{isEditing ? "Cancel" : "Edit"}</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        onDelete(comment.id);
+                        setShowMenu(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/5 transition-colors rounded-b-lg"
+                      style={{ color: "var(--destructive)" }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
 
-        {showReplyForm && (
-          <div
-            className="mt-3 md:mt-4 p-2 md:p-3 rounded-lg border"
-            style={{
-              backgroundColor: "var(--muted)",
-              borderColor: "var(--border)",
-            }}
-          >
-            <CommentForm
-              onSubmit={(text) => {
-                onReply(comment.id, text);
-                setShowReplyForm(false);
+          {/* Content */}
+          {isEditing ? (
+            <div className="space-y-3">
+              <textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="form-input resize-none text-sm md:text-base w-full"
+                rows={3}
+                placeholder="Edit your comment..."
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleEdit}
+                  disabled={!editText.trim()}
+                  className="btn-primary text-xs px-4 py-2 flex items-center gap-2"
+                >
+                  <Send className="w-3 h-3" />
+                  Save
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditText(comment.text);
+                  }}
+                  className="btn-secondary text-xs px-4 py-2 flex items-center gap-2"
+                >
+                  <X className="w-3 h-3" />
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p
+                className="text-sm md:text-base whitespace-pre-wrap leading-relaxed mb-3"
+                style={{ color: "var(--foreground)" }}
+              >
+                {comment.text}
+              </p>
+
+              {!comment.parentId && (
+                <button
+                  onClick={() => setShowReplyForm(!showReplyForm)}
+                  className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+                  style={{ color: "var(--primary)" }}
+                >
+                  <Reply className="w-3 h-3" />
+                  Reply
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Reply Form */}
+          {showReplyForm && (
+            <div
+              className="mt-4 p-3 md:p-4 rounded-lg border"
+              style={{
+                backgroundColor: "var(--muted)",
+                borderColor: "var(--border)",
               }}
-              onCancel={() => setShowReplyForm(false)}
-              placeholder={`Reply to ${profile?.name || "user"}...`}
-              submitText="Reply"
-            />
-          </div>
-        )}
+            >
+              <CommentForm
+                onSubmit={(text) => {
+                  onReply(comment.id, text);
+                  setShowReplyForm(false);
+                }}
+                onCancel={() => setShowReplyForm(false)}
+                placeholder={`Reply to ${profile?.name || "user"}...`}
+                submitText="Reply"
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -330,7 +373,7 @@ export function CommentForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-2 md:space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-3">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
@@ -340,8 +383,11 @@ export function CommentForm({
         autoFocus={autoFocus}
         disabled={isSubmitting}
       />
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-        <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div 
+          className="text-xs"
+          style={{ color: "var(--muted-foreground)" }}
+        >
           <span
             className={`font-medium ${
               text.length > 400
@@ -361,17 +407,19 @@ export function CommentForm({
               type="button"
               onClick={onCancel}
               disabled={isSubmitting}
-              className="btn-secondary text-xs px-3 md:px-4 py-1.5 md:py-2 flex-1 sm:flex-none"
+              className="btn-secondary text-xs px-4 py-2 flex items-center gap-2 flex-1 sm:flex-none"
             >
+              <X className="w-3 h-3" />
               Cancel
             </button>
           )}
           <button
             type="submit"
             disabled={!text.trim() || isSubmitting || text.length > 500}
-            className="btn-primary text-xs px-3 md:px-4 py-1.5 md:py-2 flex items-center justify-center gap-2 flex-1 sm:flex-none"
+            className="btn-primary text-xs px-4 py-2 flex items-center justify-center gap-2 flex-1 sm:flex-none"
           >
-            {isSubmitting && <div className="neo-spinner w-3 h-3"></div>}
+            {isSubmitting && <Loader2 className="w-3 h-3 animate-spin" />}
+            <Send className="w-3 h-3" />
             {submitText}
           </button>
         </div>
@@ -463,8 +511,11 @@ export default function Comments({ teamId, promptId, userRole }) {
 
   if (loading) {
     return (
-      <div className="glass-card p-4 md:p-6 text-center">
-        <div className="neo-spinner mx-auto mb-4"></div>
+      <div className="glass-card p-6 md:p-8 text-center rounded-xl">
+        <Loader2 
+          className="w-8 h-8 animate-spin mx-auto mb-4"
+          style={{ color: "var(--primary)" }}
+        />
         <span
           className="text-xs md:text-sm"
           style={{ color: "var(--muted-foreground)" }}
@@ -476,37 +527,45 @@ export default function Comments({ teamId, promptId, userRole }) {
   }
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="glass-card overflow-hidden rounded-xl border" style={{ borderColor: "var(--border)" }}>
       {/* Header */}
       <div
         className="p-4 md:p-6 border-b"
         style={{ borderColor: "var(--border)" }}
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-2 md:gap-3">
-            <h3
-              className="text-sm md:text-base font-bold"
-              style={{ color: "var(--foreground)" }}
+          <div className="flex items-center gap-3">
+            <div 
+              className="w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: "var(--primary)" }}
             >
-              💬 Comments
-              <span
-                className="ml-2 px-2 py-0.5 md:py-1 text-xs rounded-full"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  color: "var(--foreground)",
-                }}
+              <MessageCircle 
+                className="w-5 h-5"
+                style={{ color: "var(--primary-foreground)" }}
+              />
+            </div>
+            <div>
+              <h3
+                className="text-base md:text-lg font-bold"
+                style={{ color: "var(--foreground)" }}
               >
-                {commentCount}
-              </span>
-            </h3>
+                Comments
+              </h3>
+              <p 
+                className="text-xs"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                {commentCount} {commentCount === 1 ? "comment" : "comments"}
+              </p>
+            </div>
           </div>
 
           {!showCommentForm && (
             <button
               onClick={() => setShowCommentForm(true)}
-              className="btn-primary text-xs md:text-sm px-3 md:px-4 py-1.5 md:py-2 w-full sm:w-auto"
+              className="btn-primary text-xs md:text-sm px-4 py-2 flex items-center gap-2 w-full sm:w-auto justify-center"
             >
-              <span className="mr-2">+</span>
+              <MessageCircle className="w-4 h-4" />
               Add Comment
             </button>
           )}
@@ -537,8 +596,16 @@ export default function Comments({ teamId, promptId, userRole }) {
       {/* Comments List */}
       <div className="p-4 md:p-6">
         {topLevelComments.length === 0 ? (
-          <div className="text-center py-8 md:py-12">
-            <div className="text-3xl md:text-4xl mb-4">💬</div>
+          <div className="text-center py-12 md:py-16">
+            <div 
+              className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: "var(--muted)" }}
+            >
+              <MessageCircle 
+                className="w-8 h-8"
+                style={{ color: "var(--muted-foreground)" }}
+              />
+            </div>
             <p
               className="text-base md:text-lg font-medium mb-2"
               style={{ color: "var(--foreground)" }}
@@ -553,7 +620,7 @@ export default function Comments({ teamId, promptId, userRole }) {
             </p>
           </div>
         ) : (
-          <div className="space-y-3 md:space-y-4">
+          <div className="space-y-4 md:space-y-5">
             {topLevelComments.map((comment) => (
               <div key={comment.id}>
                 <Comment
@@ -567,7 +634,7 @@ export default function Comments({ teamId, promptId, userRole }) {
 
                 {/* Replies */}
                 {comment.replies && comment.replies.length > 0 && (
-                  <div className="mt-3 md:mt-4 space-y-3 md:space-y-4">
+                  <div className="mt-4 md:mt-5 space-y-4 md:space-y-5">
                     {comment.replies.map((reply) => (
                       <Comment
                         key={reply.id}
