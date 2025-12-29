@@ -343,11 +343,12 @@ export default function TeamChat({
         position === "right" ? "right-0 border-l" : "left-80 border-r"
       }`}
       style={{
-        top: "125px", // Below navbar
-        bottom: 0,
+       top: 0,
+        bottom: 10,
         width: "380px",
         backgroundColor: "var(--background)",
         borderColor: "var(--border)",
+        zIndex: 200,
       }}
     >
       <div className="flex flex-col h-full">
