@@ -1,4 +1,4 @@
-// src/pages/PrivacyPolicy.jsx - Updated for Custom Navigation
+// src/pages/PrivacyPolicy.jsx
 import LegalLayout, { useNavigation } from "../components/LegalLayout";
 
 export default function PrivacyPolicy() {
@@ -126,14 +126,58 @@ export default function PrivacyPolicy() {
           </ul>
         </section>
 
-        {/* Add remaining sections from original file... */}
+        <section>
+          <h2
+            className="text-xl font-bold mb-3"
+            style={{ color: "var(--foreground)" }}
+          >
+            4. Data Security
+          </h2>
+          <p className="leading-relaxed">
+            We implement appropriate security measures to protect your personal information. All data is encrypted in transit and at rest using industry-standard protocols.
+          </p>
+        </section>
 
         <section>
           <h2
             className="text-xl font-bold mb-3"
             style={{ color: "var(--foreground)" }}
           >
-            12. Contact Us
+            5. Your Rights
+          </h2>
+          <p className="leading-relaxed mb-3">
+            You have the right to:
+          </p>
+          <ul className="space-y-2 ml-6">
+            <li className="flex items-start gap-2">
+              <span style={{ color: "var(--primary)" }}>•</span>
+              <span>Access your personal data</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span style={{ color: "var(--primary)" }}>•</span>
+              <span>Correct inaccurate data</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span style={{ color: "var(--primary)" }}>•</span>
+              <span>Request deletion of your data</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span style={{ color: "var(--primary)" }}>•</span>
+              <span>Object to processing of your data</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span style={{ color: "var(--primary)" }}>•</span>
+              <span>Request data portability</span>
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2
+            className="text-xl font-bold mb-3"
+            style={{ color: "var(--foreground)" }}
+          >
+            6. Contact Us
           </h2>
           <p className="leading-relaxed mb-3">
             If you have questions about this privacy policy or your data, please
@@ -147,7 +191,7 @@ export default function PrivacyPolicy() {
             }}
           >
             <p>
-              <strong>Email:</strong> privacy@prompt-teams.com
+              <strong>Email:</strong> research.prismhq@gmail.com
             </p>
             <p>
               <strong>Contact Form:</strong>{" "}
