@@ -15,7 +15,7 @@ export default function PrivacyPolicy() {
             1. Introduction
           </h2>
           <p className="leading-relaxed">
-            Welcome to Prompt Teams ("we," "our," or "us"). We respect your
+            Welcome to Prism ("we," "our," or "us"). We respect your
             privacy and are committed to protecting your personal data. This
             privacy policy explains how we collect, use, and safeguard your
             information when you use our service.
@@ -200,7 +200,7 @@ export default function PrivacyPolicy() {
                 style={{ color: "var(--primary)" }}
                 className="hover:underline"
               >
-                prompt-teams.com/contact
+                prism.com/contact
               </button>
             </p>
           </div>
