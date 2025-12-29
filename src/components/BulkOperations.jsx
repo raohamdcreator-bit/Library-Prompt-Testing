@@ -1,5 +1,9 @@
-// src/components/BulkOperations.jsx - Cyberpunk Neon Blue Theme
+// src/components/BulkOperations.jsx - Modernized with Professional Icons
 import { useState } from "react";
+import { 
+  CheckSquare, Square, Download, Trash2, FileJson, 
+  FileText, Table, X, AlertTriangle, Zap
+} from 'lucide-react';
 
 export default function BulkOperations({
   prompts,
@@ -96,26 +100,44 @@ export default function BulkOperations({
       className="glass-card border rounded-lg p-4 mb-4 transition-all duration-300"
       style={{ 
         borderColor: 'var(--border)',
-        boxShadow: '0 0 20px rgba(0, 200, 255, 0.1)',
+        boxShadow: '0 0 20px rgba(139, 92, 246, 0.1)',
       }}
     >
       {/* Selection Controls */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-2 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={
-                selectedPrompts.length === prompts.length && prompts.length > 0
-              }
-              onChange={handleSelectAll}
-              className="rounded"
-              style={{ 
-                accentColor: 'var(--primary)',
-                width: '18px',
-                height: '18px',
-              }}
-            />
+            <div style={{ position: 'relative', display: 'inline-flex' }}>
+              {selectedPrompts.length === prompts.length && prompts.length > 0 ? (
+                <CheckSquare 
+                  size={18} 
+                  color="var(--primary)"
+                  style={{ cursor: 'pointer' }}
+                  onClick={handleSelectAll}
+                />
+              ) : (
+                <Square 
+                  size={18} 
+                  color="var(--muted-foreground)"
+                  style={{ cursor: 'pointer' }}
+                  onClick={handleSelectAll}
+                />
+              )}
+              <input
+                type="checkbox"
+                checked={
+                  selectedPrompts.length === prompts.length && prompts.length > 0
+                }
+                onChange={handleSelectAll}
+                style={{ 
+                  position: 'absolute',
+                  opacity: 0,
+                  width: '18px',
+                  height: '18px',
+                  cursor: 'pointer'
+                }}
+              />
+            </div>
             <span className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>
               Select All ({prompts.length})
             </span>
@@ -123,16 +145,18 @@ export default function BulkOperations({
 
           {selectedPrompts.length > 0 && (
             <div 
-              className="text-sm px-3 py-1 rounded-full"
+              className="text-sm px-3 py-1 rounded-full flex items-center gap-1.5"
               style={{
-                background: 'rgba(0, 200, 255, 0.2)',
+                background: 'rgba(139, 92, 246, 0.2)',
                 color: 'var(--primary)',
-                border: '1px solid rgba(0, 200, 255, 0.3)',
+                border: '1px solid rgba(139, 92, 246, 0.3)',
               }}
             >
+              <CheckSquare size={14} />
               {selectedPrompts.length} selected
               {selectionStats.ownedByOthers > 0 && (
-                <span className="ml-2" style={{ color: '#eab308' }}>
+                <span className="ml-1 flex items-center gap-1" style={{ color: '#eab308' }}>
+                  <AlertTriangle size={12} />
                   ({selectionStats.ownedByOthers} by others)
                 </span>
               )}
@@ -143,7 +167,7 @@ export default function BulkOperations({
         {selectedPrompts.length > 0 && (
           <button
             onClick={() => onSelectionChange([])}
-            className="text-sm px-3 py-1 rounded transition-all duration-300"
+            className="text-sm px-3 py-1 rounded transition-all duration-300 flex items-center gap-1.5"
             style={{ 
               color: 'var(--muted-foreground)',
               border: '1px solid var(--border)',
@@ -157,6 +181,7 @@ export default function BulkOperations({
               e.currentTarget.style.borderColor = 'var(--border)';
             }}
           >
+            <X size={14} />
             Clear Selection
           </button>
         )}
@@ -169,7 +194,7 @@ export default function BulkOperations({
           style={{ borderTop: '1px solid var(--border)' }}
         >
           <span className="text-sm font-medium flex items-center gap-2" style={{ color: 'var(--primary)' }}>
-            <span>⚡</span>
+            <Zap size={16} />
             Bulk Actions:
           </span>
 
@@ -178,27 +203,39 @@ export default function BulkOperations({
             <button
               onClick={() => handleBulkExport("json")}
               disabled={isExporting}
-              className="btn-secondary text-sm px-3 py-1.5 flex items-center gap-1 disabled:opacity-50"
+              className="btn-secondary text-sm px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-50 transition-all"
             >
-              {isExporting && <div className="neo-spinner w-3 h-3"></div>}
+              {isExporting ? (
+                <div className="neo-spinner w-3 h-3"></div>
+              ) : (
+                <FileJson size={14} />
+              )}
               Export JSON
             </button>
 
             <button
               onClick={() => handleBulkExport("csv")}
               disabled={isExporting}
-              className="btn-secondary text-sm px-3 py-1.5 flex items-center gap-1 disabled:opacity-50"
+              className="btn-secondary text-sm px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-50 transition-all"
             >
-              {isExporting && <div className="neo-spinner w-3 h-3"></div>}
+              {isExporting ? (
+                <div className="neo-spinner w-3 h-3"></div>
+              ) : (
+                <Table size={14} />
+              )}
               Export CSV
             </button>
 
             <button
               onClick={() => handleBulkExport("txt")}
               disabled={isExporting}
-              className="btn-secondary text-sm px-3 py-1.5 flex items-center gap-1 disabled:opacity-50"
+              className="btn-secondary text-sm px-3 py-1.5 flex items-center gap-1.5 disabled:opacity-50 transition-all"
             >
-              {isExporting && <div className="neo-spinner w-3 h-3"></div>}
+              {isExporting ? (
+                <div className="neo-spinner w-3 h-3"></div>
+              ) : (
+                <FileText size={14} />
+              )}
               Export TXT
             </button>
           </div>
@@ -208,15 +245,25 @@ export default function BulkOperations({
             <button
               onClick={handleBulkDelete}
               disabled={isDeleting}
-              className="btn-danger text-sm px-3 py-1.5 flex items-center gap-1 ml-2 disabled:opacity-50"
+              className="text-sm px-3 py-1.5 flex items-center gap-1.5 ml-2 disabled:opacity-50 rounded-lg transition-all"
+              style={{
+                backgroundColor: 'var(--destructive)',
+                color: 'var(--destructive-foreground)',
+                border: 'none'
+              }}
             >
-              {isDeleting && <div className="neo-spinner w-3 h-3"></div>}
+              {isDeleting ? (
+                <div className="neo-spinner w-3 h-3"></div>
+              ) : (
+                <Trash2 size={14} />
+              )}
               Delete Selected
             </button>
           )}
 
           {!canBulkDelete() && selectionStats.ownedByOthers > 0 && (
-            <span className="text-xs ml-2" style={{ color: '#eab308' }}>
+            <span className="text-xs ml-2 flex items-center gap-1" style={{ color: '#eab308' }}>
+              <AlertTriangle size={12} />
               Cannot delete prompts created by others
             </span>
           )}
@@ -235,18 +282,34 @@ export function PromptSelector({
 }) {
   return (
     <label className={`flex items-center cursor-pointer ${className}`}>
-      <input
-        type="checkbox"
-        checked={isSelected}
-        onChange={(e) => onSelectionChange(promptId, e.target.checked)}
-        className="rounded"
-        style={{ 
-          accentColor: 'var(--primary)',
-          width: '18px',
-          height: '18px',
-        }}
-        onClick={(e) => e.stopPropagation()} // Prevent event bubbling
-      />
+      <div style={{ position: 'relative', display: 'inline-flex' }}>
+        {isSelected ? (
+          <CheckSquare 
+            size={18} 
+            color="var(--primary)"
+            style={{ cursor: 'pointer' }}
+          />
+        ) : (
+          <Square 
+            size={18} 
+            color="var(--muted-foreground)"
+            style={{ cursor: 'pointer' }}
+          />
+        )}
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(e) => onSelectionChange(promptId, e.target.checked)}
+          onClick={(e) => e.stopPropagation()}
+          style={{ 
+            position: 'absolute',
+            opacity: 0,
+            width: '18px',
+            height: '18px',
+            cursor: 'pointer'
+          }}
+        />
+      </div>
     </label>
   );
 }
