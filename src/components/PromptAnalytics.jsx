@@ -1,4 +1,4 @@
-// src/components/PromptAnalytics.jsx - Updated to match demo UI
+// src/components/PromptAnalytics.jsx - Modernized with Professional Icons
 import { useState, useEffect, useMemo } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -16,6 +16,10 @@ import {
   limit,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { 
+  Star, BarChart3, FileText, Copy, MessageSquare, 
+  TrendingUp, Award, Users, Eye, Activity
+} from 'lucide-react';
 
 // Hook for prompt ratings
 export function usePromptRating(teamId, promptId) {
@@ -213,8 +217,7 @@ export function StarRating({
   className = "",
 }) {
   const [hoverRating, setHoverRating] = useState(0);
-  const sizeClass =
-    size === "small" ? "text-sm" : size === "large" ? "text-xl" : "text-base";
+  const starSize = size === "small" ? 16 : size === "large" ? 24 : 20;
 
   const handleRate = (newRating) => {
     if (readonly || !onRate) return;
@@ -222,28 +225,25 @@ export function StarRating({
   };
 
   return (
-    <div className={`flex items-center gap-1 ${sizeClass} ${className}`}>
+    <div className={`flex items-center gap-1 ${className}`}>
       {[1, 2, 3, 4, 5].map((star) => (
         <button
           key={star}
           type="button"
           disabled={readonly}
-          className={`transition-colors ${
+          className={`transition-all duration-150 ${
             readonly ? "cursor-default" : "cursor-pointer hover:scale-110"
           }`}
           onClick={() => handleRate(star)}
           onMouseEnter={() => !readonly && setHoverRating(star)}
           onMouseLeave={() => !readonly && setHoverRating(0)}
         >
-          <span
-            className={`${
-              star <= (hoverRating || rating)
-                ? "text-yellow-400"
-                : "text-gray-500"
-            } transition-all duration-150`}
-          >
-            ★
-          </span>
+          <Star
+            size={starSize}
+            fill={star <= (hoverRating || rating) ? "#fbbf24" : "none"}
+            color={star <= (hoverRating || rating) ? "#fbbf24" : "#6b7280"}
+            strokeWidth={2}
+          />
         </button>
       ))}
     </div>
@@ -352,12 +352,7 @@ export function TeamAnalytics({ teamId }) {
             className="w-10 h-10 rounded-lg flex items-center justify-center"
             style={{ backgroundColor: "var(--primary)" }}
           >
-            <span
-              className="text-lg"
-              style={{ color: "var(--primary-foreground)" }}
-            >
-              📊
-            </span>
+            <BarChart3 size={20} style={{ color: "var(--primary-foreground)" }} />
           </div>
           <div>
             <h3
@@ -366,7 +361,10 @@ export function TeamAnalytics({ teamId }) {
             >
               Team Analytics
             </h3>
-            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            <p
+              className="text-sm"
+              style={{ color: "var(--muted-foreground)" }}
+            >
               Performance insights and usage statistics
             </p>
           </div>
@@ -383,7 +381,7 @@ export function TeamAnalytics({ teamId }) {
               color: "var(--primary-foreground)",
             }}
           >
-            📝
+            <FileText size={24} />
           </div>
           <div
             className="text-2xl font-bold mb-1"
@@ -404,7 +402,7 @@ export function TeamAnalytics({ teamId }) {
               color: "var(--secondary-foreground)",
             }}
           >
-            📋
+            <Copy size={24} />
           </div>
           <div
             className="text-2xl font-bold mb-1"
@@ -425,7 +423,7 @@ export function TeamAnalytics({ teamId }) {
               color: "var(--accent-foreground)",
             }}
           >
-            💬
+            <MessageSquare size={24} />
           </div>
           <div
             className="text-2xl font-bold mb-1"
@@ -446,7 +444,7 @@ export function TeamAnalytics({ teamId }) {
               color: "var(--foreground)",
             }}
           >
-            ⭐
+            <Star size={24} />
           </div>
           <div
             className="text-2xl font-bold mb-1"
@@ -465,12 +463,15 @@ export function TeamAnalytics({ teamId }) {
       {/* Top Rated Prompts */}
       {analytics.topPrompts.length > 0 && (
         <div className="glass-card p-6">
-          <h4
-            className="font-semibold mb-4"
-            style={{ color: "var(--foreground)" }}
-          >
-            🏆 Top Performing Prompts
-          </h4>
+          <div className="flex items-center gap-2 mb-4">
+            <Award size={20} color="var(--primary)" />
+            <h4
+              className="font-semibold"
+              style={{ color: "var(--foreground)" }}
+            >
+              Top Performing Prompts
+            </h4>
+          </div>
           <div className="space-y-3">
             {analytics.topPrompts.map((prompt, index) => (
               <div
@@ -499,11 +500,18 @@ export function TeamAnalytics({ teamId }) {
                       {prompt.title}
                     </div>
                     <div
-                      className="text-sm"
+                      className="text-sm flex items-center gap-2"
                       style={{ color: "var(--muted-foreground)" }}
                     >
-                      {prompt.stats?.totalCopies || 0} copies •{" "}
-                      {prompt.stats?.comments || 0} comments
+                      <span className="flex items-center gap-1">
+                        <Copy size={12} />
+                        {prompt.stats?.totalCopies || 0} copies
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <MessageSquare size={12} />
+                        {prompt.stats?.comments || 0} comments
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -523,12 +531,15 @@ export function TeamAnalytics({ teamId }) {
       {/* Usage Insights */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="glass-card p-6">
-          <h4
-            className="font-semibold mb-4"
-            style={{ color: "var(--foreground)" }}
-          >
-            📈 Usage Trends
-          </h4>
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp size={20} color="var(--primary)" />
+            <h4
+              className="font-semibold"
+              style={{ color: "var(--foreground)" }}
+            >
+              Usage Trends
+            </h4>
+          </div>
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <span
@@ -587,12 +598,15 @@ export function TeamAnalytics({ teamId }) {
         </div>
 
         <div className="glass-card p-6">
-          <h4
-            className="font-semibold mb-4"
-            style={{ color: "var(--foreground)" }}
-          >
-            🎯 Team Health
-          </h4>
+          <div className="flex items-center gap-2 mb-4">
+            <Activity size={20} color="var(--primary)" />
+            <h4
+              className="font-semibold"
+              style={{ color: "var(--foreground)" }}
+            >
+              Team Health
+            </h4>
+          </div>
           <div className="space-y-4">
             <div>
               <div className="flex justify-between mb-1">
