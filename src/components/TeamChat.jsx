@@ -1,4 +1,4 @@
-// src/components/TeamChat.jsx - Real-time Team Chat Interface
+// src/components/TeamChat.jsx - Modernized with Professional Icons
 import { useState, useEffect, useRef } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -15,6 +15,10 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { 
+  MessageSquare, Send, X, Edit2, Trash2, Reply, 
+  Clock, MoreVertical, Check, Loader
+} from 'lucide-react';
 
 export default function TeamChat({
   teamId,
@@ -72,12 +76,10 @@ export default function TeamChat({
           ...d.data(),
         }));
 
-        // Reverse to show oldest first
         messageData.reverse();
         setMessages(messageData);
         setLoading(false);
 
-        // Load user profiles
         const userIds = [
           ...new Set(messageData.map((m) => m.userId).filter(Boolean)),
         ];
@@ -85,7 +87,6 @@ export default function TeamChat({
           await loadUserProfiles(userIds);
         }
 
-        // Scroll to bottom
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }, 100);
@@ -99,14 +100,12 @@ export default function TeamChat({
     return () => unsubscribe();
   }, [teamId]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     if (isOpen && messages.length > 0) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isOpen]);
 
-  // Send or edit message
   async function handleSendMessage(e) {
     e.preventDefault();
     if (!newMessage.trim() || !user || sending || !teamId) return;
@@ -131,7 +130,6 @@ export default function TeamChat({
       }
 
       if (editingMessage) {
-        // Update existing message
         const messageRef = doc(db, "teams", teamId, "chat", editingMessage.id);
         await updateDoc(messageRef, {
           text: newMessage.trim(),
@@ -140,7 +138,6 @@ export default function TeamChat({
         });
         setEditingMessage(null);
       } else {
-        // Create new message
         const chatRef = collection(db, "teams", teamId, "chat");
         await addDoc(chatRef, messageData);
       }
@@ -155,7 +152,6 @@ export default function TeamChat({
     }
   }
 
-  // Delete message
   async function handleDeleteMessage(messageId) {
     if (!confirm("Delete this message?")) return;
 
@@ -167,14 +163,12 @@ export default function TeamChat({
     }
   }
 
-  // Start editing a message
   function handleEditStart(message) {
     setEditingMessage(message);
     setNewMessage(message.text);
     inputRef.current?.focus();
   }
 
-  // Format timestamp
   function formatTimestamp(timestamp) {
     if (!timestamp) return "";
     try {
@@ -197,7 +191,6 @@ export default function TeamChat({
     }
   }
 
-  // User Avatar Component
   function UserAvatar({ userId }) {
     const profile = userProfiles[userId];
     const [imageError, setImageError] = useState(false);
@@ -231,7 +224,6 @@ export default function TeamChat({
     );
   }
 
-  // Message Item Component
   function MessageItem({ message }) {
     const isMine = message.userId === user?.uid;
     const profile = userProfiles[message.userId];
@@ -257,14 +249,14 @@ export default function TeamChat({
               {profile?.name || message.userName}
             </span>
             <span
-              className="text-xs"
+              className="text-xs flex items-center gap-1"
               style={{ color: "var(--muted-foreground)" }}
             >
+              <Clock size={10} />
               {formatTimestamp(message.timestamp)}
             </span>
           </div>
 
-          {/* Reply indicator */}
           {message.replyTo && (
             <div
               className={`text-xs p-2 rounded mb-1 border-l-2 ${
@@ -277,6 +269,7 @@ export default function TeamChat({
               }}
             >
               <p style={{ color: "var(--muted-foreground)" }}>
+                <Reply size={10} style={{ display: 'inline', marginRight: '4px' }} />
                 Replying to {message.replyTo.userName}
               </p>
               <p className="truncate" style={{ color: "var(--foreground)" }}>
@@ -302,13 +295,13 @@ export default function TeamChat({
                 {message.text}
               </p>
               {message.edited && (
-                <span className="text-xs italic" style={{ opacity: 0.7 }}>
+                <span className="text-xs italic flex items-center gap-1 mt-1" style={{ opacity: 0.7 }}>
+                  <Edit2 size={10} />
                   (edited)
                 </span>
               )}
             </div>
 
-            {/* Message Actions */}
             {isMine && (
               <div
                 className={`absolute top-0 ${
@@ -323,19 +316,7 @@ export default function TeamChat({
                   className="p-1 rounded hover:bg-white/10"
                   title="Edit"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
+                  <Edit2 size={14} />
                 </button>
                 <button
                   onClick={() => handleDeleteMessage(message.id)}
@@ -343,38 +324,14 @@ export default function TeamChat({
                   title="Delete"
                   style={{ color: "var(--destructive)" }}
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
+                  <Trash2 size={14} />
                 </button>
                 <button
                   onClick={() => setReplyTo(message)}
                   className="p-1 rounded hover:bg-white/10"
                   title="Reply"
                 >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
-                    />
-                  </svg>
+                  <Reply size={14} />
                 </button>
               </div>
             )}
@@ -407,12 +364,7 @@ export default function TeamChat({
               className="w-10 h-10 rounded-lg flex items-center justify-center"
               style={{ backgroundColor: "var(--primary)" }}
             >
-              <span
-                className="text-lg"
-                style={{ color: "var(--primary-foreground)" }}
-              >
-                💬
-              </span>
+              <MessageSquare size={20} style={{ color: "var(--primary-foreground)" }} />
             </div>
             <div>
               <h3
@@ -434,19 +386,7 @@ export default function TeamChat({
             className="p-2 rounded-lg hover:bg-white/10 transition-colors"
             style={{ color: "var(--muted-foreground)" }}
           >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            <X size={20} />
           </button>
         </div>
 
@@ -455,7 +395,7 @@ export default function TeamChat({
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <div className="neo-spinner mx-auto mb-2"></div>
+                <Loader className="neo-spinner mx-auto mb-2" size={24} />
                 <p
                   className="text-sm"
                   style={{ color: "var(--muted-foreground)" }}
@@ -467,7 +407,9 @@ export default function TeamChat({
           ) : messages.length === 0 ? (
             <div className="flex items-center justify-center h-full text-center">
               <div>
-                <div className="text-4xl mb-2">💬</div>
+                <div className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--muted)' }}>
+                  <MessageSquare size={32} color="var(--muted-foreground)" />
+                </div>
                 <p
                   className="text-sm"
                   style={{ color: "var(--muted-foreground)" }}
@@ -500,9 +442,10 @@ export default function TeamChat({
           >
             <div className="flex-1 min-w-0">
               <p
-                className="text-xs"
+                className="text-xs flex items-center gap-1"
                 style={{ color: "var(--muted-foreground)" }}
               >
+                <Reply size={12} />
                 Replying to {replyTo.userName}
               </p>
               <p
@@ -516,19 +459,7 @@ export default function TeamChat({
               onClick={() => setReplyTo(null)}
               className="p-1 hover:bg-white/10 rounded"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <X size={16} />
             </button>
           </div>
         )}
@@ -539,7 +470,8 @@ export default function TeamChat({
             className="px-4 py-2 border-t border-white/10 flex items-center justify-between"
             style={{ backgroundColor: "var(--secondary)" }}
           >
-            <div className="flex-1">
+            <div className="flex-1 flex items-center gap-2">
+              <Edit2 size={14} />
               <p
                 className="text-xs"
                 style={{ color: "var(--muted-foreground)" }}
@@ -554,19 +486,7 @@ export default function TeamChat({
               }}
               className="p-1 hover:bg-white/10 rounded"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <X size={16} />
             </button>
           </div>
         )}
@@ -597,42 +517,17 @@ export default function TeamChat({
                 className="btn-primary px-4 py-2 flex items-center gap-2"
               >
                 {sending ? (
-                  <div className="neo-spinner w-4 h-4"></div>
+                  <Loader className="neo-spinner" size={18} />
                 ) : editingMessage ? (
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
+                  <Check size={18} />
                 ) : (
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                    />
-                  </svg>
+                  <Send size={18} />
                 )}
               </button>
             </div>
-          </div>
-          {/* Character Count Display */}
-          <div className="text-xs py-1 text-gray-400 text-right">
-            {newMessage.length}/1000
+            <div className="text-xs py-1 text-right" style={{ color: 'var(--muted-foreground)' }}>
+              {newMessage.length}/1000
+            </div>
           </div>
         </form>
       </div>
