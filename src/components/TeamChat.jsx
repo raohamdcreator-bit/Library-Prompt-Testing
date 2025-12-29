@@ -1,4 +1,4 @@
-// src/components/TeamChat.jsx - Modernized with Professional Icons
+// src/components/TeamChat.jsx - Fixed UI Issues
 import { useState, useEffect, useRef } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -230,16 +230,16 @@ export default function TeamChat({
 
     return (
       <div
-        className={`flex gap-2 mb-4 ${
+        className={`flex gap-2 mb-3 ${
           isMine ? "flex-row-reverse" : "flex-row"
         }`}
       >
         <UserAvatar userId={message.userId} />
 
-        <div className={`flex-1 ${isMine ? "items-end" : "items-start"}`}>
+        <div className={`flex flex-col ${isMine ? "items-end" : "items-start"}`} style={{ maxWidth: "75%" }}>
           <div
             className={`flex items-center gap-2 mb-1 ${
-              isMine ? "justify-end" : "justify-start"
+              isMine ? "flex-row-reverse" : "flex-row"
             }`}
           >
             <span
@@ -259,13 +259,10 @@ export default function TeamChat({
 
           {message.replyTo && (
             <div
-              className={`text-xs p-2 rounded mb-1 border-l-2 ${
-                isMine ? "ml-auto" : "mr-auto"
-              }`}
+              className={`text-xs p-2 rounded mb-1 border-l-2 w-full`}
               style={{
                 backgroundColor: "var(--muted)",
                 borderColor: "var(--primary)",
-                maxWidth: "80%",
               }}
             >
               <p style={{ color: "var(--muted-foreground)" }}>
@@ -278,12 +275,9 @@ export default function TeamChat({
             </div>
           )}
 
-          <div
-            className={`relative group ${isMine ? "ml-auto" : "mr-auto"}`}
-            style={{ maxWidth: "80%" }}
-          >
+          <div className="relative group">
             <div
-              className="p-3 rounded-lg"
+              className="px-3 py-2 rounded-lg inline-block"
               style={{
                 backgroundColor: isMine ? "var(--primary)" : "var(--secondary)",
                 color: isMine
@@ -308,8 +302,8 @@ export default function TeamChat({
                   isMine
                     ? "left-0 -translate-x-full"
                     : "right-0 translate-x-full"
-                } opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 p-1 rounded-lg ml-2`}
-                style={{ backgroundColor: "var(--card)" }}
+                } opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 p-1 rounded-lg`}
+                style={{ backgroundColor: "var(--card)", marginLeft: isMine ? '-4px' : '0', marginRight: isMine ? '0' : '-4px' }}
               >
                 <button
                   onClick={() => handleEditStart(message)}
@@ -345,10 +339,13 @@ export default function TeamChat({
 
   return (
     <div
-      className={`fixed top-0 bottom-0 z-40 transition-all duration-300 shadow-2xl w-96 ${
+      className={`fixed z-50 transition-all duration-300 shadow-2xl ${
         position === "right" ? "right-0 border-l" : "left-80 border-r"
       }`}
       style={{
+        top: "65px", // Below navbar
+        bottom: 0,
+        width: "380px",
         backgroundColor: "var(--background)",
         borderColor: "var(--border)",
       }}
@@ -391,7 +388,10 @@ export default function TeamChat({
         </div>
 
         {/* Messages Body */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4" style={{ 
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(139, 92, 246, 0.3) transparent'
+        }}>
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -437,8 +437,8 @@ export default function TeamChat({
         {/* Reply Indicator */}
         {replyTo && (
           <div
-            className="px-4 py-2 border-t border-white/10 flex items-center justify-between"
-            style={{ backgroundColor: "var(--secondary)" }}
+            className="px-4 py-2 border-t flex items-center justify-between"
+            style={{ backgroundColor: "var(--secondary)", borderColor: "var(--border)" }}
           >
             <div className="flex-1 min-w-0">
               <p
@@ -467,8 +467,8 @@ export default function TeamChat({
         {/* Edit Indicator */}
         {editingMessage && (
           <div
-            className="px-4 py-2 border-t border-white/10 flex items-center justify-between"
-            style={{ backgroundColor: "var(--secondary)" }}
+            className="px-4 py-2 border-t flex items-center justify-between"
+            style={{ backgroundColor: "var(--secondary)", borderColor: "var(--border)" }}
           >
             <div className="flex-1 flex items-center gap-2">
               <Edit2 size={14} />
@@ -494,40 +494,47 @@ export default function TeamChat({
         {/* Input Form */}
         <form
           onSubmit={handleSendMessage}
-          className="p-4 border-t border-white/10"
+          className="p-4 border-t"
+          style={{ borderColor: "var(--border)" }}
         >
-          <div className="flex flex-col gap-1">
-            <div className="flex gap-2">
-              <input
-                ref={inputRef}
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder={
-                  editingMessage ? "Edit your message..." : "Type a message..."
-                }
-                className="form-input flex-1"
-                disabled={sending}
-                maxLength={1000}
-              />
+          <div className="flex gap-2 mb-1">
+            <input
+              ref={inputRef}
+              type="text"
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder={
+                editingMessage ? "Edit your message..." : "Type a message..."
+              }
+              className="form-input flex-1"
+              disabled={sending}
+              maxLength={1000}
+              style={{
+                fontSize: '0.875rem',
+                padding: '0.625rem 0.875rem'
+              }}
+            />
 
-              <button
-                type="submit"
-                disabled={!newMessage.trim() || sending}
-                className="btn-primary px-4 py-2 flex items-center gap-2"
-              >
-                {sending ? (
-                  <Loader className="neo-spinner" size={18} />
-                ) : editingMessage ? (
-                  <Check size={18} />
-                ) : (
-                  <Send size={18} />
-                )}
-              </button>
-            </div>
-            <div className="text-xs py-1 text-right" style={{ color: 'var(--muted-foreground)' }}>
-              {newMessage.length}/1000
-            </div>
+            <button
+              type="submit"
+              disabled={!newMessage.trim() || sending}
+              className="btn-primary px-3 py-2 flex items-center justify-center"
+              style={{
+                minWidth: '44px',
+                opacity: !newMessage.trim() || sending ? 0.5 : 1
+              }}
+            >
+              {sending ? (
+                <Loader className="neo-spinner" size={18} />
+              ) : editingMessage ? (
+                <Check size={18} />
+              ) : (
+                <Send size={18} />
+              )}
+            </button>
+          </div>
+          <div className="text-xs text-right" style={{ color: 'var(--muted-foreground)' }}>
+            {newMessage.length}/1000
           </div>
         </form>
       </div>
