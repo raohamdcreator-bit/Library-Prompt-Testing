@@ -145,7 +145,7 @@ body {
   z-index: 1000;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  background: rgba(10, 13, 20, 0.8);
+  background: rgba(10, 13, 20, 0.9);
   border-bottom: 1px solid rgba(139, 92, 246, 0.1);
   transition: all 0.3s ease;
 }
@@ -193,7 +193,7 @@ body {
 }
 
 .navbar-link {
-  color: var(--muted-foreground);
+  color: var(--foreground);
   font-size: 0.938rem;
   font-weight: 500;
   transition: all 0.2s ease;
@@ -216,7 +216,7 @@ body {
 }
 
 .navbar-link:hover {
-  color: var(--foreground);
+  color: var(--muted-foreground);
 }
 
 .navbar-link:hover::after {
