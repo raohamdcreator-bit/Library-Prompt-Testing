@@ -1,4 +1,4 @@
-// src/components/TeamMembers.jsx - Updated with better invite management
+// src/components/TeamMembers.jsx - Modernized with Professional Icons
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -15,6 +15,11 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { cancelTeamInvite, deleteTeamInvite } from "../lib/inviteUtils";
+import { 
+  Users, Crown, Shield, User, Settings, Trash2, 
+  Mail, Clock, Calendar, X, CheckCircle, XCircle, 
+  Info, AlertTriangle
+} from 'lucide-react';
 
 export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
   const { user } = useAuth();
@@ -23,7 +28,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
   const [loading, setLoading] = useState(true);
   const [processingActions, setProcessingActions] = useState(new Set());
 
-  // Load team members and their profiles
   useEffect(() => {
     if (!teamId || !teamData) {
       setLoading(false);
@@ -61,7 +65,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         }
       }
 
-      // Sort by role hierarchy: owner > admin > member
       memberProfiles.sort((a, b) => {
         const roleOrder = { owner: 0, admin: 1, member: 2 };
         return roleOrder[a.role] - roleOrder[b.role];
@@ -74,7 +77,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     loadMembers();
   }, [teamId, teamData]);
 
-  // ✅ Load pending invites with real-time updates and expiration filtering
   useEffect(() => {
     if (!teamId) return;
 
@@ -92,14 +94,12 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
           ...doc.data(),
         }))
         .filter((invite) => {
-          // ✅ Filter out expired invites
           if (invite.expiresAt && invite.expiresAt.toMillis() < now.toMillis()) {
             return false;
           }
           return true;
         });
 
-      // Sort by creation date, newest first
       invites.sort((a, b) => {
         const aTime = a.createdAt?.toMillis() || 0;
         const bTime = b.createdAt?.toMillis() || 0;
@@ -112,7 +112,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     return () => unsub();
   }, [teamId]);
 
-  // Change member role
   async function changeMemberRole(memberUid, newRole) {
     if (!canManageRoles() || memberUid === user.uid) return;
 
@@ -138,7 +137,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     }
   }
 
-  // Remove member from team
   async function removeMember(memberUid) {
     if (!canRemoveMembers() || memberUid === user.uid) return;
 
@@ -180,7 +178,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     }
   }
 
-  // ✅ Cancel pending invite using utility function
   async function cancelInvite(inviteId) {
     if (!canManageInvites()) return;
 
@@ -209,7 +206,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     }
   }
 
-  // Permission helpers
   function canManageRoles() {
     return userRole === "owner";
   }
@@ -229,14 +225,12 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     return false;
   }
 
-  // Utility functions
   function showNotification(message, type = "info") {
     const notification = document.createElement("div");
-    const icons = { success: "✅", error: "❌", info: "ℹ️" };
-
+    
     notification.innerHTML = `
       <div class="flex items-center gap-2">
-        <span>${icons[type]}</span>
+        <span>${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span>
         <span>${message}</span>
       </div>
     `;
@@ -294,11 +288,11 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
   function getRoleIcon(role) {
     switch (role) {
       case "owner":
-        return "👑";
+        return Crown;
       case "admin":
-        return "⚡";
+        return Shield;
       default:
-        return "👤";
+        return User;
     }
   }
 
@@ -309,6 +303,9 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
       fontSize: "0.75rem",
       fontWeight: "500",
       border: "1px solid var(--border)",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "4px"
     };
 
     switch (role) {
@@ -394,12 +391,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
             className="w-10 h-10 rounded-lg flex items-center justify-center"
             style={{ backgroundColor: "var(--primary)" }}
           >
-            <span
-              className="text-lg"
-              style={{ color: "var(--primary-foreground)" }}
-            >
-              👥
-            </span>
+            <Users size={20} style={{ color: "var(--primary-foreground)" }} />
           </div>
           <div>
             <h3
@@ -476,9 +468,10 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
       {/* Active Members */}
       <div className="glass-card p-6">
         <h4
-          className="font-semibold mb-4"
+          className="font-semibold mb-4 flex items-center gap-2"
           style={{ color: "var(--foreground)" }}
         >
+          <Users size={18} />
           Active Members ({members.length})
         </h4>
         <div className="space-y-3">
@@ -486,6 +479,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
             const isProcessing =
               processingActions.has(`role-${member.uid}`) ||
               processingActions.has(`remove-${member.uid}`);
+            const RoleIcon = getRoleIcon(member.role);
 
             return (
               <div
@@ -522,7 +516,8 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                         )}
                       </span>
                       <span style={getRoleBadge(member.role)}>
-                        {getRoleIcon(member.role)} {member.role}
+                        <RoleIcon size={12} />
+                        {member.role}
                       </span>
                     </div>
                     <div
@@ -534,10 +529,8 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                   </div>
                 </div>
 
-                {/* Member Actions */}
                 {canModifyMember(member) && (
                   <div className="flex items-center gap-2 ml-4">
-                    {/* Role Change Dropdown */}
                     {canManageRoles() && (
                       <select
                         value={member.role}
@@ -557,11 +550,10 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                       </select>
                     )}
 
-                    {/* Remove Button */}
                     <button
                       onClick={() => removeMember(member.uid)}
                       disabled={isProcessing}
-                      className="p-2 rounded text-xs transition-colors"
+                      className="p-2 rounded text-xs transition-colors flex items-center gap-1"
                       style={{
                         backgroundColor: "var(--destructive)",
                         color: "var(--destructive-foreground)",
@@ -572,7 +564,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                       {isProcessing ? (
                         <div className="neo-spinner w-3 h-3"></div>
                       ) : (
-                        "Remove"
+                        <Trash2 size={14} />
                       )}
                     </button>
                   </div>
@@ -587,9 +579,10 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
       {pendingInvites.length > 0 && canManageInvites() && (
         <div className="glass-card p-6">
           <h4
-            className="font-semibold mb-4"
+            className="font-semibold mb-4 flex items-center gap-2"
             style={{ color: "var(--foreground)" }}
           >
+            <Mail size={18} />
             Pending Invitations ({pendingInvites.length})
           </h4>
           <div className="space-y-3">
@@ -598,6 +591,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
               const timeRemaining = getTimeRemaining(invite.expiresAt);
               const isExpiringSoon = invite.expiresAt && 
                 (invite.expiresAt.toMillis() - Date.now()) < 24 * 60 * 60 * 1000;
+              const RoleIcon = getRoleIcon(invite.role);
 
               return (
                 <div
@@ -617,24 +611,27 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                         {invite.email}
                       </span>
                       <span style={getRoleBadge(invite.role)}>
-                        {getRoleIcon(invite.role)} {invite.role}
+                        <RoleIcon size={12} />
+                        {invite.role}
                       </span>
                       {timeRemaining && (
                         <span
-                          className="text-xs px-2 py-1 rounded"
+                          className="text-xs px-2 py-1 rounded flex items-center gap-1"
                           style={{
                             backgroundColor: isExpiringSoon ? "var(--accent)" : "var(--secondary)",
                             color: isExpiringSoon ? "var(--accent-foreground)" : "var(--muted-foreground)",
                           }}
                         >
-                          ⏰ {timeRemaining}
+                          <Clock size={10} />
+                          {timeRemaining}
                         </span>
                       )}
                     </div>
                     <div
-                      className="text-sm"
+                      className="text-sm flex items-center gap-1"
                       style={{ color: "var(--muted-foreground)" }}
                     >
+                      <Calendar size={12} />
                       Invited {formatDate(invite.createdAt)} by{" "}
                       {invite.inviterName}
                     </div>
@@ -643,7 +640,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                   <button
                     onClick={() => cancelInvite(invite.id)}
                     disabled={isProcessing}
-                    className="px-3 py-1 text-xs rounded transition-colors"
+                    className="px-3 py-1 text-xs rounded transition-colors flex items-center gap-1"
                     style={{
                       backgroundColor: "var(--secondary)",
                       color: "var(--secondary-foreground)",
@@ -654,7 +651,10 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                     {isProcessing ? (
                       <div className="neo-spinner w-3 h-3"></div>
                     ) : (
-                      "Cancel"
+                      <>
+                        <X size={12} />
+                        Cancel
+                      </>
                     )}
                   </button>
                 </div>
@@ -667,9 +667,10 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
       {/* Role Permissions Info */}
       <div className="glass-card p-6">
         <h4
-          className="font-semibold mb-4"
+          className="font-semibold mb-4 flex items-center gap-2"
           style={{ color: "var(--foreground)" }}
         >
+          <Shield size={18} />
           Role Permissions
         </h4>
         <div className="grid md:grid-cols-3 gap-4">
@@ -681,7 +682,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
             }}
           >
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">👤</span>
+              <User size={18} />
               <span
                 className="font-medium"
                 style={{ color: "var(--foreground)" }}
@@ -708,7 +709,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
             }}
           >
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">⚡</span>
+              <Shield size={18} />
               <span
                 className="font-medium"
                 style={{ color: "var(--foreground)" }}
@@ -735,7 +736,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
             }}
           >
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">👑</span>
+              <Crown size={18} />
               <span
                 className="font-medium"
                 style={{ color: "var(--foreground)" }}
