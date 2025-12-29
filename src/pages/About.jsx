@@ -4,7 +4,7 @@ import LegalLayout from "../components/LegalLayout";
 
 export default function About() {
   return (
-    <LegalLayout title="About Prompt Teams">
+    <LegalLayout title="About Prism">
       <div className="space-y-8">
         {/* Mission Section */}
         <section>
@@ -21,7 +21,7 @@ export default function About() {
             style={{ color: "var(--muted-foreground)" }}
             className="leading-relaxed mb-4"
           >
-            Prompt Teams is dedicated to revolutionizing how teams collaborate
+            Prism is dedicated to revolutionizing how teams collaborate
             on AI prompts. We believe that effective prompt engineering is
             essential for maximizing AI potential, and collaboration amplifies
             creativity and results.
