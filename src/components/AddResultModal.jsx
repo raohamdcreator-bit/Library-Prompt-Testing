@@ -1,9 +1,8 @@
-//src/components/AddResultModal.jsx - Fully Responsive
-// Modal for adding new results
-
+// src/components/AddResultModal.jsx - Fixed Header Overlap
 import { useState } from "react";
 import { addResultToPrompt } from "../lib/results";
 import { uploadResultImage } from "../lib/storage";
+import { X, FileText, Code, Image, Upload, AlertCircle } from "lucide-react";
 
 export default function AddResultModal({
   isOpen,
@@ -115,7 +114,7 @@ export default function AddResultModal({
       </div>
     `;
     notification.className =
-      "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-50 text-sm transition-opacity duration-300";
+      "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-[9999] text-sm transition-opacity duration-300";
     notification.style.cssText = `
       background-color: var(--card);
       color: var(--foreground);
@@ -134,16 +133,21 @@ export default function AddResultModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay"
+      className="fixed inset-0 z-[9998] flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0, 0, 0, 0.7)" }}
       onClick={onClose}
     >
       <div
-        className="modal-content w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        className="glass-card w-full max-w-2xl max-h-[90vh] flex flex-col rounded-2xl border"
+        style={{ borderColor: "var(--border)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="p-4 md:p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4 md:mb-6">
+        {/* Fixed Header */}
+        <div 
+          className="flex-shrink-0 p-4 md:p-6 border-b"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <div className="flex items-center justify-between">
             <h3
               className="text-lg md:text-xl font-bold"
               style={{ color: "var(--foreground)" }}
@@ -153,27 +157,18 @@ export default function AddResultModal({
             <button
               onClick={onClose}
               disabled={uploading}
-              className="p-2 rounded-lg hover:bg-secondary transition-colors"
+              className="p-2 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
               style={{ color: "var(--muted-foreground)" }}
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              <X className="w-5 h-5" />
             </button>
           </div>
+        </div>
 
+        {/* Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Result Type Selection - Mobile Optimized */}
+            {/* Result Type Selection */}
             <div>
               <label
                 className="block text-xs md:text-sm font-medium mb-2"
@@ -183,35 +178,45 @@ export default function AddResultModal({
               </label>
               <div className="grid grid-cols-3 gap-2 md:gap-3">
                 {[
-                  { value: "text", icon: "📝", label: "Text" },
-                  { value: "code", icon: "💻", label: "Code" },
-                  { value: "image", icon: "🖼️", label: "Image" },
-                ].map((type) => (
-                  <button
-                    key={type.value}
-                    type="button"
-                    onClick={() => setResultType(type.value)}
-                    className={`p-3 md:p-4 rounded-lg border-2 transition-all ${
-                      resultType === type.value
-                        ? "border-primary"
-                        : "border-border"
-                    }`}
-                    style={{
-                      backgroundColor:
+                  { value: "text", icon: FileText, label: "Text" },
+                  { value: "code", icon: Code, label: "Code" },
+                  { value: "image", icon: Image, label: "Image" },
+                ].map((type) => {
+                  const Icon = type.icon;
+                  return (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => setResultType(type.value)}
+                      className={`p-3 md:p-4 rounded-lg border-2 transition-all ${
                         resultType === type.value
-                          ? "var(--secondary)"
-                          : "var(--card)",
-                    }}
-                  >
-                    <div className="text-xl md:text-2xl mb-1">{type.icon}</div>
-                    <div
-                      className="text-xs md:text-sm font-medium"
-                      style={{ color: "var(--foreground)" }}
+                          ? "border-primary"
+                          : "border-border"
+                      }`}
+                      style={{
+                        backgroundColor:
+                          resultType === type.value
+                            ? "var(--secondary)"
+                            : "var(--card)",
+                      }}
                     >
-                      {type.label}
-                    </div>
-                  </button>
-                ))}
+                      <Icon 
+                        className="w-6 h-6 md:w-8 md:h-8 mx-auto mb-2"
+                        style={{ 
+                          color: resultType === type.value 
+                            ? "var(--primary)" 
+                            : "var(--muted-foreground)"
+                        }}
+                      />
+                      <div
+                        className="text-xs md:text-sm font-medium"
+                        style={{ color: "var(--foreground)" }}
+                      >
+                        {type.label}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -325,7 +330,7 @@ export default function AddResultModal({
               </>
             )}
 
-            {/* Content (Image) - Mobile Optimized */}
+            {/* Content (Image) */}
             {resultType === "image" && (
               <div>
                 <label
@@ -348,20 +353,10 @@ export default function AddResultModal({
                       className="border-2 border-dashed rounded-lg p-6 md:p-8 text-center cursor-pointer hover:border-primary transition-colors"
                       style={{ borderColor: "var(--border)" }}
                     >
-                      <svg
+                      <Upload
                         className="w-10 h-10 md:w-12 md:h-12 mx-auto mb-3"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
                         style={{ color: "var(--muted-foreground)" }}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                        />
-                      </svg>
+                      />
                       <p
                         className="text-xs md:text-sm font-medium mb-1"
                         style={{ color: "var(--foreground)" }}
@@ -392,19 +387,7 @@ export default function AddResultModal({
                       disabled={uploading}
                       className="absolute top-2 right-2 p-2 rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 transition-opacity"
                     >
-                      <svg
-                        className="w-4 h-4"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
+                      <X className="w-4 h-4" />
                     </button>
                   </div>
                 )}
@@ -442,7 +425,7 @@ export default function AddResultModal({
               </div>
             )}
 
-            {/* Actions - Mobile Optimized */}
+            {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <button
                 type="submit"
