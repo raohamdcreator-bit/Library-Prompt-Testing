@@ -1,4 +1,4 @@
-// src/components/AIPromptEnhancer.jsx - Professional UI with Icons
+// src/components/AIPromptEnhancer.jsx - Complete with Model Selection
 import { useState } from "react";
 import { 
   X, 
@@ -12,7 +12,11 @@ import {
   AlertCircle,
   Loader2,
   Copy,
-  Save
+  Save,
+  Cpu,
+  Code,
+  Brain,
+  Zap
 } from "lucide-react";
 
 export default function AIPromptEnhancer({
@@ -21,10 +25,63 @@ export default function AIPromptEnhancer({
   onSaveAsNew,
   onClose,
 }) {
+  const [targetModel, setTargetModel] = useState("general");
   const [enhancementType, setEnhancementType] = useState("general");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+
+  // AI Models Configuration
+  const aiModels = [
+    {
+      id: "general",
+      name: "Universal",
+      icon: Sparkles,
+      description: "Optimized for all AI models",
+      badge: "🌐",
+      color: "#8b5cf6",
+    },
+    {
+      id: "claude",
+      name: "Claude",
+      icon: Brain,
+      description: "Contextual, reasoning-focused",
+      badge: "🧠",
+      color: "#d97706",
+    },
+    {
+      id: "chatgpt",
+      name: "ChatGPT",
+      icon: Zap,
+      description: "Structured, role-based",
+      badge: "💬",
+      color: "#10b981",
+    },
+    {
+      id: "cursor",
+      name: "Cursor",
+      icon: Code,
+      description: "Developer-optimized",
+      badge: "💻",
+      color: "#3b82f6",
+    },
+    {
+      id: "gemini",
+      name: "Gemini",
+      icon: Sparkles,
+      description: "Concise, task-focused",
+      badge: "✨",
+      color: "#ec4899",
+    },
+    {
+      id: "copilot",
+      name: "Copilot",
+      icon: Cpu,
+      description: "Code completion focus",
+      badge: "🤖",
+      color: "#6366f1",
+    },
+  ];
 
   const enhancementTypes = [
     {
@@ -86,6 +143,7 @@ export default function AIPromptEnhancer({
         body: JSON.stringify({
           prompt: prompt.text,
           enhancementType,
+          targetModel,
           context: {
             title: prompt.title,
             tags: prompt.tags,
@@ -142,7 +200,14 @@ export default function AIPromptEnhancer({
 
   function handleApply() {
     if (result?.enhanced) {
-      onApply({ ...prompt, text: result.enhanced });
+      onApply({ 
+        ...prompt, 
+        text: result.enhanced,
+        enhanced: true,
+        enhancedFor: targetModel,
+        enhancementType: enhancementType,
+        enhancedAt: new Date().toISOString(),
+      });
       showNotification("Enhanced prompt applied!", "success");
       if (onClose) onClose();
     }
@@ -151,16 +216,23 @@ export default function AIPromptEnhancer({
   function handleSaveAsNew() {
     if (result?.enhanced) {
       const { id, teamId, createdAt, createdBy, ...promptData } = prompt;
+      const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
 
       onSaveAsNew({
         ...promptData,
         text: result.enhanced,
-        title: `${prompt.title} (AI Enhanced)`,
+        title: `${prompt.title} (Enhanced for ${modelName})`,
+        enhanced: true,
+        enhancedFor: targetModel,
+        enhancementType: enhancementType,
+        enhancedAt: new Date().toISOString(),
       });
       showNotification("Saved as new prompt!", "success");
       if (onClose) onClose();
     }
   }
+
+  const selectedModel = aiModels.find(m => m.id === targetModel);
 
   return (
     <div 
@@ -169,7 +241,7 @@ export default function AIPromptEnhancer({
       onClick={onClose}
     >
       <div
-        className="glass-card w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl border"
+        className="glass-card w-full max-w-6xl max-h-[90vh] flex flex-col rounded-2xl border"
         style={{ borderColor: "var(--border)" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -200,7 +272,7 @@ export default function AIPromptEnhancer({
                   className="text-sm"
                   style={{ color: "var(--muted-foreground)" }}
                 >
-                  Powered by Open Source AI Models
+                  Model-Specific Optimization • Powered by Open Source AI
                 </p>
               </div>
             </div>
@@ -217,12 +289,72 @@ export default function AIPromptEnhancer({
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Target AI Model Selection */}
+          <div>
+            <label 
+              className="block text-sm font-medium mb-3"
+              style={{ color: "var(--foreground)" }}
+            >
+              <Cpu className="w-4 h-4 inline mr-2" />
+              Select Target AI Model:
+            </label>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {aiModels.map((model) => {
+                const Icon = model.icon;
+                return (
+                  <button
+                    key={model.id}
+                    onClick={() => setTargetModel(model.id)}
+                    disabled={loading}
+                    className="p-4 rounded-lg border-2 transition-all duration-200 text-left disabled:opacity-50 hover:scale-105"
+                    style={{
+                      borderColor: targetModel === model.id 
+                        ? model.color
+                        : "var(--border)",
+                      backgroundColor: targetModel === model.id
+                        ? `${model.color}15`
+                        : "transparent",
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <Icon 
+                        className="w-6 h-6"
+                        style={{ 
+                          color: targetModel === model.id 
+                            ? model.color
+                            : "var(--muted-foreground)"
+                        }}
+                      />
+                      {targetModel === model.id && (
+                        <Check className="w-4 h-4" style={{ color: model.color }} />
+                      )}
+                    </div>
+                    <div 
+                      className="font-semibold text-sm mb-1 flex items-center gap-2"
+                      style={{ color: "var(--foreground)" }}
+                    >
+                      <span>{model.badge}</span>
+                      <span>{model.name}</span>
+                    </div>
+                    <div 
+                      className="text-xs"
+                      style={{ color: "var(--muted-foreground)" }}
+                    >
+                      {model.description}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Enhancement Type Selection */}
           <div>
             <label 
               className="block text-sm font-medium mb-3"
               style={{ color: "var(--foreground)" }}
             >
+              <Settings className="w-4 h-4 inline mr-2" />
               Select Enhancement Type:
             </label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -311,7 +443,7 @@ export default function AIPromptEnhancer({
               className="w-full btn-primary py-4 text-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Sparkles className="w-5 h-5" />
-              <span>Enhance Prompt with AI</span>
+              <span>Enhance for {selectedModel?.name || "AI"}</span>
             </button>
           )}
 
@@ -334,13 +466,13 @@ export default function AIPromptEnhancer({
                     className="font-medium mb-1"
                     style={{ color: "var(--foreground)" }}
                   >
-                    Enhancing with AI...
+                    Enhancing for {selectedModel?.name}...
                   </p>
                   <p 
                     className="text-sm"
                     style={{ color: "var(--muted-foreground)" }}
                   >
-                    This may take 5-10 seconds
+                    Applying {enhancementType} optimization • This may take 5-10 seconds
                   </p>
                 </div>
               </div>
@@ -392,7 +524,7 @@ export default function AIPromptEnhancer({
               <div 
                 className="glass-card p-4 rounded-xl border-2"
                 style={{
-                  borderColor: "var(--primary)",
+                  borderColor: selectedModel?.color || "var(--primary)",
                   backgroundColor: "var(--secondary)",
                 }}
               >
@@ -401,18 +533,29 @@ export default function AIPromptEnhancer({
                     className="font-semibold flex items-center gap-2"
                     style={{ color: "var(--foreground)" }}
                   >
-                    <Check className="w-4 h-4" style={{ color: "var(--primary)" }} />
+                    <Check className="w-4 h-4" style={{ color: selectedModel?.color || "var(--primary)" }} />
                     <span>Enhanced Prompt:</span>
                   </h3>
-                  <span 
-                    className="text-xs px-2 py-1 rounded"
-                    style={{
-                      backgroundColor: "var(--primary)",
-                      color: "var(--primary-foreground)",
-                    }}
-                  >
-                    {result.provider?.toUpperCase() || "AI"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span 
+                      className="text-xs px-3 py-1 rounded-full font-semibold"
+                      style={{
+                        backgroundColor: selectedModel?.color || "var(--primary)",
+                        color: "white",
+                      }}
+                    >
+                      ✓ Enhanced
+                    </span>
+                    <span 
+                      className="text-xs px-2 py-1 rounded"
+                      style={{
+                        backgroundColor: `${selectedModel?.color || "var(--primary)"}20`,
+                        color: selectedModel?.color || "var(--primary)",
+                      }}
+                    >
+                      {selectedModel?.badge} {selectedModel?.name}
+                    </span>
+                  </div>
                 </div>
                 <div 
                   className="p-3 rounded-lg border max-h-64 overflow-y-auto"
@@ -434,7 +577,7 @@ export default function AIPromptEnhancer({
                 >
                   <span>{result.enhanced?.length || 0} characters</span>
                   {prompt?.text && (
-                    <span style={{ color: "var(--primary)" }}>
+                    <span style={{ color: selectedModel?.color || "var(--primary)" }}>
                       {result.enhanced.length > prompt.text.length ? "+" : ""}
                       {result.enhanced.length - prompt.text.length} chars
                     </span>
@@ -475,17 +618,17 @@ export default function AIPromptEnhancer({
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 <button
                   onClick={handleApply}
-                  className="flex-1 btn-primary py-3 text-sm font-semibold flex items-center justify-center gap-2"
+                  className="flex-1 min-w-[200px] btn-primary py-3 text-sm font-semibold flex items-center justify-center gap-2"
                 >
                   <Copy className="w-4 h-4" />
                   Apply Enhanced Prompt
                 </button>
                 <button
                   onClick={handleSaveAsNew}
-                  className="flex-1 btn-secondary py-3 text-sm font-semibold flex items-center justify-center gap-2"
+                  className="flex-1 min-w-[200px] btn-secondary py-3 text-sm font-semibold flex items-center justify-center gap-2"
                 >
                   <Save className="w-4 h-4" />
                   Save as New Prompt
@@ -502,7 +645,7 @@ export default function AIPromptEnhancer({
                     color: "var(--foreground)",
                   }}
                 >
-                  Try Different Type
+                  Enhance Again
                 </button>
               </div>
             </>
@@ -517,13 +660,17 @@ export default function AIPromptEnhancer({
                 borderColor: "var(--border)",
               }}
             >
-              <div>
-                Provider: {result.provider} • Model: {result.model}
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">Enhancement Details:</span>
               </div>
-              <div>Enhancement Type: {result.metadata.enhancementType}</div>
-              <div>
-                Processed:{" "}
-                {new Date(result.metadata.timestamp).toLocaleTimeString()}
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <div>Provider: {result.provider}</div>
+                <div>Model: {result.model}</div>
+                <div>Target: {selectedModel?.name || targetModel}</div>
+                <div>Type: {result.metadata.enhancementType}</div>
+              </div>
+              <div className="mt-2">
+                Processed: {new Date(result.metadata.timestamp).toLocaleString()}
               </div>
             </div>
           )}
@@ -540,7 +687,7 @@ export default function AIPromptEnhancer({
           <div className="flex justify-between items-center text-xs">
             <div style={{ color: "var(--muted-foreground)" }}>
               <AlertCircle className="w-3 h-3 inline mr-1" />
-              Tip: Try different enhancement types for varied results
+              Tip: Select target AI model first, then choose enhancement type for best results
             </div>
             <button
               onClick={onClose}
