@@ -1,6 +1,7 @@
 // src/components/Comments.jsx - Modernized UI/UX
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
+import { updateCommentCount } from "../lib/promptStats";
 import {
   collection,
   addDoc,
@@ -435,23 +436,26 @@ export default function Comments({ teamId, promptId, userRole }) {
   const [showCommentForm, setShowCommentForm] = useState(false);
 
   async function handleAddComment(text, parentId = null) {
-    if (!teamId || !promptId || !user) return;
+  if (!teamId || !promptId || !user) return;
 
-    try {
-      await addDoc(
-        collection(db, "teams", teamId, "prompts", promptId, "comments"),
-        {
-          text,
-          createdBy: user.uid,
-          createdAt: serverTimestamp(),
-          parentId: parentId || null,
-        }
-      );
-    } catch (error) {
-      console.error("Error adding comment:", error);
-      throw error;
-    }
+  try {
+    await addDoc(
+      collection(db, "teams", teamId, "prompts", promptId, "comments"),
+      {
+        text,
+        createdBy: user.uid,
+        createdAt: serverTimestamp(),
+        parentId: parentId || null,
+      }
+    );
+    
+    // ✅ Update stats
+    await updateCommentCount(teamId, promptId, 1);
+  } catch (error) {
+    console.error("Error adding comment:", error);
+    throw error;
   }
+}
 
   async function handleEditComment(commentId, newText) {
     if (!teamId || !promptId) return;
@@ -470,19 +474,21 @@ export default function Comments({ teamId, promptId, userRole }) {
     }
   }
 
-  async function handleDeleteComment(commentId) {
-    if (!confirm("Are you sure you want to delete this comment?")) return;
+ async function handleDeleteComment(commentId) {
+  if (!confirm("Are you sure you want to delete this comment?")) return;
 
-    try {
-      await deleteDoc(
-        doc(db, "teams", teamId, "prompts", promptId, "comments", commentId)
-      );
-    } catch (error) {
-      console.error("Error deleting comment:", error);
-      alert("Failed to delete comment. Please try again.");
-    }
+  try {
+    await deleteDoc(
+      doc(db, "teams", teamId, "prompts", promptId, "comments", commentId)
+    );
+    
+    // ✅ Update stats
+    await updateCommentCount(teamId, promptId, -1);
+  } catch (error) {
+    console.error("Error deleting comment:", error);
+    alert("Failed to delete comment. Please try again.");
   }
-
+}
   async function handleReply(parentId, text) {
     await handleAddComment(text, parentId);
   }
