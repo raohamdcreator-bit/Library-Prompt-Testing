@@ -711,11 +711,10 @@ export default function App() {
     fetchRole();
   }, [activeTeam, user]);
 
-  // Load avatars and team stats
+  // Load avatars (static data - loaded once)
   useEffect(() => {
-    async function loadTeamData() {
+    async function loadAvatars() {
       const avatarResults = {};
-      const statsResults = {};
 
       for (const team of teams) {
         for (const uid of Object.keys(team.members || {})) {
@@ -735,30 +734,55 @@ export default function App() {
             }
           }
         }
-
-        try {
-          const promptsQuery = collection(db, "teams", team.id, "prompts");
-          const promptsSnapshot = await getDocs(promptsQuery);
-          const promptCount = promptsSnapshot.size;
-
-          statsResults[team.id] = {
-            memberCount: Object.keys(team.members || {}).length,
-            promptCount: promptCount,
-          };
-        } catch (error) {
-          console.error("Error loading team stats:", error);
-          statsResults[team.id] = {
-            memberCount: Object.keys(team.members || {}).length,
-            promptCount: 0,
-          };
-        }
       }
 
       setAvatars(avatarResults);
-      setTeamStats(statsResults);
     }
 
-    if (teams.length > 0) loadTeamData();
+    if (teams.length > 0) loadAvatars();
+  }, [teams]);
+
+  // Real-time team stats with onSnapshot (dynamic data - updates live)
+  useEffect(() => {
+    if (teams.length === 0) {
+      setTeamStats({});
+      return;
+    }
+
+    const unsubscribers = [];
+
+    teams.forEach((team) => {
+      const promptsRef = collection(db, "teams", team.id, "prompts");
+      
+      const unsub = onSnapshot(
+        promptsRef,
+        (snapshot) => {
+          setTeamStats((prev) => ({
+            ...prev,
+            [team.id]: {
+              memberCount: Object.keys(team.members || {}).length,
+              promptCount: snapshot.size,
+            },
+          }));
+        },
+        (error) => {
+          console.error(`Error loading stats for team ${team.id}:`, error);
+          setTeamStats((prev) => ({
+            ...prev,
+            [team.id]: {
+              memberCount: Object.keys(team.members || {}).length,
+              promptCount: 0,
+            },
+          }));
+        }
+      );
+
+      unsubscribers.push(unsub);
+    });
+
+    return () => {
+      unsubscribers.forEach((unsub) => unsub());
+    };
   }, [teams]);
 
   // Create new team
