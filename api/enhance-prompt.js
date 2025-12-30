@@ -1,4 +1,4 @@
-// api/enhance-prompt.js - Enhanced with detailed error logging
+// api/enhance-prompt.js - Enhanced with Model-Specific Optimizations
 const PROVIDERS = {
   GROQ: 'groq',
   HUGGINGFACE: 'huggingface',
@@ -13,8 +13,7 @@ const PROVIDER_CONFIGS = {
   [PROVIDERS.GROQ]: {
     endpoint: 'https://api.groq.com/openai/v1/chat/completions',
     apiKey: process.env.GROQ_API_KEY,
-    model: 'llama-3.3-70b-versatile', // UPDATED: Current active model
-    // Alternative models: 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768' (deprecated)
+    model: 'llama-3.3-70b-versatile',
   },
   [PROVIDERS.HUGGINGFACE]: {
     endpoint: 'https://api-inference.huggingface.co/models/mistralai/Mixtral-8x7B-Instruct-v0.1',
@@ -26,6 +25,182 @@ const PROVIDER_CONFIGS = {
     apiKey: process.env.OPENROUTER_API_KEY,
     model: 'meta-llama/llama-3.1-8b-instruct:free',
   }
+};
+
+/**
+ * MODEL-SPECIFIC OPTIMIZATION SYSTEM PROMPTS
+ * Each AI model has unique characteristics for optimal performance
+ */
+const MODEL_OPTIMIZATION_PROMPTS = {
+  general: `You are an expert Prompt Engineer. Enhance the given prompt for maximum clarity, structure, and effectiveness across all AI models.
+
+ENHANCEMENT RULES:
+1. Preserve the original intent completely
+2. Improve clarity and remove ambiguity
+3. Add structure using clear sections
+4. Include specific instructions where needed
+5. Make it actionable and results-oriented
+
+OUTPUT: Enhanced prompt only, no explanations.`,
+
+  claude: `You are an expert in optimizing prompts for Claude AI (Anthropic).
+
+CLAUDE-SPECIFIC OPTIMIZATION:
+- Use natural, conversational language with rich context
+- Provide background information and reasoning expectations
+- Structure thinking steps explicitly ("Think through this step by step")
+- Use XML tags for complex structure when beneficial (<context>, <requirements>)
+- Frame as collaborative problem-solving
+- Include examples when clarifying expectations
+- Encourage analytical reasoning and multiple perspectives
+
+ENHANCEMENT RULES:
+1. Add context sections: Background, Goal, Constraints
+2. Use phrases like "Let's approach this systematically"
+3. Include reasoning requirements: "Consider X, Y, Z before responding"
+4. Make thinking process explicit
+5. Preserve original intent exactly
+
+OUTPUT: Enhanced prompt only, no meta-commentary.`,
+
+  chatgpt: `You are an expert in optimizing prompts for ChatGPT (OpenAI).
+
+CHATGPT-SPECIFIC OPTIMIZATION:
+- Assign explicit roles: "You are a [expert role]..."
+- Use numbered steps and clear formatting (1., 2., 3.)
+- Define output format precisely (bullets, JSON, markdown, table)
+- Include clear "Requirements:" and "Constraints:" sections
+- Use system/user role framing where helpful
+- Add action-oriented instructions: "Do this:", "Create:", "Generate:"
+- Specify tone and style explicitly (professional, casual, technical)
+
+ENHANCEMENT RULES:
+1. Start with role assignment: "You are an expert in..."
+2. Break complex tasks into numbered steps
+3. Add "Output format:" section with specific structure
+4. Include "Requirements:" and "Constraints:" as bullet lists
+5. Specify desired tone and audience
+6. Preserve original intent exactly
+
+OUTPUT: Enhanced prompt only, no meta-commentary.`,
+
+  cursor: `You are an expert in optimizing prompts for Cursor AI (developer tool).
+
+CURSOR-SPECIFIC OPTIMIZATION:
+- Optimize for code context and file structure awareness
+- Use precise technical language and standard terminology
+- Reference file paths, functions, and code patterns explicitly
+- Include code snippets as examples when relevant
+- Specify programming languages, frameworks, and versions
+- Focus on developer workflow efficiency
+- Use technical constraints (dependencies, patterns, best practices)
+- Request specific code organization and structure
+
+ENHANCEMENT RULES:
+1. Add specific technical requirements and versions
+2. Reference code structure explicitly (files, functions, modules)
+3. Include language/framework specifications (e.g., "React 18+", "TypeScript")
+4. Add example code patterns or snippets when helpful
+5. Specify file/module organization if relevant
+6. Include testing and documentation expectations
+7. Preserve original intent exactly
+
+OUTPUT: Enhanced prompt only, no meta-commentary.`,
+
+  gemini: `You are an expert in optimizing prompts for Google Gemini AI.
+
+GEMINI-SPECIFIC OPTIMIZATION:
+- Use structured, concise language with clear sections
+- Organize with explicit headings (Task:, Requirements:, Output:)
+- Task-focused with explicit, measurable goals
+- Prefer bullet points for requirements and constraints
+- Use direct instructions over narrative storytelling
+- Include specific output format expectations
+- Optimize for efficiency and token usage
+- Keep focused and avoid unnecessary elaboration
+
+ENHANCEMENT RULES:
+1. Structure with clear sections: Task, Requirements, Constraints, Output
+2. Use concise, action-oriented language
+3. Bullet point all key requirements (•)
+4. Specify deliverables explicitly and measurably
+5. Keep it focused and efficient - no fluff
+6. Use headings for organization
+7. Preserve original intent exactly
+
+OUTPUT: Enhanced prompt only, no meta-commentary.`,
+
+  copilot: `You are an expert in optimizing prompts for GitHub Copilot.
+
+COPILOT-SPECIFIC OPTIMIZATION:
+- Optimize for inline code suggestions and completions
+- Use clear, descriptive function/variable names in examples
+- Include type hints and expected behavior in comments
+- Reference code patterns and best practices explicitly
+- Add implementation requirements as inline comments
+- Focus on code-level precision and correctness
+- Include test cases or expected inputs/outputs
+- Specify error handling and edge cases
+- Use docstrings and JSDoc-style documentation
+
+ENHANCEMENT RULES:
+1. Add specific code requirements with types
+2. Include function signatures and type information
+3. Reference design patterns explicitly (Factory, Singleton, etc.)
+4. Specify edge cases and error handling requirements
+5. Add example inputs/outputs as comments
+6. Include testing expectations (unit tests, edge cases)
+7. Preserve original intent exactly
+
+OUTPUT: Enhanced prompt only, no meta-commentary.`,
+};
+
+/**
+ * ENHANCEMENT TYPE MODIFIERS
+ * Additional layer of optimization based on enhancement type
+ */
+const ENHANCEMENT_TYPE_MODIFIERS = {
+  general: "Apply general improvements to clarity, structure, and effectiveness.",
+  
+  technical: `Add technical depth and precision:
+- Include specific technical requirements and constraints
+- Add version requirements and compatibility notes
+- Specify programming languages, frameworks, or tools explicitly
+- Define error handling and edge case expectations
+- Add performance, security, or quality criteria
+- Include code standards and best practices`,
+
+  creative: `Enhance creative and stylistic aspects:
+- Add descriptive and evocative language for mood/atmosphere
+- Include style, tone, and voice specifications
+- Specify target audience and emotional impact
+- Add sensory details and vivid imagery
+- Include creative constraints that spark innovation
+- Suggest narrative structure or storytelling elements`,
+
+  analytical: `Add analytical depth and rigor:
+- Request step-by-step reasoning and logic
+- Ask for evidence, citations, and data sources
+- Include requirement for multiple perspectives
+- Specify depth and breadth of analysis expected
+- Request structured conclusions with supporting arguments
+- Add critical thinking and evaluation criteria`,
+
+  concise: `Simplify while maintaining clarity and impact:
+- Remove redundancy and unnecessary words
+- Use precise, direct language
+- Focus on essential elements only
+- Eliminate filler and maintain core meaning
+- Use active voice and strong verbs
+- Keep instructions clear and actionable`,
+
+  detailed: `Expand with comprehensive detail and examples:
+- Add extensive context and background information
+- Include multiple examples and use cases
+- Specify edge cases and exceptional scenarios
+- Add detailed quality criteria and success metrics
+- Request thorough explanations with reasoning
+- Include step-by-step breakdowns of complex tasks`,
 };
 
 export default async function handler(req, res) {
@@ -53,7 +228,12 @@ export default async function handler(req, res) {
   console.log('- OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? '✓ Set' : '✗ Not set');
 
   try {
-    const { prompt, enhancementType = 'general', context = {} } = req.body;
+    const { 
+      prompt, 
+      enhancementType = 'general', 
+      targetModel = 'general',
+      context = {} 
+    } = req.body;
 
     // Validate prompt
     if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -67,6 +247,7 @@ export default async function handler(req, res) {
 
     console.log('Prompt length:', prompt.length);
     console.log('Enhancement type:', enhancementType);
+    console.log('Target model:', targetModel);
 
     // Validate provider configuration
     const config = PROVIDER_CONFIGS[ACTIVE_PROVIDER];
@@ -103,11 +284,12 @@ export default async function handler(req, res) {
 
     console.log(`✓ Using provider: ${ACTIVE_PROVIDER}`);
     console.log(`✓ Model: ${config.model}`);
+    console.log(`✓ Target optimization: ${targetModel}`);
     console.log(`✓ Endpoint: ${config.endpoint}`);
 
-    // Generate enhancement prompt based on type
-    const systemPrompt = generateSystemPrompt(enhancementType, context);
-    const userPrompt = generateUserPrompt(prompt, enhancementType);
+    // Generate model-specific and type-specific enhancement prompt
+    const systemPrompt = generateSystemPrompt(enhancementType, targetModel, context);
+    const userPrompt = generateUserPrompt(prompt, enhancementType, targetModel);
 
     console.log('System prompt length:', systemPrompt.length);
     console.log('User prompt length:', userPrompt.length);
@@ -125,23 +307,34 @@ export default async function handler(req, res) {
     // Extract and validate the enhanced prompt
     const result = extractEnhancedPrompt(enhancedPrompt);
 
+    // Analyze improvements made
+    const improvements = analyzeImprovements(
+      prompt, 
+      result.enhanced, 
+      targetModel, 
+      enhancementType
+    );
+
     console.log('✓ Enhancement successful');
     console.log('- Enhanced length:', result.enhanced.length);
-    console.log('- Improvements count:', result.improvements.length);
+    console.log('- Improvements count:', improvements.length);
+    console.log('- Target model:', targetModel);
 
     return res.status(200).json({
       success: true,
       original: prompt,
       enhanced: result.enhanced,
-      improvements: result.improvements,
+      improvements: improvements.length > 0 ? improvements : result.improvements,
       provider: ACTIVE_PROVIDER,
       model: config.model,
+      targetModel,
       metadata: {
         enhancementType,
+        targetModel,
         timestamp: new Date().toISOString(),
         originalLength: prompt.length,
         enhancedLength: result.enhanced.length,
-        improvementCount: result.improvements.length
+        improvementCount: improvements.length,
       }
     });
 
@@ -151,7 +344,6 @@ export default async function handler(req, res) {
     console.error('Error message:', error.message);
     console.error('Error stack:', error.stack);
     
-    // Detailed error information
     if (error.cause) {
       console.error('Error cause:', error.cause);
     }
@@ -195,84 +387,70 @@ export default async function handler(req, res) {
   }
 }
 
-// Generate system prompt based on enhancement type
-function generateSystemPrompt(enhancementType, context) {
-  const basePrompt = `You are an expert AI prompt engineer. Your task is to enhance and optimize prompts to make them more effective, clear, and comprehensive.`;
+// Generate comprehensive system prompt with model and type specificity
+function generateSystemPrompt(enhancementType, targetModel, context) {
+  // Get model-specific optimization prompt
+  const modelPrompt = MODEL_OPTIMIZATION_PROMPTS[targetModel] || MODEL_OPTIMIZATION_PROMPTS.general;
+  
+  // Get enhancement type modifier
+  const typeModifier = ENHANCEMENT_TYPE_MODIFIERS[enhancementType] || ENHANCEMENT_TYPE_MODIFIERS.general;
 
-  const typeSpecificPrompts = {
-    general: `${basePrompt}
+  // Combine both optimizations
+  const combinedPrompt = `${modelPrompt}
 
-Focus on:
-- Making instructions clearer and more specific
-- Adding relevant context and constraints
-- Structuring the prompt for better comprehension
-- Including examples where helpful
-- Specifying desired output format`,
+ADDITIONAL ENHANCEMENT FOCUS: ${enhancementType.toUpperCase()}
+${typeModifier}
 
-    technical: `${basePrompt}
+CONTEXT (if provided):
+${context.title ? `Title: ${context.title}` : ''}
+${context.tags ? `Tags: ${context.tags.join(', ')}` : ''}
 
-Focus on technical accuracy and precision:
-- Add technical specifications and constraints
-- Include version requirements if applicable
-- Specify programming languages, frameworks, or tools
-- Define error handling expectations
-- Add performance or security considerations`,
+CRITICAL INSTRUCTIONS:
+- Output ONLY the enhanced prompt
+- No explanations or meta-commentary
+- No markdown formatting markers
+- Preserve the original intent completely
+- Apply both model-specific and enhancement-type optimizations
+- Make it ready to use immediately`;
 
-    creative: `${basePrompt}
-
-Enhance for creative output:
-- Expand on style, tone, and voice requirements
-- Add sensory and descriptive details
-- Include target audience specification
-- Suggest emotional tone or mood
-- Add creative constraints that spark innovation`,
-
-    analytical: `${basePrompt}
-
-Optimize for analytical thinking:
-- Request step-by-step reasoning
-- Ask for evidence and citations
-- Include multiple perspectives consideration
-- Specify depth and breadth of analysis
-- Request structured conclusions`,
-
-    concise: `${basePrompt}
-
-Make the prompt clearer while keeping it brief:
-- Remove redundancy
-- Use precise language
-- Focus on essential elements only
-- Maintain clarity without verbosity`,
-
-    detailed: `${basePrompt}
-
-Expand the prompt with comprehensive details:
-- Add extensive context and background
-- Include multiple examples
-- Specify edge cases
-- Add quality criteria
-- Request thorough explanations`
-  };
-
-  return typeSpecificPrompts[enhancementType] || typeSpecificPrompts.general;
+  return combinedPrompt;
 }
 
-// Generate user prompt
-function generateUserPrompt(originalPrompt, enhancementType) {
-  return `Original prompt: "${originalPrompt}"
+// Generate user prompt with clear instructions
+function generateUserPrompt(originalPrompt, enhancementType, targetModel) {
+  const modelNames = {
+    general: 'all AI models',
+    claude: 'Claude AI (Anthropic)',
+    chatgpt: 'ChatGPT (OpenAI)',
+    cursor: 'Cursor AI (developer tool)',
+    gemini: 'Google Gemini',
+    copilot: 'GitHub Copilot',
+  };
 
-Please enhance this prompt to make it more effective. Provide:
+  const targetName = modelNames[targetModel] || modelNames.general;
+
+  return `Original prompt to enhance:
+
+"""
+${originalPrompt}
+"""
+
+Task: Enhance this prompt specifically for ${targetName}, applying ${enhancementType} optimization.
+
+Provide:
 1. The enhanced version of the prompt
-2. A list of specific improvements made
+2. A brief list of specific improvements made
 
-Format your response as:
+Format your response exactly as:
 ENHANCED PROMPT:
 [Your enhanced prompt here]
 
 IMPROVEMENTS:
 - [Improvement 1]
 - [Improvement 2]
-- [etc.]`;
+- [Improvement 3]
+
+Remember: The enhanced prompt should be optimized for ${targetName} and follow ${enhancementType} enhancement principles.`;
 }
 
 // Call AI provider based on configuration
@@ -358,7 +536,6 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
       const errorText = await response.text();
       console.error(`API Error Response (${response.status}):`, errorText);
       
-      // Try to parse as JSON for better error message
       try {
         const errorJson = JSON.parse(errorText);
         console.error('Parsed error:', errorJson);
@@ -438,7 +615,7 @@ function extractEnhancedPrompt(response) {
     console.log('Found', improvements.length, 'improvements');
   }
 
-  // If no improvements found, extract from response
+  // If no improvements found, provide defaults
   if (improvements.length === 0) {
     improvements = [
       'Enhanced clarity and specificity',
@@ -452,4 +629,96 @@ function extractEnhancedPrompt(response) {
     enhanced,
     improvements
   };
+}
+
+/**
+ * Analyze what improvements were made based on model and type
+ */
+function analyzeImprovements(original, enhanced, targetModel, enhancementType) {
+  const improvements = [];
+
+  // Length changes
+  if (enhanced.length > original.length * 1.3) {
+    improvements.push("Significantly expanded with additional detail and context");
+  } else if (enhanced.length > original.length * 1.1) {
+    improvements.push("Added comprehensive details and structure");
+  } else if (enhanced.length < original.length * 0.8) {
+    improvements.push("Simplified and made more concise");
+  }
+
+  // Structure improvements
+  if (enhanced.includes("\n\n") && !original.includes("\n\n")) {
+    improvements.push("Added paragraph structure for better readability");
+  }
+
+  if ((enhanced.match(/\n/g) || []).length > (original.match(/\n/g) || []).length + 3) {
+    improvements.push("Organized into clear, logical sections");
+  }
+
+  // Model-specific improvements
+  const modelImprovements = {
+    claude: [
+      (enhanced.toLowerCase().includes("think") || enhanced.toLowerCase().includes("reason")) && "Added reasoning and thinking guidance",
+      enhanced.toLowerCase().includes("context") && "Provided rich contextual framing",
+      enhanced.toLowerCase().includes("step") && "Included step-by-step analytical structure",
+      enhanced.includes("<") && enhanced.includes(">") && "Used XML tags for clear structure",
+    ],
+    chatgpt: [
+      enhanced.toLowerCase().includes("you are") && "Assigned explicit expert role",
+      /\d+\./.test(enhanced) && "Added numbered steps for clarity",
+      enhanced.toLowerCase().includes("format:") && "Specified clear output format",
+      enhanced.toLowerCase().includes("requirements:") && "Defined explicit requirements section",
+    ],
+    cursor: [
+      enhanced.toLowerCase().includes("code") && "Optimized for code context and precision",
+      enhanced.includes("```") && "Added code examples and snippets",
+      /\.(js|ts|py|java|cpp|jsx|tsx)/.test(enhanced) && "Specified programming language/framework",
+      enhanced.toLowerCase().includes("function") && "Included function-level specifications",
+    ],
+    gemini: [
+      enhanced.includes("Task:") && "Added structured task definition",
+      enhanced.includes("•") && "Used bullet points for clarity and efficiency",
+      enhanced.toLowerCase().includes("output:") && "Defined clear output expectations",
+      enhanced.includes("Requirements:") && "Organized requirements systematically",
+    ],
+    copilot: [
+      enhanced.includes("function") && "Optimized for inline code suggestions",
+      enhanced.includes("//") && "Added implementation guidance as comments",
+      enhanced.toLowerCase().includes("type") && "Included type specifications and hints",
+      enhanced.includes("test") && "Added testing expectations",
+    ],
+  };
+
+  const modelSpecific = modelImprovements[targetModel] || [];
+  improvements.push(...modelSpecific.filter(Boolean));
+
+  // Enhancement type improvements
+  const typeImprovements = {
+    technical: "Added technical specifications, constraints, and precision",
+    creative: "Enhanced with creative elements and descriptive language",
+    analytical: "Structured for analytical thinking and reasoning depth",
+    concise: "Reduced verbosity while preserving core meaning",
+    detailed: "Expanded with comprehensive examples and context",
+    general: "Applied general clarity and effectiveness improvements",
+  };
+
+  if (typeImprovements[enhancementType]) {
+    improvements.push(typeImprovements[enhancementType]);
+  }
+
+  // Add model optimization note
+  const modelNames = {
+    claude: "Claude AI",
+    chatgpt: "ChatGPT",
+    cursor: "Cursor AI",
+    gemini: "Google Gemini",
+    copilot: "GitHub Copilot",
+    general: "universal AI compatibility",
+  };
+
+  if (targetModel !== 'general') {
+    improvements.push(`Optimized specifically for ${modelNames[targetModel] || targetModel}`);
+  }
+
+  return improvements.filter(Boolean).slice(0, 6); // Limit to top 6 improvements
 }
