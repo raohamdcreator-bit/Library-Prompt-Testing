@@ -1,6 +1,7 @@
 // src/components/PromptList.jsx - Premium Enterprise UI with Professional Icons
 import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
+import { trackPromptCopy, trackPromptView } from "../lib/promptStats";
 import {
   collection,
   onSnapshot,
@@ -292,15 +293,27 @@ export default function PromptList({ activeTeam, userRole }) {
     }
   }
 
-  async function handleCopy(text) {
-    try {
-      await navigator.clipboard.writeText(text);
-      showSuccessToast("Copied to clipboard!");
-    } catch (error) {
-      console.error("Error copying to clipboard:", error);
-      showNotification("Failed to copy", "error");
-    }
+ async function handleCopy(text, promptId) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showSuccessToast("Copied to clipboard!");
+    
+    // ✅ Track copy in stats
+    await trackPromptCopy(activeTeam, promptId);
+  } catch (error) {
+    console.error("Error copying to clipboard:", error);
+    showNotification("Failed to copy", "error");
   }
+}
+  async function handleExpand(promptId) {
+  const isExpanded = expandedPromptId === promptId;
+  setExpandedPromptId(isExpanded ? null : promptId);
+  
+  // ✅ Track view when expanding
+  if (!isExpanded) {
+    await trackPromptView(activeTeam, promptId);
+  }
+}
 
   function handleAIEnhance(prompt) {
     setCurrentPromptForAI(prompt);
@@ -715,20 +728,20 @@ export default function PromptList({ activeTeam, userRole }) {
                 <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: "var(--border)" }}>
                   <div className="primary-actions">
                     <button
-                      onClick={() => handleCopy(prompt.text)}
-                      className="action-btn-premium"
-                      title="Copy to clipboard"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
+  onClick={() => handleCopy(prompt.text, prompt.id)}  // ✅ Pass promptId
+  className="action-btn-premium"
+  title="Copy to clipboard"
+>
+  <Copy className="w-4 h-4" />
+</button>
 
-                    <button
-                      onClick={() => setExpandedPromptId(isExpanded ? null : prompt.id)}
-                      className="action-btn-premium"
-                      title={isExpanded ? "Collapse" : "Expand details"}
-                    >
-                      <Maximize2 className="w-4 h-4" />
-                    </button>
+                   <button
+  onClick={() => handleExpand(prompt.id)}  // ✅ Use new function
+  className="action-btn-premium"
+  title={expandedPromptId === prompt.id ? "Collapse" : "Expand details"}
+>
+  <Maximize2 className="w-4 h-4" />
+</button>
 
                     <FavoriteButton
                       prompt={prompt}
