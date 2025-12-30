@@ -1,4 +1,4 @@
-// src/components/PromptAnalytics.jsx - Modernized with Professional Icons
+// src/components/PromptAnalytics.jsx - Complete Updated Version
 import { useState, useEffect, useMemo } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -257,6 +257,7 @@ export function TeamAnalytics({ teamId }) {
     totalViews: 0,
     totalCopies: 0,
     totalComments: 0,
+    totalRatings: 0,
     averageRating: 0,
     topPrompts: [],
     recentActivity: [],
@@ -276,6 +277,7 @@ export function TeamAnalytics({ teamId }) {
         try {
           const allPrompts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
+          // Calculate totals with proper fallbacks
           const totals = allPrompts.reduce(
             (acc, prompt) => {
               const stats = prompt.stats || {};
@@ -287,7 +289,7 @@ export function TeamAnalytics({ teamId }) {
                 totalRatings: acc.totalRatings + (stats.totalRatings || 0),
                 ratingSum:
                   acc.ratingSum +
-                  (stats.averageRating || 0) * (stats.totalRatings || 0),
+                  ((stats.averageRating || 0) * (stats.totalRatings || 0)),
               };
             },
             {
@@ -300,26 +302,35 @@ export function TeamAnalytics({ teamId }) {
             }
           );
 
+          // Get top prompts (only those with ratings)
           const topPrompts = allPrompts
-            .filter((p) => p.stats?.averageRating > 0)
+            .filter((p) => {
+              const stats = p.stats || {};
+              return (stats.averageRating || 0) > 0 && (stats.totalRatings || 0) > 0;
+            })
             .sort(
               (a, b) =>
-                (b.stats?.averageRating || 0) - (a.stats?.averageRating || 0)
+                ((b.stats?.averageRating || 0) * (b.stats?.totalRatings || 0)) -
+                ((a.stats?.averageRating || 0) * (a.stats?.totalRatings || 0))
             )
             .slice(0, 5);
 
           setAnalytics({
-            ...totals,
+            totalPrompts: totals.totalPrompts,
+            totalViews: totals.totalViews,
+            totalCopies: totals.totalCopies,
+            totalComments: totals.totalComments,
+            totalRatings: totals.totalRatings,
             averageRating:
               totals.totalRatings > 0
-                ? totals.ratingSum / totals.totalRatings
+                ? Math.round((totals.ratingSum / totals.totalRatings) * 10) / 10
                 : 0,
             topPrompts,
           });
 
           setLoading(false);
         } catch (error) {
-          console.error("Error loading analytics:", error);
+          console.error("Error calculating analytics:", error);
           setLoading(false);
         }
       },
@@ -452,7 +463,7 @@ export function TeamAnalytics({ teamId }) {
           >
             {analytics.averageRating > 0
               ? analytics.averageRating.toFixed(1)
-              : "—"}
+              : "0.0"}
           </div>
           <div className="text-sm" style={{ color: "var(--muted-foreground)" }}>
             Avg Rating
@@ -505,12 +516,17 @@ export function TeamAnalytics({ teamId }) {
                     >
                       <span className="flex items-center gap-1">
                         <Copy size={12} />
-                        {prompt.stats?.totalCopies || 0} copies
+                        {prompt.stats?.copies || 0} copies
                       </span>
                       <span>•</span>
                       <span className="flex items-center gap-1">
                         <MessageSquare size={12} />
                         {prompt.stats?.comments || 0} comments
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Star size={12} />
+                        {prompt.stats?.totalRatings || 0} ratings
                       </span>
                     </div>
                   </div>
@@ -569,12 +585,11 @@ export function TeamAnalytics({ teamId }) {
                 style={{ color: "var(--foreground)" }}
               >
                 {analytics.totalPrompts > 0
-                  ? Math.round(
+                  ? (
                       ((analytics.totalCopies + analytics.totalComments) /
-                        analytics.totalPrompts) *
-                        100
-                    ) / 100
-                  : 0}{" "}
+                        analytics.totalPrompts)
+                    ).toFixed(1)
+                  : "0.0"}{" "}
                 per prompt
               </span>
             </div>
@@ -620,7 +635,11 @@ export function TeamAnalytics({ teamId }) {
                   className="text-sm font-medium"
                   style={{ color: "var(--foreground)" }}
                 >
-                  {analytics.totalComments > 0 ? "Active" : "Growing"}
+                  {analytics.totalComments > 0 && analytics.totalPrompts > 0
+                    ? "Active"
+                    : analytics.totalPrompts > 0
+                    ? "Growing"
+                    : "Starting"}
                 </span>
               </div>
               <div
@@ -631,12 +650,16 @@ export function TeamAnalytics({ teamId }) {
                   className="h-2 rounded-full transition-all duration-300"
                   style={{
                     backgroundColor: "var(--primary)",
-                    width: `${Math.min(
-                      100,
-                      (analytics.totalComments /
-                        Math.max(1, analytics.totalPrompts)) *
-                        100
-                    )}%`,
+                    width: `${
+                      analytics.totalPrompts > 0
+                        ? Math.min(
+                            100,
+                            ((analytics.totalComments + analytics.totalCopies) /
+                              analytics.totalPrompts) *
+                              20
+                          )
+                        : 0
+                    }%`,
                   }}
                 />
               </div>
@@ -658,7 +681,9 @@ export function TeamAnalytics({ teamId }) {
                     ? "Excellent"
                     : analytics.averageRating >= 3
                     ? "Good"
-                    : "Improving"}
+                    : analytics.averageRating > 0
+                    ? "Improving"
+                    : "No ratings yet"}
                 </span>
               </div>
               <div
@@ -669,7 +694,7 @@ export function TeamAnalytics({ teamId }) {
                   className="h-2 rounded-full transition-all duration-300"
                   style={{
                     backgroundColor: "var(--accent)",
-                    width: `${(analytics.averageRating / 5) * 100}%`,
+                    width: `${((analytics.averageRating || 0) / 5) * 100}%`,
                   }}
                 />
               </div>
