@@ -10,6 +10,8 @@ import {
   setDoc,
   deleteDoc as fbDeleteDoc,
 } from "firebase/firestore";
+import { getInitialStats } from "./promptStats";
+
 
 /**
  * Save new prompt with visibility control
@@ -60,6 +62,21 @@ export async function togglePromptVisibility(teamId, promptId, currentVisibility
   });
   
   return newVisibility;
+}
+export async function savePrompt(userId, prompt, teamId) {
+  if (!teamId) throw new Error("No team selected");
+
+  const { title, text, tags, visibility = "public" } = prompt;
+
+  await addDoc(collection(db, "teams", teamId, "prompts"), {
+    title: title || "",
+    text: text || "",
+    tags: Array.isArray(tags) ? tags : [],
+    visibility: visibility,
+    createdAt: serverTimestamp(),
+    createdBy: userId,
+    stats: getInitialStats(), // ✅ Initialize stats
+  });
 }
 
 /**
