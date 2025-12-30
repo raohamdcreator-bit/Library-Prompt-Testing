@@ -1,4 +1,4 @@
-// src/components/PromptList.jsx 
+// src/components/PromptList.jsx - Complete Updated Version
 import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
 import { trackPromptCopy, trackPromptView } from "../lib/promptStats";
@@ -31,6 +31,8 @@ import {
   Lock,
   Unlock,
   Maximize2,
+  Eye,
+  Star,
 } from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
 import Comments from "./Comments";
@@ -42,6 +44,54 @@ import ExportImport, { ExportUtils } from "./ExportImport";
 import usePagination, { PaginationControls } from "../hooks/usePagination";
 import AIPromptEnhancer from "./AIPromptEnhancer";
 import PromptResults from "./PromptResults";
+import { StarRating, usePromptRating } from "./PromptAnalytics";
+
+// Rating Section Component
+function RatingSection({ teamId, promptId }) {
+  const { userRating, averageRating, totalRatings, ratePrompt, loading } = 
+    usePromptRating(teamId, promptId);
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 py-2">
+        <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+          Loading ratings...
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <StarRating
+            rating={userRating || 0}
+            onRate={ratePrompt}
+            size="normal"
+          />
+          <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+            {userRating ? "Your Rating" : "Rate this prompt"}
+          </span>
+        </div>
+      </div>
+      
+      {totalRatings > 0 && (
+        <div className="flex items-center gap-3 text-sm" style={{ color: "var(--muted-foreground)" }}>
+          <div className="flex items-center gap-1">
+            <Star className="w-4 h-4" fill="#fbbf24" color="#fbbf24" />
+            <span className="font-semibold" style={{ color: "var(--foreground)" }}>
+              {averageRating.toFixed(1)}
+            </span>
+          </div>
+          <span>•</span>
+          <span>{totalRatings} {totalRatings === 1 ? "rating" : "ratings"}</span>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PromptList({ activeTeam, userRole }) {
   const { user } = useAuth();
@@ -293,27 +343,28 @@ export default function PromptList({ activeTeam, userRole }) {
     }
   }
 
- async function handleCopy(text, promptId) {
-  try {
-    await navigator.clipboard.writeText(text);
-    showSuccessToast("Copied to clipboard!");
-    
-    // ✅ Track copy in stats
-    await trackPromptCopy(activeTeam, promptId);
-  } catch (error) {
-    console.error("Error copying to clipboard:", error);
-    showNotification("Failed to copy", "error");
+  async function handleCopy(text, promptId) {
+    try {
+      await navigator.clipboard.writeText(text);
+      showSuccessToast("Copied to clipboard!");
+      
+      // Track copy in stats
+      await trackPromptCopy(activeTeam, promptId);
+    } catch (error) {
+      console.error("Error copying to clipboard:", error);
+      showNotification("Failed to copy", "error");
+    }
   }
-}
+
   async function handleExpand(promptId) {
-  const isExpanded = expandedPromptId === promptId;
-  setExpandedPromptId(isExpanded ? null : promptId);
-  
-  // ✅ Track view when expanding
-  if (!isExpanded) {
-    await trackPromptView(activeTeam, promptId);
+    const isExpanded = expandedPromptId === promptId;
+    setExpandedPromptId(isExpanded ? null : promptId);
+    
+    // Track view when expanding
+    if (!isExpanded) {
+      await trackPromptView(activeTeam, promptId);
+    }
   }
-}
 
   function handleAIEnhance(prompt) {
     setCurrentPromptForAI(prompt);
@@ -704,6 +755,11 @@ export default function PromptList({ activeTeam, userRole }) {
 
                 {/* Metadata */}
                 <div className="prompt-metadata">
+                  <span className="flex items-center gap-1">
+                    <Eye className="w-3.5 h-3.5" />
+                    {prompt.stats?.views || 0} views
+                  </span>
+                  <span>•</span>
                   <span>{prompt.text.length} chars</span>
                   {resultsCount > 0 && (
                     <>
@@ -728,20 +784,20 @@ export default function PromptList({ activeTeam, userRole }) {
                 <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: "var(--border)" }}>
                   <div className="primary-actions">
                     <button
-  onClick={() => handleCopy(prompt.text, prompt.id)}  // ✅ Pass promptId
-  className="action-btn-premium"
-  title="Copy to clipboard"
->
-  <Copy className="w-4 h-4" />
-</button>
+                      onClick={() => handleCopy(prompt.text, prompt.id)}
+                      className="action-btn-premium"
+                      title="Copy to clipboard"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
 
-                   <button
-  onClick={() => handleExpand(prompt.id)}  // ✅ Use new function
-  className="action-btn-premium"
-  title={expandedPromptId === prompt.id ? "Collapse" : "Expand details"}
->
-  <Maximize2 className="w-4 h-4" />
-</button>
+                    <button
+                      onClick={() => handleExpand(prompt.id)}
+                      className="action-btn-premium"
+                      title={expandedPromptId === prompt.id ? "Collapse" : "Expand details"}
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
 
                     <FavoriteButton
                       prompt={prompt}
@@ -817,6 +873,11 @@ export default function PromptList({ activeTeam, userRole }) {
                   <div className="expandable-section expanded">
                     <div className="space-y-4 mt-6 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
                       <CompactAITools text={prompt.text} />
+
+                      {/* Rating Section */}
+                      <div className="glass-card p-4 rounded-lg border" style={{ borderColor: "var(--border)" }}>
+                        <RatingSection teamId={activeTeam} promptId={prompt.id} />
+                      </div>
 
                       {/* Results Section */}
                       <div>
