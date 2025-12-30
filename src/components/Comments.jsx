@@ -1,4 +1,4 @@
-// src/components/Comments.jsx - Modernized UI/UX
+// src/components/Comments.jsx 
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import { updateCommentCount } from "../lib/promptStats";
