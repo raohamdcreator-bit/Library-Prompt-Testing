@@ -17,20 +17,21 @@ import { getInitialStats } from "./promptStats";
  * Save new prompt with visibility control
  * ✅ FIXED: Explicitly extracts only needed fields to prevent ID duplication
  * ✅ NEW: Added visibility field (default: public)
+ * ✅ Initialize stats
  */
 export async function savePrompt(userId, prompt, teamId) {
   if (!teamId) throw new Error("No team selected");
 
-  // ✅ Explicitly extract only the fields we want to save
   const { title, text, tags, visibility = "public" } = prompt;
 
   await addDoc(collection(db, "teams", teamId, "prompts"), {
     title: title || "",
     text: text || "",
     tags: Array.isArray(tags) ? tags : [],
-    visibility: visibility, // "public" or "private"
+    visibility: visibility,
     createdAt: serverTimestamp(),
     createdBy: userId,
+    stats: getInitialStats(),  
   });
 }
 
@@ -63,21 +64,7 @@ export async function togglePromptVisibility(teamId, promptId, currentVisibility
   
   return newVisibility;
 }
-export async function savePrompt(userId, prompt, teamId) {
-  if (!teamId) throw new Error("No team selected");
 
-  const { title, text, tags, visibility = "public" } = prompt;
-
-  await addDoc(collection(db, "teams", teamId, "prompts"), {
-    title: title || "",
-    text: text || "",
-    tags: Array.isArray(tags) ? tags : [],
-    visibility: visibility,
-    createdAt: serverTimestamp(),
-    createdBy: userId,
-    stats: getInitialStats(), // ✅ Initialize stats
-  });
-}
 
 /**
  * Check if user can view a prompt based on visibility rules
