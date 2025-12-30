@@ -1,4 +1,4 @@
-// src/components/Comments.jsx 
+// src/components/Comments.jsx - FIXED VERSION
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import { updateCommentCount } from "../lib/promptStats";
@@ -13,6 +13,7 @@ import {
   getDoc,
   orderBy,
   query,
+  getDocs,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { 
@@ -436,26 +437,26 @@ export default function Comments({ teamId, promptId, userRole }) {
   const [showCommentForm, setShowCommentForm] = useState(false);
 
   async function handleAddComment(text, parentId = null) {
-  if (!teamId || !promptId || !user) return;
+    if (!teamId || !promptId || !user) return;
 
-  try {
-    await addDoc(
-      collection(db, "teams", teamId, "prompts", promptId, "comments"),
-      {
-        text,
-        createdBy: user.uid,
-        createdAt: serverTimestamp(),
-        parentId: parentId || null,
-      }
-    );
-    
-    // ✅ Update stats
-    await updateCommentCount(teamId, promptId, 1);
-  } catch (error) {
-    console.error("Error adding comment:", error);
-    throw error;
+    try {
+      await addDoc(
+        collection(db, "teams", teamId, "prompts", promptId, "comments"),
+        {
+          text,
+          createdBy: user.uid,
+          createdAt: serverTimestamp(),
+          parentId: parentId || null,
+        }
+      );
+      
+      // ✅ Update stats
+      await updateCommentCount(teamId, promptId, 1);
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      throw error;
+    }
   }
-}
 
   async function handleEditComment(commentId, newText) {
     if (!teamId || !promptId) return;
@@ -474,21 +475,43 @@ export default function Comments({ teamId, promptId, userRole }) {
     }
   }
 
- async function handleDeleteComment(commentId) {
-  if (!confirm("Are you sure you want to delete this comment?")) return;
+  // ✅ FIXED: Now counts and deletes all replies
+  async function handleDeleteComment(commentId) {
+    if (!confirm("Are you sure you want to delete this comment?")) return;
 
-  try {
-    await deleteDoc(
-      doc(db, "teams", teamId, "prompts", promptId, "comments", commentId)
-    );
-    
-    // ✅ Update stats
-    await updateCommentCount(teamId, promptId, -1);
-  } catch (error) {
-    console.error("Error deleting comment:", error);
-    alert("Failed to delete comment. Please try again.");
+    try {
+      const commentsRef = collection(db, "teams", teamId, "prompts", promptId, "comments");
+      
+      // Find all replies to this comment
+      const repliesSnapshot = await getDocs(commentsRef);
+      const replies = repliesSnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .filter(comment => comment.parentId === commentId);
+      
+      // Calculate total deletions (parent + all replies)
+      const totalDeletions = 1 + replies.length;
+      
+      // Delete all replies first
+      for (const reply of replies) {
+        await deleteDoc(
+          doc(db, "teams", teamId, "prompts", promptId, "comments", reply.id)
+        );
+      }
+      
+      // Delete the parent comment
+      await deleteDoc(
+        doc(db, "teams", teamId, "prompts", promptId, "comments", commentId)
+      );
+      
+      // ✅ Update stats with correct count (parent + replies)
+      await updateCommentCount(teamId, promptId, -totalDeletions);
+      
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      alert("Failed to delete comment. Please try again.");
+    }
   }
-}
+
   async function handleReply(parentId, text) {
     await handleAddComment(text, parentId);
   }
@@ -541,15 +564,6 @@ export default function Comments({ teamId, promptId, userRole }) {
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            {/* <div 
-              className="w-10 h-10 rounded-lg flex items-center justify-center"
-              style={{ backgroundColor: "var(--primary)" }}
-            >
-              <MessageCircle 
-                className="w-5 h-5"
-                style={{ color: "var(--primary-foreground)" }}
-              />
-            </div> */}
             <div>
               <h3
                 className="text-base md:text-lg font-bold"
