@@ -1,4 +1,4 @@
-// src/components/PromptList.jsx - Premium Enterprise UI with Professional Icons
+// src/components/PromptList.jsx 
 import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
 import { trackPromptCopy, trackPromptView } from "../lib/promptStats";
