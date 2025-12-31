@@ -79,12 +79,13 @@ select.form-input {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 1rem center;
+  padding-right: 2.25rem;
+
   background-size: 10px;
 
   border: 1px solid var(--border);
   border-radius: 8px;
 
-  padding: 0.5rem 2.75rem 0.5rem 0.75rem;
   min-width: 3.25rem;
   text-align: left;
 
