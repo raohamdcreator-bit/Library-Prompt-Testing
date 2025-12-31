@@ -395,10 +395,17 @@ export default function PromptList({ activeTeam, userRole }) {
 
   async function handleExpand(promptId) {
     const isCurrentlyExpanded = expandedPromptId === promptId;
+    
+    // Toggle expansion state (no view tracking here)
+    setExpandedPromptId(isCurrentlyExpanded ? null : promptId);
+  }
+
+  async function handleTextExpansionWithTracking(promptId) {
+    const isCurrentlyExpanded = expandedTextIds.has(promptId);
     const wasAlreadyExpanded = isCurrentlyExpanded;
     
-    // Toggle expansion state
-    setExpandedPromptId(isCurrentlyExpanded ? null : promptId);
+    // Toggle text expansion
+    toggleTextExpansion(promptId);
     
     // Only track view if:
     // 1. We're expanding (not collapsing)
@@ -799,15 +806,18 @@ export default function PromptList({ activeTeam, userRole }) {
                 {/* Expandable Content Preview */}
                 <div
                   className={`content-preview-box ${isTextExpanded ? 'expanded' : 'collapsed'}`}
-                  onClick={() => shouldTruncate && toggleTextExpansion(prompt.id)}
-                  style={{ cursor: shouldTruncate ? 'pointer' : 'default' }}
+                  style={{ cursor: 'default' }}
                 >
                   <pre className="content-preview-text">
                     {isTextExpanded ? prompt.text : prompt.text.slice(0, 200)}
                     {!isTextExpanded && prompt.text.length > 200 && "..."}
                   </pre>
                   {shouldTruncate && (
-                    <div className="expand-indicator">
+                    <div 
+                      className="expand-indicator"
+                      onClick={() => handleTextExpansionWithTracking(prompt.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <span>{isTextExpanded ? "Click to collapse" : "Click to expand"}</span>
                       <ChevronDown className="w-3.5 h-3.5" />
                     </div>
