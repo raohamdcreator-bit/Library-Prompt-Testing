@@ -40,6 +40,7 @@ import { FavoriteButton } from "./Favorites";
 import { CompactAITools } from "./AIModelTools";
 import AdvancedSearch from "./AdvancedSearch";
 import BulkOperations from "./BulkOperations";
+import EnhancedBadge from './components/EnhancedBadge';
 import ExportImport, { ExportUtils } from "./ExportImport";
 import usePagination, { PaginationControls } from "../hooks/usePagination";
 import AIPromptEnhancer from "./AIPromptEnhancer";
@@ -734,7 +735,13 @@ export default function PromptList({ activeTeam, userRole }) {
 
                 {/* Title */}
                 <h3 className="prompt-title-premium">{prompt.title}</h3>
-
+                <span><EnhancedBadge
+  enhanced={prompt.enhanced}
+  enhancedFor={prompt.enhancedFor}
+  enhancementType={prompt.enhancementType}
+  size="md"
+  showDetails={true}
+/></span>
                 {/* Expandable Content Preview */}
                 <div
                   className={`content-preview-box ${isTextExpanded ? 'expanded' : 'collapsed'}`}
