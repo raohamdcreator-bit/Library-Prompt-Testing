@@ -198,39 +198,48 @@ export default function AIPromptEnhancer({
     }, 3000);
   }
 
-  function handleApply() {
-    if (result?.enhanced) {
-      onApply({ 
-        ...prompt, 
-        text: result.enhanced,
-        enhanced: true,
-        enhancedFor: targetModel,
-        enhancementType: enhancementType,
-        enhancedAt: new Date().toISOString(),
-      });
-      showNotification("Enhanced prompt applied!", "success");
-      if (onClose) onClose();
-    }
+ function handleApply() {
+  if (result?.enhanced) {
+    const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
+    
+    // Remove any existing "(Enhanced for X)" from title
+    const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
+    
+    onApply({ 
+      ...prompt, 
+      text: result.enhanced,
+      title: `${cleanTitle} (Enhanced for ${modelName})`,  // ✅ Update title too
+      enhanced: true,
+      enhancedFor: targetModel,
+      enhancementType: enhancementType,
+      enhancedAt: new Date().toISOString(),
+    });
+    showNotification("Enhanced prompt applied!", "success");
+    if (onClose) onClose();
   }
+}
 
-  function handleSaveAsNew() {
-    if (result?.enhanced) {
-      const { id, teamId, createdAt, createdBy, ...promptData } = prompt;
-      const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
+function handleSaveAsNew() {
+  if (result?.enhanced) {
+    const { id, teamId, createdAt, createdBy, ...promptData } = prompt;
+    const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
+    
+    // Remove any existing "(Enhanced for X)" from title
+    const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
 
-      onSaveAsNew({
-        ...promptData,
-        text: result.enhanced,
-        title: `${prompt.title} (Enhanced for ${modelName})`,
-        enhanced: true,
-        enhancedFor: targetModel,
-        enhancementType: enhancementType,
-        enhancedAt: new Date().toISOString(),
-      });
-      showNotification("Saved as new prompt!", "success");
-      if (onClose) onClose();
-    }
+    onSaveAsNew({
+      ...promptData,
+      text: result.enhanced,
+      title: `${cleanTitle} (Enhanced for ${modelName})`,  // ✅ Use cleaned title
+      enhanced: true,
+      enhancedFor: targetModel,
+      enhancementType: enhancementType,
+      enhancedAt: new Date().toISOString(),
+    });
+    showNotification("Saved as new prompt!", "success");
+    if (onClose) onClose();
   }
+}
 
   const selectedModel = aiModels.find(m => m.id === targetModel);
 
