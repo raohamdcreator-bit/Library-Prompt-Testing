@@ -40,7 +40,7 @@ import { FavoriteButton } from "./Favorites";
 import { CompactAITools } from "./AIModelTools";
 import AdvancedSearch from "./AdvancedSearch";
 import BulkOperations from "./BulkOperations";
-import EnhancedBadge from './components/EnhancedBadge';
+import EnhancedBadge from './EnhancedBadge';
 import ExportImport, { ExportUtils } from "./ExportImport";
 import usePagination, { PaginationControls } from "../hooks/usePagination";
 import AIPromptEnhancer from "./AIPromptEnhancer";
