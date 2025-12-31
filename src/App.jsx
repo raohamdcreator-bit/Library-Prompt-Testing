@@ -1,4 +1,4 @@
-// src/App.jsx - Enhanced with Premium UI/UX
+// src/App.jsx - Enhanced with Premium UI/UX and Static Sidebar
 import { useEffect, useState, useRef } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -150,7 +150,7 @@ function Logo({ size = "normal", onClick }) {
 }
 
 // ===================================
-// NAVIGATION COMPONENT - ENHANCED
+// NAVIGATION COMPONENT
 // ===================================
 function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -197,17 +197,6 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
         >
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-
-        {/* Desktop Sign In */}
-        {/* <div className="hidden md:flex items-center gap-3">
-          {!isAuthenticated && (
-            <button onClick={onSignIn} className="btn-premium">
-              
-              Sign in with Google
-              <ArrowRight size={18} className="btn-arrow" />
-            </button>
-          )}
-        </div> */}
       </div>
 
       {/* Mobile Navigation Menu */}
@@ -370,7 +359,7 @@ function Footer({ onNavigate }) {
 }
 
 // ===================================
-// LANDING PAGE - ENHANCED WITH ANIMATIONS
+// LANDING PAGE
 // ===================================
 function LandingPage({ onSignIn, onNavigate }) {
   useScrollReveal();
@@ -418,22 +407,22 @@ function LandingPage({ onSignIn, onNavigate }) {
 
               {/* CTA Buttons */}
               <div className="hero-cta flex flex-row gap-4 justify-center items-center mb-8 px-4 whitespace-nowrap">
-  <button
-    onClick={onSignIn}
-    className="btn-premium inline-flex items-center gap-2"
-  >
-    <span>Get Started</span>
-    <ArrowRight size={20} className="btn-arrow" />
-  </button>
+                <button
+                  onClick={onSignIn}
+                  className="btn-premium inline-flex items-center gap-2"
+                >
+                  <span>Get Started</span>
+                  <ArrowRight size={20} className="btn-arrow" />
+                </button>
 
-  <button
-    onClick={() => onNavigate("/waitlist")}
-    className="btn-secondary inline-flex items-center gap-2"
-  >
-    <span>Join Waitlist</span>
-    <ArrowUpRight size={20} className="btn-arrow" />
-  </button>
-</div>
+                <button
+                  onClick={() => onNavigate("/waitlist")}
+                  className="btn-secondary inline-flex items-center gap-2"
+                >
+                  <span>Join Waitlist</span>
+                  <ArrowUpRight size={20} className="btn-arrow" />
+                </button>
+              </div>
 
               <div className="flex items-center justify-center gap-2 text-sm px-4"
                 style={{ color: "var(--muted-foreground)" }}>
@@ -445,7 +434,7 @@ function LandingPage({ onSignIn, onNavigate }) {
           </div>
         </section>
 
-        {/* Features Grid - 3D Rotation Cards */}
+        {/* Features Grid */}
         <section className="container mx-auto px-4 py-20">
           <div className="section-header scroll-reveal">
             <h2 className="section-title">
@@ -522,7 +511,6 @@ function LandingPage({ onSignIn, onNavigate }) {
 
           <div className="text-center scroll-reveal">
             <button className="btn-premium" onClick={onSignIn}>
-              
               Explore Features
               <ArrowRight size={20} className="btn-arrow" />
             </button>
@@ -542,18 +530,16 @@ function LandingPage({ onSignIn, onNavigate }) {
 
             <div className="flex flex-row gap-4 justify-center items-center mb-8 px-4 whitespace-nowrap">
               <button onClick={onSignIn} className="btn-premium">
-                
                 Start Free
                 <Zap size={20} />
               </button>
               <button
-  onClick={() => onNavigate("/waitlist")}
-  className="btn-secondary inline-flex items-center gap-2 whitespace-nowrap"
->
-  <span>Book Demo</span>
-  <ArrowUpRight size={20} className="btn-arrow" />
-</button>
-
+                onClick={() => onNavigate("/waitlist")}
+                className="btn-secondary inline-flex items-center gap-2 whitespace-nowrap"
+              >
+                <span>Book Demo</span>
+                <ArrowUpRight size={20} className="btn-arrow" />
+              </button>
             </div>
           </div>
         </section>
@@ -742,7 +728,7 @@ export default function App() {
     if (teams.length > 0) loadAvatars();
   }, [teams]);
 
-  // Real-time team stats with onSnapshot (dynamic data - updates live)
+  // Real-time team stats with onSnapshot
   useEffect(() => {
     if (teams.length === 0) {
       setTeamStats({});
@@ -941,229 +927,226 @@ export default function App() {
     return <LandingPage onSignIn={signInWithGoogle} onNavigate={navigate} />;
   }
 
- // Main application UI with flattened sidebar
-return (
-  <div className="app-container flex min-h-screen relative">
-    {/* Sidebar Overlay for Mobile */}
-    <div
-      className={`sidebar-overlay ${sidebarOpen ? "visible" : ""}`}
-      onClick={() => setSidebarOpen(false)}
-    ></div>
+  // Main application UI with static sidebar
+  return (
+    <div className="app-container flex min-h-screen relative">
+      {/* Sidebar Overlay for Mobile */}
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? "visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      ></div>
 
-    {/* Sidebar */}
-    <div className={`team-sidebar w-72 flex flex-col ${sidebarOpen ? "mobile-visible" : "mobile-hidden"}`}>
-      {/* Mobile Close Button */}
-      <div className="md:hidden flex justify-between items-center px-4 py-3">
-        <h2 className="menu-header">Menu</h2>
-        <button onClick={() => setSidebarOpen(false)} className="action-btn-premium">
-          <X size={20} />
-        </button>
-      </div>
+      {/* Static Sidebar */}
+      <div className={`team-sidebar ${sidebarOpen ? "mobile-visible" : ""}`}>
+        {/* Mobile Close Button */}
+        <div className="sidebar-mobile-header">
+          <h2>Menu</h2>
+          <button onClick={() => setSidebarOpen(false)} className="action-btn-premium">
+            <X size={20} />
+          </button>
+        </div>
 
-      {/* User Profile Section - Flattened */}
-      <div className="sidebar-user-section">
-        <div className="user-info-header">
-          <div className="user-avatar-container">
-            <UserAvatar 
-              src={user.photoURL} 
-              name={user.displayName} 
-              email={user.email}
-              className="user-avatar"
+        {/* Fixed Header Section */}
+        <div className="sidebar-header-fixed">
+          {/* User Profile Section */}
+          <div className="sidebar-user-section">
+            <div className="user-info-header">
+              <div className="user-avatar-container">
+                <UserAvatar 
+                  src={user.photoURL} 
+                  name={user.displayName} 
+                  email={user.email}
+                  className="user-avatar"
+                />
+                <div className="user-status-dot"></div>
+              </div>
+              <div className="user-details">
+                <div className="user-name">
+                  {user.displayName || user.email}
+                </div>
+                <div className="user-team-count">
+                  {teams.length} {teams.length === 1 ? "team" : "teams"}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="sidebar-divider"></div>
+
+          {/* Quick Actions - Fixed at Top */}
+          <button
+            onClick={() => {
+              setActiveTeam(null);
+              setActiveView("favorites");
+              setIsChatOpen(false);
+              setSidebarOpen(false);
+            }}
+            className={`sidebar-menu-item ${activeView === "favorites" && !activeTeam ? "active" : ""}`}
+          >
+            <Star size={16} />
+            <span>My Favorites</span>
+          </button>
+
+          {user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
+            <button
+              onClick={() => {
+                navigate("/admin");
+                setSidebarOpen(false);
+              }}
+              className="sidebar-menu-item primary"
+            >
+              <Shield size={16} />
+              <span>Admin Dashboard</span>
+            </button>
+          )}
+
+          {activeTeamObj && (
+            <button
+              onClick={() => {
+                setIsChatOpen(!isChatOpen);
+                setSidebarOpen(false);
+              }}
+              className={`sidebar-menu-item ${isChatOpen ? "active" : ""}`}
+            >
+              <MessageSquare size={16} />
+              <span>Team Chat</span>
+            </button>
+          )}
+
+          <div className="sidebar-divider"></div>
+        </div>
+
+        {/* Scrollable Content Section */}
+        <div className="sidebar-content-scroll">
+          {/* Teams Section Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0.875rem' }}>
+            <h2 className="sidebar-section-title">Teams</h2>
+            {teams.length > 0 && (
+              <span className="team-counter">
+                {teams.length}
+              </span>
+            )}
+          </div>
+
+          {/* Teams List */}
+          {teams.map((team) => {
+            const isOwner = team.ownerId === user.uid;
+            const myRole = team.members?.[user.uid];
+            const ownerData = avatars[team.ownerId];
+            const isActive = activeTeam === team.id;
+            const stats = teamStats[team.id] || { memberCount: 0, promptCount: 0 };
+
+            return (
+              <div key={team.id}>
+                <button
+                  onClick={() => {
+                    setActiveTeam(team.id);
+                    setActiveView("prompts");
+                    setSidebarOpen(false);
+                  }}
+                  className={`team-list-item ${isActive ? "active" : ""}`}
+                >
+                  <UserAvatar
+                    src={ownerData?.avatar}
+                    name={ownerData?.name}
+                    email={ownerData?.email}
+                    className="team-avatar"
+                  />
+                  <div className="team-info">
+                    <div className="team-name">{team.name}</div>
+                    <div className="team-meta">
+                      {myRole === "admin" && (
+                        <span className="role-badge-inline">admin</span>
+                      )}
+                      {myRole === "owner" && (
+                        <span className="role-badge-inline">owner</span>
+                      )}
+                      <span className="team-count-indicator">
+                        <Users size={12} />
+                        {stats.memberCount}
+                      </span>
+                      <span className="team-count-indicator">
+                        <FileText size={12} />
+                        {stats.promptCount}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Expanded details when active */}
+                {isActive && (
+                  <div className="team-details-expanded">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.688rem' }}>
+                      <span className="owner-label">
+                        Owner: {ownerData?.name || ownerData?.email || "Unknown"}
+                      </span>
+                      {isOwner && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Delete team "${team.name}"? This cannot be undone.`)) {
+                              deleteTeam(team.id);
+                            }
+                          }}
+                          className="action-btn-premium danger"
+                          title="Delete team"
+                          style={{ width: '24px', height: '24px' }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Empty State */}
+          {teams.length === 0 && (
+            <div className="sidebar-empty-state">
+              <p>No teams yet</p>
+              <p className="text-xs">Create your first team below</p>
+            </div>
+          )}
+        </div>
+
+        {/* Fixed Footer Section */}
+        <div className="sidebar-footer-fixed">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const name = e.target.teamName.value.trim();
+              if (name) {
+                createTeam(name);
+                e.target.reset();
+              }
+            }}
+          >
+            <input 
+              type="text" 
+              name="teamName" 
+              placeholder="New team name" 
+              className="new-team-input" 
+              required 
             />
-            <div className="user-status-dot"></div>
-          </div>
-          <div className="user-details">
-            <div className="user-name">
-              {user.displayName || user.email}
-            </div>
-            <div className="user-team-count">
-              {teams.length} {teams.length === 1 ? "team" : "teams"}
-            </div>
-          </div>
+            <button type="submit" className="create-team-btn">
+              <Plus size={16} />
+              Create Team
+            </button>
+          </form>
+
+          <button onClick={logout} className="sign-out-btn">
+            <LogOut size={16} />
+            Sign Out
+          </button>
         </div>
       </div>
 
-      <div className="sidebar-divider"></div>
-
-      {/* My Favorites - Flat Navigation Item */}
-      <button
-        onClick={() => {
-          setActiveTeam(null);
-          setActiveView("favorites");
-          setIsChatOpen(false);
-          setSidebarOpen(false);
-        }}
-        className={`sidebar-menu-item ${activeView === "favorites" && !activeTeam ? "active" : ""}`}
-      >
-        <Star size={16} />
-        <span>My Favorites</span>
-      </button>
-
-      {/* Admin Dashboard Button - Flat Navigation Item */}
-      {user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
-        <button
-          onClick={() => {
-            navigate("/admin");
-            setSidebarOpen(false);
-          }}
-          className="sidebar-menu-item primary"
-        >
-          <Shield size={16} />
-          <span>Admin Dashboard</span>
-        </button>
-      )}
-
-      {/* Team Chat Button - Flat Navigation Item */}
-      {activeTeamObj && (
-        <button
-          onClick={() => {
-            setIsChatOpen(!isChatOpen);
-            setSidebarOpen(false);
-          }}
-          className={`sidebar-menu-item ${isChatOpen ? "active" : ""}`}
-        >
-          <MessageSquare size={16} />
-          <span>Team Chat</span>
-        </button>
-      )}
-
-      <div className="sidebar-divider"></div>
-
-      {/* Create Team & Sign Out */}
-      <div className="px-4 py-2">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const name = e.target.teamName.value.trim();
-            if (name) {
-              createTeam(name);
-              e.target.reset();
-            }
-          }}
-          className="space-y-2"
-        >
-          <input 
-            type="text" 
-            name="teamName" 
-            placeholder="New team name" 
-            className="new-team-input" 
-            required 
-          />
-          <button type="submit" className="create-team-btn">
-            <Plus size={16} />
-            Create Team
-          </button>
-        </form>
-
-        <button onClick={logout} className="sign-out-btn">
-          <LogOut size={16} />
-          Sign Out
-        </button>
-      </div>
-
-      <div className="sidebar-divider"></div>
-
-      {/* Teams Section Header */}
-      <div className="flex items-center justify-between px-4">
-        <h2 className="sidebar-section-title">Teams</h2>
-        {teams.length > 0 && (
-          <span className="team-counter">
-            {teams.length}
-          </span>
-        )}
-      </div>
-
-      {/* Teams List - Flattened */}
-      <div className="flex-1 overflow-y-auto">
-        {teams.map((team) => {
-          const isOwner = team.ownerId === user.uid;
-          const myRole = team.members?.[user.uid];
-          const ownerData = avatars[team.ownerId];
-          const isActive = activeTeam === team.id;
-          const stats = teamStats[team.id] || { memberCount: 0, promptCount: 0 };
-
-          return (
-            <div key={team.id}>
-              <button
-                onClick={() => {
-                  setActiveTeam(team.id);
-                  setActiveView("prompts");
-                  setSidebarOpen(false);
-                }}
-                className={`team-list-item ${isActive ? "active" : ""}`}
-              >
-                <UserAvatar
-                  src={ownerData?.avatar}
-                  name={ownerData?.name}
-                  email={ownerData?.email}
-                  className="team-avatar"
-                />
-                <div className="team-info">
-                  <div className="team-name">{team.name}</div>
-                  <div className="team-meta">
-                    {myRole === "admin" && (
-                      <span className="role-badge-inline">admin</span>
-                    )}
-                    {myRole === "owner" && (
-                      <span className="role-badge-inline">owner</span>
-                    )}
-                    <span className="team-count-indicator">
-                      <Users size={12} />
-                      {stats.memberCount}
-                    </span>
-                    <span className="team-count-indicator">
-                      <FileText size={12} />
-                      {stats.promptCount}
-                    </span>
-                  </div>
-                </div>
-              </button>
-
-              {/* Expanded details when active */}
-              {isActive && (
-                <div className="px-4 py-2 flex items-center justify-between text-xs" 
-                  style={{ 
-                    color: "var(--muted-foreground)",
-                    backgroundColor: "rgba(139, 92, 246, 0.03)"
-                  }}>
-                  <span className="owner-label">
-                    Owner: {ownerData?.name || ownerData?.email || "Unknown"}
-                  </span>
-                  {isOwner && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm(`Delete team "${team.name}"? This cannot be undone.`)) {
-                          deleteTeam(team.id);
-                        }
-                      }}
-                      className="action-btn-premium danger"
-                      title="Delete team"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {teams.length === 0 && (
-          <div className="px-4 py-8 text-center text-sm" style={{ color: "var(--muted-foreground)" }}>
-            <p>No teams yet</p>
-            <p className="text-xs mt-1">Create your first team above</p>
-          </div>
-        )}
-      </div>
-    </div>
-
-   
-
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0" style={{ marginLeft: '260px' }}>
         {/* Mobile Header */}
-        <div className="md:hidden mobile-header">
+        <div className="mobile-header">
           <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn">
             <Menu size={24} />
           </button>
@@ -1178,25 +1161,25 @@ return (
           </div>
         </div>
 
-        {/* Desktop Header - Now using TeamHeader component */}
-{activeTeamObj ? (
-  <TeamHeader 
-    teamId={activeTeamObj.id}
-    userRole={role}
-    activeTab={activeView}
-    onTabChange={setActiveView}
-  />
-) : activeView === "favorites" ? (
-  <div className="hidden md:block p-6 border-b"
-    style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}>
-    <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>
-      My Favorites
-    </h1>
-    <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-      Your bookmarked prompts from all teams
-    </p>
-  </div>
-) : null}
+        {/* Desktop Header */}
+        {activeTeamObj ? (
+          <TeamHeader 
+            teamId={activeTeamObj.id}
+            userRole={role}
+            activeTab={activeView}
+            onTabChange={setActiveView}
+          />
+        ) : activeView === "favorites" ? (
+          <div className="hidden md:block p-6 border-b"
+            style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}>
+            <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>
+              My Favorites
+            </h1>
+            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+              Your bookmarked prompts from all teams
+            </p>
+          </div>
+        ) : null}
 
         {/* Mobile View Tabs */}
         {activeTeamObj && (
@@ -1236,6 +1219,7 @@ return (
           </div>
         )}
 
+        {/* Main Content */}
         <div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
           {activeTeamObj && activeView === "prompts" && (
             <>
