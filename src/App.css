@@ -60,6 +60,563 @@ body {
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
+/* ============================================
+   DARK UI NATIVE ELEMENT OVERRIDES
+   ChatGPT-style flat, minimal design
+   ============================================ */
+
+/* ==========================================
+   SELECT DROPDOWNS - Dark Styled
+   ========================================== */
+
+select,
+.form-input select,
+select.form-input {
+  /* Remove native styling */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  
+  /* Dark styling */
+  background-color: var(--input);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 12px;
+  
+  /* Flat design */
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.625rem 2.5rem 0.625rem 0.875rem; /* Extra right padding for arrow */
+  
+  /* Typography */
+  color: var(--foreground);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  
+  /* Interactions */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  /* Remove default focus outline */
+  outline: none;
+}
+
+/* Hover state */
+select:hover {
+  background-color: var(--popover);
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+/* Focus state - soft glow */
+select:focus {
+  background-color: var(--popover);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+/* Disabled state */
+select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--muted);
+}
+
+/* Option styling (limited browser support) */
+select option {
+  background-color: var(--popover);
+  color: var(--foreground);
+  padding: 0.5rem;
+}
+
+/* Firefox-specific option styling */
+@-moz-document url-prefix() {
+  select option {
+    background-color: #1a1d24;
+    color: #e4e4e7;
+  }
+}
+
+/* ==========================================
+   CUSTOM SCROLLBARS - Thin & Subtle
+   ========================================== */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+}
+
+/* Webkit browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.2);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.35);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(139, 92, 246, 0.5);
+}
+
+/* Remove scrollbar arrows */
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+/* Thin scrollbars for specific containers */
+.glass-card::-webkit-scrollbar,
+.prompt-card-premium::-webkit-scrollbar,
+.result-card-premium::-webkit-scrollbar,
+.team-sidebar::-webkit-scrollbar,
+.content-preview-box::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.glass-card::-webkit-scrollbar-thumb,
+.prompt-card-premium::-webkit-scrollbar-thumb,
+.result-card-premium::-webkit-scrollbar-thumb,
+.team-sidebar::-webkit-scrollbar-thumb,
+.content-preview-box::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.25);
+  border-radius: 3px;
+}
+
+/* Extra thin for modals/overlays */
+.modal::-webkit-scrollbar,
+[role="dialog"]::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar {
+  width: 5px;
+}
+
+/* ==========================================
+   INPUT & TEXTAREA CONSISTENCY
+   ========================================== */
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+textarea {
+  /* Remove native styling */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  
+  /* Ensure consistency */
+  background-color: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  
+  /* Remove default focus glow */
+  outline: none;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+input[type="url"]:focus,
+textarea:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+  background-color: var(--popover);
+}
+
+/* ==========================================
+   RADIO & CHECKBOX - Dark Styled
+   ========================================== */
+
+input[type="radio"],
+input[type="checkbox"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border);
+  background-color: var(--input);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+input[type="radio"] {
+  border-radius: 50%;
+}
+
+input[type="checkbox"] {
+  border-radius: 4px;
+}
+
+input[type="radio"]:hover,
+input[type="checkbox"]:hover {
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+input[type="radio"]:checked,
+input[type="checkbox"]:checked {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Checkmark for checkbox */
+input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* Dot for radio */
+input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: white;
+}
+
+input[type="radio"]:focus,
+input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+input[type="radio"]:disabled,
+input[type="checkbox"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ==========================================
+   BUTTON RESET - Remove Native Styling
+   ========================================== */
+
+button {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: none;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* ==========================================
+   NUMBER INPUT - Hide Spinners
+   ========================================== */
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* ==========================================
+   SEARCH INPUT - Remove Default Styling
+   ========================================== */
+
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/* ==========================================
+   RANGE SLIDER - Dark Styled
+   ========================================== */
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--primary-hover);
+  transform: scale(1.1);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  background: var(--primary-hover);
+  transform: scale(1.1);
+}
+
+/* ==========================================
+   FILE INPUT - Dark Styled
+   ========================================== */
+
+input[type="file"] {
+  font-size: 0.875rem;
+  color: var(--foreground);
+}
+
+input[type="file"]::file-selector-button {
+  background-color: var(--secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  color: var(--foreground);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-right: 1rem;
+}
+
+input[type="file"]::file-selector-button:hover {
+  background-color: rgba(139, 92, 246, 0.1);
+  border-color: var(--primary);
+}
+
+/* ==========================================
+   PROGRESS BAR - Dark Styled
+   ========================================== */
+
+progress {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border: none;
+  border-radius: 4px;
+  background-color: var(--muted);
+}
+
+progress::-webkit-progress-bar {
+  background-color: var(--muted);
+  border-radius: 4px;
+}
+
+progress::-webkit-progress-value {
+  background-color: var(--primary);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+progress::-moz-progress-bar {
+  background-color: var(--primary);
+  border-radius: 4px;
+}
+
+/* ==========================================
+   DETAILS/SUMMARY - Dark Styled
+   ========================================== */
+
+details {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background-color: var(--card);
+}
+
+summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--foreground);
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+summary::before {
+  content: "▶";
+  color: var(--muted-foreground);
+  transition: transform 0.2s ease;
+  font-size: 0.75rem;
+}
+
+details[open] summary::before {
+  transform: rotate(90deg);
+}
+
+/* ==========================================
+   HORIZONTAL RULE - Subtle
+   ========================================== */
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1.5rem 0;
+  opacity: 0.5;
+}
+
+/* ==========================================
+   AUTOFILL - Override Browser Defaults
+   ========================================== */
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--foreground);
+  -webkit-box-shadow: 0 0 0 1000px var(--input) inset;
+  transition: background-color 5000s ease-in-out 0s;
+  border: 1px solid var(--border);
+}
+
+/* ==========================================
+   SELECTION - Brand Colored
+   ========================================== */
+
+::selection {
+  background-color: rgba(139, 92, 246, 0.3);
+  color: var(--foreground);
+}
+
+::-moz-selection {
+  background-color: rgba(139, 92, 246, 0.3);
+  color: var(--foreground);
+}
+
+/* ==========================================
+   PLACEHOLDER - Consistent Styling
+   ========================================== */
+
+::placeholder {
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+::-webkit-input-placeholder {
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+::-moz-placeholder {
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+:-ms-input-placeholder {
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+/* ==========================================
+   ACCESSIBILITY - Maintain Focus Visibility
+   ========================================== */
+
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* But allow custom focus states for styled elements */
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+button:focus-visible {
+  outline: none;
+}
+
+/* ==========================================
+   HIGH CONTRAST MODE SUPPORT
+   ========================================== */
+
+@media (prefers-contrast: high) {
+  select,
+  input,
+  textarea {
+    border-width: 2px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: rgba(139, 92, 246, 0.6);
+  }
+}
+
+/* ==========================================
+   REDUCED MOTION SUPPORT
+   ========================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    transition: none;
+  }
+}
 
 /* ======================================
    ANIMATED BACKGROUND GRADIENT GLOW (Landing Page)
