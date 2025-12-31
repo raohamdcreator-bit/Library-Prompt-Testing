@@ -267,89 +267,164 @@ select option {
 }
 
 /* ======================================
-   LEFT SIDEBAR - CHATGPT STYLE TEXT MENU
+   STATIC SIDEBAR - CHATGPT/CLAUDE STYLE
 ====================================== */
 
 .team-sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 260px;
+  height: 100vh;
   background: var(--background);
-  border-right: 1px solid rgba(139, 92, 246, 0.1);
-  min-height: 100vh;
-  position: relative;
-  padding: 1rem 0;
+  border-right: 1px solid rgba(139, 92, 246, 0.08);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  z-index: 100;
 }
 
+/* Fixed Header Section */
+.sidebar-header-fixed {
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.08);
+  background: var(--background);
+}
+
+/* Scrollable Content Section */
+.sidebar-content-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 92, 246, 0.2) transparent;
+  scroll-behavior: smooth;
+}
+
+.sidebar-content-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-content-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-content-scroll::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.2);
+  border-radius: 3px;
+}
+
+.sidebar-content-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.3);
+}
+
+/* Fixed Footer Section */
+.sidebar-footer-fixed {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(139, 92, 246, 0.08);
+  background: var(--background);
+  padding: 0.75rem;
+}
+
+/* User Profile Section */
 .sidebar-user-section {
-  padding: 0.15rem 0.5rem;
-  margin-bottom: 0.5rem;
+  padding: 0.75rem 0.875rem;
+  margin: 0;
+  background: transparent;
 }
 
-.sidebar-user-badge {
-  display: inline-flex;
+.user-info-header {
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.875rem;
-  background: rgba(139, 92, 246, 0.1);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 20px;
-  font-size: 0.813rem;
-  font-weight: 500;
-  color: var(--foreground);
+  gap: 0.625rem;
+  position: relative;
 }
 
-.sidebar-section {
-  padding: 0.25rem 0;
-  margin-bottom: 0.5rem;
+.user-avatar-container {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
 }
 
-.sidebar-section-title {
-  font-size: 0.688rem;
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: none;
+}
+
+.user-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  border: 2px solid var(--background);
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+
+.user-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 0.875rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgba(228, 228, 231, 0.4);
-  padding: 0.5rem 1rem;
-  margin-bottom: 0.25rem;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+.user-team-count {
+  font-size: 0.688rem;
+  color: rgba(228, 228, 231, 0.5);
+}
+
+/* Sidebar Menu Items */
 .sidebar-menu-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  width: 80%;
-  padding: 0.25rem 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.875rem;
   background: transparent;
   border: none;
   border-left: 2px solid transparent;
   color: rgba(228, 228, 231, 0.65);
   font-size: 0.875rem;
-  font-weight: 300;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
   transition: all 0.15s ease;
   text-decoration: none;
+  box-shadow: none !important;
 }
 
 .sidebar-menu-item svg {
   width: 16px;
   height: 16px;
-  opacity: 0.5;
+  opacity: 0.6;
   transition: opacity 0.15s ease;
   flex-shrink: 0;
 }
 
 .sidebar-menu-item:hover {
-  background: rgba(139, 92, 246, 0.04);
+  background: rgba(139, 92, 246, 0.06);
   color: rgba(228, 228, 231, 0.9);
+  transform: none;
 }
 
 .sidebar-menu-item:hover svg {
-  opacity: 0.8;
+  opacity: 0.85;
 }
 
 .sidebar-menu-item.active {
-  background: rgba(139, 92, 246, 0.08);
+  background: rgba(139, 92, 246, 0.1);
   border-left-color: var(--primary);
   color: var(--foreground);
 }
@@ -360,7 +435,7 @@ select option {
 
 .sidebar-menu-item.primary {
   color: var(--primary);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .sidebar-menu-item.primary svg {
@@ -368,41 +443,324 @@ select option {
 }
 
 .sidebar-menu-item.primary:hover {
-  background: rgba(139, 92, 246, 0.1);
+  background: rgba(139, 92, 246, 0.12);
 }
 
+/* Section Dividers */
 .sidebar-divider {
   height: 1px;
-  background: rgba(139, 92, 246, 0.08);
-  margin: 0.75rem 0;
+  background: rgba(139, 92, 246, 0.06);
+  margin: 0.5rem 0;
 }
 
-.team-item {
+/* Section Headers */
+.sidebar-section-title {
+  font-size: 0.688rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(228, 228, 231, 0.35);
+  padding: 0.75rem 0 0.375rem 0;
+  margin: 0;
+}
+
+/* Team List Items */
+.team-list-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.625rem 1rem;
+  padding: 0.5rem 0.875rem;
   background: transparent;
   border: none;
   border-left: 2px solid transparent;
-  color: rgba(228, 228, 231, 0.65);
+  color: rgba(228, 228, 231, 0.7);
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
   transition: all 0.15s ease;
+  box-shadow: none !important;
 }
 
-.team-item:hover {
-  background: rgba(139, 92, 246, 0.04);
-  color: rgba(228, 228, 231, 0.9);
+.team-list-item:hover {
+  background: rgba(139, 92, 246, 0.06);
+  color: rgba(228, 228, 231, 0.95);
+  transform: none;
 }
 
-.team-item.active {
-  background: rgba(139, 92, 246, 0.08);
+.team-list-item.active {
+  background: rgba(139, 92, 246, 0.1);
   border-left-color: var(--primary);
   color: var(--foreground);
+}
+
+.team-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.team-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.team-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.688rem;
+  color: rgba(228, 228, 231, 0.4);
+}
+
+.role-badge-inline {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.375rem;
+  background: rgba(139, 92, 246, 0.15);
+  border: none;
+  border-radius: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: rgba(139, 92, 246, 0.95);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.team-count-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.688rem;
+  color: rgba(228, 228, 231, 0.4);
+}
+
+.team-count-indicator svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0.5;
+}
+
+/* Team Counter Badge */
+.team-counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 0.375rem;
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 10px;
+  font-size: 0.688rem;
+  font-weight: 600;
+  color: rgba(139, 92, 246, 0.95);
+}
+
+/* Active Team Details */
+.team-details-expanded {
+  padding: 0.5rem 0.875rem;
+  background: rgba(139, 92, 246, 0.03);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.06);
+}
+
+.owner-label {
+  font-size: 0.688rem;
+  color: rgba(228, 228, 231, 0.4);
+}
+
+/* Action Buttons */
+.create-team-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.625rem 1rem;
+  background: var(--primary);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.create-team-btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.sign-out-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.625rem 1rem;
+  background: transparent;
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 6px;
+  color: rgba(228, 228, 231, 0.7);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.sign-out-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--destructive);
+}
+
+/* Input Fields */
+.new-team-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  border-radius: 6px;
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-family: "Inter", sans-serif;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.new-team-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.new-team-input::placeholder {
+  color: rgba(228, 228, 231, 0.35);
+}
+
+/* Empty State */
+.sidebar-empty-state {
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.sidebar-empty-state p {
+  font-size: 0.875rem;
+  color: rgba(228, 228, 231, 0.5);
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-empty-state p.text-xs {
+  font-size: 0.75rem;
+  color: rgba(228, 228, 231, 0.35);
+}
+
+/* Mobile Sidebar */
+.sidebar-mobile-header {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .team-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .team-sidebar.mobile-visible {
+    transform: translateX(0);
+    z-index: 1000;
+  }
+
+  .sidebar-mobile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0.875rem;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.08);
+  }
+
+  .sidebar-mobile-header h2 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0;
+  }
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .sidebar-overlay.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+}
+
+/* Mobile Header */
+.mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 769px) {
+  .mobile-header {
+    display: none;
+  }
+}
+
+.mobile-menu-btn {
+  background: transparent;
+  border: none;
+  color: var(--foreground);
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 0.2s ease;
+}
+
+.mobile-menu-btn:hover {
+  background: rgba(139, 92, 246, 0.1);
+}
+
+/* Focus States */
+.sidebar-menu-item:focus,
+.team-list-item:focus,
+.create-team-btn:focus,
+.sign-out-btn:focus,
+.new-team-input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }
 
 /* ======================================
