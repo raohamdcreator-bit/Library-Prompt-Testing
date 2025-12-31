@@ -86,6 +86,7 @@ select.form-input {
 
   padding: 0.5rem 2.75rem 0.5rem 0.75rem;
   min-width: 3.25rem;
+  text-align: left;
 
   font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 0.875rem;
