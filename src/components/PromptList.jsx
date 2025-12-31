@@ -733,15 +733,17 @@ export default function PromptList({ activeTeam, userRole }) {
                   </div>
                 </div>
 
-                {/* Title */}
-                <h3 className="prompt-title-premium">{prompt.title}</h3>
-                <span><EnhancedBadge
-  enhanced={prompt.enhanced}
-  enhancedFor={prompt.enhancedFor}
-  enhancementType={prompt.enhancementType}
-  size="md"
-  showDetails={true}
-/></span>
+               {/* Title & Badge */}
+<div className="flex items-center justify-between mb-3">
+  <h3 className="prompt-title-premium flex-1">{prompt.title}</h3>
+  <EnhancedBadge
+    enhanced={prompt.enhanced}
+    enhancedFor={prompt.enhancedFor}
+    enhancementType={prompt.enhancementType}
+    size="md"
+    showDetails={true}
+  />
+</div>
                 {/* Expandable Content Preview */}
                 <div
                   className={`content-preview-box ${isTextExpanded ? 'expanded' : 'collapsed'}`}
