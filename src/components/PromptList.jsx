@@ -1,4 +1,4 @@
-// src/components/PromptList.jsx - Complete Updated Version
+// src/components/PromptList.jsx - Complete Updated Version with Fixed View Count
 import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
 import { trackPromptCopy, trackPromptView } from "../lib/promptStats";
@@ -33,6 +33,8 @@ import {
   Maximize2,
   Eye,
   Star,
+  FileText,
+  AlertCircle,
 } from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
 import Comments from "./Comments";
@@ -119,6 +121,7 @@ export default function PromptList({ activeTeam, userRole }) {
   const [showAIEnhancer, setShowAIEnhancer] = useState(false);
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
   const [openKebabMenu, setOpenKebabMenu] = useState(null);
+  const [viewedPrompts, setViewedPrompts] = useState(new Set());
 
   const pagination = usePagination(filteredPrompts, 10);
 
@@ -218,6 +221,39 @@ export default function PromptList({ activeTeam, userRole }) {
 
     loadMembers();
   }, [activeTeam]);
+
+  // Load previously viewed prompts from localStorage
+  useEffect(() => {
+    async function loadViewedPrompts() {
+      if (!activeTeam || !user?.uid) return;
+      
+      try {
+        const storageKey = `viewedPrompts_${user.uid}_${activeTeam}`;
+        const stored = localStorage.getItem(storageKey);
+        
+        if (stored) {
+          const viewedIds = JSON.parse(stored);
+          setViewedPrompts(new Set(viewedIds));
+        }
+      } catch (error) {
+        console.error("Error loading viewed prompts:", error);
+      }
+    }
+    
+    loadViewedPrompts();
+  }, [activeTeam, user?.uid]);
+
+  // Persist viewed prompts to localStorage
+  useEffect(() => {
+    if (!activeTeam || !user?.uid || viewedPrompts.size === 0) return;
+    
+    try {
+      const storageKey = `viewedPrompts_${user.uid}_${activeTeam}`;
+      localStorage.setItem(storageKey, JSON.stringify([...viewedPrompts]));
+    } catch (error) {
+      console.error("Error saving viewed prompts:", error);
+    }
+  }, [viewedPrompts, activeTeam, user?.uid]);
 
   // Close kebab menu when clicking outside
   useEffect(() => {
@@ -358,12 +394,23 @@ export default function PromptList({ activeTeam, userRole }) {
   }
 
   async function handleExpand(promptId) {
-    const isExpanded = expandedPromptId === promptId;
-    setExpandedPromptId(isExpanded ? null : promptId);
+    const isCurrentlyExpanded = expandedPromptId === promptId;
+    const wasAlreadyExpanded = isCurrentlyExpanded;
     
-    // Track view when expanding
-    if (!isExpanded) {
-      await trackPromptView(activeTeam, promptId);
+    // Toggle expansion state
+    setExpandedPromptId(isCurrentlyExpanded ? null : promptId);
+    
+    // Only track view if:
+    // 1. We're expanding (not collapsing)
+    // 2. This user hasn't viewed this prompt yet in this session
+    if (!wasAlreadyExpanded && !viewedPrompts.has(promptId)) {
+      try {
+        await trackPromptView(activeTeam, promptId);
+        // Mark this prompt as viewed to prevent duplicate tracking
+        setViewedPrompts(prev => new Set([...prev, promptId]));
+      } catch (error) {
+        console.error("Error tracking view:", error);
+      }
     }
   }
 
@@ -429,11 +476,15 @@ export default function PromptList({ activeTeam, userRole }) {
   }
 
   function showNotification(message, type = "info") {
-    const icons = { success: "✓", error: "✕", info: "ℹ" };
+    const icons = {
+      success: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>',
+      error: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>',
+      info: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
+    };
     const notification = document.createElement("div");
     notification.innerHTML = `
       <div class="flex items-center gap-2">
-        <span>${icons[type] || icons.info}</span>
+        ${icons[type] || icons.info}
         <span>${message}</span>
       </div>
     `;
@@ -690,7 +741,7 @@ export default function PromptList({ activeTeam, userRole }) {
       {/* Prompts List */}
       {pagination.currentItems.length === 0 ? (
         <div className="glass-card p-12 text-center">
-          <div className="text-6xl mb-4">📝</div>
+          <FileText className="w-16 h-16 mx-auto mb-4" style={{ color: "var(--muted-foreground)" }} />
           <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--foreground)" }}>
             {pagination.isFiltered ? "No matching prompts" : "No prompts yet"}
           </h3>
@@ -733,17 +784,18 @@ export default function PromptList({ activeTeam, userRole }) {
                   </div>
                 </div>
 
-               {/* Title & Badge */}
-<div className="flex items-center justify-between mb-3">
-  <h3 className="prompt-title-premium flex-1">{prompt.title}</h3>
-  <EnhancedBadge
-    enhanced={prompt.enhanced}
-    enhancedFor={prompt.enhancedFor}
-    enhancementType={prompt.enhancementType}
-    size="md"
-    showDetails={true}
-  />
-</div>
+                {/* Title & Badge */}
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="prompt-title-premium flex-1">{prompt.title}</h3>
+                  <EnhancedBadge
+                    enhanced={prompt.enhanced}
+                    enhancedFor={prompt.enhancedFor}
+                    enhancementType={prompt.enhancementType}
+                    size="md"
+                    showDetails={true}
+                  />
+                </div>
+
                 {/* Expandable Content Preview */}
                 <div
                   className={`content-preview-box ${isTextExpanded ? 'expanded' : 'collapsed'}`}
