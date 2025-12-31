@@ -61,6 +61,49 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* ==========================================
+   STOP WHITE OS UI — COLOR ONLY
+========================================== */
+
+/* Native select (dropdown) */
+select {
+  background-color: var(--input);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+/* Dropdown arrow color (modern browsers) */
+select {
+  accent-color: var(--primary);
+}
+
+/* Scrollbars — remove white */
+* {
+  scrollbar-color: rgba(139, 92, 246, 0.35) transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(139, 92, 246, 0.35);
+}
+
+/* Scrollbar track */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Kill white scrollbar arrows (Windows) */
+::-webkit-scrollbar-button {
+  background: transparent;
+}
+
+/* Pagination / small selects specifically */
+select,
+select option {
+  background-color: var(--input);
+  color: var(--foreground);
+}
+
+
 /* ======================================
    ANIMATED BACKGROUND GRADIENT GLOW (Landing Page)
 ====================================== */
