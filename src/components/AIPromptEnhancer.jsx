@@ -17,6 +17,7 @@ import {
   Code,
   Brain,
   Zap,
+  Bot,
   Globe,
   Orbit,
   Network
