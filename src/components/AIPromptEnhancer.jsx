@@ -20,7 +20,8 @@ import {
   Bot,
   Globe,
   Orbit,
-  Network
+  Network,
+  Feather
 } from "lucide-react";
 
 export default function AIPromptEnhancer({
@@ -80,7 +81,7 @@ export default function AIPromptEnhancer({
     {
       id: "copilot",
       name: "Copilot",
-      icon: Cpu,
+      icon: Bot,
       description: "Code completion focus",
       // badge: "🤖",
       color: "#6366f1",
@@ -91,13 +92,13 @@ export default function AIPromptEnhancer({
     {
       id: "general",
       name: "General Enhancement",
-      icon: Network,
+      icon: Feather,
       description: "Improve clarity, structure, and effectiveness",
     },
     {
       id: "technical",
       name: "Technical Optimization",
-      icon: Bot,
+      icon: Cpu,
       description: "Add technical specs, constraints, and precision",
     },
     {
