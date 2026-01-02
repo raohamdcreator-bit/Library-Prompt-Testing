@@ -16,7 +16,10 @@ import {
   Cpu,
   Code,
   Brain,
-  Zap
+  Zap,
+  Globe,
+  Orbit,
+  Network
 } from "lucide-react";
 
 export default function AIPromptEnhancer({
@@ -36,9 +39,9 @@ export default function AIPromptEnhancer({
     {
       id: "general",
       name: "Universal",
-      icon: Sparkles,
+      icon: Globe,
       description: "Optimized for all AI models",
-      badge: "🌐",
+      // badge: "🌐",
       color: "#8b5cf6",
     },
     {
@@ -46,7 +49,7 @@ export default function AIPromptEnhancer({
       name: "Claude",
       icon: Brain,
       description: "Contextual, reasoning-focused",
-      badge: "🧠",
+      // badge: "🧠",
       color: "#d97706",
     },
     {
@@ -54,7 +57,7 @@ export default function AIPromptEnhancer({
       name: "ChatGPT",
       icon: Zap,
       description: "Structured, role-based",
-      badge: "💬",
+      // badge: "💬",
       color: "#10b981",
     },
     {
@@ -62,7 +65,7 @@ export default function AIPromptEnhancer({
       name: "Cursor",
       icon: Code,
       description: "Developer-optimized",
-      badge: "💻",
+      // badge: "💻",
       color: "#3b82f6",
     },
     {
@@ -70,7 +73,7 @@ export default function AIPromptEnhancer({
       name: "Gemini",
       icon: Sparkles,
       description: "Concise, task-focused",
-      badge: "✨",
+      // badge: "✨",
       color: "#ec4899",
     },
     {
@@ -78,7 +81,7 @@ export default function AIPromptEnhancer({
       name: "Copilot",
       icon: Cpu,
       description: "Code completion focus",
-      badge: "🤖",
+      // badge: "🤖",
       color: "#6366f1",
     },
   ];
@@ -87,13 +90,13 @@ export default function AIPromptEnhancer({
     {
       id: "general",
       name: "General Enhancement",
-      icon: Sparkles,
+      icon: Network,
       description: "Improve clarity, structure, and effectiveness",
     },
     {
       id: "technical",
       name: "Technical Optimization",
-      icon: Settings,
+      icon: Bot,
       description: "Add technical specs, constraints, and precision",
     },
     {
