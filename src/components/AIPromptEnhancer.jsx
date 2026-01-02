@@ -75,7 +75,7 @@ export default function AIPromptEnhancer({
       name: "Gemini",
       icon: Sparkles,
       description: " Concise, task-focused",
-      badge: Sparkles,
+      // badge: Sparkles,
       color: "#ec4899",
     },
     {
@@ -83,7 +83,7 @@ export default function AIPromptEnhancer({
       name: "Copilot",
       icon: Bot,
       description: " Code completion focus",
-      badge: Bot,
+      // badge: Bot,
       color: "#6366f1",
     },
   ];
