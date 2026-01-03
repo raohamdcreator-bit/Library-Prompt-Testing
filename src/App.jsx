@@ -635,34 +635,7 @@ function LandingPage({ onSignIn, onNavigate }) {
             </button>
           </div>
         </section>
-
-        {/* Final CTA */}
-        <section className="container mx-auto px-4 py-20">
-          <div className="capsule-card max-w-4xl mx-auto text-center pulse-glow scroll-reveal" 
-            style={{ padding: '4rem 2rem' }}>
-            <h2 className="text-3xl md:text-5xl font-bold mb-6" style={{ color: "var(--foreground)" }}>
-              Ready to build smarter AI workflows?
-            </h2>
-            <p className="text-lg md:text-xl mb-8" style={{ color: "var(--muted-foreground)" }}>
-              Join teams already transforming their AI collaboration
-            </p>
-
-            <div className="flex flex-row gap-4 justify-center items-center mb-8 px-4 whitespace-nowrap">
-              <button onClick={onSignIn} className="btn-premium">
-                Start Free
-                <Zap size={20} />
-              </button>
-              <button
-                onClick={() => onNavigate("/waitlist")}
-                className="btn-secondary inline-flex items-center gap-2 whitespace-nowrap"
-              >
-                <span>Book Demo</span>
-                <ArrowUpRight size={20} className="btn-arrow" />
-              </button>
-            </div>
-          </div>
-        </section>
-
+        
         {/* Final CTA */}
         <section className="container mx-auto px-4 py-20">
           <div className="capsule-card max-w-4xl mx-auto text-center pulse-glow scroll-reveal" 
