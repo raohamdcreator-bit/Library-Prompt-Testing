@@ -517,6 +517,152 @@ function LandingPage({ onSignIn, onNavigate }) {
           </div>
         </section>
 
+        {/* Upcoming Features Section */}
+        <section className="container mx-auto px-4 py-20">
+          <div className="section-header scroll-reveal">
+            <div className="hero-badge mb-6 pulse-glow mx-auto">
+              <Sparkles size={16} />
+              <span className="font-medium">Coming Soon</span>
+            </div>
+            <h2 className="section-title">
+              Upcoming Features
+            </h2>
+            <p className="section-subtitle">
+              Exciting capabilities we're building to supercharge your workflow
+            </p>
+          </div>
+
+          <div className="max-w-4xl mx-auto space-y-4 mb-8">
+            {[
+              {
+                icon: <Zap size={20} />,
+                title: "Multi-Model Testing",
+                desc: "Test your prompts simultaneously across GPT-4, Claude, Gemini, and more. Compare outputs side-by-side to find the perfect model for your use case.",
+                badge: "Q2 2025",
+              },
+              {
+                icon: <ArrowUpRight size={20} />,
+                title: "Reverse Prompt Testing",
+                desc: "Input your desired output and let AI generate optimal prompts. Perfect for discovering new prompt strategies and improving existing workflows.",
+                badge: "Q2 2025",
+              },
+              {
+                icon: <Sparkles size={20} />,
+                title: "IDE & Browser Extensions",
+                desc: "Access your prompt library directly in VS Code, Chrome, and Firefox. Seamlessly integrate AI prompts into your daily development workflow.",
+                badge: "Q3 2025",
+              },
+            ].map((feature, index) => (
+              <div 
+                key={index} 
+                className="scroll-reveal"
+                style={{ 
+                  background: 'rgba(139, 92, 246, 0.03)',
+                  border: '1px solid rgba(139, 92, 246, 0.08)',
+                  borderRadius: '16px',
+                  padding: '1.5rem 2rem',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '1rem',
+                  transition: 'all 0.3s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(139, 92, 246, 0.05)';
+                  e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.15)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(139, 92, 246, 0.03)';
+                  e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.08)';
+                }}
+              >
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '40px',
+                  height: '40px',
+                  background: 'rgba(139, 92, 246, 0.1)',
+                  borderRadius: '10px',
+                  color: 'var(--primary)',
+                  flexShrink: 0,
+                }}>
+                  {feature.icon}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                    <h3 style={{ 
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      color: 'var(--foreground)',
+                      margin: 0,
+                    }}>
+                      {feature.title}
+                    </h3>
+                    <span style={{
+                      padding: '0.125rem 0.5rem',
+                      background: 'rgba(139, 92, 246, 0.1)',
+                      border: '1px solid rgba(139, 92, 246, 0.2)',
+                      borderRadius: '6px',
+                      fontSize: '0.688rem',
+                      fontWeight: '600',
+                      color: 'rgba(139, 92, 246, 0.9)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.5px',
+                    }}>
+                      {feature.badge}
+                    </span>
+                  </div>
+                  <p style={{ 
+                    fontSize: '0.875rem',
+                    lineHeight: '1.6',
+                    color: 'rgba(228, 228, 231, 0.6)',
+                    margin: 0,
+                  }}>
+                    {feature.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center scroll-reveal">
+            <p className="text-sm mb-4" style={{ color: "var(--muted-foreground)" }}>
+              Want early access? Join our waitlist to be the first to try these features.
+            </p>
+            <button className="btn-premium" onClick={() => onNavigate("/waitlist")}>
+              Join Waitlist
+              <ArrowRight size={20} className="btn-arrow" />
+            </button>
+          </div>
+        </section>
+
+        {/* Final CTA */}
+        <section className="container mx-auto px-4 py-20">
+          <div className="capsule-card max-w-4xl mx-auto text-center pulse-glow scroll-reveal" 
+            style={{ padding: '4rem 2rem' }}>
+            <h2 className="text-3xl md:text-5xl font-bold mb-6" style={{ color: "var(--foreground)" }}>
+              Ready to build smarter AI workflows?
+            </h2>
+            <p className="text-lg md:text-xl mb-8" style={{ color: "var(--muted-foreground)" }}>
+              Join teams already transforming their AI collaboration
+            </p>
+
+            <div className="flex flex-row gap-4 justify-center items-center mb-8 px-4 whitespace-nowrap">
+              <button onClick={onSignIn} className="btn-premium">
+                Start Free
+                <Zap size={20} />
+              </button>
+              <button
+                onClick={() => onNavigate("/waitlist")}
+                className="btn-secondary inline-flex items-center gap-2 whitespace-nowrap"
+              >
+                <span>Book Demo</span>
+                <ArrowUpRight size={20} className="btn-arrow" />
+              </button>
+            </div>
+          </div>
+        </section>
+
         {/* Final CTA */}
         <section className="container mx-auto px-4 py-20">
           <div className="capsule-card max-w-4xl mx-auto text-center pulse-glow scroll-reveal" 
