@@ -472,7 +472,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                 desc: "Track changes and revert to previous versions effortlessly.",
               },
               {
-                icon: <DataBase size={24} />,
+                icon: <Database size={24} />,
                 title: "Prompt Storage",
                 desc: "Centralized storage for saving and reusing your best prompts.",
               },
