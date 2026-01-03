@@ -471,9 +471,9 @@ function LandingPage({ onSignIn, onNavigate }) {
                 desc: "Track changes and revert to previous versions effortlessly.",
               },
               {
-                icon: <Layers size={24} />,
-                title: "Multi-Model Testing",
-                desc: "Test prompts across different AI models simultaneously.",
+                icon: <DataBase size={24} />,
+                title: "Prompt Storage",
+                desc: "Centralized storage for saving and reusing your best prompts.",
               },
               {
                 icon: <EyeOff size={24} />,
@@ -486,7 +486,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                 desc: "Ensure originality with built-in similarity checks.",
               },
               {
-                icon: <Database size={24} />,
+                icon: <Save size={24} />,
                 title: "Attach Outputs",
                 desc: "Save text, code, images and results alongside prompts.",
               },
