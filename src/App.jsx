@@ -46,9 +46,22 @@ import {
   Crown,
   UserCog,
   User,
+  UserCheck,
   ArrowRight,
   ArrowUpRight,
   Trash2,
+  Clock,    // Upcoming
+  Layers,  // Multi-Model
+  Repeat,  // Reverse Testing
+  Puzzle,   // Extensions
+  ShieldCheck, // Privacy
+  Play,        // Execute
+  FileDown,    // Export
+  GitBranch,
+  Lock,
+  Bot,
+  EyeOff,
+  Database
 } from "lucide-react";
 
 // Import Legal/Info Pages
@@ -453,17 +466,17 @@ function LandingPage({ onSignIn, onNavigate }) {
                 desc: "Work together seamlessly with live updates and team chat.",
               },
               {
-                icon: <FileText size={24} />,
+                icon: <GitBranch size={24} />,
                 title: "Prompt Version Control",
                 desc: "Track changes and revert to previous versions effortlessly.",
               },
               {
-                icon: <Sparkles size={24} />,
+                icon: <Layers size={24} />,
                 title: "Multi-Model Testing",
                 desc: "Test prompts across different AI models simultaneously.",
               },
               {
-                icon: <Shield size={24} />,
+                icon: <EyeOff size={24} />,
                 title: "Prompt Privacy Controls",
                 desc: "Granular permissions to control who sees what.",
               },
@@ -473,7 +486,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                 desc: "Ensure originality with built-in similarity checks.",
               },
               {
-                icon: <FileText size={24} />,
+                icon: <Database size={24} />,
                 title: "Attach Outputs",
                 desc: "Save text, code, images and results alongside prompts.",
               },
@@ -483,12 +496,12 @@ function LandingPage({ onSignIn, onNavigate }) {
                 desc: "Track usage patterns and optimize performance.",
               },
               {
-                icon: <Users size={24} />,
+                icon: <UserCheck size={24} />,
                 title: "Team Workspace",
                 desc: "Owner, Admin, and Member roles with custom permissions.",
               },
               {
-                icon: <Zap size={24} />,
+                icon: <FileDown size={24} />,
                 title: "Execute & Export",
                 desc: "Run prompts directly and export to JSON/API formats.",
               },
@@ -521,7 +534,7 @@ function LandingPage({ onSignIn, onNavigate }) {
         <section className="container mx-auto px-4 py-20">
           <div className="section-header scroll-reveal">
             <div className="hero-badge mb-6 pulse-glow mx-auto">
-              <Sparkles size={16} />
+              <Clock size={16} />
               <span className="font-medium">Coming Soon</span>
             </div>
             <h2 className="section-title">
@@ -535,19 +548,19 @@ function LandingPage({ onSignIn, onNavigate }) {
           <div className="max-w-4xl mx-auto space-y-4 mb-8">
             {[
               {
-                icon: <Zap size={20} />,
+                icon: <Layers size={20} />,
                 title: "Multi-Model Testing",
                 desc: "Test your prompts simultaneously across GPT-4, Claude, Gemini, and more. Compare outputs side-by-side to find the perfect model for your use case.",
                 badge: "Q2 2025",
               },
               {
-                icon: <ArrowUpRight size={20} />,
+                icon: <Repeat size={20} />,
                 title: "Reverse Prompt Testing",
                 desc: "Input your desired output and let AI generate optimal prompts. Perfect for discovering new prompt strategies and improving existing workflows.",
                 badge: "Q2 2025",
               },
               {
-                icon: <Sparkles size={20} />,
+                icon: <Puzzle size={20} />,
                 title: "IDE & Browser Extensions",
                 desc: "Access your prompt library directly in VS Code, Chrome, and Firefox. Seamlessly integrate AI prompts into your daily development workflow.",
                 badge: "Q3 2025",
