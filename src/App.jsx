@@ -39,6 +39,7 @@ import {
   Search,
   MessageSquare,
   Star,
+  Save,
   Shield,
   LogOut,
   Plus,
