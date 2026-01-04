@@ -1,5 +1,6 @@
-// src/components/AIModelTools.jsx - Updated with futuristic AI theme
+// src/components/AIModelTools.jsx - Updated with Professional Icons
 import { useState, useEffect, useMemo } from "react";
+import { Cpu, Zap, Code, FileText, TrendingUp, DollarSign, Target, Award, CheckCircle, AlertTriangle, ChevronDown, ChevronUp, Settings } from "lucide-react";
 
 // AI Model configurations
 export const AI_MODELS = {
@@ -10,7 +11,7 @@ export const AI_MODELS = {
     costPer1kTokens: 0.03,
     strengths: ["Reasoning", "Code", "Analysis"],
     color: "green",
-    emoji: "🧠",
+    icon: Cpu,
   },
   "gpt-4-turbo": {
     name: "GPT-4 Turbo",
@@ -19,7 +20,7 @@ export const AI_MODELS = {
     costPer1kTokens: 0.01,
     strengths: ["Long context", "Speed", "Efficiency"],
     color: "blue",
-    emoji: "⚡",
+    icon: Zap,
   },
   "gpt-3.5-turbo": {
     name: "GPT-3.5 Turbo",
@@ -28,7 +29,7 @@ export const AI_MODELS = {
     costPer1kTokens: 0.002,
     strengths: ["Speed", "Cost-effective", "General use"],
     color: "cyan",
-    emoji: "💨",
+    icon: Zap,
   },
   "claude-3-opus": {
     name: "Claude 3 Opus",
@@ -37,7 +38,7 @@ export const AI_MODELS = {
     costPer1kTokens: 0.015,
     strengths: ["Long context", "Analysis", "Writing"],
     color: "orange",
-    emoji: "📚",
+    icon: FileText,
   },
   "claude-3-sonnet": {
     name: "Claude 3 Sonnet",
@@ -46,7 +47,7 @@ export const AI_MODELS = {
     costPer1kTokens: 0.003,
     strengths: ["Balanced", "Reasoning", "Code"],
     color: "purple",
-    emoji: "🎯",
+    icon: Target,
   },
   "claude-3-haiku": {
     name: "Claude 3 Haiku",
@@ -55,7 +56,7 @@ export const AI_MODELS = {
     costPer1kTokens: 0.00025,
     strengths: ["Speed", "Cost-effective", "Simple tasks"],
     color: "teal",
-    emoji: "🚀",
+    icon: Zap,
   },
   "gemini-pro": {
     name: "Gemini Pro",
@@ -64,7 +65,7 @@ export const AI_MODELS = {
     costPer1kTokens: 0.0005,
     strengths: ["Multimodal", "Fast", "Cost-effective"],
     color: "red",
-    emoji: "🌟",
+    icon: TrendingUp,
   },
 };
 
@@ -162,12 +163,13 @@ export function TokenCounter({
       const tokens = TokenEstimator.estimateTokens(text, model);
       const cost = TokenEstimator.estimateCost(text, model);
       const fits = TokenEstimator.fitsInContext(text, model);
+      const Icon = modelConfig?.icon || Cpu;
 
       return {
         model,
         name: modelConfig?.name || model,
         provider: modelConfig?.provider || "Unknown",
-        emoji: modelConfig?.emoji || "🤖",
+        Icon,
         tokens,
         cost,
         fits,
@@ -187,42 +189,49 @@ export function TokenCounter({
 
   return (
     <div className={`space-y-2 ${className}`}>
-      <div className="text-xs font-medium mb-2" style={{ color: "var(--foreground)" }}>
-        💫 Token Analysis:
+      <div className="text-xs font-medium mb-2 flex items-center gap-2" style={{ color: "var(--foreground)" }}>
+        <TrendingUp className="w-4 h-4" />
+        Token Analysis:
       </div>
       <div className="grid grid-cols-1 gap-2">
-        {stats.map((stat, index) => (
-          <div
-            key={stat.model}
-            className="px-3 py-2 rounded-lg border transition-all duration-300 hover:border-primary/50 hover:scale-105"
-            style={{
-              backgroundColor: "var(--card)",
-              borderColor: "var(--border)",
-              animation: `fadeIn 0.3s ease-out ${index * 0.1}s backwards`,
-            }}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">{stat.emoji}</span>
-                <span className="font-medium text-sm" style={{ color: "var(--foreground)" }}>
-                  {stat.name}
+        {stats.map((stat, index) => {
+          const Icon = stat.Icon;
+          return (
+            <div
+              key={stat.model}
+              className="px-3 py-2 rounded-lg border transition-all duration-300 hover:border-primary/50 hover:scale-105"
+              style={{
+                backgroundColor: "var(--card)",
+                borderColor: "var(--border)",
+                animation: `fadeIn 0.3s ease-out ${index * 0.1}s backwards`,
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Icon className="w-4 h-4 text-cyan-400" />
+                  <span className="font-medium text-sm" style={{ color: "var(--foreground)" }}>
+                    {stat.name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-mono" style={{ color: "var(--foreground)" }}>
+                    {stat.tokens.toLocaleString()}
+                  </span>
+                  {!stat.fits && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
+                </div>
+              </div>
+              <div className="flex items-center justify-between mt-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
+                <span className="font-mono flex items-center gap-1">
+                  <DollarSign className="w-3 h-3" />
+                  {stat.cost.toFixed(4)}
+                </span>
+                <span>
+                  {((stat.tokens / stat.maxTokens) * 100).toFixed(1)}% used
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-mono" style={{ color: "var(--foreground)" }}>
-                  {stat.tokens.toLocaleString()}
-                </span>
-                {!stat.fits && <span className="text-lg">⚠️</span>}
-              </div>
             </div>
-            <div className="flex items-center justify-between mt-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
-              <span className="font-mono">${stat.cost.toFixed(4)}</span>
-              <span>
-                {((stat.tokens / stat.maxTokens) * 100).toFixed(1)}% used
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -262,7 +271,7 @@ export function ModelCompatibility({ text, className = "" }) {
   return (
     <div className={`glass-card p-6 ${className}`}>
       <div className="flex items-center gap-2 mb-4">
-        <span className="text-2xl">🎯</span>
+        <Target className="w-6 h-6 text-cyan-400" />
         <h4 className="font-bold text-lg" style={{ color: "var(--foreground)" }}>
           AI Model Compatibility
         </h4>
@@ -270,133 +279,144 @@ export function ModelCompatibility({ text, className = "" }) {
 
       {/* Model Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
-        {compatibility.map(({ modelId, config, tokens, cost, fits, usage }, index) => (
-          <div
-            key={modelId}
-            className={`p-4 rounded-lg border-2 transition-all duration-300 hover:scale-105 ${
-              fits ? "border-green-500/30" : "border-red-500/30"
-            }`}
-            style={{
-              backgroundColor: fits ? "var(--card)" : "var(--destructive)/10",
-              animation: `fadeIn 0.3s ease-out ${index * 0.05}s backwards`,
-            }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xl">{config.emoji}</span>
-                <span className="font-medium" style={{ color: "var(--foreground)" }}>
-                  {config.name}
-                </span>
-              </div>
-              <div
-                className={`px-2 py-1 rounded text-xs font-medium transition-all duration-300 ${
-                  fits ? "btn-primary" : "btn-danger"
-                }`}
-              >
-                {fits ? "✓ Compatible" : "✗ Too Large"}
-              </div>
-            </div>
-
-            <div className="text-sm space-y-2" style={{ color: "var(--foreground)" }}>
-              <div className="flex justify-between">
-                <span style={{ color: "var(--muted-foreground)" }}>Tokens:</span>
-                <span className="font-mono">
-                  {tokens.toLocaleString()} / {config.maxTokens.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span style={{ color: "var(--muted-foreground)" }}>Cost:</span>
-                <span className="font-mono">${cost.toFixed(4)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span style={{ color: "var(--muted-foreground)" }}>Provider:</span>
-                <span>{config.provider}</span>
-              </div>
-            </div>
-
-            {/* Usage bar with animation */}
-            <div className="mt-3">
-              <div className="flex justify-between text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>
-                <span>Context Usage</span>
-                <span className="font-medium">{usage.toFixed(1)}%</span>
-              </div>
-              <div className="w-full rounded-full h-2" style={{ backgroundColor: "var(--muted)" }}>
-                <div
-                  className={`h-2 rounded-full transition-all duration-1000 ease-out ${
-                    usage > 90
-                      ? "bg-red-500"
-                      : usage > 70
-                      ? "bg-yellow-500"
-                      : "bg-green-500"
-                  }`}
-                  style={{ 
-                    width: `${Math.min(usage, 100)}%`,
-                    animation: "slideRight 1s ease-out",
-                  }}
-                ></div>
-              </div>
-            </div>
-
-            {/* Model strengths */}
-            <div className="mt-3">
-              <div className="flex flex-wrap gap-1">
-                {config.strengths.map((strength) => (
-                  <span
-                    key={strength}
-                    className="text-xs px-2 py-0.5 rounded-full transition-all duration-200 hover:scale-110"
-                    style={{
-                      backgroundColor: "var(--secondary)",
-                      color: "var(--foreground)",
-                    }}
-                  >
-                    {strength}
+        {compatibility.map(({ modelId, config, tokens, cost, fits, usage }, index) => {
+          const Icon = config.icon;
+          return (
+            <div
+              key={modelId}
+              className={`p-4 rounded-lg border-2 transition-all duration-300 hover:scale-105 ${
+                fits ? "border-green-500/30" : "border-red-500/30"
+              }`}
+              style={{
+                backgroundColor: fits ? "var(--card)" : "var(--destructive)/10",
+                animation: `fadeIn 0.3s ease-out ${index * 0.05}s backwards`,
+              }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Icon className="w-5 h-5 text-cyan-400" />
+                  <span className="font-medium" style={{ color: "var(--foreground)" }}>
+                    {config.name}
                   </span>
-                ))}
+                </div>
+                <div
+                  className={`px-2 py-1 rounded text-xs font-medium transition-all duration-300 flex items-center gap-1 ${
+                    fits ? "btn-primary" : "btn-danger"
+                  }`}
+                >
+                  {fits ? <CheckCircle className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                  {fits ? "Compatible" : "Too Large"}
+                </div>
+              </div>
+
+              <div className="text-sm space-y-2" style={{ color: "var(--foreground)" }}>
+                <div className="flex justify-between">
+                  <span style={{ color: "var(--muted-foreground)" }}>Tokens:</span>
+                  <span className="font-mono">
+                    {tokens.toLocaleString()} / {config.maxTokens.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span style={{ color: "var(--muted-foreground)" }} className="flex items-center gap-1">
+                    <DollarSign className="w-3 h-3" />
+                    Cost:
+                  </span>
+                  <span className="font-mono">${cost.toFixed(4)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span style={{ color: "var(--muted-foreground)" }}>Provider:</span>
+                  <span>{config.provider}</span>
+                </div>
+              </div>
+
+              {/* Usage bar with animation */}
+              <div className="mt-3">
+                <div className="flex justify-between text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>
+                  <span>Context Usage</span>
+                  <span className="font-medium">{usage.toFixed(1)}%</span>
+                </div>
+                <div className="w-full rounded-full h-2" style={{ backgroundColor: "var(--muted)" }}>
+                  <div
+                    className={`h-2 rounded-full transition-all duration-1000 ease-out ${
+                      usage > 90
+                        ? "bg-red-500"
+                        : usage > 70
+                        ? "bg-yellow-500"
+                        : "bg-green-500"
+                    }`}
+                    style={{ 
+                      width: `${Math.min(usage, 100)}%`,
+                      animation: "slideRight 1s ease-out",
+                    }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Model strengths */}
+              <div className="mt-3">
+                <div className="flex flex-wrap gap-1">
+                  {config.strengths.map((strength) => (
+                    <span
+                      key={strength}
+                      className="text-xs px-2 py-0.5 rounded-full transition-all duration-200 hover:scale-110"
+                      style={{
+                        backgroundColor: "var(--secondary)",
+                        color: "var(--foreground)",
+                      }}
+                    >
+                      {strength}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Recommendations */}
       {recommendations.length > 0 && (
         <div>
           <h5 className="font-semibold mb-3 flex items-center gap-2" style={{ color: "var(--foreground)" }}>
-            <span>💡</span>
+            <Award className="w-5 h-5 text-yellow-500" />
             <span>Recommendations</span>
           </h5>
           <div className="space-y-2">
-            {recommendations.slice(0, 3).map((rec, index) => (
-              <div
-                key={rec.model}
-                className="flex items-center gap-3 p-3 rounded-lg border transition-all duration-300 hover:scale-105 hover:border-primary/50"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  borderColor: "var(--border)",
-                  animation: `fadeIn 0.3s ease-out ${0.5 + index * 0.1}s backwards`,
-                }}
-              >
+            {recommendations.slice(0, 3).map((rec, index) => {
+              const Icon = AI_MODELS[rec.model]?.icon || Cpu;
+              return (
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-transform duration-300 hover:scale-110 ${
-                    index === 0
-                      ? "bg-gradient-to-br from-yellow-400 to-orange-500 text-white"
-                      : index === 1
-                      ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white"
-                      : "bg-gradient-to-br from-orange-400 to-red-500 text-white"
-                  }`}
+                  key={rec.model}
+                  className="flex items-center gap-3 p-3 rounded-lg border transition-all duration-300 hover:scale-105 hover:border-primary/50"
+                  style={{
+                    backgroundColor: "var(--secondary)",
+                    borderColor: "var(--border)",
+                    animation: `fadeIn 0.3s ease-out ${0.5 + index * 0.1}s backwards`,
+                  }}
                 >
-                  {index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉"}
-                </div>
-                <div className="flex-1">
-                  <div className="font-medium" style={{ color: "var(--foreground)" }}>
-                    {AI_MODELS[rec.model]?.emoji} {AI_MODELS[rec.model]?.name || rec.model}
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-transform duration-300 hover:scale-110 ${
+                      index === 0
+                        ? "bg-gradient-to-br from-yellow-400 to-orange-500 text-white"
+                        : index === 1
+                        ? "bg-gradient-to-br from-gray-300 to-gray-400 text-white"
+                        : "bg-gradient-to-br from-orange-400 to-red-500 text-white"
+                    }`}
+                  >
+                    {index + 1}
                   </div>
-                  <div className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                    {rec.reason}
+                  <div className="flex-1">
+                    <div className="font-medium flex items-center gap-2" style={{ color: "var(--foreground)" }}>
+                      <Icon className="w-4 h-4" />
+                      {AI_MODELS[rec.model]?.name || rec.model}
+                    </div>
+                    <div className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                      {rec.reason}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -422,7 +442,7 @@ export function ModelSelector({
   return (
     <div className={`space-y-4 ${className}`}>
       <h4 className="font-semibold flex items-center gap-2" style={{ color: "var(--foreground)" }}>
-        <span>🎛️</span>
+        <Settings className="w-5 h-5" />
         <span>Select Models for Comparison</span>
       </h4>
 
@@ -435,6 +455,7 @@ export function ModelSelector({
           const fits = text
             ? TokenEstimator.fitsInContext(text, modelId)
             : true;
+          const Icon = config.icon;
 
           return (
             <label
@@ -458,17 +479,20 @@ export function ModelSelector({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">{config.emoji}</span>
+                    <Icon className="w-4 h-4 text-cyan-400" />
                     <span className="font-medium" style={{ color: "var(--foreground)" }}>
                       {config.name}
                     </span>
                   </div>
                   {text && !fits && (
-                    <span className="text-red-500 text-xs font-medium">⚠️ Too large</span>
+                    <span className="text-red-500 text-xs font-medium flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      Too large
+                    </span>
                   )}
                 </div>
-                <div className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-                  {config.provider} • ${config.costPer1kTokens}/1K tokens
+                <div className="text-sm mt-1 flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+                  {config.provider} • <DollarSign className="w-3 h-3" />${config.costPer1kTokens}/1K tokens
                 </div>
                 {text && (
                   <div className="text-xs font-mono mt-1" style={{ color: "var(--muted-foreground)" }}>
@@ -519,53 +543,61 @@ export function CompactAITools({ text, className = "" }) {
     );
   }
 
+  const BestIcon = AI_MODELS[stats.bestModel]?.icon || Cpu;
+
   return (
     <div className={className}>
       <div className="glass-card p-4">
         <div className="flex items-center justify-between mb-4">
           <h4 className="font-semibold flex items-center gap-2" style={{ color: "var(--foreground)" }}>
-            <span className="text-xl">🤖</span>
+            <Cpu className="w-5 h-5 text-cyan-400" />
             <span>AI Model Analysis</span>
           </h4>
           <button
             onClick={() => setShowDetails(!showDetails)}
-            className="btn-secondary text-sm px-3 py-1 hover:scale-105 active:scale-95 transition-all duration-200"
+            className="btn-secondary text-sm px-3 py-1 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center gap-1"
           >
-            {showDetails ? "▲ Hide" : "▼ Show"} Details
+            {showDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            {showDetails ? "Hide" : "Show"} Details
           </button>
         </div>
 
         <div className="grid grid-cols-2 gap-4 mb-3 text-sm">
           <div className="p-2 rounded-lg border" style={{ backgroundColor: "var(--muted)", borderColor: "var(--border)" }}>
-            <span className="block text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>
-              💫 Tokens (GPT-4)
+            <span className="block text-xs mb-1 flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+              <TrendingUp className="w-3 h-3" />
+              Tokens (GPT-4)
             </span>
             <span className="font-mono font-bold text-lg" style={{ color: "var(--foreground)" }}>
               {stats.tokens.toLocaleString()}
             </span>
           </div>
           <div className="p-2 rounded-lg border" style={{ backgroundColor: "var(--muted)", borderColor: "var(--border)" }}>
-            <span className="block text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>
-              💰 Est. Cost
+            <span className="block text-xs mb-1 flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+              <DollarSign className="w-3 h-3" />
+              Est. Cost
             </span>
             <span className="font-mono font-bold text-lg" style={{ color: "var(--foreground)" }}>
               ${stats.cost.toFixed(4)}
             </span>
           </div>
           <div className="p-2 rounded-lg border" style={{ backgroundColor: "var(--muted)", borderColor: "var(--border)" }}>
-            <span className="block text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>
-              ✅ Compatible
+            <span className="block text-xs mb-1 flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+              <CheckCircle className="w-3 h-3" />
+              Compatible
             </span>
             <span className="font-mono font-bold text-lg" style={{ color: "var(--foreground)" }}>
               {stats.compatibleModels}/7
             </span>
           </div>
           <div className="p-2 rounded-lg border" style={{ backgroundColor: "var(--muted)", borderColor: "var(--border)" }}>
-            <span className="block text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>
-              🎯 Best Model
+            <span className="block text-xs mb-1 flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+              <Target className="w-3 h-3" />
+              Best Model
             </span>
-            <span className="font-bold text-sm" style={{ color: "var(--foreground)" }}>
-              {AI_MODELS[stats.bestModel]?.emoji} {AI_MODELS[stats.bestModel]?.name?.split(" ")[0] || "GPT-4"}
+            <span className="font-bold text-sm flex items-center gap-1" style={{ color: "var(--foreground)" }}>
+              <BestIcon className="w-3 h-3" />
+              {AI_MODELS[stats.bestModel]?.name?.split(" ")[0] || "GPT-4"}
             </span>
           </div>
         </div>
