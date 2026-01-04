@@ -1,5 +1,6 @@
 // src/components/AIPromptEnhancer.jsx - Complete with Model Selection
 import { useState } from "react";
+import { useSoundEffects } from '../hooks/useSoundEffects';
 import { 
   X, 
   Sparkles, 
@@ -35,7 +36,7 @@ export default function AIPromptEnhancer({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-
+  const { playNotification, playEnhancement } = useSoundEffects();
   // AI Models Configuration
   const aiModels = [
     {
@@ -170,6 +171,7 @@ export default function AIPromptEnhancer({
       }
 
       setResult(data);
+      playEnhancement();
       showNotification("Prompt enhanced successfully!", "success");
     } catch (err) {
       console.error("Enhancement error:", err);
@@ -182,6 +184,7 @@ export default function AIPromptEnhancer({
   }
 
   function showNotification(message, type = "info") {
+    playNotification();
     const notification = document.createElement("div");
     notification.innerHTML = `<div>${message}</div>`;
     notification.className =
