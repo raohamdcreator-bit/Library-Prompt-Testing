@@ -1,5 +1,6 @@
-// src/components/ExportImport.jsx - Updated to match PromptList UI style
+// src/components/ExportImport.jsx - Updated with Professional Icons
 import { useState } from "react";
+import { Upload, FileJson, FileSpreadsheet, FileText, Lightbulb, Loader2, FolderOpen } from "lucide-react";
 
 export default function ExportImport({ onImport, teamId, teamName, userRole }) {
   const [importing, setImporting] = useState(false);
@@ -172,7 +173,7 @@ export default function ExportImport({ onImport, teamId, teamName, userRole }) {
     <div className="glass-card p-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <span className="text-2xl">📥</span>
+        <Upload className="w-6 h-6 text-cyan-400" />
         <h3 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
           Import Prompts
         </h3>
@@ -194,7 +195,7 @@ export default function ExportImport({ onImport, teamId, teamName, userRole }) {
       >
         {importing ? (
           <div className="flex flex-col items-center gap-4">
-            <div className="neo-spinner w-12 h-12"></div>
+            <Loader2 className="w-12 h-12 animate-spin text-cyan-400" />
             <p className="font-medium" style={{ color: "var(--foreground)" }}>
               Processing file...
             </p>
@@ -204,9 +205,7 @@ export default function ExportImport({ onImport, teamId, teamName, userRole }) {
           </div>
         ) : (
           <>
-            <div className="text-6xl mb-4 transition-transform duration-300 hover:scale-110">
-              📁
-            </div>
+            <FolderOpen className="w-16 h-16 mx-auto mb-4 text-cyan-400 transition-transform duration-300 hover:scale-110" />
             <p className="mb-2 font-semibold text-lg" style={{ color: "var(--foreground)" }}>
               {dragActive ? "Drop file to upload" : "Drop files here or click to browse"}
             </p>
@@ -215,7 +214,7 @@ export default function ExportImport({ onImport, teamId, teamName, userRole }) {
             </p>
 
             <label className="btn-primary inline-flex items-center gap-2 px-6 py-3 cursor-pointer">
-              <span className="text-lg">⬆️</span>
+              <Upload className="w-4 h-4" />
               Choose File
               <input
                 type="file"
@@ -247,7 +246,7 @@ export default function ExportImport({ onImport, teamId, teamName, userRole }) {
             }}
           >
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-2xl">📋</span>
+              <FileJson className="w-6 h-6 text-cyan-400" />
               <h5 className="font-semibold" style={{ color: "var(--foreground)" }}>
                 JSON
               </h5>
@@ -273,7 +272,7 @@ export default function ExportImport({ onImport, teamId, teamName, userRole }) {
             }}
           >
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-2xl">📊</span>
+              <FileSpreadsheet className="w-6 h-6 text-green-400" />
               <h5 className="font-semibold" style={{ color: "var(--foreground)" }}>
                 CSV
               </h5>
@@ -301,7 +300,7 @@ export default function ExportImport({ onImport, teamId, teamName, userRole }) {
             }}
           >
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-2xl">📝</span>
+              <FileText className="w-6 h-6 text-purple-400" />
               <h5 className="font-semibold" style={{ color: "var(--foreground)" }}>
                 TXT
               </h5>
@@ -336,7 +335,7 @@ export default function ExportImport({ onImport, teamId, teamName, userRole }) {
           }}
         >
           <div className="flex items-start gap-3">
-            <span className="text-xl">💡</span>
+            <Lightbulb className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
             <div>
               <h5 className="font-semibold mb-2" style={{ color: "var(--foreground)" }}>
                 Pro Tips
@@ -365,7 +364,6 @@ export default function ExportImport({ onImport, teamId, teamName, userRole }) {
 
 // Export utility functions
 export const ExportUtils = {
-  // Export prompts as JSON
   exportAsJSON(prompts, filename = "prompts") {
     const data = prompts.map((prompt) => ({
       title: prompt.title,
@@ -384,7 +382,6 @@ export const ExportUtils = {
     );
   },
 
-  // Export prompts as CSV
   exportAsCSV(prompts, filename = "prompts") {
     const headers = ["title", "text", "tags", "created_date", "author"];
     const rows = prompts.map((prompt) => [
@@ -403,7 +400,6 @@ export const ExportUtils = {
     this.downloadFile(csvContent, `${filename}.csv`, "text/csv");
   },
 
-  // Export prompts as TXT
   exportAsTXT(prompts, filename = "prompts") {
     const content = prompts
       .map((prompt) => {
@@ -419,7 +415,6 @@ export const ExportUtils = {
     this.downloadFile(content, `${filename}.txt`, "text/plain");
   },
 
-  // Helper function to escape CSV values
   escapeCSV(value) {
     if (typeof value !== "string") return '""';
     if (value.includes(",") || value.includes('"') || value.includes("\n")) {
@@ -428,7 +423,6 @@ export const ExportUtils = {
     return `"${value}"`;
   },
 
-  // Helper function to download file
   downloadFile(content, filename, mimeType) {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
