@@ -3,7 +3,7 @@ import { useState } from "react";
 import { addResultToPrompt } from "../lib/results";
 import { uploadResultImage } from "../lib/storage";
 import { X, FileText, Code, Image, Upload, AlertCircle } from "lucide-react";
-
+import { useSoundEffects } from '../hooks/useSoundEffects';
 export default function AddResultModal({
   isOpen,
   onClose,
@@ -19,7 +19,7 @@ export default function AddResultModal({
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-
+  const { playNotification } = useSoundEffects();
   if (!isOpen) return null;
 
   function handleImageSelect(e) {
@@ -105,6 +105,7 @@ export default function AddResultModal({
   }
 
   function showNotification(message, type = "info") {
+    playNotification();
     const icons = { success: "✓", error: "✕", info: "ℹ" };
     const notification = document.createElement("div");
     notification.innerHTML = `
