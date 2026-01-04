@@ -3,7 +3,7 @@ import { useCallback, useRef, useEffect } from 'react';
 
 // Import sound files
 import notificationSound from '../assets/sounds/notification.mp3';
-import enhancementSound from '../assets/sounds/enhancement-complete.mp3';
+import enhancementSound from '../assets/sounds/enhancement-complete.wav';
 
 export function useSoundEffects() {
   // Create audio element refs
