@@ -1,8 +1,9 @@
-// src/components/TeamInviteForm.jsx - FIXED with expiresAt
+// src/components/TeamInviteForm.jsx - Updated with Professional Icons
 import { useState } from "react";
 import { db } from "../lib/firebase";
 import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { Users, Mail, Send, UserPlus, Shield, Info, CheckCircle, X, Loader2 } from "lucide-react";
 
 export default function TeamInviteForm({ teamId, teamName, role }) {
   const { user } = useAuth();
@@ -18,7 +19,6 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
       return;
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
       alert("Please enter a valid email address");
@@ -28,10 +28,8 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
     setLoading(true);
 
     try {
-      // ✅ Calculate expiration (7 days from now)
       const expiresAt = Timestamp.fromMillis(Date.now() + (7 * 24 * 60 * 60 * 1000));
       
-      // ✅ Create invite with all required fields including expiresAt
       await addDoc(collection(db, "team-invites"), {
         teamId: teamId,
         teamName: teamName,
@@ -40,11 +38,10 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
         invitedBy: user.uid,
         inviterName: user.displayName || user.email,
         createdAt: serverTimestamp(),
-        expiresAt: expiresAt, // ✅ ADDED
+        expiresAt: expiresAt,
         status: "pending",
       });
 
-      // ✅ Optional: Try to send email
       try {
         const inviteLink = `${window.location.origin}/join?teamId=${teamId}`;
 
@@ -73,7 +70,6 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
       setEmail("");
       setInviteRole("member");
 
-      // Show success message with expiration info
       showNotification(`Invite sent to ${email.trim()}! (Valid for 7 days)`, "success");
     } catch (err) {
       console.error("Error sending invite:", err);
@@ -94,14 +90,13 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
     }
   }
 
-  // Helper function for notifications
   function showNotification(message, type = "info") {
     const notification = document.createElement("div");
 
     const icons = {
-      success: "✅",
-      error: "❌",
-      info: "ℹ️",
+      success: "✓",
+      error: "✗",
+      info: "ℹ",
     };
 
     notification.innerHTML = `
@@ -132,7 +127,6 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
     }, 4000);
   }
 
-  // Only owner/admin can invite
   if (role !== "owner" && role !== "admin") {
     return null;
   }
@@ -142,13 +136,13 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
       value: "member",
       label: "Member",
       description: "Can create and manage their own prompts",
-      icon: "👤",
+      icon: UserPlus,
     },
     {
       value: "admin",
       label: "Admin",
       description: "Can manage team members and all prompts",
-      icon: "👑",
+      icon: Shield,
     },
   ];
 
@@ -163,7 +157,7 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
           className="w-10 h-10 rounded-lg flex items-center justify-center"
           style={{ backgroundColor: "var(--primary)" }}
         >
-          <span style={{ color: "var(--primary-foreground)" }}>👥</span>
+          <Users className="w-5 h-5" style={{ color: "var(--primary-foreground)" }} />
         </div>
         <div>
           <h3
@@ -178,14 +172,15 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
         </div>
       </div>
 
-      <form onSubmit={handleInvite} className="space-y-6">
+      <div className="space-y-6">
         {/* Email Input */}
         <div className="space-y-2">
           <label
             htmlFor="invite-email"
-            className="block text-sm font-medium"
+            className="block text-sm font-medium flex items-center gap-2"
             style={{ color: "var(--foreground)" }}
           >
+            <Mail className="w-4 h-4" />
             Email Address *
           </label>
           <input
@@ -198,7 +193,8 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
             required
             disabled={loading}
           />
-          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+          <p className="text-xs flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+            <Info className="w-3 h-3" />
             They'll receive an invitation to join your team (valid for 7 days)
           </p>
         </div>
@@ -206,84 +202,98 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
         {/* Role Selection */}
         <div className="space-y-3">
           <label
-            className="block text-sm font-medium"
+            className="block text-sm font-medium flex items-center gap-2"
             style={{ color: "var(--foreground)" }}
           >
+            <Shield className="w-4 h-4" />
             Role & Permissions
           </label>
           <div className="grid gap-3">
-            {roleOptions.map((option) => (
-              <label
-                key={option.value}
-                className={`relative flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
-                  inviteRole === option.value
-                    ? "border-primary"
-                    : "border-border hover:border-primary/50"
-                }`}
-                style={{
-                  borderColor:
+            {roleOptions.map((option) => {
+              const Icon = option.icon;
+              return (
+                <label
+                  key={option.value}
+                  className={`relative flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
                     inviteRole === option.value
-                      ? "var(--primary)"
-                      : "var(--border)",
-                  backgroundColor:
-                    inviteRole === option.value
-                      ? "var(--secondary)"
-                      : "transparent",
-                }}
-              >
-                <input
-                  type="radio"
-                  value={option.value}
-                  checked={inviteRole === option.value}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="mt-1 w-4 h-4"
-                  style={{ accentColor: "var(--primary)" }}
-                  disabled={loading}
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg">{option.icon}</span>
-                    <span
-                      className="font-medium"
-                      style={{ color: "var(--foreground)" }}
+                      ? "border-primary"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                  style={{
+                    borderColor:
+                      inviteRole === option.value
+                        ? "var(--primary)"
+                        : "var(--border)",
+                    backgroundColor:
+                      inviteRole === option.value
+                        ? "var(--secondary)"
+                        : "transparent",
+                  }}
+                >
+                  <input
+                    type="radio"
+                    value={option.value}
+                    checked={inviteRole === option.value}
+                    onChange={(e) => setInviteRole(e.target.value)}
+                    className="mt-1 w-4 h-4"
+                    style={{ accentColor: "var(--primary)" }}
+                    disabled={loading}
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Icon className="w-4 h-4 text-cyan-400" />
+                      <span
+                        className="font-medium"
+                        style={{ color: "var(--foreground)" }}
+                      >
+                        {option.label}
+                      </span>
+                    </div>
+                    <p
+                      className="text-sm"
+                      style={{ color: "var(--muted-foreground)" }}
                     >
-                      {option.label}
-                    </span>
+                      {option.description}
+                    </p>
                   </div>
-                  <p
-                    className="text-sm"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    {option.description}
-                  </p>
-                </div>
-              </label>
-            ))}
+                </label>
+              );
+            })}
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex gap-3 pt-2">
           <button
-            type="submit"
+            onClick={handleInvite}
             disabled={loading || !email.trim()}
             className="btn-primary px-6 py-2.5 flex items-center gap-2"
           >
-            {loading && <div className="neo-spinner w-4 h-4"></div>}
-            <span>{loading ? "Sending Invite..." : "Send Invitation"}</span>
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Sending Invite...</span>
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                <span>Send Invitation</span>
+              </>
+            )}
           </button>
 
           {email && !loading && (
             <button
               type="button"
               onClick={() => setEmail("")}
-              className="btn-secondary px-4 py-2.5"
+              className="btn-secondary px-4 py-2.5 flex items-center gap-2"
             >
+              <X className="w-4 h-4" />
               Clear
             </button>
           )}
         </div>
-      </form>
+      </div>
 
       {/* Info Section */}
       <div
@@ -293,26 +303,33 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
           borderColor: "var(--border)",
         }}
       >
-        <h4 className="font-medium mb-3" style={{ color: "var(--foreground)" }}>
-          ℹ️ How Invites Work:
+        <h4 className="font-medium mb-3 flex items-center gap-2" style={{ color: "var(--foreground)" }}>
+          <Info className="w-5 h-5 text-cyan-400" />
+          How Invites Work:
         </h4>
         <div
           className="space-y-2 text-sm"
           style={{ color: "var(--muted-foreground)" }}
         >
-          <div>• Invitations are saved immediately to the database</div>
-          <div>
-            • Users will see pending invites when they sign in with the invited
-            email
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <span>Invitations are saved immediately to the database</span>
           </div>
-          <div>
-            • Email notifications are sent if the email service is configured
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <span>Users will see pending invites when they sign in with the invited email</span>
           </div>
-          <div>
-            • Invites expire after 7 days and can be cancelled at any time
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <span>Email notifications are sent if the email service is configured</span>
           </div>
-          <div>
-            • Invites can be accepted or declined from the user's invite panel
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <span>Invites expire after 7 days and can be cancelled at any time</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <span>Invites can be accepted or declined from the user's invite panel</span>
           </div>
         </div>
       </div>
