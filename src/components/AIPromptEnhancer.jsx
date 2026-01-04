@@ -184,7 +184,7 @@ export default function AIPromptEnhancer({
   }
 
   function showNotification(message, type = "info") {
-    playNotification();
+    
     const notification = document.createElement("div");
     notification.innerHTML = `<div>${message}</div>`;
     notification.className =
