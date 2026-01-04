@@ -1,6 +1,6 @@
 // src/components/ResultCard.jsx - Premium Result Card Design
 import { useState } from "react";
-
+import { useSoundEffects } from '../hooks/useSoundEffects';
 function Icon({ name, className = "w-4 h-4" }) {
   const icons = {
     copy: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />,
@@ -18,13 +18,15 @@ function Icon({ name, className = "w-4 h-4" }) {
 
 export default function ResultCard({ result, isExpanded, onToggleExpand, onDelete }) {
   const [imageError, setImageError] = useState(false);
-
+  const { playNotification } = useSoundEffects();
   async function handleCopy() {
     try {
       await navigator.clipboard.writeText(result.content);
+      playNotification();
       showSuccessToast("Copied to clipboard!");
     } catch (error) {
       console.error("Error copying:", error);
+      
       showNotification("Failed to copy", "error");
     }
   }
