@@ -48,7 +48,7 @@ import usePagination, { PaginationControls } from "../hooks/usePagination";
 import AIPromptEnhancer from "./AIPromptEnhancer";
 import PromptResults from "./PromptResults";
 import { StarRating, usePromptRating } from "./PromptAnalytics";
-
+import { useSoundEffects } from '../hooks/useSoundEffects';
 // Rating Section Component
 function RatingSection({ teamId, promptId }) {
   const { userRating, averageRating, totalRatings, ratePrompt, loading } = 
@@ -98,6 +98,7 @@ function RatingSection({ teamId, promptId }) {
 
 export default function PromptList({ activeTeam, userRole }) {
   const { user } = useAuth();
+  const { playNotification } = useSoundEffects();
   const [prompts, setPrompts] = useState([]);
   const [filteredPrompts, setFilteredPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -464,6 +465,7 @@ export default function PromptList({ activeTeam, userRole }) {
   }
 
   function showSuccessToast(message) {
+    playNotification();
     const toast = document.createElement("div");
     toast.className = "success-toast";
     toast.innerHTML = `
@@ -483,6 +485,7 @@ export default function PromptList({ activeTeam, userRole }) {
   }
 
   function showNotification(message, type = "info") {
+    playNotification();
     const icons = {
       success: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>',
       error: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>',
