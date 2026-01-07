@@ -1,6 +1,6 @@
 // src/pages/Waitlist.jsx - With Star-Rated Feedback & Testimonials
 import { useState } from "react";
-import { Rocket, CheckCircle2, XCircle, Zap, MessageCircle, Crown, Star, Quote } from "lucide-react";
+import { Rocket, CheckCircle2, XCircle, Zap, MessageCircle, Crown, Star, Quote, StarRating, TestimonialCard, MessageSquare } from "lucide-react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
