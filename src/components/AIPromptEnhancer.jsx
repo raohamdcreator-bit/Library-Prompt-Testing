@@ -1,4 +1,4 @@
-// src/components/AIPromptEnhancer.jsx - Complete with Model Selection
+// src/components/AIPromptEnhancer.jsx - Mobile Responsive (Below 770px)
 import { useState } from "react";
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { 
@@ -37,14 +37,13 @@ export default function AIPromptEnhancer({
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const { playNotification, playEnhancement } = useSoundEffects();
-  // AI Models Configuration
+  
   const aiModels = [
     {
       id: "general",
       name: "Universal",
       icon: Globe,
       description: " Optimized for all AI models",
-      // badge: "🌐",
       color: "#8b5cf6",
     },
     {
@@ -52,7 +51,6 @@ export default function AIPromptEnhancer({
       name: "Claude",
       icon: Brain,
       description: " Contextual, reasoning-focused",
-      // badge: "🧠",
       color: "#d97706",
     },
     {
@@ -60,7 +58,6 @@ export default function AIPromptEnhancer({
       name: "ChatGPT",
       icon: Zap,
       description: " Structured, role-based",
-      // badge: "💬",
       color: "#10b981",
     },
     {
@@ -68,7 +65,6 @@ export default function AIPromptEnhancer({
       name: "Cursor",
       icon: Code,
       description: " Developer-optimized",
-      // badge: "💻",
       color: "#3b82f6",
     },
     {
@@ -76,7 +72,6 @@ export default function AIPromptEnhancer({
       name: "Gemini",
       icon: Sparkles,
       description: " Concise, task-focused",
-      // badge: Sparkles,
       color: "#ec4899",
     },
     {
@@ -84,7 +79,6 @@ export default function AIPromptEnhancer({
       name: "Copilot",
       icon: Bot,
       description: " Code completion focus",
-      // badge: Bot,
       color: "#6366f1",
     },
   ];
@@ -184,7 +178,6 @@ export default function AIPromptEnhancer({
   }
 
   function showNotification(message, type = "info") {
-    
     const notification = document.createElement("div");
     notification.innerHTML = `<div>${message}</div>`;
     notification.className =
@@ -206,48 +199,44 @@ export default function AIPromptEnhancer({
     }, 3000);
   }
 
- function handleApply() {
-  if (result?.enhanced) {
-    const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
-    
-    // Remove any existing "(Enhanced for X)" from title
-    const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
-    
-    onApply({ 
-      ...prompt, 
-      text: result.enhanced,
-      title: `${cleanTitle} (Enhanced for ${modelName})`,  // ✅ Update title too
-      enhanced: true,
-      enhancedFor: targetModel,
-      enhancementType: enhancementType,
-      enhancedAt: new Date().toISOString(),
-    });
-    showNotification("Enhanced prompt applied!", "success");
-    if (onClose) onClose();
+  function handleApply() {
+    if (result?.enhanced) {
+      const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
+      const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
+      
+      onApply({ 
+        ...prompt, 
+        text: result.enhanced,
+        title: `${cleanTitle} (Enhanced for ${modelName})`,
+        enhanced: true,
+        enhancedFor: targetModel,
+        enhancementType: enhancementType,
+        enhancedAt: new Date().toISOString(),
+      });
+      showNotification("Enhanced prompt applied!", "success");
+      if (onClose) onClose();
+    }
   }
-}
 
-function handleSaveAsNew() {
-  if (result?.enhanced) {
-    const { id, teamId, createdAt, createdBy, ...promptData } = prompt;
-    const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
-    
-    // Remove any existing "(Enhanced for X)" from title
-    const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
+  function handleSaveAsNew() {
+    if (result?.enhanced) {
+      const { id, teamId, createdAt, createdBy, ...promptData } = prompt;
+      const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
+      const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
 
-    onSaveAsNew({
-      ...promptData,
-      text: result.enhanced,
-      title: `${cleanTitle} (Enhanced for ${modelName})`,  // ✅ Use cleaned title
-      enhanced: true,
-      enhancedFor: targetModel,
-      enhancementType: enhancementType,
-      enhancedAt: new Date().toISOString(),
-    });
-    showNotification("Saved as new prompt!", "success");
-    if (onClose) onClose();
+      onSaveAsNew({
+        ...promptData,
+        text: result.enhanced,
+        title: `${cleanTitle} (Enhanced for ${modelName})`,
+        enhanced: true,
+        enhancedFor: targetModel,
+        enhancementType: enhancementType,
+        enhancedAt: new Date().toISOString(),
+      });
+      showNotification("Saved as new prompt!", "success");
+      if (onClose) onClose();
+    }
   }
-}
 
   const selectedModel = aiModels.find(m => m.id === targetModel);
 
@@ -347,11 +336,10 @@ function handleSaveAsNew() {
                       )}
                     </div>
                     <div 
-                      className="font-semibold text-sm mb-1 flex items-center gap-2"
+                      className="font-semibold text-sm mb-1"
                       style={{ color: "var(--foreground)" }}
                     >
-                      <span>{model.badge}</span>
-                      <span>{model.name}</span>
+                      {model.name}
                     </div>
                     <div 
                       className="text-xs"
@@ -553,7 +541,7 @@ function handleSaveAsNew() {
                     <Check className="w-4 h-4" style={{ color: selectedModel?.color || "var(--primary)" }} />
                     <span>Enhanced Prompt:</span>
                   </h3>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap justify-end">
                     <span 
                       className="text-xs px-3 py-1 rounded-full font-semibold"
                       style={{
@@ -570,7 +558,7 @@ function handleSaveAsNew() {
                         color: selectedModel?.color || "var(--primary)",
                       }}
                     >
-                      {selectedModel?.badge} {selectedModel?.name}
+                      {selectedModel?.name}
                     </span>
                   </div>
                 </div>
@@ -589,7 +577,7 @@ function handleSaveAsNew() {
                   </pre>
                 </div>
                 <div 
-                  className="mt-2 flex items-center justify-between text-xs"
+                  className="mt-2 flex items-center justify-between text-xs flex-wrap gap-2"
                   style={{ color: "var(--muted-foreground)" }}
                 >
                   <span>{result.enhanced?.length || 0} characters</span>
@@ -701,7 +689,7 @@ function handleSaveAsNew() {
             backgroundColor: "var(--muted)",
           }}
         >
-          <div className="flex justify-between items-center text-xs">
+          <div className="flex justify-between items-center text-xs flex-wrap gap-3">
             <div style={{ color: "var(--muted-foreground)" }}>
               <AlertCircle className="w-3 h-3 inline mr-1" />
               Tip: Select target AI model first, then choose enhancement type for best results
