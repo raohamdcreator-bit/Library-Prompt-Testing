@@ -1,4 +1,4 @@
-// src/components/ActivityFeed.jsx - Mobile Responsive (Below 770px)
+// src/components/ActivityFeed.jsx - Modernized with Professional Icons
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -19,6 +19,7 @@ import {
   MessageSquare, Copy, TrendingUp, Users
 } from 'lucide-react';
 
+// Activity Logger utility for creating activity records
 export const ActivityLogger = {
   async logPromptCreated(teamId, userId, promptId, promptTitle) {
     try {
@@ -576,13 +577,12 @@ export default function ActivityFeed({ teamId }) {
             }}
           >
             <Download size={16} />
-            <span className="hidden sm:inline">Export CSV</span>
-            <span className="sm:hidden">Export</span>
+            Export CSV
           </button>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
+          <div>
             <label
               className="text-sm font-medium mb-2 block"
               style={{ color: "var(--foreground)" }}
@@ -590,7 +590,7 @@ export default function ActivityFeed({ teamId }) {
               Activity Type
             </label>
             <div
-              className="flex rounded-lg border overflow-x-auto"
+              className="flex rounded-lg border"
               style={{
                 backgroundColor: "var(--secondary)",
                 borderColor: "var(--border)",
@@ -607,7 +607,7 @@ export default function ActivityFeed({ teamId }) {
                   <button
                     key={filterOption.key}
                     onClick={() => setFilter(filterOption.key)}
-                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-1.5 whitespace-nowrap ${
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all duration-200 flex items-center gap-1.5 ${
                       filter === filterOption.key
                         ? "text-primary-foreground"
                         : "hover:text-foreground"
@@ -629,7 +629,7 @@ export default function ActivityFeed({ teamId }) {
             </div>
           </div>
 
-          <div className="sm:w-auto w-full">
+          <div>
             <label
               className="text-sm font-medium mb-2 block"
               style={{ color: "var(--foreground)" }}
@@ -639,7 +639,7 @@ export default function ActivityFeed({ teamId }) {
             <select
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value)}
-              className="w-full px-3 py-1.5 text-sm rounded-md border"
+              className="px-3 py-1.5 text-sm rounded-md border"
               style={{
                 backgroundColor: "var(--secondary)",
                 borderColor: "var(--border)",
@@ -676,7 +676,7 @@ export default function ActivityFeed({ teamId }) {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+            <div className="flex items-center justify-between mb-4">
               <h4
                 className="font-medium"
                 style={{ color: "var(--foreground)" }}
@@ -729,8 +729,8 @@ export default function ActivityFeed({ teamId }) {
                       {activity.metadata?.tags &&
                         activity.metadata.tags.length > 0 && (
                           <>
-                            <span className="hidden sm:inline">•</span>
-                            <div className="flex gap-1 flex-wrap">
+                            <span>•</span>
+                            <div className="flex gap-1">
                               {activity.metadata.tags.slice(0, 2).map((tag) => (
                                 <span
                                   key={tag}
@@ -747,7 +747,7 @@ export default function ActivityFeed({ teamId }) {
                                 <span
                                   style={{ color: "var(--muted-foreground)" }}
                                 >
-                                  +{activity.metadata.tags.length - 2}
+                                  +{activity.metadata.tags.length - 2} more
                                 </span>
                               )}
                             </div>
@@ -756,8 +756,8 @@ export default function ActivityFeed({ teamId }) {
 
                       {activity.metadata?.totalRatings && (
                         <>
-                          <span className="hidden sm:inline">•</span>
-                          <span className="hidden sm:inline">
+                          <span>•</span>
+                          <span>
                             {activity.metadata.totalRatings} total ratings
                           </span>
                         </>
@@ -785,7 +785,8 @@ export default function ActivityFeed({ teamId }) {
                     color: "var(--secondary-foreground)",
                   }}
                 >
-                  Load More ({filteredActivities.length - 50} remaining)
+                  Load More Activity ({filteredActivities.length - 50}{" "}
+                  remaining)
                 </button>
               </div>
             )}
