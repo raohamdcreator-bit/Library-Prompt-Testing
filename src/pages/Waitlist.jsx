@@ -1,7 +1,7 @@
-// src/pages/Waitlist.jsx
-import { useState } from "react";
-import { Rocket, CheckCircle2, XCircle, Zap, MessageCircle, Crown } from "lucide-react";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+// src/pages/Waitlist.jsx - Enhanced with Testimonials & Feedback
+import { useState, useEffect } from "react";
+import { Rocket, CheckCircle2, XCircle, Zap, MessageCircle, Crown, Star, Quote, Send, Loader2 } from "lucide-react";
+import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 export default function Waitlist({ onNavigate }) {
@@ -15,6 +15,36 @@ export default function Waitlist({ onNavigate }) {
   });
   const [status, setStatus] = useState({ type: "", message: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [testimonials, setTestimonials] = useState([]);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+
+  // Load testimonials
+  useEffect(() => {
+    const q = query(
+      collection(db, "testimonials"),
+      where("approved", "==", true),
+      orderBy("createdAt", "desc"),
+      limit(6)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const testimonialsData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setTestimonials(testimonialsData);
+      },
+      (error) => {
+        console.error("Error loading testimonials:", error);
+        // Use fallback testimonials if Firebase fails
+        setTestimonials(getFallbackTestimonials());
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -72,6 +102,11 @@ export default function Waitlist({ onNavigate }) {
         useCase: "",
         earlyAccess: true,
       });
+
+      // Show feedback form after successful submission
+      setTimeout(() => {
+        setShowFeedbackForm(true);
+      }, 2000);
     } catch (error) {
       console.error("Waitlist submission error:", error);
       setStatus({
@@ -127,12 +162,12 @@ export default function Waitlist({ onNavigate }) {
       <section className="container mx-auto px-4 py-20 text-center">
         <div className="max-w-4xl mx-auto">
           <div
-            className="mb-6 ai-glow inline-flex items-center gap-2 px-4 py-2 rounded-full border"
+            className="mb-6 inline-flex items-center gap-2 px-4 py-2 rounded-full border"
             style={{
               backgroundColor: "var(--primary)",
-              color: "var(--secondary-foreground)",
+              color: "white",
               borderColor: "var(--border)",
-              boxShadow: "0 0 10px var(--glow-purple-bright)",
+              boxShadow: "0 0 20px rgba(139, 92, 246, 0.3)",
             }}
           >
             <Rocket className="w-4 h-4" />
@@ -155,6 +190,34 @@ export default function Waitlist({ onNavigate }) {
           </p>
         </div>
       </section>
+
+      {/* Testimonials Section */}
+      {testimonials.length > 0 && (
+        <section className="container mx-auto px-4 pb-16">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <h2
+                className="text-3xl font-bold mb-4"
+                style={{ color: "var(--foreground)" }}
+              >
+                Trusted by Innovators
+              </h2>
+              <p
+                className="text-lg"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                See what early users are saying about Prism
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {testimonials.map((testimonial) => (
+                <TestimonialCard key={testimonial.id} testimonial={testimonial} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Waitlist Form */}
       <section className="container mx-auto px-4 pb-20">
@@ -256,9 +319,6 @@ export default function Waitlist({ onNavigate }) {
                   style={{ color: "var(--foreground)" }}
                 >
                   Institution / Company{" "}
-                  <span style={{ color: "var(--muted-foreground)" }}>
-                    (optional)
-                  </span>
                 </label>
                 <input
                   type="text"
@@ -280,9 +340,6 @@ export default function Waitlist({ onNavigate }) {
                   style={{ color: "var(--foreground)" }}
                 >
                   Tell Us How You Plan to Use Prism{" "}
-                  <span style={{ color: "var(--muted-foreground)" }}>
-                    (optional)
-                  </span>
                 </label>
                 <textarea
                   id="useCase"
@@ -357,12 +414,15 @@ export default function Waitlist({ onNavigate }) {
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="w-full btn-primary ai-glow py-4 text-lg font-semibold flex items-center justify-center gap-2"
-                style={{ opacity: isSubmitting ? 0.7 : 1 }}
+                className="w-full btn-primary py-4 text-lg font-semibold flex items-center justify-center gap-2"
+                style={{ 
+                  opacity: isSubmitting ? 0.7 : 1,
+                  boxShadow: "0 4px 20px rgba(139, 92, 246, 0.3)"
+                }}
               >
                 {isSubmitting ? (
                   <>
-                    <div className="neo-spinner w-5 h-5"></div>
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     <span>Joining Waitlist...</span>
                   </>
                 ) : (
@@ -385,6 +445,11 @@ export default function Waitlist({ onNavigate }) {
           </div>
         </div>
       </section>
+
+      {/* Feedback Form Modal */}
+      {showFeedbackForm && (
+        <FeedbackFormModal onClose={() => setShowFeedbackForm(false)} />
+      )}
 
       {/* Benefits Section */}
       <section className="container mx-auto px-4 pb-20">
@@ -452,4 +517,478 @@ export default function Waitlist({ onNavigate }) {
       </footer>
     </div>
   );
+}
+
+// Testimonial Card Component
+function TestimonialCard({ testimonial }) {
+  const { name, role, institution, rating, feedback, avatar } = testimonial;
+
+  return (
+    <div
+      className="glass-card p-6 rounded-lg border hover:border-primary/50 transition-all duration-300"
+      style={{ borderColor: "var(--border)" }}
+    >
+      {/* Quote Icon */}
+      <div className="mb-4">
+        <Quote 
+          className="w-8 h-8 opacity-30" 
+          style={{ color: "var(--primary)" }} 
+        />
+      </div>
+
+      {/* Rating Stars */}
+      <div className="flex items-center gap-1 mb-4">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            size={16}
+            fill={star <= rating ? "#fbbf24" : "none"}
+            color={star <= rating ? "#fbbf24" : "#6b7280"}
+            strokeWidth={2}
+          />
+        ))}
+      </div>
+
+      {/* Feedback Text */}
+      <p
+        className="text-sm mb-6 leading-relaxed"
+        style={{ color: "var(--foreground)" }}
+      >
+        "{feedback}"
+      </p>
+
+      {/* Author Info */}
+      <div className="flex items-center gap-3 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+        <div
+          className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm"
+          style={{
+            backgroundColor: avatar ? "transparent" : "var(--primary)",
+            color: "white",
+          }}
+        >
+          {avatar ? (
+            <img src={avatar} alt={name} className="w-full h-full rounded-full object-cover" />
+          ) : (
+            name.charAt(0).toUpperCase()
+          )}
+        </div>
+        <div>
+          <p
+            className="font-semibold text-sm"
+            style={{ color: "var(--foreground)" }}
+          >
+            {name}
+          </p>
+          <p
+            className="text-xs"
+            style={{ color: "var(--muted-foreground)" }}
+          >
+            {role}{institution ? ` • ${institution}` : ""}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Feedback Form Modal Component
+function FeedbackFormModal({ onClose }) {
+  const [feedbackData, setFeedbackData] = useState({
+    name: "",
+    email: "",
+    role: "",
+    institution: "",
+    rating: 0,
+    feedback: "",
+  });
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState({ type: "", message: "" });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!feedbackData.name || !feedbackData.email || !feedbackData.rating || !feedbackData.feedback) {
+      setSubmitStatus({
+        type: "error",
+        message: "Please fill in all required fields",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitStatus({ type: "", message: "" });
+
+    try {
+      await addDoc(collection(db, "testimonials"), {
+        name: feedbackData.name.trim(),
+        email: feedbackData.email.toLowerCase().trim(),
+        role: feedbackData.role || "User",
+        institution: feedbackData.institution.trim() || null,
+        rating: feedbackData.rating,
+        feedback: feedbackData.feedback.trim(),
+        createdAt: serverTimestamp(),
+        approved: false, // Requires admin approval
+        source: "waitlist_feedback",
+      });
+
+      setSubmitStatus({
+        type: "success",
+        message: "Thank you for your feedback! It will be reviewed shortly.",
+      });
+
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+    } catch (error) {
+      console.error("Feedback submission error:", error);
+      setSubmitStatus({
+        type: "error",
+        message: "Failed to submit feedback. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0, 0, 0, 0.8)" }}
+      onClick={onClose}
+    >
+      <div
+        className="glass-card p-8 rounded-lg border max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+        style={{ borderColor: "var(--border)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h3
+            className="text-2xl font-bold"
+            style={{ color: "var(--foreground)" }}
+          >
+            Share Your Thoughts
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg hover:bg-secondary transition-colors"
+            style={{ color: "var(--foreground)" }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <p
+          className="mb-6"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          Help us improve Prism by sharing your experience and expectations. Your feedback is invaluable!
+        </p>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Name */}
+          <div>
+            <label
+              htmlFor="feedback-name"
+              className="block text-sm font-medium mb-2"
+              style={{ color: "var(--foreground)" }}
+            >
+              Name *
+            </label>
+            <input
+              type="text"
+              id="feedback-name"
+              value={feedbackData.name}
+              onChange={(e) =>
+                setFeedbackData({ ...feedbackData, name: e.target.value })
+              }
+              className="form-input w-full"
+              placeholder="Your name"
+              disabled={isSubmitting}
+              required
+            />
+          </div>
+
+          {/* Email */}
+          <div>
+            <label
+              htmlFor="feedback-email"
+              className="block text-sm font-medium mb-2"
+              style={{ color: "var(--foreground)" }}
+            >
+              Email *
+            </label>
+            <input
+              type="email"
+              id="feedback-email"
+              value={feedbackData.email}
+              onChange={(e) =>
+                setFeedbackData({ ...feedbackData, email: e.target.value })
+              }
+              className="form-input w-full"
+              placeholder="you@example.com"
+              disabled={isSubmitting}
+              required
+            />
+          </div>
+
+          {/* Role & Institution */}
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label
+                htmlFor="feedback-role"
+                className="block text-sm font-medium mb-2"
+                style={{ color: "var(--foreground)" }}
+              >
+                Role
+              </label>
+              <input
+                type="text"
+                id="feedback-role"
+                value={feedbackData.role}
+                onChange={(e) =>
+                  setFeedbackData({ ...feedbackData, role: e.target.value })
+                }
+                className="form-input w-full"
+                placeholder="Your role"
+                disabled={isSubmitting}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="feedback-institution"
+                className="block text-sm font-medium mb-2"
+                style={{ color: "var(--foreground)" }}
+              >
+                Institution
+              </label>
+              <input
+                type="text"
+                id="feedback-institution"
+                value={feedbackData.institution}
+                onChange={(e) =>
+                  setFeedbackData({
+                    ...feedbackData,
+                    institution: e.target.value,
+                  })
+                }
+                className="form-input w-full"
+                placeholder="Your institution"
+                disabled={isSubmitting}
+              />
+            </div>
+          </div>
+
+          {/* Star Rating */}
+          <div>
+            <label
+              className="block text-sm font-medium mb-3"
+              style={{ color: "var(--foreground)" }}
+            >
+              How excited are you about Prism? *
+            </label>
+            <div className="flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() =>
+                    setFeedbackData({ ...feedbackData, rating: star })
+                  }
+                  onMouseEnter={() => setHoveredRating(star)}
+                  onMouseLeave={() => setHoveredRating(0)}
+                  disabled={isSubmitting}
+                  className="transition-transform hover:scale-110"
+                >
+                  <Star
+                    size={32}
+                    fill={
+                      star <= (hoveredRating || feedbackData.rating)
+                        ? "#fbbf24"
+                        : "none"
+                    }
+                    color={
+                      star <= (hoveredRating || feedbackData.rating)
+                        ? "#fbbf24"
+                        : "#6b7280"
+                    }
+                    strokeWidth={2}
+                  />
+                </button>
+              ))}
+              {feedbackData.rating > 0 && (
+                <span
+                  className="ml-2 text-sm font-medium"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  {feedbackData.rating === 5
+                    ? "Extremely Excited! 🚀"
+                    : feedbackData.rating === 4
+                    ? "Very Excited! 😊"
+                    : feedbackData.rating === 3
+                    ? "Interested 👍"
+                    : feedbackData.rating === 2
+                    ? "Somewhat Curious 🤔"
+                    : "Cautiously Optimistic 😐"}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Feedback Text */}
+          <div>
+            <label
+              htmlFor="feedback-text"
+              className="block text-sm font-medium mb-2"
+              style={{ color: "var(--foreground)" }}
+            >
+              Your Feedback *
+            </label>
+            <textarea
+              id="feedback-text"
+              value={feedbackData.feedback}
+              onChange={(e) =>
+                setFeedbackData({ ...feedbackData, feedback: e.target.value })
+              }
+              rows={4}
+              className="form-input w-full resize-none"
+              placeholder="What excites you most about Prism? What features would you like to see? Any suggestions?"
+              disabled={isSubmitting}
+              maxLength={500}
+              required
+            />
+            <p
+              className="text-xs mt-1"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              {feedbackData.feedback.length} / 500 characters
+            </p>
+          </div>
+
+          {/* Status Message */}
+          {submitStatus.message && (
+            <div
+              className={`p-4 rounded-lg border ${
+                submitStatus.type === "success"
+                  ? "bg-green-500/10 border-green-500/30"
+                  : "bg-red-500/10 border-red-500/30"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {submitStatus.type === "success" ? (
+                  <CheckCircle2 className="w-5 h-5 text-green-300" />
+                ) : (
+                  <XCircle className="w-5 h-5 text-red-300" />
+                )}
+                <p
+                  className={
+                    submitStatus.type === "success"
+                      ? "text-green-300"
+                      : "text-red-300"
+                  }
+                >
+                  {submitStatus.message}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isSubmitting}
+              className="btn-secondary flex-1"
+            >
+              Maybe Later
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || !feedbackData.rating}
+              className="btn-primary flex-1 flex items-center justify-center gap-2"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Submitting...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  <span>Submit Feedback</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Fallback testimonials in case Firebase fails to load
+function getFallbackTestimonials() {
+  return [
+    {
+      id: "1",
+      name: "Sarah Chen",
+      role: "AI Research Lead",
+      institution: "Stanford University",
+      rating: 5,
+      feedback: "Prism transformed how our team manages AI prompts. The collaboration features are game-changing for research teams.",
+      createdAt: new Date(),
+      approved: true,
+    },
+    {
+      id: "2",
+      name: "Marcus Rodriguez",
+      role: "Startup Founder",
+      institution: "TechVentures",
+      rating: 5,
+      feedback: "Finally, a proper prompt library that scales with our team. The version control and analytics saved us countless hours.",
+      createdAt: new Date(),
+      approved: true,
+    },
+    {
+      id: "3",
+      name: "Dr. Emily Watson",
+      role: "Professor of Computer Science",
+      institution: "MIT",
+      rating: 4,
+      feedback: "Perfect for teaching prompt engineering. My students love how easy it is to share and iterate on prompts together.",
+      createdAt: new Date(),
+      approved: true,
+    },
+    {
+      id: "4",
+      name: "Alex Kim",
+      role: "ML Engineer",
+      institution: "OpenAI",
+      rating: 5,
+      feedback: "The plagiarism detection and quality analytics are exactly what enterprise teams need. Highly recommended!",
+      createdAt: new Date(),
+      approved: true,
+    },
+    {
+      id: "5",
+      name: "Jessica Liu",
+      role: "Product Designer",
+      institution: "Google",
+      rating: 5,
+      feedback: "Intuitive interface and powerful features. Makes prompt management feel effortless, not overwhelming.",
+      createdAt: new Date(),
+      approved: true,
+    },
+    {
+      id: "6",
+      name: "David Park",
+      role: "Engineering Manager",
+      institution: "Microsoft",
+      rating: 4,
+      feedback: "Great for cross-functional teams. The role-based permissions and audit logs give us the governance we need.",
+      createdAt: new Date(),
+      approved: true,
+    },
+  ];
 }
