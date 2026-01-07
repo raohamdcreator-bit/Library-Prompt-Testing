@@ -1,4 +1,4 @@
-// src/components/AdvancedSearch.jsx - Professional 
+// src/components/AdvancedSearch.jsx - Mobile Responsive (Below 770px)
 import { useState, useEffect, useMemo } from "react";
 import { 
   Search, 
@@ -45,7 +45,6 @@ export default function AdvancedSearch({
   function applyFilters(promptsList) {
     let filtered = [...promptsList];
 
-    // Text search
     if (filters.search.trim()) {
       const searchTerm = filters.search.toLowerCase().trim();
       filtered = filtered.filter(
@@ -57,21 +56,18 @@ export default function AdvancedSearch({
       );
     }
 
-    // Author filter
     if (filters.author !== "all") {
       filtered = filtered.filter(
         (prompt) => prompt.createdBy === filters.author
       );
     }
 
-    // Visibility filter
     if (filters.visibility !== "all") {
       filtered = filtered.filter(
         (prompt) => (prompt.visibility || "public") === filters.visibility
       );
     }
 
-    // Tag filter
     if (filters.tags.trim()) {
       const searchTags = filters.tags
         .toLowerCase()
@@ -87,7 +83,6 @@ export default function AdvancedSearch({
       );
     }
 
-    // Date range filter
     if (filters.dateRange !== "all") {
       const now = new Date();
       const cutoffDate = new Date();
@@ -117,7 +112,6 @@ export default function AdvancedSearch({
       });
     }
 
-    // Length filters
     if (filters.minLength && !isNaN(filters.minLength)) {
       filtered = filtered.filter(
         (prompt) => (prompt.text?.length || 0) >= parseInt(filters.minLength)
@@ -130,7 +124,6 @@ export default function AdvancedSearch({
       );
     }
 
-    // Sorting
     filtered.sort((a, b) => {
       switch (filters.sortBy) {
         case "newest":
@@ -231,7 +224,10 @@ export default function AdvancedSearch({
       {/* Basic Search */}
       <div className="flex items-center gap-3 mb-4">
         <div className="flex-1 relative">
-        
+          <Search 
+            className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2" 
+            style={{ color: "var(--muted-foreground)" }} 
+          />
           <input
             type="text"
             placeholder="Search prompts, titles, tags..."
@@ -257,12 +253,12 @@ export default function AdvancedSearch({
 
         <button
           onClick={toggleAdvanced}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200 whitespace-nowrap ${
             showAdvanced ? "btn-primary" : "btn-secondary"
           }`}
         >
           <SlidersHorizontal className="w-4 h-4" />
-          <span className="font-medium">Filters</span>
+          <span className="font-medium hidden sm:inline">Filters</span>
           {activeFilterCount > 0 && (
             <span
               className="text-xs rounded-full px-2 py-0.5 min-w-[1.25rem] text-center font-bold"
@@ -456,7 +452,7 @@ export default function AdvancedSearch({
           {/* Clear Filters */}
           {hasActiveFilters() && (
             <div
-              className="flex justify-between items-center pt-4 border-t"
+              className="flex justify-between items-center pt-4 border-t flex-wrap gap-3"
               style={{ borderColor: "var(--border)" }}
             >
               <p
@@ -488,7 +484,7 @@ export default function AdvancedSearch({
           }}
         >
           <div className="flex items-start gap-2">
-            <Lightbulb className="w-4 h-4 mt-0.5" style={{ color: "var(--primary)" }} />
+            <Lightbulb className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: "var(--primary)" }} />
             <div>
               <p
                 className="text-xs font-medium mb-1"
