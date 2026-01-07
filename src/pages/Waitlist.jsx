@@ -195,10 +195,7 @@ export default function Waitlist({ onNavigate }) {
         earlyAccess: true,
       });
 
-      // Show feedback form after successful submission
-      setTimeout(() => {
-        setShowFeedbackForm(true);
-      }, 2000);
+      // Don't auto-show feedback form - let users choose
     } catch (error) {
       console.error("Waitlist submission error:", error);
       setStatus({
@@ -247,6 +244,7 @@ export default function Waitlist({ onNavigate }) {
         message: "Thank you for your feedback! We appreciate your input.",
       });
 
+      // Reset form data
       setFeedbackData({
         name: "",
         email: "",
@@ -255,8 +253,10 @@ export default function Waitlist({ onNavigate }) {
         category: "general",
       });
 
+      // Close form and reset status after showing success message
       setTimeout(() => {
         setShowFeedbackForm(false);
+        setFeedbackStatus({ type: "", message: "" });
       }, 3000);
     } catch (error) {
       console.error("Feedback submission error:", error);
@@ -375,7 +375,7 @@ export default function Waitlist({ onNavigate }) {
       </section>
 
       {/* Waitlist Form */}
-      <section className="container mx-auto px-4 pb-20">
+      <section className="container mx-auto px-4 pb-16">
         <div className="max-w-2xl mx-auto">
           <div
             className="glass-card p-8 md:p-12 rounded-lg border"
@@ -386,7 +386,7 @@ export default function Waitlist({ onNavigate }) {
                 className="text-3xl font-bold mb-4"
                 style={{ color: "var(--foreground)" }}
               >
-                Be the First to Shape Prism
+                Reserve Your Spot
               </h2>
               <p
                 className="text-lg"
@@ -599,12 +599,30 @@ export default function Waitlist({ onNavigate }) {
                 shape its development. We respect your privacy and won't share
                 your information.
               </p>
+
+              <div className="mt-6 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
+                <p
+                  className="text-xs text-center"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  💡 Want to share feedback separately?{" "}
+                  <button
+                    onClick={() => {
+                      setShowFeedbackForm(true);
+                      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                    }}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Leave feedback here
+                  </button>
+                </p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Feedback Form Section */}
+      {/* Feedback Form Section - Independent of Waitlist */}
       {showFeedbackForm && (
         <section className="container mx-auto px-4 pb-20">
           <div className="max-w-2xl mx-auto">
@@ -612,22 +630,41 @@ export default function Waitlist({ onNavigate }) {
               className="glass-card p-8 md:p-12 rounded-lg border"
               style={{ borderColor: "var(--primary)" }}
             >
-              <div className="text-center mb-8">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ backgroundColor: "var(--primary)" }}>
-                  <Star className="w-8 h-8" style={{ color: "var(--primary-foreground)" }} />
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex-1">
+                  <div className="w-16 h-16 mb-4 rounded-full flex items-center justify-center" style={{ backgroundColor: "var(--primary)" }}>
+                    <Star className="w-8 h-8" style={{ color: "var(--primary-foreground)" }} />
+                  </div>
+                  <h2
+                    className="text-2xl font-bold mb-2"
+                    style={{ color: "var(--foreground)" }}
+                  >
+                    Share Your Thoughts
+                  </h2>
+                  <p
+                    className="text-sm"
+                    style={{ color: "var(--muted-foreground)" }}
+                  >
+                    Help us improve Prism by sharing your expectations and feedback. No waitlist signup required.
+                  </p>
                 </div>
-                <h2
-                  className="text-2xl font-bold mb-4"
-                  style={{ color: "var(--foreground)" }}
+                <button
+                  onClick={() => {
+                    setShowFeedbackForm(false);
+                    setFeedbackData({
+                      name: "",
+                      email: "",
+                      rating: 0,
+                      feedback: "",
+                      category: "general",
+                    });
+                    setFeedbackStatus({ type: "", message: "" });
+                  }}
+                  className="btn-secondary p-2 ml-4"
+                  title="Close feedback form"
                 >
-                  Share Your Thoughts
-                </h2>
-                <p
-                  className="text-lg"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  Help us improve Prism by sharing your expectations and feedback
-                </p>
+                  <XCircle className="w-5 h-5" />
+                </button>
               </div>
 
               <div className="space-y-6">
@@ -868,38 +905,45 @@ export default function Waitlist({ onNavigate }) {
         </div>
       </section>
 
-      {/* CTA to leave feedback */}
-      {!showFeedbackForm && (
-        <section className="container mx-auto px-4 pb-20">
-          <div className="max-w-2xl mx-auto">
+      {/* Feedback Toggle CTA - Always visible */}
+      <section className="container mx-auto px-4 pb-16">
+        <div className="max-w-2xl mx-auto">
+          {!showFeedbackForm ? (
             <div
-              className="glass-card p-8 rounded-lg border text-center"
+              className="glass-card p-8 rounded-lg border text-center transition-all hover:border-primary/50"
               style={{ borderColor: "var(--border)" }}
             >
-              <Star className="w-12 h-12 mx-auto mb-4" style={{ color: "var(--primary)" }} />
-              <h3
-                className="text-xl font-bold mb-2"
-                style={{ color: "var(--foreground)" }}
-              >
-                Already Using Prism?
-              </h3>
-              <p
-                className="mb-6"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                Share your experience and help us make Prism even better
-              </p>
-              <button
-                onClick={() => setShowFeedbackForm(true)}
-                className="btn-primary px-6 py-3 flex items-center justify-center gap-2 mx-auto"
-              >
-                <Star className="w-4 h-4" />
-                <span>Leave Feedback</span>
-              </button>
+              <div className="flex flex-col items-center">
+                <div
+                  className="w-14 h-14 mb-4 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: "var(--primary)", opacity: 0.9 }}
+                >
+                  <MessageSquare className="w-7 h-7" style={{ color: "var(--primary-foreground)" }} />
+                </div>
+                <h3
+                  className="text-xl font-bold mb-2"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  Share Your Feedback
+                </h3>
+                <p
+                  className="mb-6 max-w-md"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Already exploring AI tools? Share your thoughts and help shape Prism's development — no signup required.
+                </p>
+                <button
+                  onClick={() => setShowFeedbackForm(true)}
+                  className="btn-primary px-8 py-3 flex items-center justify-center gap-2"
+                >
+                  <Star className="w-4 h-4" />
+                  <span>Leave Feedback</span>
+                </button>
+              </div>
             </div>
-          </div>
-        </section>
-      )}
+          ) : null}
+        </div>
+      </section>
 
       {/* Footer */}
       <footer
