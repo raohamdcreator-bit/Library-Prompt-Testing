@@ -2407,3 +2407,193 @@ select option {
 .team-sidebar::-webkit-scrollbar-thumb:hover {
   background: rgba(139, 92, 246, 0.3);
 }
+/* Add these mobile-specific styles to src/App.css */
+/* Place these at the end of the file, after the existing mobile styles */
+
+/* ======================================
+   MOBILE LAYOUT FIX - BELOW 770px
+====================================== */
+
+@media (max-width: 769px) {
+  /* Hide sidebar by default on mobile */
+  .team-sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+  }
+
+  /* Show sidebar when mobile-visible class is added */
+  .team-sidebar.mobile-visible {
+    transform: translateX(0);
+  }
+
+  /* Remove left margin from main content on mobile */
+  .app-container > div.flex-1 {
+    margin-left: 0 !important;
+  }
+
+  /* Ensure main content takes full width */
+  .app-container > div.flex-1 > div {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Mobile header visible on mobile */
+  .mobile-header {
+    display: flex !important;
+  }
+
+  /* Hide desktop team header on mobile */
+  .team-header-container {
+    padding: 0.75rem 1rem !important;
+  }
+
+  .team-header-info {
+    padding: 0.75rem 1rem !important;
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.75rem;
+  }
+
+  .team-name-title {
+    font-size: 1.125rem !important;
+  }
+
+  /* Tab navigation mobile adjustments */
+  .tab-navigation-container {
+    overflow-x: auto;
+  }
+
+  .tab-navigation {
+    padding: 0 1rem !important;
+    gap: 0.5rem;
+  }
+
+  .tab-item {
+    padding: 0 0.875rem !important;
+    font-size: 0.813rem !important;
+    white-space: nowrap;
+  }
+
+  /* Sidebar overlay */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  .sidebar-overlay.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Mobile sidebar header */
+  .sidebar-mobile-header {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0.875rem;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.08);
+  }
+
+  .sidebar-mobile-header h2 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--foreground);
+    margin: 0;
+  }
+
+  /* Adjust view tabs for mobile */
+  .view-tabs-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .view-tabs {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    min-width: max-content;
+  }
+
+  .view-tab {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.813rem;
+    white-space: nowrap;
+  }
+
+  /* Content area mobile adjustments */
+  .app-container > div.flex-1 > div:last-child {
+    padding: 1rem !important;
+  }
+
+  /* Glass card mobile spacing */
+  .glass-card {
+    margin-bottom: 1rem !important;
+  }
+
+  /* Empty state adjustments */
+  .glass-card.p-12 {
+    padding: 2rem 1rem !important;
+  }
+}
+
+/* ======================================
+   TABLET ADJUSTMENTS - 770px to 1024px
+====================================== */
+
+@media (min-width: 770px) and (max-width: 1024px) {
+  /* Slightly reduce sidebar width on tablets */
+  .team-sidebar {
+    width: 240px;
+  }
+
+  /* Adjust main content margin for tablet sidebar */
+  .app-container > div.flex-1 {
+    margin-left: 240px !important;
+  }
+
+  /* Tablet padding adjustments */
+  .navbar-content,
+  .tab-navigation,
+  .team-header-info {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+/* ======================================
+   ENSURE DESKTOP UNCHANGED - 1025px+
+====================================== */
+
+@media (min-width: 1025px) {
+  /* Desktop: sidebar always visible, fixed width */
+  .team-sidebar {
+    transform: translateX(0);
+    width: 260px;
+  }
+
+  /* Desktop: main content with sidebar margin */
+  .app-container > div.flex-1 {
+    margin-left: 260px;
+  }
+
+  /* Mobile header hidden on desktop */
+  .mobile-header {
+    display: none !important;
+  }
+
+  /* Sidebar mobile elements hidden on desktop */
+  .sidebar-mobile-header {
+    display: none !important;
+  }
+
+  .sidebar-overlay {
+    display: none !important;
+  }
+}
