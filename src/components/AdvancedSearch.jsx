@@ -231,10 +231,7 @@ export default function AdvancedSearch({
       {/* Basic Search */}
       <div className="flex items-center gap-3 mb-4">
         <div className="flex-1 relative">
-          <Search 
-            className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2" 
-            style={{ color: "var(--muted-foreground)" }} 
-          />
+        
           <input
             type="text"
             placeholder="Search prompts, titles, tags..."
