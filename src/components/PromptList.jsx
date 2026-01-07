@@ -1,4 +1,4 @@
-// src/components/PromptList.jsx - Complete Updated Version with Fixed View Count
+// src/components/PromptList.jsx - Mobile-Responsive Version
 import { useState, useEffect, useCallback } from "react";
 import { db } from "../lib/firebase";
 import { trackPromptCopy, trackPromptView } from "../lib/promptStats";
@@ -49,6 +49,7 @@ import AIPromptEnhancer from "./AIPromptEnhancer";
 import PromptResults from "./PromptResults";
 import { StarRating, usePromptRating } from "./PromptAnalytics";
 import { useSoundEffects } from '../hooks/useSoundEffects';
+
 // Rating Section Component
 function RatingSection({ teamId, promptId }) {
   const { userRating, averageRating, totalRatings, ratePrompt, loading } = 
@@ -582,7 +583,128 @@ export default function PromptList({ activeTeam, userRole }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mobile-prompt-list-container">
+      <style jsx>{`
+        /* Mobile-only styles - ONLY activate below 770px */
+        @media (max-width: 769px) {
+          .mobile-prompt-list-container .glass-card {
+            padding: 1rem !important;
+            border-radius: 12px !important;
+          }
+
+          .mobile-prompt-list-container .prompt-card-premium {
+            padding: 1rem !important;
+            margin-bottom: 1rem !important;
+          }
+
+          .mobile-prompt-list-container .author-info {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+          }
+
+          .mobile-prompt-list-container .author-avatar {
+            width: 32px !important;
+            height: 32px !important;
+          }
+
+          .mobile-prompt-list-container .prompt-title-premium {
+            font-size: 1rem !important;
+            line-height: 1.3;
+          }
+
+          .mobile-prompt-list-container .content-preview-box {
+            padding: 0.75rem !important;
+            font-size: 0.813rem !important;
+          }
+
+          .mobile-prompt-list-container .prompt-metadata {
+            font-size: 0.688rem !important;
+            flex-wrap: wrap;
+          }
+
+          .mobile-prompt-list-container .tag-chip-premium {
+            font-size: 0.688rem !important;
+            padding: 0.188rem 0.5rem !important;
+          }
+
+          .mobile-prompt-list-container .primary-actions {
+            flex-wrap: wrap;
+            gap: 0.375rem;
+          }
+
+          .mobile-prompt-list-container .action-btn-premium {
+            width: 36px !important;
+            height: 36px !important;
+          }
+
+          .mobile-prompt-list-container .visibility-badge {
+            font-size: 0.688rem !important;
+            padding: 0.188rem 0.5rem !important;
+          }
+
+          .mobile-prompt-list-container .expand-indicator {
+            font-size: 0.688rem !important;
+          }
+
+          /* Header mobile adjustments */
+          .mobile-prompt-list-container > .glass-card:first-child h2 {
+            font-size: 1.5rem !important;
+          }
+
+          .mobile-prompt-list-container > .glass-card:first-child .flex {
+            flex-direction: column;
+            align-items: flex-start !important;
+            gap: 1rem;
+          }
+
+          .mobile-prompt-list-container > .glass-card:first-child button {
+            width: 100%;
+            justify-content: center;
+          }
+
+          /* Create form mobile */
+          .mobile-prompt-list-container .space-y-4 > div > label {
+            font-size: 0.875rem !important;
+          }
+
+          .mobile-prompt-list-container .form-input {
+            font-size: 0.875rem !important;
+            padding: 0.625rem !important;
+          }
+
+          .mobile-prompt-list-container textarea.form-input {
+            min-height: 120px !important;
+          }
+
+          /* Expanded content mobile */
+          .mobile-prompt-list-container .expandable-section {
+            padding: 0.75rem !important;
+          }
+
+          .mobile-prompt-list-container .expand-toggle {
+            font-size: 0.813rem !important;
+            padding: 0.5rem !important;
+          }
+
+          /* Empty state mobile */
+          .mobile-prompt-list-container .glass-card svg.w-16 {
+            width: 3rem !important;
+            height: 3rem !important;
+          }
+
+          .mobile-prompt-list-container .glass-card p.text-lg {
+            font-size: 1rem !important;
+          }
+
+          /* Kebab menu mobile positioning */
+          .mobile-prompt-list-container .kebab-menu {
+            right: 0;
+            left: auto;
+            min-width: 180px !important;
+          }
+        }
+      `}</style>
+
       {/* Header */}
       <div className="glass-card p-6">
         <div className="flex items-center justify-between mb-4">
