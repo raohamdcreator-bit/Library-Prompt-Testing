@@ -589,13 +589,14 @@ export default function ActivityFeed({ teamId }) {
             >
               Activity Type
             </label>
-            <div
-              className="flex rounded-lg border"
+           <div
+             className="flex rounded-lg border flex-none w-fit"
               style={{
                 backgroundColor: "var(--secondary)",
                 borderColor: "var(--border)",
               }}
-            >
+          >
+
               {[
                 { key: "all", label: "All", icon: FileText },
                 { key: "prompts", label: "Prompts", icon: FileText },
