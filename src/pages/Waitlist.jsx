@@ -1,7 +1,7 @@
-// src/pages/Waitlist.jsx - With Star-Rated Feedback & Testimonials
-import { useState } from "react";
+// src/pages/Waitlist.jsx - Real User Feedback Only
+import { useState, useEffect } from "react";
 import { Rocket, CheckCircle2, XCircle, Zap, MessageCircle, Crown, Star, Quote, MessageSquare } from "lucide-react";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 // Star Rating Component
@@ -57,7 +57,7 @@ function TestimonialCard({ testimonial }) {
             {testimonial.name}
           </p>
           <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-            {testimonial.role}
+            {testimonial.role || "Early User"}
           </p>
         </div>
         <StarRating rating={testimonial.rating} interactive={false} size={16} />
@@ -90,45 +90,46 @@ export default function Waitlist({ onNavigate }) {
   const [feedbackStatus, setFeedbackStatus] = useState({ type: "", message: "" });
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
-  // Real testimonials data
-  const testimonials = [
-    {
-      name: "Dr. Sarah Chen",
-      role: "AI Research Lead, Stanford",
-      rating: 5,
-      feedback: "Prism has transformed how our research team manages AI prompts. The version control and collaboration features are exactly what we needed for reproducible research."
-    },
-    {
-      name: "Marcus Rodriguez",
-      role: "Senior Developer, TechCorp",
-      rating: 5,
-      feedback: "Finally, a proper prompt management system! The AI enhancement feature has improved our prompt quality by 40%. Our entire dev team is now using Prism."
-    },
-    {
-      name: "Emily Thompson",
-      role: "CS Professor, MIT",
-      rating: 4,
-      feedback: "I use Prism to teach my students prompt engineering. The team collaboration and educational features make it perfect for classroom environments."
-    },
-    {
-      name: "David Park",
-      role: "Founder, AI Startup",
-      rating: 5,
-      feedback: "Prism's prompt library saved us months of work. We can now share best practices across our team and iterate on prompts much faster than before."
-    },
-    {
-      name: "Lisa Martinez",
-      role: "Content Creator",
-      rating: 5,
-      feedback: "As a freelancer working with multiple AI tools, Prism helps me organize and reuse my best prompts. The private/public sharing is brilliant!"
-    },
-    {
-      name: "James Wilson",
-      role: "Engineering Manager",
-      rating: 4,
-      feedback: "Great tool for managing our team's AI workflows. The activity feed helps us track what's working and share knowledge across departments."
+  // Real testimonials from Firebase
+  const [testimonials, setTestimonials] = useState([]);
+  const [isLoadingTestimonials, setIsLoadingTestimonials] = useState(true);
+
+  // Fetch real feedback from Firebase
+  useEffect(() => {
+    async function fetchTestimonials() {
+      try {
+        // Query feedback with rating 4 or 5, ordered by timestamp, limit to 6
+        const feedbackQuery = query(
+          collection(db, "feedback"),
+          where("rating", ">=", 4),
+          orderBy("rating", "desc"),
+          orderBy("timestamp", "desc"),
+          limit(6)
+        );
+        
+        const querySnapshot = await getDocs(feedbackQuery);
+        const fetchedTestimonials = [];
+        
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          fetchedTestimonials.push({
+            name: data.name,
+            role: data.role || null,
+            rating: data.rating,
+            feedback: data.feedback,
+          });
+        });
+        
+        setTestimonials(fetchedTestimonials);
+      } catch (error) {
+        console.error("Error fetching testimonials:", error);
+      } finally {
+        setIsLoadingTestimonials(false);
+      }
     }
-  ];
+
+    fetchTestimonials();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -194,8 +195,6 @@ export default function Waitlist({ onNavigate }) {
         useCase: "",
         earlyAccess: true,
       });
-
-      // Don't auto-show feedback form - let users choose
     } catch (error) {
       console.error("Waitlist submission error:", error);
       setStatus({
@@ -342,37 +341,39 @@ export default function Waitlist({ onNavigate }) {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section className="container mx-auto px-4 pb-16">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-12">
-            <h2
-              className="text-3xl font-bold mb-4"
-              style={{ color: "var(--foreground)" }}
-            >
-              Trusted by AI Pioneers
-            </h2>
-            <p
-              className="text-lg"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              See what early users are saying about Prism
-            </p>
-            <div className="flex items-center justify-center gap-2 mt-4">
-              <StarRating rating={5} interactive={false} size={24} />
-              <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-                4.8/5 from 150+ early users
-              </span>
+      {/* Testimonials Section - Only show if there are real testimonials */}
+      {testimonials.length > 0 && (
+        <section className="container mx-auto px-4 pb-16">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-12">
+              <h2
+                className="text-3xl font-bold mb-4"
+                style={{ color: "var(--foreground)" }}
+              >
+                What Early Users Say
+              </h2>
+              <p
+                className="text-lg"
+                style={{ color: "var(--muted-foreground)" }}
+              >
+                Real feedback from our community
+              </p>
             </div>
-          </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, index) => (
-              <TestimonialCard key={index} testimonial={testimonial} />
-            ))}
+            {isLoadingTestimonials ? (
+              <div className="flex justify-center py-12">
+                <div className="neo-spinner w-8 h-8"></div>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {testimonials.map((testimonial, index) => (
+                  <TestimonialCard key={index} testimonial={testimonial} />
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Waitlist Form */}
       <section className="container mx-auto px-4 pb-16">
@@ -890,72 +891,3 @@ export default function Waitlist({ onNavigate }) {
                 <h4
                   className="font-semibold mb-2"
                   style={{ color: "var(--foreground)" }}
-                >
-                  {benefit.title}
-                </h4>
-                <p
-                  className="text-sm"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  {benefit.desc}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Feedback Toggle CTA - Always visible */}
-      <section className="container mx-auto px-4 pb-16">
-        <div className="max-w-2xl mx-auto">
-          {!showFeedbackForm ? (
-            <div
-              className="glass-card p-8 rounded-lg border text-center transition-all hover:border-primary/50"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <div className="flex flex-col items-center">
-                <div
-                  className="w-14 h-14 mb-4 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: "var(--primary)", opacity: 0.9 }}
-                >
-                  <MessageSquare className="w-7 h-7" style={{ color: "var(--primary-foreground)" }} />
-                </div>
-                <h3
-                  className="text-xl font-bold mb-2"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  Share Your Feedback
-                </h3>
-                <p
-                  className="mb-6 max-w-md"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  Already exploring AI tools? Share your thoughts and help shape Prism's development — no signup required.
-                </p>
-                <button
-                  onClick={() => setShowFeedbackForm(true)}
-                  className="btn-primary px-8 py-3 flex items-center justify-center gap-2"
-                >
-                  <Star className="w-4 h-4" />
-                  <span>Leave Feedback</span>
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer
-        className="border-t"
-        style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}
-      >
-        <div className="container mx-auto px-4 py-8 text-center">
-          <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-            © 2025 Prism. All rights reserved.
-          </p>
-        </div>
-      </footer>
-    </div>
-  );
-}
