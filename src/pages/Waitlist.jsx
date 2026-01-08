@@ -891,3 +891,72 @@ export default function Waitlist({ onNavigate }) {
                 <h4
                   className="font-semibold mb-2"
                   style={{ color: "var(--foreground)" }}
+                >
+                  {benefit.title}
+                </h4>
+                <p
+                  className="text-sm"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  {benefit.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Feedback Toggle CTA - Always visible */}
+      <section className="container mx-auto px-4 pb-16">
+        <div className="max-w-2xl mx-auto">
+          {!showFeedbackForm ? (
+            <div
+              className="glass-card p-8 rounded-lg border text-center transition-all hover:border-primary/50"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <div className="flex flex-col items-center">
+                <div
+                  className="w-14 h-14 mb-4 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: "var(--primary)", opacity: 0.9 }}
+                >
+                  <MessageSquare className="w-7 h-7" style={{ color: "var(--primary-foreground)" }} />
+                </div>
+                <h3
+                  className="text-xl font-bold mb-2"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  Share Your Feedback
+                </h3>
+                <p
+                  className="mb-6 max-w-md"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Already exploring AI tools? Share your thoughts and help shape Prism's development — no signup required.
+                </p>
+                <button
+                  onClick={() => setShowFeedbackForm(true)}
+                  className="btn-primary px-8 py-3 flex items-center justify-center gap-2"
+                >
+                  <Star className="w-4 h-4" />
+                  <span>Leave Feedback</span>
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer
+        className="border-t"
+        style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}
+      >
+        <div className="container mx-auto px-4 py-8 text-center">
+          <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            © 2025 Prism. All rights reserved.
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
+}
