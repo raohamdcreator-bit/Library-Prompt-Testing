@@ -98,12 +98,14 @@ export default function Waitlist({ onNavigate }) {
   useEffect(() => {
     async function fetchTestimonials() {
       try {
-        // Query feedback with rating 4 or 5, ordered by timestamp only
+        // Query feedback with rating 4 or 5, ordered by rating then timestamp
+        // Requires composite index: rating (desc) + timestamp (desc)
         const feedbackQuery = query(
           collection(db, "feedback"),
           where("rating", ">=", 4),
+          orderBy("rating", "desc"),
           orderBy("timestamp", "desc"),
-          limit(12) // Fetch more to ensure we have variety
+          limit(6)
         );
         
         const querySnapshot = await getDocs(feedbackQuery);
@@ -119,14 +121,10 @@ export default function Waitlist({ onNavigate }) {
           });
         });
         
-        // Sort by rating in memory (highest first), then take top 6
-        const sortedTestimonials = fetchedTestimonials
-          .sort((a, b) => b.rating - a.rating)
-          .slice(0, 6);
-        
-        setTestimonials(sortedTestimonials);
+        setTestimonials(fetchedTestimonials);
       } catch (error) {
         console.error("Error fetching testimonials:", error);
+        // If index not ready yet, testimonials section won't show (graceful degradation)
       } finally {
         setIsLoadingTestimonials(false);
       }
