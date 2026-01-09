@@ -433,7 +433,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                   onClick={() => onNavigate("/waitlist")}
                   className="btn-secondary inline-flex items-center gap-2"
                 >
-                  <span>Join Waitlist</span>
+                  <span>Waitlist | Feedback</span>
                   <ArrowUpRight size={20} className="btn-arrow" />
                 </button>
               </div>
