@@ -517,9 +517,7 @@ export default function Waitlist({ onNavigate }) {
                   style={{ color: "var(--foreground)" }}
                 >
                   Institution / Company{" "}
-                  <span style={{ color: "var(--muted-foreground)" }}>
-                    (optional)
-                  </span>
+                  
                 </label>
                 <input
                   type="text"
@@ -541,9 +539,7 @@ export default function Waitlist({ onNavigate }) {
                   style={{ color: "var(--foreground)" }}
                 >
                   Tell Us How You Plan to Use Prism{" "}
-                  <span style={{ color: "var(--muted-foreground)" }}>
-                    (optional)
-                  </span>
+                 
                 </label>
                 <textarea
                   id="useCase"
