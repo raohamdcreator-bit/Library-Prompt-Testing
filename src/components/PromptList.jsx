@@ -823,44 +823,6 @@ export default function PromptList({ activeTeam, userRole }) {
         </div>
       )}
 
-      {/* Search & Filters */}
-      <AdvancedSearch
-        prompts={prompts}
-        onFilteredResults={handleFilteredResults}
-        teamMembers={teamMembers}
-      />
-
-      {/* Bulk Operations */}
-      {prompts.length > 0 && (
-        <BulkOperations
-          prompts={filteredPrompts}
-          selectedPrompts={selectedPrompts}
-          onSelectionChange={setSelectedPrompts}
-          onBulkDelete={async (ids) => {
-            await Promise.all(ids.map((id) => deletePrompt(activeTeam, id)));
-            setSelectedPrompts([]);
-            showSuccessToast(`Deleted ${ids.length} prompts`);
-          }}
-          onBulkExport={(promptsToExport, format) => {
-            const filename = `prompts-${new Date().toISOString().split("T")[0]}`;
-            switch (format) {
-              case "json":
-                ExportUtils.exportAsJSON(promptsToExport, filename);
-                break;
-              case "csv":
-                ExportUtils.exportAsCSV(promptsToExport, filename);
-                break;
-              case "txt":
-                ExportUtils.exportAsTXT(promptsToExport, filename);
-                break;
-            }
-            showSuccessToast(`Exported ${promptsToExport.length} prompts`);
-          }}
-          userRole={userRole}
-          userId={user.uid}
-        />
-      )}
-
       {/* Pagination */}
       {filteredPrompts.length > 0 && (
         <PaginationControls
@@ -1125,13 +1087,50 @@ export default function PromptList({ activeTeam, userRole }) {
           })}
         </div>
       )}
-
       {/* Bottom Pagination */}
       {filteredPrompts.length > 0 && (
         <PaginationControls
           pagination={pagination}
           showPageSizeSelector={false}
           showSearch={false}
+        />
+      )}
+      
+      {/* Search & Filters */}
+      <AdvancedSearch
+        prompts={prompts}
+        onFilteredResults={handleFilteredResults}
+        teamMembers={teamMembers}
+      />
+
+      {/* Bulk Operations */}
+      {prompts.length > 0 && (
+        <BulkOperations
+          prompts={filteredPrompts}
+          selectedPrompts={selectedPrompts}
+          onSelectionChange={setSelectedPrompts}
+          onBulkDelete={async (ids) => {
+            await Promise.all(ids.map((id) => deletePrompt(activeTeam, id)));
+            setSelectedPrompts([]);
+            showSuccessToast(`Deleted ${ids.length} prompts`);
+          }}
+          onBulkExport={(promptsToExport, format) => {
+            const filename = `prompts-${new Date().toISOString().split("T")[0]}`;
+            switch (format) {
+              case "json":
+                ExportUtils.exportAsJSON(promptsToExport, filename);
+                break;
+              case "csv":
+                ExportUtils.exportAsCSV(promptsToExport, filename);
+                break;
+              case "txt":
+                ExportUtils.exportAsTXT(promptsToExport, filename);
+                break;
+            }
+            showSuccessToast(`Exported ${promptsToExport.length} prompts`);
+          }}
+          userRole={userRole}
+          userId={user.uid}
         />
       )}
 
