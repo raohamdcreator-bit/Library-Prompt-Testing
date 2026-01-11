@@ -4,18 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#1e293b" />
+    
+    <!-- Primary Meta Tags -->
+    <title>Prism – AI Prompt Enhancement Tool</title>
     <meta
       name="description"
-      content="Prism - AI-powered prompt collaboration platform with professional interface design"
+      content="Enhance, optimize, and tailor prompts for ChatGPT, Claude, Gemini, Cursor, and more with Prism."
     />
     <meta
       name="keywords"
-      content="AI prompts, team collaboration, prompt library, neural interface, AI tools, plagiarism detection"
+      content="AI prompts, prompt engineering, ChatGPT prompts, Claude AI, Gemini, Cursor AI, prompt optimization, AI tools"
     />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
-
-    <!-- Enhanced Title -->
-    <title>Prism - AI Collaboration Platform</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
 
     <!-- Preconnect to external domains for better performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -27,7 +27,7 @@
       rel="stylesheet"
     />
 
-    <!-- ✅ Google Analytics 4 (Prism) -->
+    <!-- Google Analytics 4 -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-L9G2B4S3JH"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -41,29 +41,37 @@
     <!-- PWA Meta Tags -->
     <meta name="application-name" content="Prism" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="theme-color" content="#0f0f0f" />
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Prism" />
 
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="Prism - AI Collaboration Platform" />
+    <!-- Open Graph / Facebook / WhatsApp -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://prism-app.online" />
+    <meta property="og:site_name" content="Prism" />
+    <meta property="og:title" content="Prism – AI Prompt Enhancement Tool" />
     <meta
       property="og:description"
-      content="Professional AI prompt collaboration with advanced team features and plagiarism detection"
+      content="Upgrade your AI prompts instantly for ChatGPT, Claude, Gemini & more."
     />
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image" content="https://prism-app.online/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Prism AI Prompt Enhancement Tool" />
 
     <!-- Twitter Card Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Prism" />
+    <meta name="twitter:url" content="https://prism-app.online" />
+    <meta name="twitter:title" content="Prism – AI Prompt Enhancement Tool" />
     <meta
       name="twitter:description"
-      content="AI prompt collaboration platform"
+      content="Upgrade your AI prompts instantly for ChatGPT, Claude, Gemini & more."
     />
+    <meta name="twitter:image" content="https://prism-app.online/og-image.png" />
+    <meta name="twitter:image:alt" content="Prism AI Prompt Enhancement Tool" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://prism-app.online" />
 
     <!-- Critical CSS for initial loading -->
     <style>
@@ -89,6 +97,8 @@
           ),
           linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
         background-size: 50px 50px;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
       }
 
       #root {
@@ -141,6 +151,25 @@
     </style>
   </head>
   <body>
+    <noscript>
+      <div style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: #0a0a0a;
+        color: #fff;
+        font-family: Inter, sans-serif;
+        text-align: center;
+        padding: 20px;
+      ">
+        <div>
+          <h1>JavaScript Required</h1>
+          <p>Please enable JavaScript to use Prism.</p>
+        </div>
+      </div>
+    </noscript>
+
     <div id="initial-loader" class="initial-loader">
       <div class="professional-spinner"></div>
     </div>
@@ -148,6 +177,7 @@
     <div id="root"></div>
 
     <script>
+      // Remove initial loader
       window.addEventListener("load", function () {
         setTimeout(function () {
           const loader = document.getElementById("initial-loader");
@@ -158,6 +188,7 @@
         }, 100);
       });
 
+      // Service Worker Registration
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {
           navigator.serviceWorker
@@ -167,10 +198,17 @@
         });
       }
 
+      // Global error handler
       window.addEventListener("error", function (e) {
         console.error("Application error:", e.error);
       });
 
+      // Unhandled promise rejection handler
+      window.addEventListener("unhandledrejection", function (e) {
+        console.error("Unhandled promise rejection:", e.reason);
+      });
+
+      // Connection status monitoring
       function updateConnectionStatus() {
         const isOnline = navigator.onLine;
         if (!isOnline) {
@@ -193,6 +231,7 @@
               align-items: center;
               gap: 8px;
               max-width: 90vw;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
             ">
               <span style="color: #f59e0b;">⚠️</span>
               <span>You're offline. Some features may not work.</span>
@@ -208,6 +247,7 @@
       window.addEventListener("online", updateConnectionStatus);
       window.addEventListener("offline", updateConnectionStatus);
 
+      // App configuration
       window.prismConfig = {
         version: "2.0.0",
         buildTime: new Date().toISOString(),
@@ -220,6 +260,18 @@
           plagiarismDetection: true,
         },
       };
+
+      // Performance monitoring
+      if (window.performance && window.performance.getEntriesByType) {
+        window.addEventListener("load", function () {
+          setTimeout(function () {
+            const perfData = window.performance.getEntriesByType("navigation")[0];
+            if (perfData) {
+              console.log("Page load time:", perfData.loadEventEnd - perfData.fetchStart, "ms");
+            }
+          }, 0);
+        });
+      }
     </script>
 
     <script type="module" src="/src/main.jsx"></script>
