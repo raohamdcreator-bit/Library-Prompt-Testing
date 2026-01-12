@@ -1,10 +1,31 @@
-// vitest.config.js
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  
+  // Public directory configuration
+  publicDir: 'public',
+  
+  // Base URL
+  base: '/',
+  
+  // Build configuration
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    // Ensure public files are copied
+    copyPublicDir: true,
+  },
+  
+  // Development server
+  server: {
+    port: 3000,
+    open: true,
+  },
+  
+  // Test configuration
   test: {
     globals: true,
     environment: 'jsdom',
@@ -22,6 +43,8 @@ export default defineConfig({
       ],
     },
   },
+  
+  // Path aliases
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
