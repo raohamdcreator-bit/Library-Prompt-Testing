@@ -25,6 +25,7 @@ import { TeamAnalytics } from "./components/PromptAnalytics";
 import ActivityFeed from "./components/ActivityFeed";
 import TeamChat from "./components/TeamChat";
 import PlagiarismChecker from "./components/PlagiarismChecker";
+import { Analytics } from "@vercel/analytics/react";
 
 // Lucide React Icons
 import {
@@ -679,6 +680,7 @@ function LandingPage({ onSignIn, onNavigate }) {
 
         <Footer onNavigate={onNavigate} />
       </div>
+      <Analytics />
     </div>
   );
 }
@@ -1036,6 +1038,7 @@ export default function App() {
             <Route path="/admin"><AdminDashboard onNavigate={navigate} /></Route>
           </Router>
           {currentPath !== "/waitlist" && currentPath !== "/admin" && <Footer onNavigate={navigate} />}
+          <Analytics />
         </div>
       </NavigationProvider>
     );
@@ -1051,6 +1054,7 @@ export default function App() {
             <p style={{ color: "var(--muted-foreground)" }}>Loading your teams...</p>
           </div>
         </div>
+        <Analytics />
       </div>
     );
   }
@@ -1416,6 +1420,8 @@ export default function App() {
           onToggle={() => setIsChatOpen(!isChatOpen)}
         />
       )}
+      
+      <Analytics />
     </div>
   );
 }
