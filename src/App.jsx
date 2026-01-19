@@ -416,7 +416,7 @@ function LandingPage({ onSignIn, onNavigate }) {
 
               <p className="hero-description text-lg md:text-xl mb-8 max-w-2xl mx-auto leading-relaxed px-4"
                 style={{ color: "var(--muted-foreground)" }}>
-                Store, share, and discover the best prompts for your projects.
+                Where teams build, test, and manage AI workflows
               </p>
 
               {/* CTA Buttons */}
