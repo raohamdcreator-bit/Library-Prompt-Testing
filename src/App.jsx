@@ -403,14 +403,14 @@ function LandingPage({ onSignIn, onNavigate }) {
               </div>
 
               <h1 className="hero-title text-4xl md:text-6xl lg:text-7xl mb-6 px-4">
-                Build {" "}
+                Build Better{" "}
                 <span style={{ 
                   background: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text'
                 }}>
-                Better Prompts </span>
+                Work-Flows </span>
                 with Your Team{" "}
               </h1>
 
