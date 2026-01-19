@@ -410,7 +410,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text'
                 }}>
-                Workflow </span>
+                Workflows </span>
                 with Your Team{" "}
               </h1>
 
