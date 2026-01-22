@@ -425,7 +425,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                   onClick={onSignIn}
                   className="btn-premium inline-flex items-center gap-2"
                 >
-                  <span>Get Started</span>
+                  <span>Start Your Workspace</span>
                   <ArrowRight size={20} className="btn-arrow" />
                 </button>
 
@@ -463,42 +463,42 @@ function LandingPage({ onSignIn, onNavigate }) {
             {[
               {
                 icon: <Users size={24} />,
-                title: "Real-time Collaboration",
+                title: "Team Collaboration",
                 desc: "Work together seamlessly with live updates and team chat.",
               },
               {
                 icon: <GitBranch size={24} />,
-                title: "Prompt Version Control",
+                title: "Workflow Versioning",
                 desc: "Track changes and revert to previous versions effortlessly.",
               },
               {
                 icon: <Database size={24} />,
-                title: "Prompt Storage",
-                desc: "Centralized storage for saving and reusing your best prompts.",
+                title: "Workflow Hub",
+                desc: "Centralized storage for saving and reusing your best work.",
               },
               {
                 icon: <EyeOff size={24} />,
-                title: "Prompt Privacy Controls",
+                title: "Access Control",
                 desc: "Granular permissions to control who sees what.",
               },
               {
                 icon: <Search size={24} />,
-                title: "Plagiarism Detection",
+                title: "Smart Reuse",
                 desc: "Ensure originality with built-in similarity checks.",
               },
               {
                 icon: <Save size={24} />,
-                title: "Attach Outputs",
-                desc: "Save text, code, images and results alongside prompts.",
+                title: "Outcome Attachments",
+                desc: "Save text, code, images and results alongside.",
               },
               {
                 icon: <BarChart3 size={24} />,
-                title: "Analytics",
+                title: "Workflow Insights",
                 desc: "Track usage patterns and optimize performance.",
               },
               {
                 icon: <UserCheck size={24} />,
-                title: "Team Workspace",
+                title: "Team Workspaces",
                 desc: "Owner, Admin, and Member roles with custom permissions.",
               },
               {
@@ -551,7 +551,7 @@ function LandingPage({ onSignIn, onNavigate }) {
               {
                 icon: <Layers size={20} />,
                 title: "Multi-Model Testing",
-                desc: "Test your prompts simultaneously across GPT-4, Claude, Gemini, and more. Compare outputs side-by-side to find the perfect model for your use case.",
+                desc: "Test your ideas simultaneously across GPT-4, Claude, Gemini, and more. Compare outputs side-by-side to find the perfect model for your use case.",
                 badge: "Q2 2025",
               },
               {
@@ -563,7 +563,7 @@ function LandingPage({ onSignIn, onNavigate }) {
               {
                 icon: <Puzzle size={20} />,
                 title: "IDE & Browser Extensions",
-                desc: "Access your prompt library directly in VS Code, Chrome, and Firefox. Seamlessly integrate AI prompts into your daily development workflow.",
+                desc: "Access your workflow directly in VS Code, Chrome, and Firefox. Seamlessly integrate AI into your daily development workflow.",
                 badge: "Q3 2025",
               },
             ].map((feature, index) => (
@@ -663,7 +663,7 @@ function LandingPage({ onSignIn, onNavigate }) {
 
             <div className="flex flex-row gap-4 justify-center items-center mb-8 px-4 whitespace-nowrap">
               <button onClick={onSignIn} className="btn-premium">
-                Start Free
+                See How Teams Use Prism
                 <Zap size={20} />
               </button>
               <button
