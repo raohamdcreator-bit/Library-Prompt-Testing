@@ -62,7 +62,8 @@ import {
   Lock,
   Bot,
   EyeOff,
-  Database
+  Database,
+  RotateCcw
 } from "lucide-react";
 
 // Import Legal/Info Pages
@@ -398,7 +399,6 @@ function LandingPage({ onSignIn, onNavigate }) {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
               <div className="hero-badge mb-6 pulse-glow">
-                <Sparkles size={16} />
                 <span className="font-medium">The GitHub for AI workflows</span>
               </div>
 
@@ -482,7 +482,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                 desc: "Granular permissions to control who sees what.",
               },
               {
-                icon: <Search size={24} />,
+                icon: <RotateCcw size={24} />,
                 title: "Smart Reuse",
                 desc: "Ensure originality with built-in similarity checks.",
               },
