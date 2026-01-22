@@ -425,7 +425,7 @@ function LandingPage({ onSignIn, onNavigate }) {
                   onClick={onSignIn}
                   className="btn-premium inline-flex items-center gap-2"
                 >
-                  <span>Start Your Workspace</span>
+                  <span>Build Your Workspace</span>
                   <ArrowRight size={20} className="btn-arrow" />
                 </button>
 
