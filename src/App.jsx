@@ -399,7 +399,7 @@ function LandingPage({ onSignIn, onNavigate }) {
             <div className="text-center mb-12">
               <div className="hero-badge mb-6 pulse-glow">
                 <Sparkles size={16} />
-                <span className="font-medium">AI-Powered Prompt Collaboration</span>
+                <span className="font-medium">The GitHub for AI workflows</span>
               </div>
 
               <h1 className="hero-title text-4xl md:text-6xl lg:text-7xl mb-6 px-4">
