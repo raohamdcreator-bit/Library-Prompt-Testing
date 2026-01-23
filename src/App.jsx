@@ -1,4 +1,4 @@
-// src/App.jsx - Enhanced with Premium UI/UX and Static Sidebar
+// src/App.jsx 
 import { useEffect, useState, useRef } from "react";
 import { db } from "./lib/firebase";
 import {
