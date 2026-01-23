@@ -60,6 +60,14 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
         if (!response.ok) {
           console.warn("Email sending failed, but invite was saved to database");
         }
+        if (window.gtag) {
+      window.gtag('event', 'team_invited', {
+      team_id: teamId,
+      team_name: teamName,
+      invited_role: inviteRole,
+      invited_by: user.uid,
+    });
+  }
       } catch (emailError) {
         console.warn(
           "Email service unavailable, but invite was saved:",
