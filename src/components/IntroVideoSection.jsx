@@ -229,7 +229,7 @@ export default function IntroVideoSection() {
                 border: '1px solid rgba(139, 92, 246, 0.2)',
               }}
             >
-              {/* Replace src with your actual video URL */}
+              {/* Replace src with your actual  video URL */}
               <iframe
                 className="w-full h-full"
                 src={`https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=${isMuted ? 1 : 0}`}
