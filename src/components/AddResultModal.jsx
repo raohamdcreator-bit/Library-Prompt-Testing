@@ -94,6 +94,14 @@ export default function AddResultModal({
       setUploadProgress(100);
 
       showNotification("Result added successfully!", "success");
+      if (window.gtag) {
+    window.gtag('event', 'output_attached', {
+    team_id: teamId,
+    prompt_id: promptId,
+    output_type: resultType,
+    has_image: resultType === 'image',
+  });
+}
       onClose();
     } catch (error) {
       console.error("Error adding result:", error);
