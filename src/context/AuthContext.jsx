@@ -1,4 +1,4 @@
-// src/context/AuthContext.jsx - FIXED VERSION
+// src/context/AuthContext.jsx - Complete with GA4 Tracking
 import { createContext, useContext, useEffect, useState } from "react";
 import {
   GoogleAuthProvider,
@@ -9,7 +9,7 @@ import {
   browserLocalPersistence,
 } from "firebase/auth";
 import { auth, db } from "../lib/firebase";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 
 const AuthContext = createContext({});
 
@@ -35,18 +35,43 @@ export function AuthProvider({ children }) {
         
         try {
           if (user) {
+            // Check if user is new or returning
+            const userDocRef = doc(db, "users", user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            const isNewUser = !userDocSnap.exists();
+            
             // User is signed in - update their profile
             await setDoc(
-              doc(db, "users", user.uid),
+              userDocRef,
               {
                 name: user.displayName,
                 email: user.email,
                 avatar: user.photoURL,
                 lastSeen: serverTimestamp(),
+                // Track first login for new users
+                ...(isNewUser && { createdAt: serverTimestamp() }),
               },
               { merge: true }
             );
             console.log("✅ User profile updated");
+            
+            // Track new signup
+            if (isNewUser && window.gtag) {
+              window.gtag('event', 'sign_up', {
+                method: 'Google',
+                user_id: user.uid,
+              });
+              console.log("📊 GA4: sign_up event fired");
+            }
+            
+            // Track returning login
+            if (!isNewUser && window.gtag) {
+              window.gtag('event', 'login', {
+                method: 'Google',
+                user_id: user.uid,
+              });
+              console.log("📊 GA4: login event fired");
+            }
           }
           
           setUser(user);
@@ -93,6 +118,10 @@ export function AuthProvider({ children }) {
       }
 
       console.log("✅ Google sign-in successful:", result.user.email);
+      
+      // GA4 tracking happens in onAuthStateChanged listener
+      // No duplicate tracking needed here
+      
       return result.user;
     } catch (error) {
       console.error("❌ Google sign-in error:", error);
@@ -140,7 +169,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // ✅ ADD LOGOUT ALIAS - This is what App.jsx is calling!
+  // Logout alias for compatibility
   const logout = signOut;
 
   const value = {
@@ -149,7 +178,7 @@ export function AuthProvider({ children }) {
     error,
     signInWithGoogle,
     signOut,
-    logout, // ✅ Export both names for compatibility
+    logout,
     clearError: () => setError(null),
   };
 
