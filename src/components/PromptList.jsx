@@ -314,6 +314,14 @@ export default function PromptList({ activeTeam, userRole }) {
       setNewPrompt({ title: "", tags: "", text: "", visibility: "public" });
       setShowCreateForm(false);
       showSuccessToast("Prompt created successfully!");
+      if (window.gtag) {
+      window.gtag('event', 'prompt_created', {
+        team_id: activeTeam,
+        prompt_title: newPrompt.title.trim(),
+        visibility: newPrompt.visibility,
+        tags_count: newPrompt.tags.split(",").filter(Boolean).length,
+      });
+    }
     } catch (error) {
       console.error("Error creating prompt:", error);
       showNotification("Failed to create prompt", "error");
