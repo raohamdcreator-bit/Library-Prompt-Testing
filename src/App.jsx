@@ -25,6 +25,9 @@ import { TeamAnalytics } from "./components/PromptAnalytics";
 import ActivityFeed from "./components/ActivityFeed";
 import TeamChat from "./components/TeamChat";
 import PlagiarismChecker from "./components/PlagiarismChecker";
+import IntroVideoSection from "./components/IntroVideoSection";
+import OnboardingExperience from "./components/OnboardingExperience";
+import { savePrompt } from "./lib/prompts";
 
 // Lucide React Icons
 import {
@@ -51,13 +54,13 @@ import {
   ArrowRight,
   ArrowUpRight,
   Trash2,
-  Clock,    // Upcoming
-  Layers,  // Multi-Model
-  Repeat,  // Reverse Testing
-  Puzzle,   // Extensions
-  ShieldCheck, // Privacy
-  Play,        // Execute
-  FileDown,    // Export
+  Clock,
+  Layers,
+  Repeat,
+  Puzzle,
+  ShieldCheck,
+  Play,
+  FileDown,
   GitBranch,
   Lock,
   Bot,
@@ -531,6 +534,9 @@ function LandingPage({ onSignIn, onNavigate }) {
           </div>
         </section>
 
+        {/* Video Section */}
+        <IntroVideoSection />
+
         {/* Upcoming Features Section */}
         <section className="container mx-auto px-4 py-20">
           <div className="section-header scroll-reveal">
@@ -699,6 +705,8 @@ export default function App() {
   const [teamStats, setTeamStats] = useState({});
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
 
   // Navigation handler
   const navigate = (path) => {
@@ -904,6 +912,23 @@ export default function App() {
     };
   }, [teams]);
 
+  // Check if user needs onboarding
+  useEffect(() => {
+    if (!user || loading) return;
+    
+    const onboardingKey = `onboarding_completed_${user.uid}`;
+    const completed = localStorage.getItem(onboardingKey);
+    
+    // Show onboarding for new users with a team, after a brief delay
+    if (!completed && teams.length === 1 && activeTeam && !hasCompletedOnboarding) {
+      const timer = setTimeout(() => {
+        setShowOnboarding(true);
+      }, 800);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [user, teams.length, loading, activeTeam, hasCompletedOnboarding]);
+
   // Create new team
   async function createTeam(name) {
     if (!name || !user) return;
@@ -948,6 +973,42 @@ export default function App() {
         alert("Failed to delete team. Please try again.");
       }
     }
+  }
+
+  // Function to create example prompts for onboarding
+  async function createExamplePrompts(examples) {
+    if (!activeTeam || !user) return;
+    
+    for (const example of examples) {
+      try {
+        await savePrompt(
+          user.uid,
+          {
+            title: example.title,
+            text: example.text,
+            tags: example.tags,
+            visibility: example.visibility,
+          },
+          activeTeam
+        );
+      } catch (error) {
+        console.error("Error creating example prompt:", error);
+      }
+    }
+  }
+
+  // Handle onboarding completion
+  function handleOnboardingComplete() {
+    const onboardingKey = `onboarding_completed_${user.uid}`;
+    localStorage.setItem(onboardingKey, 'true');
+    setShowOnboarding(false);
+    setHasCompletedOnboarding(true);
+  }
+
+  function handleOnboardingSkip() {
+    const onboardingKey = `onboarding_completed_${user.uid}`;
+    localStorage.setItem(onboardingKey, 'true');
+    setShowOnboarding(false);
   }
 
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
@@ -1063,6 +1124,17 @@ export default function App() {
   // Main application UI with static sidebar
   return (
     <div className="app-container flex min-h-screen relative">
+      {/* Onboarding Experience */}
+      {showOnboarding && activeTeam && (
+        <OnboardingExperience
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+          userName={user.displayName}
+          teamId={activeTeam}
+          onCreateExamples={createExamplePrompts}
+        />
+      )}
+
       {/* Sidebar Overlay for Mobile */}
       <div
         className={`sidebar-overlay ${sidebarOpen ? "visible" : ""}`}
