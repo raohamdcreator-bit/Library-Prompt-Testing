@@ -27,6 +27,9 @@ export function AuthProvider({ children }) {
     
     // Set persistence
     setPersistence(auth, browserLocalPersistence).catch(console.error);
+    
+    // Track if we've already fired login/signup for this session
+    let hasTrackedThisSession = false;
 
     const unsubscribe = onAuthStateChanged(
       auth,
@@ -39,6 +42,11 @@ export function AuthProvider({ children }) {
             const userDocRef = doc(db, "users", user.uid);
             const userDocSnap = await getDoc(userDocRef);
             const isNewUser = !userDocSnap.exists();
+            
+            // Check for existing session
+            const sessionKey = `auth_session_${user.uid}`;
+            const existingSession = sessionStorage.getItem(sessionKey);
+            const shouldTrackLogin = !existingSession && !hasTrackedThisSession;
             
             // User is signed in - update their profile
             await setDoc(
@@ -55,22 +63,33 @@ export function AuthProvider({ children }) {
             );
             console.log("✅ User profile updated");
             
-            // Track new signup
+            // Track new signup (only for brand new users)
             if (isNewUser && window.gtag) {
               window.gtag('event', 'sign_up', {
                 method: 'Google',
                 user_id: user.uid,
               });
-              console.log("📊 GA4: sign_up event fired");
+              console.log("📊 GA4: sign_up event fired (NEW USER)");
+              hasTrackedThisSession = true;
             }
             
-            // Track returning login
-            if (!isNewUser && window.gtag) {
+            // Track returning login (only once per session)
+            if (!isNewUser && shouldTrackLogin && window.gtag) {
               window.gtag('event', 'login', {
                 method: 'Google',
                 user_id: user.uid,
               });
-              console.log("📊 GA4: login event fired");
+              console.log("📊 GA4: login event fired (NEW SESSION)");
+              hasTrackedThisSession = true;
+              
+              // Mark this session as tracked
+              sessionStorage.setItem(sessionKey, Date.now().toString());
+            }
+          } else {
+            // User logged out - clear session tracking
+            if (user === null) {
+              sessionStorage.clear();
+              hasTrackedThisSession = false;
             }
           }
           
