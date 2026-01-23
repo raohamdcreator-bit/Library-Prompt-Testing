@@ -939,6 +939,12 @@ export default function App() {
         members: { [user.uid]: "owner" },
         createdAt: serverTimestamp(),
       });
+      if (window.gtag) {
+      window.gtag('event', 'workspace_created', {
+        workspace_name: name,
+        user_id: user.uid,
+      });
+    }
     } catch (error) {
       console.error("Error creating team:", error);
       alert("Failed to create team. Please try again.");
