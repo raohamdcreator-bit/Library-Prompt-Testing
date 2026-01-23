@@ -853,7 +853,7 @@ export default function PromptList({ activeTeam, userRole }) {
             const isTextExpanded = expandedTextIds.has(prompt.id);
             const isPrivate = prompt.visibility === "private";
             const resultsCount = resultCounts[prompt.id] || 0;
-            const shouldTruncate = prompt.text.length > 200;
+            const shouldTruncate = prompt.text.length >= 50;
 
             return (
               <div key={prompt.id} className="prompt-card-premium">
@@ -896,8 +896,8 @@ export default function PromptList({ activeTeam, userRole }) {
                   style={{ cursor: 'default' }}
                 >
                   <pre className="content-preview-text">
-                    {isTextExpanded ? prompt.text : prompt.text.slice(0, 200)}
-                    {!isTextExpanded && prompt.text.length > 200 && "..."}
+                    {isTextExpanded ? prompt.text : prompt.text.slice(0, 50)}
+                    {!isTextExpanded && prompt.text.length >= 50 && "..."}
                   </pre>
                   {shouldTruncate && (
                     <div 
