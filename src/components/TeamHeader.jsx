@@ -36,7 +36,7 @@ export default function TeamHeader({ teamId, userRole, activeTab = "prompts", on
   const tabs = [
     { id: "prompts", label: "Prompts", icon: FileText },
     { id: "members", label: "Members", icon: Users },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
+    { id: "analytics", label: "Performance", icon: BarChart3 },
     { id: "activity", label: "Activity", icon: Activity },
     { id: "plagiarism", label: "Plagiarism", icon: Shield },
   ];
