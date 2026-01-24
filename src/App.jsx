@@ -1393,7 +1393,7 @@ export default function App() {
         ) : null}
 
         {/* Mobile View Tabs */}
-        {activeTeamObj && (
+        /* {activeTeamObj && (
           <div className="md:hidden view-tabs-container border-b" style={{ borderColor: "var(--border)" }}>
             <div className="view-tabs">
               {[
@@ -1428,7 +1428,7 @@ export default function App() {
               ))}
             </div>
           </div>
-        )}
+        )} */
 
         {/* Main Content */}
         <div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
