@@ -1392,44 +1392,6 @@ export default function App() {
           </div>
         ) : null}
 
-        {/* Mobile View Tabs */}
-        /* {activeTeamObj && (
-          <div className="md:hidden view-tabs-container border-b" style={{ borderColor: "var(--border)" }}>
-            <div className="view-tabs">
-              {[
-                { id: "prompts", icon: FileText },
-                { id: "members", icon: Users },
-                { id: "analytics", icon: BarChart3 },
-                { id: "activity", icon: Activity },
-                { id: "plagiarism", icon: Search },
-              ].map((view) => (
-                <button
-                  key={view.id}
-                  onClick={() => setActiveView(view.id)}
-                  className={`view-tab rounded-lg transition-all duration-200 capitalize flex items-center gap-2 ${
-                    activeView === view.id ? "border-primary" : ""
-                  }`}
-                  style={
-                    activeView === view.id
-                      ? {
-                          backgroundColor: "var(--primary)",
-                          color: "var(--primary-foreground)",
-                          border: "1px solid var(--primary)",
-                        }
-                      : {
-                          backgroundColor: "var(--card)",
-                          color: "var(--muted-foreground)",
-                          border: "1px solid var(--border)",
-                        }
-                  }
-                >
-                  <view.icon size={16} />
-                </button>
-              ))}
-            </div>
-          </div>
-        )} */
-
         {/* Main Content */}
         <div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
           {activeTeamObj && activeView === "prompts" && (
