@@ -1,4 +1,4 @@
-// src/config/admin.js - Admin Configuration
+// src/config/admin.js 
 // ============================================
 // ADMIN EMAIL CONFIGURATION
 // ============================================
