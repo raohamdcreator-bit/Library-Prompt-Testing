@@ -1,6 +1,6 @@
-// src/pages/JoinTeam.jsx
+// src/pages/JoinTeam.jsx - Updated with Token Support
 import { useEffect, useState } from "react";
-import { Lock, PartyPopper, XCircle, Search, Lightbulb, CheckCircle2 } from "lucide-react";
+import { Lock, PartyPopper, XCircle, Search, Lightbulb, CheckCircle2, AlertCircle } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { db } from "../lib/firebase";
 import {
@@ -13,6 +13,7 @@ import {
   runTransaction,
   Timestamp,
 } from "firebase/firestore";
+import { getInviteByToken, acceptLinkInvite } from "../lib/inviteUtils";
 
 export default function JoinTeam({ onNavigate }) {
   const { user, signInWithGoogle } = useAuth();
@@ -21,6 +22,7 @@ export default function JoinTeam({ onNavigate }) {
   const [teamName, setTeamName] = useState("");
   const [error, setError] = useState(null);
   const [debugInfo, setDebugInfo] = useState(null);
+  const [inviteType, setInviteType] = useState(null); // "email" or "link"
 
   useEffect(() => {
     handleInvitation();
@@ -30,28 +32,166 @@ export default function JoinTeam({ onNavigate }) {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const teamId = urlParams.get("teamId");
+      const token = urlParams.get("token");
 
-      console.log("🔍 JoinTeam - teamId from URL:", teamId);
+      console.log("🔍 JoinTeam - URL params:", { teamId, token: token ? token.substring(0, 8) + "..." : null });
 
-      if (!teamId) {
+      // Determine invite type
+      if (token) {
+        setInviteType("link");
+        await handleLinkInvite(token);
+      } else if (teamId) {
+        setInviteType("email");
+        await handleEmailInvite(teamId);
+      } else {
         setStatus("error");
-        setMessage("Invalid invitation link - missing team ID");
-        setDebugInfo({ error: "No teamId in URL", url: window.location.href });
+        setMessage("Invalid invitation link - missing team ID or token");
+        setDebugInfo({ error: "No teamId or token in URL", url: window.location.href });
+      }
+    } catch (err) {
+      console.error("❌ Error in handleInvitation:", err);
+      setStatus("error");
+      setMessage("An unexpected error occurred. Please try again.");
+      setDebugInfo({ error: err.message, stack: err.stack });
+    }
+  }
+
+  async function handleLinkInvite(token) {
+    console.log("🔗 Handling link invite with token:", token.substring(0, 8) + "...");
+
+    if (!user) {
+      setStatus("signin_required");
+      setMessage("Please sign in to accept this invitation");
+      setDebugInfo({ token: token.substring(0, 8) + "...", userStatus: "not signed in" });
+      return;
+    }
+
+    setStatus("processing");
+    setMessage("Validating invite link...");
+
+    try {
+      // Validate token
+      const validation = await getInviteByToken(token);
+      
+      if (!validation.valid) {
+        if (validation.expired) {
+          setStatus("error");
+          setMessage("This invitation link has expired. Please request a new invitation from the team.");
+          setDebugInfo({ error: "Token expired", token: token.substring(0, 8) + "..." });
+          return;
+        }
+
+        setStatus("error");
+        setMessage(validation.error || "Invalid or expired invitation link");
+        setDebugInfo({ error: validation.error, token: token.substring(0, 8) + "..." });
         return;
       }
 
-      if (!user) {
-        setStatus("signin_required");
-        setMessage("Please sign in to accept this invitation");
-        setDebugInfo({ teamId, userStatus: "not signed in" });
+      const invite = validation.invite;
+      setTeamName(invite.teamName);
+
+      // Check if team still exists
+      const teamRef = doc(db, "teams", invite.teamId);
+      const teamDoc = await getDoc(teamRef);
+
+      if (!teamDoc.exists()) {
+        setStatus("error");
+        setMessage("This team has been deleted by the owner.");
+        setDebugInfo({ error: "Team deleted", teamId: invite.teamId });
         return;
       }
 
-      console.log("👤 User email:", user.email);
+      const teamData = teamDoc.data();
 
-      setStatus("processing");
-      setMessage("Processing your invitation...");
+      // Check if already a member
+      if (teamData.members && teamData.members[user.uid]) {
+        console.log("✅ User is already a member, redirecting...");
+        setStatus("already_member");
+        setMessage(`You're already a member of "${teamData.name}"!`);
+        setDebugInfo({ teamId: invite.teamId, teamName: teamData.name });
+        
+        // Track in GA4
+        if (window.gtag) {
+          window.gtag('event', 'invite_link_already_member', {
+            team_id: invite.teamId,
+            user_id: user.uid,
+          });
+        }
 
+        setTimeout(() => {
+          onNavigate("/");
+        }, 2000);
+        return;
+      }
+
+      // Accept the invite
+      console.log("📝 Accepting link invite...");
+      const result = await acceptLinkInvite(token, user.uid);
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      console.log("✅ Link invite accepted successfully!");
+
+      // Track in GA4
+      if (window.gtag) {
+        window.gtag('event', 'invite_link_accepted', {
+          team_id: invite.teamId,
+          team_name: invite.teamName,
+          role: invite.role,
+          user_id: user.uid,
+        });
+      }
+
+      setStatus("success");
+      setMessage(`Successfully joined "${invite.teamName}" as ${invite.role}!`);
+
+      setTimeout(() => {
+        onNavigate("/");
+      }, 2000);
+    } catch (err) {
+      console.error("❌ Error accepting link invite:", err);
+      setStatus("error");
+
+      let errorMessage = "Failed to accept invitation. ";
+
+      if (err.message === "TEAM_NOT_FOUND") {
+        errorMessage = "This team has been deleted by the owner.";
+      } else if (err.message === "ALREADY_MEMBER") {
+        setStatus("already_member");
+        errorMessage = `You're already a member of "${teamName}"!`;
+        setTimeout(() => onNavigate("/"), 2000);
+        return;
+      } else if (err.message === "INVITE_EXPIRED") {
+        errorMessage = "This invitation link has expired. Please request a new invitation.";
+      } else if (err.message === "INVITE_NOT_FOUND") {
+        errorMessage = "This invitation link is invalid or has been revoked.";
+      } else {
+        errorMessage += err.message || "Unknown error";
+      }
+
+      setMessage(errorMessage);
+      setDebugInfo({ error: err.message, code: err.code });
+    }
+  }
+
+  async function handleEmailInvite(teamId) {
+    console.log("📧 Handling email invite for teamId:", teamId);
+
+    if (!user) {
+      setStatus("signin_required");
+      setMessage("Please sign in to accept this invitation");
+      setDebugInfo({ teamId, userStatus: "not signed in" });
+      return;
+    }
+
+    console.log("👤 User email:", user.email);
+
+    setStatus("processing");
+    setMessage("Processing your invitation...");
+
+    try {
       await runTransaction(db, async (transaction) => {
         const teamRef = doc(db, "teams", teamId);
         const teamDoc = await transaction.get(teamRef);
@@ -75,6 +215,7 @@ export default function JoinTeam({ onNavigate }) {
           invitesRef,
           where("teamId", "==", teamId),
           where("email", "==", normalizedEmail),
+          where("type", "==", "email"),
           where("status", "==", "pending")
         );
 
@@ -85,6 +226,7 @@ export default function JoinTeam({ onNavigate }) {
           const allInvitesQuery = query(
             invitesRef,
             where("teamId", "==", teamId),
+            where("type", "==", "email"),
             where("status", "==", "pending")
           );
           const allInvites = await getDocs(allInvitesQuery);
@@ -128,6 +270,16 @@ export default function JoinTeam({ onNavigate }) {
 
         console.log("✅ Transaction prepared successfully");
 
+        // Track in GA4
+        if (window.gtag) {
+          window.gtag('event', 'team_invite_accepted', {
+            team_id: teamId,
+            team_name: teamData.name,
+            role: inviteData.role,
+            user_id: user.uid,
+          });
+        }
+
         return {
           teamName: teamData.name,
           role: inviteData.role,
@@ -138,33 +290,26 @@ export default function JoinTeam({ onNavigate }) {
       console.log("✅ Successfully joined team!");
 
       setStatus("success");
-      setMessage(
-        `Successfully joined "${teamName}" as member!`
-      );
+      setMessage(`Successfully joined "${teamName}" as member!`);
 
       setTimeout(() => {
         onNavigate("/");
       }, 2000);
     } catch (err) {
-      console.error("❌ Error accepting invitation:", err);
+      console.error("❌ Error accepting email invitation:", err);
       setError(err);
 
       if (err.message === "TEAM_NOT_FOUND") {
         setStatus("error");
-        setMessage(
-          "Team not found. The invitation may be invalid or the team may have been deleted."
-        );
-        setDebugInfo({ teamId: new URLSearchParams(window.location.search).get("teamId"), error: "Team doesn't exist" });
+        setMessage("This team has been deleted by the owner.");
+        setDebugInfo({ teamId, error: "Team doesn't exist" });
         return;
       }
 
       if (err.message === "ALREADY_MEMBER") {
         setStatus("already_member");
         setMessage(`You're already a member of "${teamName}"!`);
-        setDebugInfo({
-          teamId: new URLSearchParams(window.location.search).get("teamId"),
-          teamName: teamName,
-        });
+        setDebugInfo({ teamId, teamName });
         setTimeout(() => {
           onNavigate("/");
         }, 2000);
@@ -185,8 +330,8 @@ export default function JoinTeam({ onNavigate }) {
           "It may have already been accepted, cancelled, or sent to a different email address."
         );
         setDebugInfo({
-          teamId: new URLSearchParams(window.location.search).get("teamId"),
-          teamName: teamName,
+          teamId,
+          teamName,
           userEmail: user.email.toLowerCase(),
           ...err.debugData,
         });
@@ -257,7 +402,7 @@ export default function JoinTeam({ onNavigate }) {
             </p>
             <button
               onClick={signInWithGoogle}
-              className="btn-primary ai-glow px-6 py-3 w-full"
+              className="btn-primary px-6 py-3 w-full"
             >
               Sign in with Google
             </button>
@@ -265,8 +410,10 @@ export default function JoinTeam({ onNavigate }) {
               className="text-xs mt-4"
               style={{ color: "var(--muted-foreground)" }}
             >
-              Make sure to sign in with the email address that received the
-              invitation
+              {inviteType === "email" 
+                ? "Make sure to sign in with the email address that received the invitation"
+                : "Sign in with any Google account to join this team"
+              }
             </p>
           </div>
         )}
@@ -355,13 +502,17 @@ export default function JoinTeam({ onNavigate }) {
         {status === "error" && (
           <div className="text-center">
             <div className="flex justify-center mb-4">
-              <XCircle className="w-16 h-16" style={{ color: "var(--destructive)" }} />
+              {message.includes("deleted") ? (
+                <AlertCircle className="w-16 h-16" style={{ color: "var(--warning)" }} />
+              ) : (
+                <XCircle className="w-16 h-16" style={{ color: "var(--destructive)" }} />
+              )}
             </div>
             <h2
               className="text-xl font-bold mb-4"
-              style={{ color: "var(--destructive)" }}
+              style={{ color: message.includes("deleted") ? "var(--warning)" : "var(--destructive)" }}
             >
-              Invitation Error
+              {message.includes("deleted") ? "Team Deleted" : "Invitation Error"}
             </h2>
             <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
               {message}
@@ -387,53 +538,68 @@ export default function JoinTeam({ onNavigate }) {
               </details>
             )}
 
-            <div
-              className="p-4 rounded-lg mb-4 text-left"
-              style={{
-                backgroundColor: "var(--muted)",
-                borderColor: "var(--border)",
-              }}
-            >
-              <h3
-                className="font-semibold mb-2 text-sm flex items-center gap-2"
-                style={{ color: "var(--foreground)" }}
+            {!message.includes("deleted") && (
+              <div
+                className="p-4 rounded-lg mb-4 text-left"
+                style={{
+                  backgroundColor: "var(--muted)",
+                  borderColor: "var(--border)",
+                }}
               >
-                <Lightbulb className="w-4 h-4" style={{ color: "var(--primary)" }} />
-                Troubleshooting Tips:
-              </h3>
-              <ul
-                className="text-xs space-y-2"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                <li>
-                  • Make sure you're signed in with the email address that
-                  received the invitation
-                </li>
-                <li>
-                  • Check if the invitation was sent to a different email
-                  address
-                </li>
-                <li>• The invitation may have already been accepted or expired</li>
-                <li>• The team owner may have cancelled the invitation</li>
-                <li>
-                  • Try signing out and signing back in with the correct email
-                </li>
-              </ul>
-            </div>
+                <h3
+                  className="font-semibold mb-2 text-sm flex items-center gap-2"
+                  style={{ color: "var(--foreground)" }}
+                >
+                  <Lightbulb className="w-4 h-4" style={{ color: "var(--primary)" }} />
+                  Troubleshooting Tips:
+                </h3>
+                <ul
+                  className="text-xs space-y-2"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  {inviteType === "email" && (
+                    <>
+                      <li>
+                        • Make sure you're signed in with the email address that
+                        received the invitation
+                      </li>
+                      <li>
+                        • Check if the invitation was sent to a different email
+                        address
+                      </li>
+                    </>
+                  )}
+                  {inviteType === "link" && (
+                    <li>
+                      • Make sure you're using the complete invitation link
+                    </li>
+                  )}
+                  <li>• The invitation may have already been accepted or expired</li>
+                  <li>• The team owner may have cancelled the invitation</li>
+                  {inviteType === "email" && (
+                    <li>
+                      • Try signing out and signing back in with the correct email
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
 
             <div className="space-y-3">
-              <button
-                onClick={() => {
-                  setStatus("loading");
-                  setMessage("");
-                  setError(null);
-                  setDebugInfo(null);
-                  handleInvitation();
-                }}
-                className="btn-primary px-6 py-2 w-full"
-              >
-                Try Again
-              </button>
+              {!message.includes("deleted") && (
+                <button
+                  onClick={() => {
+                    setStatus("loading");
+                    setMessage("");
+                    setError(null);
+                    setDebugInfo(null);
+                    handleInvitation();
+                  }}
+                  className="btn-primary px-6 py-2 w-full"
+                >
+                  Try Again
+                </button>
+              )}
               <button
                 onClick={() => onNavigate("/")}
                 className="btn-secondary px-6 py-2 w-full"
@@ -448,7 +614,7 @@ export default function JoinTeam({ onNavigate }) {
           className="mt-6 text-center text-xs"
           style={{ color: "var(--muted-foreground)" }}
         >
-          {user ? (
+          {user && inviteType === "email" ? (
             <p>
               Signed in as: <strong>{user.email}</strong>
               <br />
@@ -468,10 +634,16 @@ export default function JoinTeam({ onNavigate }) {
                 Sign in with different email
               </button>
             </p>
+          ) : user ? (
+            <p>
+              Signed in as: <strong>{user.email}</strong>
+            </p>
           ) : (
             <p>
-              Having trouble? Make sure you're signed in with the email address
-              that received the invitation.
+              {inviteType === "email" 
+                ? "Having trouble? Make sure you're signed in with the email address that received the invitation."
+                : "Having trouble? Make sure you're using the complete invitation link."
+              }
             </p>
           )}
         </div>
