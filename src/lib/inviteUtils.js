@@ -1,4 +1,4 @@
-// src/lib/inviteUtils.js - Centralized invite management utilities
+// src/lib/inviteUtils.js - Centralized invite management utilities (UPDATED)
 import { db } from "./firebase";
 import {
   collection,
@@ -7,11 +7,14 @@ import {
   where,
   getDocs,
   doc,
+  getDoc,
   updateDoc,
   deleteDoc,
   runTransaction,
   serverTimestamp,
   Timestamp,
+  arrayUnion,
+  increment,
 } from "firebase/firestore";
 
 // Constants
@@ -29,7 +32,8 @@ export async function checkDuplicateInvite(teamId, email) {
     invitesRef,
     where("teamId", "==", teamId),
     where("email", "==", normalizedEmail),
-    where("status", "==", "pending")
+    where("status", "==", "pending"),
+    where("type", "==", "email")
   );
 
   const snapshot = await getDocs(q);
@@ -70,7 +74,7 @@ export async function countPendingInvites(userId) {
 }
 
 /**
- * Create a new team invite with validation
+ * Create a new team invite with validation (EMAIL-BASED)
  */
 export async function createTeamInvite({
   teamId,
@@ -117,8 +121,9 @@ export async function createTeamInvite({
     new Date(Date.now() + INVITE_EXPIRATION_DAYS * 24 * 60 * 60 * 1000)
   );
 
-  // Create invite
+  // Create invite (EMAIL TYPE)
   const inviteDoc = await addDoc(collection(db, "team-invites"), {
+    type: "email",
     teamId,
     teamName,
     email: normalizedEmail,
@@ -128,6 +133,10 @@ export async function createTeamInvite({
     createdAt: serverTimestamp(),
     expiresAt,
     status: "pending",
+    token: null,
+    maxUses: null,
+    useCount: 0,
+    usedBy: [],
   });
 
   return {
@@ -138,7 +147,192 @@ export async function createTeamInvite({
 }
 
 /**
- * Accept a team invite (atomic transaction)
+ * Create a LINK-BASED team invite
+ */
+export async function createLinkInvite({
+  teamId,
+  teamName,
+  role,
+  invitedBy,
+  inviterName,
+  token,
+  expiresInDays = 7,
+}) {
+  // Validate inputs
+  if (!teamId || !teamName || !role || !invitedBy || !token) {
+    throw new Error("Missing required fields for link invite creation");
+  }
+
+  // Validate role
+  if (!["member", "admin"].includes(role)) {
+    throw new Error("Invalid role. Must be 'member' or 'admin'");
+  }
+
+  // Check rate limiting
+  const pendingCount = await countPendingInvites(invitedBy);
+  if (pendingCount >= MAX_PENDING_INVITES_PER_USER) {
+    throw new Error(
+      `You have reached the maximum of ${MAX_PENDING_INVITES_PER_USER} pending invitations`
+    );
+  }
+
+  // Calculate expiration date
+  const expiresAt = Timestamp.fromDate(
+    new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
+  );
+
+  // Create invite (LINK TYPE)
+  const inviteDoc = await addDoc(collection(db, "team-invites"), {
+    type: "link",
+    teamId,
+    teamName,
+    email: null,
+    role,
+    invitedBy,
+    inviterName: inviterName || null,
+    createdAt: serverTimestamp(),
+    expiresAt,
+    status: "pending",
+    token,
+    maxUses: null, // Unlimited uses
+    useCount: 0,
+    usedBy: [],
+  });
+
+  return {
+    success: true,
+    inviteId: inviteDoc.id,
+    token,
+    expiresAt: expiresAt.toDate(),
+  };
+}
+
+/**
+ * Validate and get invite by token
+ */
+export async function getInviteByToken(token) {
+  try {
+    const invitesRef = collection(db, "team-invites");
+    const q = query(
+      invitesRef,
+      where("token", "==", token),
+      where("type", "==", "link"),
+      where("status", "==", "pending")
+    );
+
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return {
+        valid: false,
+        error: "Invite not found or already processed",
+      };
+    }
+
+    const inviteDoc = snapshot.docs[0];
+    const inviteData = inviteDoc.data();
+
+    // Check expiration
+    const now = Timestamp.now();
+    if (inviteData.expiresAt && inviteData.expiresAt.toMillis() < now.toMillis()) {
+      return {
+        valid: false,
+        error: "Invite has expired",
+        expired: true,
+      };
+    }
+
+    return {
+      valid: true,
+      invite: {
+        id: inviteDoc.id,
+        ...inviteData,
+      },
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Accept a team invite via TOKEN (atomic transaction)
+ */
+export async function acceptLinkInvite(token, userId) {
+  try {
+    const result = await runTransaction(db, async (transaction) => {
+      // Get invite by token
+      const invitesRef = collection(db, "team-invites");
+      const q = query(
+        invitesRef,
+        where("token", "==", token),
+        where("type", "==", "link"),
+        where("status", "==", "pending")
+      );
+
+      const inviteSnapshot = await getDocs(q);
+
+      if (inviteSnapshot.empty) {
+        throw new Error("INVITE_NOT_FOUND");
+      }
+
+      const inviteDoc = inviteSnapshot.docs[0];
+      const inviteData = inviteDoc.data();
+      const inviteRef = doc(db, "team-invites", inviteDoc.id);
+
+      // Check expiration
+      const now = Timestamp.now();
+      if (inviteData.expiresAt && inviteData.expiresAt.toMillis() < now.toMillis()) {
+        throw new Error("INVITE_EXPIRED");
+      }
+
+      // Get team document
+      const teamRef = doc(db, "teams", inviteData.teamId);
+      const teamDoc = await transaction.get(teamRef);
+
+      if (!teamDoc.exists()) {
+        throw new Error("TEAM_NOT_FOUND");
+      }
+
+      const teamData = teamDoc.data();
+
+      // Check if already a member
+      if (teamData.members && teamData.members[userId]) {
+        throw new Error("ALREADY_MEMBER");
+      }
+
+      // Update team - add member
+      transaction.update(teamRef, {
+        [`members.${userId}`]: inviteData.role || "member",
+      });
+
+      // Update invite - increment use count and track user
+      transaction.update(inviteRef, {
+        useCount: increment(1),
+        usedBy: arrayUnion(userId),
+      });
+
+      return {
+        teamId: inviteData.teamId,
+        teamName: teamData.name,
+        role: inviteData.role,
+      };
+    });
+
+    return { success: true, ...result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+      code: error.code,
+    };
+  }
+}
+
+/**
+ * Accept a team invite via EMAIL (existing function - unchanged)
  */
 export async function acceptTeamInvite(inviteId, teamId, userId) {
   try {
@@ -265,7 +459,7 @@ export async function deleteTeamInvite(inviteId) {
 }
 
 /**
- * Get all pending invites for a team
+ * Get all pending invites for a team (both email and link)
  */
 export async function getTeamInvites(teamId) {
   try {
@@ -310,6 +504,7 @@ export async function getUserInvites(email) {
     const q = query(
       invitesRef,
       where("email", "==", normalizedEmail),
+      where("type", "==", "email"),
       where("status", "==", "pending")
     );
 
@@ -381,8 +576,8 @@ export async function cleanupExpiredInvites() {
 /**
  * Generate invite link
  */
-export function generateInviteLink(teamId, baseUrl = window.location.origin) {
-  return `${baseUrl}/join?teamId=${teamId}`;
+export function generateInviteLink(token, baseUrl = window.location.origin) {
+  return `${baseUrl}/join?token=${token}`;
 }
 
 /**
@@ -424,7 +619,7 @@ export async function sendInviteEmail({
 }
 
 /**
- * Complete invite flow (create + send email)
+ * Complete EMAIL invite flow (create + send email)
  */
 export async function sendTeamInvitation({
   teamId,
@@ -450,7 +645,7 @@ export async function sendTeamInvitation({
     }
 
     // Generate invite link
-    const inviteLink = generateInviteLink(teamId);
+    const inviteLink = `${window.location.origin}/join?teamId=${teamId}`;
 
     // Try to send email (non-blocking)
     const emailResult = await sendInviteEmail({
@@ -468,6 +663,69 @@ export async function sendTeamInvitation({
       emailSent: emailResult.success,
       emailError: emailResult.error,
       expiresAt: createResult.expiresAt,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Complete LINK invite flow (generate token + create invite)
+ */
+export async function generateTeamInviteLink({
+  teamId,
+  teamName,
+  role,
+  invitedBy,
+  inviterName,
+  expiresInDays = 7,
+}) {
+  try {
+    // Call API to generate token
+    const response = await fetch("/api/generate-invite-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        teamId,
+        teamName,
+        role,
+        invitedBy,
+        inviterName,
+        expiresInDays,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to generate invite link");
+    }
+
+    const { token, inviteLink, expiresAt } = await response.json();
+
+    // Create invite document in Firestore
+    const createResult = await createLinkInvite({
+      teamId,
+      teamName,
+      role,
+      invitedBy,
+      inviterName,
+      token,
+      expiresInDays,
+    });
+
+    if (!createResult.success) {
+      throw new Error(createResult.error);
+    }
+
+    return {
+      success: true,
+      inviteId: createResult.inviteId,
+      token,
+      inviteLink,
+      expiresAt: new Date(expiresAt),
     };
   } catch (error) {
     return {
