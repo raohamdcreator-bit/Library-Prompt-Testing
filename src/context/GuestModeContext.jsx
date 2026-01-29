@@ -1,175 +1,177 @@
-// src/context/GuestModeContext.jsx - Manage guest user experience
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { guestState, migrateGuestWorkToUser } from '../lib/guestState';
+// src/context/GuestModeContext.jsx - FIXED: Ownership-based signup gating
+import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { savePrompt } from '../lib/prompts';
+import { isDemoPrompt } from '../lib/guestDemoContent';
 
-const GuestModeContext = createContext({});
+const GuestModeContext = createContext();
 
-export function useGuestMode() {
-  const context = useContext(GuestModeContext);
-  if (!context) {
-    throw new Error('useGuestMode must be used within GuestModeProvider');
-  }
-  return context;
-}
-
-/**
- * Guest Mode Provider
- * Manages unauthenticated user experience and save flow
- */
 export function GuestModeProvider({ children }) {
   const { user, signInWithGoogle } = useAuth();
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [pendingSaveAction, setPendingSaveAction] = useState(null);
   const [isMigrating, setIsMigrating] = useState(false);
+  const [pendingSaveCallback, setPendingSaveCallback] = useState(null);
 
-  // Check if user is in guest mode
+  // User is guest if not authenticated
   const isGuest = !user;
 
   /**
-   * Trigger save modal for guest users
+   * ✅ FIXED: Ownership-based save gating
+   * Trigger signup ONLY for non-demo, guest-owned prompts
    */
-  const triggerSaveModal = useCallback((action, data) => {
-    if (!user) {
-      setPendingSaveAction({ action, data });
-      setShowSaveModal(true);
-      return true; // Indicates save was blocked
+  function triggerSaveModal(prompt, onSaveCallback) {
+    // ✅ CRITICAL CHECK: Never trigger signup for demo prompts
+    if (isDemoPrompt(prompt)) {
+      console.log('🚫 Save blocked: Cannot save demo prompts (must duplicate first)');
+      return false;
     }
-    return false; // User is authenticated, proceed normally
-  }, [user]);
+
+    // ✅ If authenticated, allow save
+    if (!isGuest) {
+      if (onSaveCallback) {
+        onSaveCallback();
+      }
+      return true;
+    }
+
+    // ✅ Guest trying to save user-created prompt → Trigger signup
+    if (isGuest && !prompt.isDemo) {
+      console.log('💾 Guest save attempt: Triggering signup modal');
+      setPendingSaveCallback(() => onSaveCallback);
+      setShowSaveModal(true);
+      
+      // Track analytics
+      if (window.gtag) {
+        window.gtag('event', 'save_attempt_user_prompt_guest', {
+          prompt_title: prompt.title,
+          prompt_id: prompt.id,
+        });
+      }
+      
+      return false;
+    }
+
+    return false;
+  }
 
   /**
    * Handle signup from save modal
    */
-  const handleSignupFromModal = useCallback(async () => {
+  async function handleSignupFromModal() {
     try {
-      console.log('🔐 Starting signup from save modal...');
-      setShowSaveModal(false);
-      
-      // Trigger Google sign-in
+      setIsMigrating(true);
       await signInWithGoogle();
       
-      // Note: Migration will happen in the effect below after user is set
+      // Execute pending save after successful signup
+      if (pendingSaveCallback) {
+        setTimeout(() => {
+          pendingSaveCallback();
+          setPendingSaveCallback(null);
+        }, 1000);
+      }
+      
+      setShowSaveModal(false);
+      
+      // Track conversion
+      if (window.gtag) {
+        window.gtag('event', 'signup_completed', {
+          source: 'save_prompt_modal',
+        });
+      }
     } catch (error) {
-      console.error('❌ Signup failed:', error);
-      alert('Failed to sign in. Please try again.');
-      setShowSaveModal(true); // Reopen modal
+      console.error('Signup failed:', error);
+      setIsMigrating(false);
     }
-  }, [signInWithGoogle]);
+  }
 
   /**
-   * Handle continue without saving
+   * User chose to continue without signing up
    */
-  const handleContinueWithout = useCallback(() => {
-    console.log('📝 User chose to continue without saving');
+  function handleContinueWithout() {
     setShowSaveModal(false);
-    setPendingSaveAction(null);
-  }, []);
+    setPendingSaveCallback(null);
+  }
 
   /**
    * Close save modal
    */
-  const closeSaveModal = useCallback(() => {
+  function closeSaveModal() {
     setShowSaveModal(false);
-    // Don't clear pending action - user might try again
-  }, []);
+    setPendingSaveCallback(null);
+  }
 
   /**
-   * Migrate guest work after successful signup
+   * Check if a specific prompt can be saved
    */
-  useEffect(() => {
-    if (user && pendingSaveAction && !isMigrating) {
-      const migrateWork = async () => {
-        setIsMigrating(true);
-        
-        try {
-          console.log('🔄 Migrating guest work to authenticated user...');
-          
-          // Check if user has any teams (we'll use the first one)
-          // This will be handled in App.jsx where teams are available
-          // For now, just mark as migrated
-          
-          console.log('✅ Migration complete');
-          
-          // Clear pending action
-          setPendingSaveAction(null);
-          
-          // Show success message
-          console.log('✅ Your work has been saved!');
-        } catch (error) {
-          console.error('❌ Migration failed:', error);
-          alert('Failed to save your work. Please try again.');
-        } finally {
-          setIsMigrating(false);
-        }
-      };
-      
-      migrateWork();
+  function canSavePrompt(prompt) {
+    // Demo prompts cannot be saved
+    if (isDemoPrompt(prompt)) {
+      return false;
     }
-  }, [user, pendingSaveAction, isMigrating]);
+
+    // Authenticated users can save any non-demo prompt
+    if (!isGuest) {
+      return true;
+    }
+
+    // Guests cannot save without signup
+    return false;
+  }
 
   /**
-   * Add prompt in guest mode
+   * Check if a prompt can be edited
    */
-  const addGuestPrompt = useCallback((promptData) => {
-    return guestState.addPrompt(promptData);
-  }, []);
+  function canEditPrompt(prompt) {
+    // Demo prompts can be edited by anyone (changes are ephemeral)
+    if (isDemoPrompt(prompt)) {
+      return true;
+    }
+
+    // User prompts require authentication
+    if (!isGuest) {
+      return true;
+    }
+
+    // Guests can edit their own prompts
+    if (prompt.owner === 'guest') {
+      return true;
+    }
+
+    return false;
+  }
 
   /**
-   * Add output in guest mode
+   * Check if a prompt can be deleted
    */
-  const addGuestOutput = useCallback((promptId, outputData) => {
-    return guestState.addOutput(promptId, outputData);
-  }, []);
+  function canDeletePrompt(prompt) {
+    // Demo prompts can be deleted (removed from session)
+    if (isDemoPrompt(prompt)) {
+      return true;
+    }
 
-  /**
-   * Add chat message in guest mode
-   */
-  const addGuestChatMessage = useCallback((message) => {
-    return guestState.addChatMessage(message);
-  }, []);
+    // User prompts require authentication
+    if (!isGuest) {
+      return true;
+    }
 
-  /**
-   * Get guest prompts
-   */
-  const getGuestPrompts = useCallback(() => {
-    return guestState.getPrompts();
-  }, []);
+    // Guests can delete their own prompts
+    if (prompt.owner === 'guest') {
+      return true;
+    }
 
-  /**
-   * Get guest outputs
-   */
-  const getGuestOutputs = useCallback((promptId = null) => {
-    return guestState.getOutputs(promptId);
-  }, []);
-
-  /**
-   * Check if guest has unsaved work
-   */
-  const hasUnsavedWork = useCallback(() => {
-    return guestState.hasUnsavedWork();
-  }, []);
+    return false;
+  }
 
   const value = {
-    // State
     isGuest,
     showSaveModal,
     isMigrating,
-    hasUnsavedWork: hasUnsavedWork(),
-    
-    // Actions
     triggerSaveModal,
     handleSignupFromModal,
     handleContinueWithout,
     closeSaveModal,
-    
-    // Guest operations
-    addGuestPrompt,
-    addGuestOutput,
-    addGuestChatMessage,
-    getGuestPrompts,
-    getGuestOutputs,
+    canSavePrompt,
+    canEditPrompt,
+    canDeletePrompt,
   };
 
   return (
@@ -179,4 +181,10 @@ export function GuestModeProvider({ children }) {
   );
 }
 
-export default GuestModeContext;
+export function useGuestMode() {
+  const context = useContext(GuestModeContext);
+  if (!context) {
+    throw new Error('useGuestMode must be used within GuestModeProvider');
+  }
+  return context;
+}
