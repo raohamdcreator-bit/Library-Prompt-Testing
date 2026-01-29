@@ -1,5 +1,5 @@
 // src/components/PromptList.jsx - Mobile-Responsive Version
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { db } from "../lib/firebase";
 import { trackPromptCopy, trackPromptView } from "../lib/promptStats";
 import {
@@ -57,7 +57,12 @@ import {
   trackDemoInteraction 
 } from '../lib/demoPromptManager';
 import { useGuestMode } from '../context/GuestModeContext';
+import PropTypes from 'prop-types';
 
+// Constants
+const TRUNCATE_LENGTH = 50;
+const TOAST_DURATION = 3000;
+const DEFAULT_PAGE_SIZE = 10;
 
 // Rating Section Component
 function RatingSection({ teamId, promptId }) {
@@ -106,7 +111,53 @@ function RatingSection({ teamId, promptId }) {
   );
 }
 
-export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId })  {
+RatingSection.propTypes = {
+  teamId: PropTypes.string,
+  promptId: PropTypes.string.isRequired,
+};
+
+// User Avatar Component
+function UserAvatar({ src, name, email }) {
+  const [imageError, setImageError] = useState(false);
+
+  const getUserInitials = useCallback((name, email) => {
+    if (name) {
+      return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+    }
+    if (email) {
+      return email[0].toUpperCase();
+    }
+    return "U";
+  }, []);
+
+  if (!src || imageError) {
+    return (
+      <div
+        className="author-avatar flex items-center justify-center text-white font-semibold text-sm"
+        style={{ backgroundColor: "var(--primary)" }}
+      >
+        {getUserInitials(name, email)}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt="avatar"
+      className="author-avatar"
+      onError={() => setImageError(true)}
+    />
+  );
+}
+
+UserAvatar.propTypes = {
+  src: PropTypes.string,
+  name: PropTypes.string,
+  email: PropTypes.string,
+};
+
+export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId }) {
   const { user } = useAuth();
   const { triggerSaveModal, canEditPrompt: canEditAsGuest, canDeletePrompt: canDeleteAsGuest } = useGuestMode();
   const { playNotification } = useSoundEffects();
@@ -135,59 +186,81 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [openKebabMenu, setOpenKebabMenu] = useState(null);
   const [viewedPrompts, setViewedPrompts] = useState(new Set());
 
-  const pagination = usePagination(filteredPrompts, 10);
+  // Use ref for kebab menu to avoid unnecessary re-renders
+  const kebabMenuRef = useRef(null);
+
+  const pagination = usePagination(filteredPrompts, DEFAULT_PAGE_SIZE);
+
+  // Determine effective user ID
+  const effectiveUserId = useMemo(() => {
+    return userId || user?.uid || (isGuestMode ? 'guest' : null);
+  }, [userId, user?.uid, isGuestMode]);
 
   // Load prompts (with demo support for guests)
-useEffect(() => {
-  // ✅ GUEST MODE: Load demo prompts from sessionStorage
-  if (isGuestMode && !activeTeam) {
-    const demoPrompts = getDemoPrompts();
-    setPrompts(demoPrompts);
-    setFilteredPrompts(demoPrompts);
-    setLoading(false);
-    return;
-  }
-
-  // ✅ AUTHENTICATED: Load from Firestore
-  if (!activeTeam) {
-    setPrompts([]);
-    setFilteredPrompts([]);
-    setLoading(false);
-    return;
-  }
-
-  setLoading(true);
-  const q = query(
-    collection(db, "teams", activeTeam, "prompts"),
-    orderBy("createdAt", "desc")
-  );
-
-  const unsub = onSnapshot(
-    q,
-    (snap) => {
-      const data = snap.docs.map((d) => ({
-        id: d.id,
-        teamId: activeTeam,
-        ...d.data(),
-      }));
-
-      const uniqueData = Array.from(
-        new Map(data.map((item) => [item.id, item])).values()
-      );
-
-      const visiblePrompts = filterVisiblePrompts(uniqueData, userId, userRole);
-      setPrompts(visiblePrompts);
-      setFilteredPrompts(visiblePrompts);
-      setLoading(false);
-    },
-    (error) => {
-      console.error("Error loading prompts:", error);
-      setLoading(false);
+  useEffect(() => {
+    // ✅ GUEST MODE: Load demo prompts from sessionStorage
+    if (isGuestMode && !activeTeam) {
+      try {
+        const demoPrompts = getDemoPrompts();
+        setPrompts(demoPrompts);
+        setFilteredPrompts(demoPrompts);
+      } catch (error) {
+        console.error("Error loading demo prompts:", error);
+        setPrompts([]);
+        setFilteredPrompts([]);
+      } finally {
+        setLoading(false);
+      }
+      return;
     }
-  );
 
-  return () => unsub();
-}, [activeTeam, userId, userRole, isGuestMode]);
+    // ✅ AUTHENTICATED: Load from Firestore
+    if (!activeTeam) {
+      setPrompts([]);
+      setFilteredPrompts([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const q = query(
+      collection(db, "teams", activeTeam, "prompts"),
+      orderBy("createdAt", "desc")
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        try {
+          const data = snap.docs.map((d) => ({
+            id: d.id,
+            teamId: activeTeam,
+            ...d.data(),
+          }));
+
+          const uniqueData = Array.from(
+            new Map(data.map((item) => [item.id, item])).values()
+          );
+
+          const visiblePrompts = filterVisiblePrompts(uniqueData, effectiveUserId, userRole);
+          setPrompts(visiblePrompts);
+          setFilteredPrompts(visiblePrompts);
+        } catch (error) {
+          console.error("Error processing prompts:", error);
+          setPrompts([]);
+          setFilteredPrompts([]);
+        } finally {
+          setLoading(false);
+        }
+      },
+      (error) => {
+        console.error("Error loading prompts:", error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsub();
+  }, [activeTeam, effectiveUserId, userRole, isGuestMode]);
 
   // Load team name
   useEffect(() => {
@@ -201,6 +274,8 @@ useEffect(() => {
         const teamDoc = await getDoc(doc(db, "teams", activeTeam));
         if (teamDoc.exists()) {
           setTeamName(teamDoc.data().name || "Unknown Team");
+        } else {
+          setTeamName("Unknown Team");
         }
       } catch (error) {
         console.error("Error loading team name:", error);
@@ -231,7 +306,7 @@ useEffect(() => {
               profiles[memberId] = userDoc.data();
             }
           } catch (error) {
-            console.error("Error loading member profile:", error);
+            console.error(`Error loading member profile ${memberId}:`, error);
           }
         }
 
@@ -247,10 +322,10 @@ useEffect(() => {
   // Load previously viewed prompts from localStorage
   useEffect(() => {
     async function loadViewedPrompts() {
-      if (!activeTeam || !user?.uid) return;
+      if (!activeTeam || !effectiveUserId) return;
       
       try {
-        const storageKey = `viewedPrompts_${user.uid}_${activeTeam}`;
+        const storageKey = `viewedPrompts_${effectiveUserId}_${activeTeam}`;
         const stored = localStorage.getItem(storageKey);
         
         if (stored) {
@@ -263,35 +338,37 @@ useEffect(() => {
     }
     
     loadViewedPrompts();
-  }, [activeTeam, user?.uid]);
+  }, [activeTeam, effectiveUserId]);
 
   // Persist viewed prompts to localStorage
   useEffect(() => {
-    if (!activeTeam || !user?.uid || viewedPrompts.size === 0) return;
+    if (!activeTeam || !effectiveUserId || viewedPrompts.size === 0) return;
     
     try {
-      const storageKey = `viewedPrompts_${user.uid}_${activeTeam}`;
+      const storageKey = `viewedPrompts_${effectiveUserId}_${activeTeam}`;
       localStorage.setItem(storageKey, JSON.stringify([...viewedPrompts]));
     } catch (error) {
       console.error("Error saving viewed prompts:", error);
     }
-  }, [viewedPrompts, activeTeam, user?.uid]);
+  }, [viewedPrompts, activeTeam, effectiveUserId]);
 
-  // Close kebab menu when clicking outside
+  // Close kebab menu when clicking outside - optimized with single listener
   useEffect(() => {
     function handleClickOutside(event) {
-      if (openKebabMenu && !event.target.closest('.kebab-menu-container')) {
+      if (openKebabMenu !== null && !event.target.closest('.kebab-menu-container')) {
         setOpenKebabMenu(null);
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    if (openKebabMenu !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
   }, [openKebabMenu]);
 
-  function handleFilteredResults(filtered) {
+  const handleFilteredResults = useCallback((filtered) => {
     setFilteredPrompts(filtered);
-  }
+  }, []);
 
   const handleResultsChange = useCallback((promptId, count) => {
     setResultCounts((prev) => {
@@ -300,7 +377,7 @@ useEffect(() => {
     });
   }, []);
 
-  function toggleTextExpansion(promptId) {
+  const toggleTextExpansion = useCallback((promptId) => {
     setExpandedTextIds((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(promptId)) {
@@ -310,152 +387,168 @@ useEffect(() => {
       }
       return newSet;
     });
-  }
+  }, []);
 
-  async function handleCreate(e) {
-  e.preventDefault();
-  
-  // ✅ GUEST MODE: Check if guest is trying to save
-  if (isGuestMode) {
-    const newPromptData = {
-      title: newPrompt.title.trim(),
-      text: newPrompt.text.trim(),
-      tags: newPrompt.tags.split(",").map((t) => t.trim()).filter(Boolean),
-      visibility: newPrompt.visibility,
-      isDemo: false,
-      owner: 'guest',
-    };
+  const handleCreate = useCallback(async (e) => {
+    e.preventDefault();
     
-    // Trigger signup modal
-    const canProceed = triggerSaveModal(newPromptData, async () => {
-      // This callback will execute after successful signup
-      await handleCreate(e);
-    });
-    
-    if (!canProceed) {
-      return; // Blocked - signup modal will show
+    // Validate input
+    if (!newPrompt.title.trim() || !newPrompt.text.trim()) {
+      showNotification("Title and prompt text are required", "error");
+      return;
     }
-  }
-  
-  // ✅ ORIGINAL CODE CONTINUES
-  if (!newPrompt.title.trim() || !newPrompt.text.trim()) {
-    showNotification("Title and prompt text are required", "error");
-    return;
-  }
 
-  try {
-    await savePrompt(
-      userId,
-      {
+    // ✅ GUEST MODE: Check if guest is trying to save
+    if (isGuestMode) {
+      const newPromptData = {
         title: newPrompt.title.trim(),
         text: newPrompt.text.trim(),
         tags: newPrompt.tags.split(",").map((t) => t.trim()).filter(Boolean),
         visibility: newPrompt.visibility,
-      },
-      activeTeam
-    );
-
-    setNewPrompt({ title: "", tags: "", text: "", visibility: "public" });
-    setShowCreateForm(false);
-    showSuccessToast("Prompt created successfully!");
-    if (window.gtag) {
-      window.gtag('event', 'prompt_created', {
-        team_id: activeTeam,
-        prompt_title: newPrompt.title.trim(),
-        visibility: newPrompt.visibility,
-        tags_count: newPrompt.tags.split(",").filter(Boolean).length,
-      });
+        isDemo: false,
+        owner: 'guest',
+      };
+      
+      // Trigger signup modal and stop here
+      triggerSaveModal(newPromptData);
+      return; // Guest must sign up first
     }
-  } catch (error) {
-    console.error("Error creating prompt:", error);
-    showNotification("Failed to create prompt", "error");
-  }
-}
-
- async function handleUpdate(promptId, updates) {
-  try {
-    const prompt = prompts.find(p => p.id === promptId);
     
-    // ✅ DEMO PROMPT: Update in sessionStorage only
-    if (isDemoPrompt(prompt)) {
-      updateDemoPrompt(promptId, updates);
-      trackDemoInteraction('edited', promptId);
+    // ✅ AUTHENTICATED: Save to Firestore
+    try {
+      await savePrompt(
+        effectiveUserId,
+        {
+          title: newPrompt.title.trim(),
+          text: newPrompt.text.trim(),
+          tags: newPrompt.tags.split(",").map((t) => t.trim()).filter(Boolean),
+          visibility: newPrompt.visibility,
+        },
+        activeTeam
+      );
+
+      setNewPrompt({ title: "", tags: "", text: "", visibility: "public" });
+      setShowCreateForm(false);
+      showSuccessToast("Prompt created successfully!");
       
-      // Refresh demo prompts
-      const updatedDemos = getDemoPrompts();
-      setPrompts(updatedDemos);
-      setFilteredPrompts(updatedDemos);
+      // Analytics tracking
+      if (window.gtag) {
+        window.gtag('event', 'prompt_created', {
+          team_id: activeTeam,
+          prompt_title: newPrompt.title.trim(),
+          visibility: newPrompt.visibility,
+          tags_count: newPrompt.tags.split(",").filter(Boolean).length,
+        });
+      }
+    } catch (error) {
+      console.error("Error creating prompt:", error);
+      showNotification("Failed to create prompt", "error");
+    }
+  }, [newPrompt, isGuestMode, effectiveUserId, activeTeam, triggerSaveModal]);
+
+  const handleUpdate = useCallback(async (promptId, updates) => {
+    try {
+      const prompt = prompts.find(p => p.id === promptId);
       
+      if (!prompt) {
+        showNotification("Prompt not found", "error");
+        return;
+      }
+      
+      // ✅ DEMO PROMPT: Update in sessionStorage only
+      if (isDemoPrompt(prompt)) {
+        try {
+          updateDemoPrompt(promptId, updates);
+          trackDemoInteraction('edited', promptId);
+          
+          // Refresh demo prompts
+          const updatedDemos = getDemoPrompts();
+          setPrompts(updatedDemos);
+          setFilteredPrompts(updatedDemos);
+          
+          setShowEditModal(false);
+          setEditingPrompt(null);
+          showSuccessToast("Demo prompt updated (changes are temporary)");
+        } catch (error) {
+          console.error("Error updating demo prompt:", error);
+          showNotification("Failed to update demo prompt", "error");
+        }
+        return;
+      }
+      
+      // ✅ USER PROMPT: Update in Firestore
+      await updatePrompt(activeTeam, promptId, updates);
       setShowEditModal(false);
       setEditingPrompt(null);
-      showSuccessToast("Demo prompt updated (changes are temporary)");
-      return;
-    }
-    
-    // ✅ USER PROMPT: Update in Firestore
-    await updatePrompt(activeTeam, promptId, updates);
-    setShowEditModal(false);
-    setEditingPrompt(null);
-    showSuccessToast("Prompt updated successfully!");
-  } catch (error) {
-    console.error("Error updating prompt:", error);
-    showNotification("Failed to update prompt", "error");
-  }
-}
-
-  async function handleDelete(promptId) {
-  const prompt = prompts.find((p) => p.id === promptId);
-  if (!prompt) return;
-
-  // ✅ DEMO PROMPT: Delete from sessionStorage
-  if (isDemoPrompt(prompt)) {
-    if (!confirm("Remove this demo prompt? (It will be restored on page refresh)")) return;
-    
-    try {
-      deleteDemoPrompt(promptId);
-      trackDemoInteraction('deleted', promptId);
-      
-      // Refresh demo prompts
-      const updatedDemos = getDemoPrompts();
-      setPrompts(updatedDemos);
-      setFilteredPrompts(updatedDemos);
-      
-      showSuccessToast("Demo prompt removed (temporary)");
-      setOpenKebabMenu(null);
-      return;
+      showSuccessToast("Prompt updated successfully!");
     } catch (error) {
-      console.error("Error deleting demo prompt:", error);
-      showNotification("Failed to remove demo prompt", "error");
+      console.error("Error updating prompt:", error);
+      showNotification("Failed to update prompt", "error");
+    }
+  }, [prompts, activeTeam]);
+
+  const handleDelete = useCallback(async (promptId) => {
+    const prompt = prompts.find((p) => p.id === promptId);
+    if (!prompt) {
+      showNotification("Prompt not found", "error");
       return;
     }
-  }
 
-  // ✅ USER PROMPT: Permission check + Firestore delete
-  if (
-    prompt.createdBy !== userId &&
-    userRole !== "owner" &&
-    userRole !== "admin"
-  ) {
-    showNotification("You don't have permission to delete this prompt", "error");
-    return;
-  }
+    // ✅ DEMO PROMPT: Delete from sessionStorage
+    if (isDemoPrompt(prompt)) {
+      if (!confirm("Remove this demo prompt? (It will be restored on page refresh)")) return;
+      
+      try {
+        deleteDemoPrompt(promptId);
+        trackDemoInteraction('deleted', promptId);
+        
+        // Refresh demo prompts
+        const updatedDemos = getDemoPrompts();
+        setPrompts(updatedDemos);
+        setFilteredPrompts(updatedDemos);
+        
+        showSuccessToast("Demo prompt removed (temporary)");
+        setOpenKebabMenu(null);
+        return;
+      } catch (error) {
+        console.error("Error deleting demo prompt:", error);
+        showNotification("Failed to remove demo prompt", "error");
+        return;
+      }
+    }
 
-  if (!confirm("Are you sure you want to delete this prompt?")) return;
+    // ✅ USER PROMPT: Permission check
+    if (
+      prompt.createdBy !== effectiveUserId &&
+      userRole !== "owner" &&
+      userRole !== "admin"
+    ) {
+      showNotification("You don't have permission to delete this prompt", "error");
+      return;
+    }
 
-  try {
-    await deletePrompt(activeTeam, promptId);
-    showSuccessToast("Prompt deleted");
-    setOpenKebabMenu(null);
-  } catch (error) {
-    console.error("Error deleting prompt:", error);
-    showNotification("Failed to delete prompt", "error");
-  }
-}
-  async function handleToggleVisibility(promptId) {
+    if (!confirm("Are you sure you want to delete this prompt?")) return;
+
+    // ✅ Delete from Firestore
+    try {
+      await deletePrompt(activeTeam, promptId);
+      showSuccessToast("Prompt deleted");
+      setOpenKebabMenu(null);
+    } catch (error) {
+      console.error("Error deleting prompt:", error);
+      showNotification("Failed to delete prompt", "error");
+    }
+  }, [prompts, effectiveUserId, userRole, activeTeam]);
+
+  const handleToggleVisibility = useCallback(async (promptId) => {
     const prompt = prompts.find((p) => p.id === promptId);
-    if (!prompt) return;
+    if (!prompt) {
+      showNotification("Prompt not found", "error");
+      return;
+    }
 
-    if (!canChangeVisibility(prompt, user.uid, userRole)) {
+    // Check permissions (using optional chaining for safety)
+    if (!canChangeVisibility(prompt, effectiveUserId, userRole)) {
       showNotification("You don't have permission to change visibility", "error");
       return;
     }
@@ -474,63 +567,63 @@ useEffect(() => {
       console.error("Error toggling visibility:", error);
       showNotification("Failed to change visibility", "error");
     }
-  }
+  }, [prompts, effectiveUserId, userRole, activeTeam]);
 
-async function handleCopy(text, promptId) {
-  try {
-    await navigator.clipboard.writeText(text);
-    showSuccessToast("Copied to clipboard!");
-    
-    const prompt = prompts.find(p => p.id === promptId);
-    
-    // ✅ Track demo interaction
-    if (isDemoPrompt(prompt)) {
-      trackDemoInteraction('copied', promptId);
-    } else if (activeTeam) {
-      // ✅ Track user prompt stats
-      await trackPromptCopy(activeTeam, promptId);
+  const handleCopy = useCallback(async (text, promptId) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      showSuccessToast("Copied to clipboard!");
+      
+      const prompt = prompts.find(p => p.id === promptId);
+      
+      // ✅ Track demo interaction
+      if (prompt && isDemoPrompt(prompt)) {
+        trackDemoInteraction('copied', promptId);
+      } else if (activeTeam && promptId) {
+        // ✅ Track user prompt stats
+        try {
+          await trackPromptCopy(activeTeam, promptId);
+        } catch (error) {
+          console.error("Error tracking copy:", error);
+          // Don't show error to user for tracking failures
+        }
+      }
+    } catch (error) {
+      console.error("Error copying to clipboard:", error);
+      showNotification("Failed to copy", "error");
     }
-  } catch (error) {
-    console.error("Error copying to clipboard:", error);
-    showNotification("Failed to copy", "error");
-  }
-}
+  }, [prompts, activeTeam]);
 
-  async function handleExpand(promptId) {
-    const isCurrentlyExpanded = expandedPromptId === promptId;
-    
-    // Toggle expansion state (no view tracking here)
-    setExpandedPromptId(isCurrentlyExpanded ? null : promptId);
-  }
+  const handleExpand = useCallback((promptId) => {
+    setExpandedPromptId(prev => prev === promptId ? null : promptId);
+  }, []);
 
-  async function handleTextExpansionWithTracking(promptId) {
+  const handleTextExpansionWithTracking = useCallback(async (promptId) => {
     const isCurrentlyExpanded = expandedTextIds.has(promptId);
-    const wasAlreadyExpanded = isCurrentlyExpanded;
     
     // Toggle text expansion
     toggleTextExpansion(promptId);
     
-    // Only track view if:
-    // 1. We're expanding (not collapsing)
-    // 2. This user hasn't viewed this prompt yet in this session
-    if (!wasAlreadyExpanded && !viewedPrompts.has(promptId)) {
+    // Only track view if expanding and not already viewed
+    if (!isCurrentlyExpanded && !viewedPrompts.has(promptId) && activeTeam) {
       try {
         await trackPromptView(activeTeam, promptId);
-        // Mark this prompt as viewed to prevent duplicate tracking
+        // Mark this prompt as viewed
         setViewedPrompts(prev => new Set([...prev, promptId]));
       } catch (error) {
         console.error("Error tracking view:", error);
+        // Don't show error to user for tracking failures
       }
     }
-  }
+  }, [expandedTextIds, viewedPrompts, activeTeam, toggleTextExpansion]);
 
-  function handleAIEnhance(prompt) {
+  const handleAIEnhance = useCallback((prompt) => {
     setCurrentPromptForAI(prompt);
     setShowAIEnhancer(true);
     setOpenKebabMenu(null);
-  }
+  }, []);
 
-  async function handleApplyAIEnhancement(enhancedPrompt) {
+  const handleApplyAIEnhancement = useCallback(async (enhancedPrompt) => {
     try {
       await updatePrompt(activeTeam, enhancedPrompt.id, {
         text: enhancedPrompt.text,
@@ -543,12 +636,12 @@ async function handleCopy(text, promptId) {
       console.error("Error applying enhancement:", error);
       showNotification("Failed to apply enhancement", "error");
     }
-  }
+  }, [activeTeam]);
 
-  async function handleSaveAIAsNew(enhancedPrompt) {
+  const handleSaveAIAsNew = useCallback(async (enhancedPrompt) => {
     try {
       await savePrompt(
-        user.uid,
+        effectiveUserId,
         {
           title: enhancedPrompt.title,
           text: enhancedPrompt.text,
@@ -564,42 +657,73 @@ async function handleCopy(text, promptId) {
       console.error("Error saving enhanced prompt:", error);
       showNotification("Failed to save enhanced prompt", "error");
     }
-  }
+  }, [effectiveUserId, activeTeam]);
+
+  const handleDuplicateDemo = useCallback((prompt) => {
+    try {
+      const duplicated = duplicateDemoPrompt(prompt, effectiveUserId);
+      setNewPrompt({
+        title: duplicated.title,
+        text: duplicated.text,
+        tags: duplicated.tags.join(", "),
+        visibility: duplicated.visibility || "public",
+      });
+      setShowCreateForm(true);
+      setOpenKebabMenu(null);
+      showSuccessToast("Demo copied to create form. Click 'Create' to save your version!");
+    } catch (error) {
+      console.error("Error duplicating demo:", error);
+      showNotification("Failed to duplicate demo prompt", "error");
+    }
+  }, [effectiveUserId]);
 
   function showSuccessToast(message) {
     playNotification();
     const toast = document.createElement("div");
     toast.className = "success-toast";
-    toast.innerHTML = `
-      <div class="success-icon">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-      </div>
-      <span>${message}</span>
+    
+    const icon = document.createElement("div");
+    icon.className = "success-icon";
+    icon.innerHTML = `
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+      </svg>
     `;
+    
+    const messageSpan = document.createElement("span");
+    messageSpan.textContent = message;
+    
+    toast.appendChild(icon);
+    toast.appendChild(messageSpan);
+    
     document.body.appendChild(toast);
     setTimeout(() => {
       if (toast.parentNode) {
         document.body.removeChild(toast);
       }
-    }, 3000);
+    }, TOAST_DURATION);
   }
 
   function showNotification(message, type = "info") {
     playNotification();
+    
     const icons = {
       success: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>',
       error: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>',
       info: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
     };
+    
     const notification = document.createElement("div");
-    notification.innerHTML = `
-      <div class="flex items-center gap-2">
-        ${icons[type] || icons.info}
-        <span>${message}</span>
-      </div>
-    `;
+    const iconDiv = document.createElement("div");
+    iconDiv.className = "flex items-center gap-2";
+    iconDiv.innerHTML = icons[type] || icons.info;
+    
+    const messageSpan = document.createElement("span");
+    messageSpan.textContent = message;
+    
+    iconDiv.appendChild(messageSpan);
+    notification.appendChild(iconDiv);
+    
     notification.className =
       "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-50 text-sm transition-opacity duration-300";
     notification.style.cssText = `
@@ -607,6 +731,7 @@ async function handleCopy(text, promptId) {
       color: var(--foreground);
       border: 1px solid var(--${type === "error" ? "destructive" : "primary"});
     `;
+    
     document.body.appendChild(notification);
     setTimeout(() => {
       notification.style.opacity = "0";
@@ -615,69 +740,66 @@ async function handleCopy(text, promptId) {
           document.body.removeChild(notification);
         }
       }, 300);
-    }, 3000);
+    }, TOAST_DURATION);
   }
 
-  function formatDate(timestamp) {
+  const formatDate = useCallback((timestamp) => {
     if (!timestamp) return "";
     try {
-      return timestamp.toDate().toLocaleDateString("en-US", {
+      // Handle both Firestore timestamps and regular Date objects
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return date.toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
       });
-    } catch {
+    } catch (error) {
+      console.error("Error formatting date:", error);
       return "";
     }
-  }
+  }, []);
 
- function canEditPrompt(prompt) {
-  // ✅ Demo prompts can be edited by anyone (changes are ephemeral)
-  if (isDemoPrompt(prompt)) {
-    return true;
-  }
-  
-  // ✅ User prompts require ownership or admin role
-  return (
-    prompt.createdBy === userId ||
-    userRole === "owner" ||
-    userRole === "admin"
-  );
-}
-
-  function getUserInitials(name, email) {
-    if (name) {
-      return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  const canEditPrompt = useCallback((prompt) => {
+    if (!prompt) return false;
+    
+    // ✅ Demo prompts can be edited by anyone (changes are ephemeral)
+    if (isDemoPrompt(prompt)) {
+      return true;
     }
-    if (email) {
-      return email[0].toUpperCase();
+    
+    // ✅ Guest mode check
+    if (isGuestMode) {
+      return canEditAsGuest(prompt);
     }
-    return "U";
-  }
-
-  function UserAvatar({ src, name, email }) {
-    const [imageError, setImageError] = useState(false);
-
-    if (!src || imageError) {
-      return (
-        <div
-          className="author-avatar flex items-center justify-center text-white font-semibold text-sm"
-          style={{ backgroundColor: "var(--primary)" }}
-        >
-          {getUserInitials(name, email)}
-        </div>
-      );
-    }
-
+    
+    // ✅ User prompts require ownership or admin role
     return (
-      <img
-        src={src}
-        alt="avatar"
-        className="author-avatar"
-        onError={() => setImageError(true)}
-      />
+      prompt.createdBy === effectiveUserId ||
+      userRole === "owner" ||
+      userRole === "admin"
     );
-  }
+  }, [effectiveUserId, userRole, isGuestMode, canEditAsGuest]);
+
+  const canDeletePrompt = useCallback((prompt) => {
+    if (!prompt) return false;
+    
+    // ✅ Demo prompts can be deleted by anyone
+    if (isDemoPrompt(prompt)) {
+      return true;
+    }
+    
+    // ✅ Guest mode check
+    if (isGuestMode) {
+      return canDeleteAsGuest(prompt);
+    }
+    
+    // ✅ User prompts require ownership or admin role
+    return (
+      prompt.createdBy === effectiveUserId ||
+      userRole === "owner" ||
+      userRole === "admin"
+    );
+  }, [effectiveUserId, userRole, isGuestMode, canDeleteAsGuest]);
 
   if (loading) {
     return (
@@ -940,46 +1062,46 @@ async function handleCopy(text, promptId) {
       )}
 
       {/* Prompts List */}
-     {pagination.currentItems.length === 0 ? (
-  <div className="glass-card p-12 text-center">
-    <FileText className="w-16 h-16 mx-auto mb-4" style={{ color: "var(--muted-foreground)" }} />
-    <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--foreground)" }}>
-      {isGuestMode 
-        ? "Welcome to Prism!" 
-        : pagination.isFiltered 
-          ? "No matching prompts" 
-          : "No prompts yet"}
-    </h3>
-    <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
-      {isGuestMode
-        ? "Explore demo prompts above or create your own. Sign up to save your work!"
-        : pagination.isFiltered
-          ? "Try adjusting your search filters"
-          : "Create your first prompt to get started"}
-    </p>
-  </div>
+      {pagination.currentItems.length === 0 ? (
+        <div className="glass-card p-12 text-center">
+          <FileText className="w-16 h-16 mx-auto mb-4" style={{ color: "var(--muted-foreground)" }} />
+          <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--foreground)" }}>
+            {isGuestMode 
+              ? "Welcome to Prism!" 
+              : pagination.isFiltered 
+                ? "No matching prompts" 
+                : "No prompts yet"}
+          </h3>
+          <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
+            {isGuestMode
+              ? "Explore demo prompts above or create your own. Sign up to save your work!"
+              : pagination.isFiltered
+                ? "Try adjusting your search filters"
+                : "Create your first prompt to get started"}
+          </p>
+        </div>
       ) : (
         <div className="space-y-4">
           {pagination.currentItems.map((prompt) => {
-            const author = teamMembers[prompt.createdBy];
+            const author = teamMembers[prompt.createdBy] || {};
             const isExpanded = expandedPromptId === prompt.id;
             const isTextExpanded = expandedTextIds.has(prompt.id);
             const isPrivate = prompt.visibility === "private";
             const resultsCount = resultCounts[prompt.id] || 0;
-            const shouldTruncate = prompt.text.length >= 50;
+            const shouldTruncate = prompt.text.length >= TRUNCATE_LENGTH;
 
             return (
               <div key={prompt.id} className="prompt-card-premium">
                 {/* Author Info */}
                 <div className="author-info">
                   <UserAvatar
-                    src={author?.avatar}
-                    name={author?.name}
-                    email={author?.email}
+                    src={author.avatar}
+                    name={author.name}
+                    email={author.email}
                   />
                   <div className="author-details">
                     <div className="author-name">
-                      {author?.name || author?.email || "Unknown"}
+                      {author.name || author.email || "Unknown"}
                     </div>
                     <div className="author-timestamp">{formatDate(prompt.createdAt)}</div>
                   </div>
@@ -995,18 +1117,18 @@ async function handleCopy(text, promptId) {
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="prompt-title-premium flex-1">{prompt.title}</h3>
                   {isDemoPrompt(prompt) && (
-  <span 
-    className="visibility-badge"
-    style={{
-      background: 'rgba(139, 92, 246, 0.15)',
-      borderColor: 'var(--primary)',
-      color: 'var(--primary)',
-    }}
-  >
-    <Sparkles className="w-3 h-3" />
-    Demo
-  </span>
-)}
+                    <span 
+                      className="visibility-badge"
+                      style={{
+                        background: 'rgba(139, 92, 246, 0.15)',
+                        borderColor: 'var(--primary)',
+                        color: 'var(--primary)',
+                      }}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Demo
+                    </span>
+                  )}
                   <EnhancedBadge
                     enhanced={prompt.enhanced}
                     enhancedFor={prompt.enhancedFor}
@@ -1022,8 +1144,8 @@ async function handleCopy(text, promptId) {
                   style={{ cursor: 'default' }}
                 >
                   <pre className="content-preview-text">
-                    {isTextExpanded ? prompt.text : prompt.text.slice(0, 50)}
-                    {!isTextExpanded && prompt.text.length >= 50 && "..."}
+                    {isTextExpanded ? prompt.text : prompt.text.slice(0, TRUNCATE_LENGTH)}
+                    {!isTextExpanded && prompt.text.length >= TRUNCATE_LENGTH && "..."}
                   </pre>
                   {shouldTruncate && (
                     <div 
@@ -1083,16 +1205,18 @@ async function handleCopy(text, promptId) {
                       <Maximize2 className="w-4 h-4" />
                     </button>
 
-                    <FavoriteButton
-                      prompt={prompt}
-                      teamId={activeTeam}
-                      teamName={teamName}
-                      size="small"
-                      className="action-btn-premium primary"
-                    />
+                    {activeTeam && (
+                      <FavoriteButton
+                        prompt={prompt}
+                        teamId={activeTeam}
+                        teamName={teamName}
+                        size="small"
+                        className="action-btn-premium primary"
+                      />
+                    )}
 
                     {/* Kebab Menu */}
-                    <div className="kebab-menu-container">
+                    <div className="kebab-menu-container" ref={kebabMenuRef}>
                       <button
                         onClick={() =>
                           setOpenKebabMenu(openKebabMenu === prompt.id ? null : prompt.id)
@@ -1105,27 +1229,17 @@ async function handleCopy(text, promptId) {
 
                       {openKebabMenu === prompt.id && (
                         <div className="kebab-menu">
-                          {/* ✅ NEW: Duplicate Demo Button */}
-    {isDemoPrompt(prompt) && (
-      <button
-        onClick={() => {
-          const duplicated = duplicateDemoPrompt(prompt, userId);
-          setNewPrompt({
-            title: duplicated.title,
-            text: duplicated.text,
-            tags: duplicated.tags.join(", "),
-            visibility: duplicated.visibility || "public",
-          });
-          setShowCreateForm(true);
-          setOpenKebabMenu(null);
-          showSuccessToast("Demo copied to create form. Click 'Create' to save your version!");
-        }}
-        className="kebab-menu-item"
-      >
-        <Copy className="w-4 h-4" />
-        <span>Duplicate as My Own</span>
-      </button>
-    )}
+                          {/* ✅ Duplicate Demo Button */}
+                          {isDemoPrompt(prompt) && (
+                            <button
+                              onClick={() => handleDuplicateDemo(prompt)}
+                              className="kebab-menu-item"
+                            >
+                              <Copy className="w-4 h-4" />
+                              <span>Duplicate as My Own</span>
+                            </button>
+                          )}
+
                           <button
                             onClick={() => handleAIEnhance(prompt)}
                             className="kebab-menu-item"
@@ -1134,7 +1248,7 @@ async function handleCopy(text, promptId) {
                             <span>Enhance with AI</span>
                           </button>
 
-                          {canChangeVisibility(prompt, user.uid, userRole) && (
+                          {!isDemoPrompt(prompt) && canChangeVisibility(prompt, effectiveUserId, userRole) && (
                             <button
                               onClick={() => handleToggleVisibility(prompt.id)}
                               className="kebab-menu-item"
@@ -1179,52 +1293,60 @@ async function handleCopy(text, promptId) {
                     <div className="space-y-4 mt-6 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
                       <CompactAITools text={prompt.text} />
 
-                      {/* Rating Section */}
-                      <div className="glass-card p-4 rounded-lg border" style={{ borderColor: "var(--border)" }}>
-                        <RatingSection teamId={activeTeam} promptId={prompt.id} />
-                      </div>
+                      {/* Rating Section - only for non-demo prompts with team */}
+                      {!isDemoPrompt(prompt) && activeTeam && (
+                        <div className="glass-card p-4 rounded-lg border" style={{ borderColor: "var(--border)" }}>
+                          <RatingSection teamId={activeTeam} promptId={prompt.id} />
+                        </div>
+                      )}
 
-                      {/* Results Section */}
-                      <div>
-                        <button
-                          onClick={() =>
-                            setShowResults((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
-                          }
-                          className="expand-toggle"
-                        >
-                          <span>
-                            {showResults[prompt.id] ? "Hide" : "Show"} AI Output Results
-                            {resultsCount > 0 && ` (${resultsCount})`}
-                          </span>
-                          <ChevronDown className={`w-4 h-4 ${showResults[prompt.id] ? "rotate-180" : ""}`} />
-                        </button>
+                      {/* Results Section - only for non-demo prompts with team */}
+                      {!isDemoPrompt(prompt) && activeTeam && (
+                        <div>
+                          <button
+                            onClick={() =>
+                              setShowResults((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
+                            }
+                            className="expand-toggle"
+                          >
+                            <span>
+                              {showResults[prompt.id] ? "Hide" : "Show"} AI Output Results
+                              {resultsCount > 0 && ` (${resultsCount})`}
+                            </span>
+                            <ChevronDown className={`w-4 h-4 ${showResults[prompt.id] ? "rotate-180" : ""}`} />
+                          </button>
 
-                        {showResults[prompt.id] && (
-                          <div className="mt-4">
-                            <PromptResults
-                              key={`results-${prompt.id}`}
-                              teamId={activeTeam}
-                              promptId={prompt.id}
-                              userRole={userRole}
-                              onResultsChange={(count) => handleResultsChange(prompt.id, count)}
-                            />
-                          </div>
-                        )}
-                      </div>
+                          {showResults[prompt.id] && (
+                            <div className="mt-4">
+                              <PromptResults
+                                key={`results-${prompt.id}`}
+                                teamId={activeTeam}
+                                promptId={prompt.id}
+                                userRole={userRole}
+                                onResultsChange={(count) => handleResultsChange(prompt.id, count)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-                      {/* Comments */}
-                      <button
-                        onClick={() =>
-                          setShowComments((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
-                        }
-                        className="expand-toggle"
-                      >
-                        <span>{showComments[prompt.id] ? "Hide" : "Show"} Comments</span>
-                        <ChevronDown className={`w-4 h-4 ${showComments[prompt.id] ? "rotate-180" : ""}`} />
-                      </button>
+                      {/* Comments - only for non-demo prompts with team */}
+                      {!isDemoPrompt(prompt) && activeTeam && (
+                        <>
+                          <button
+                            onClick={() =>
+                              setShowComments((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
+                            }
+                            className="expand-toggle"
+                          >
+                            <span>{showComments[prompt.id] ? "Hide" : "Show"} Comments</span>
+                            <ChevronDown className={`w-4 h-4 ${showComments[prompt.id] ? "rotate-180" : ""}`} />
+                          </button>
 
-                      {showComments[prompt.id] && (
-                        <Comments teamId={activeTeam} promptId={prompt.id} userRole={userRole} />
+                          {showComments[prompt.id] && (
+                            <Comments teamId={activeTeam} promptId={prompt.id} userRole={userRole} />
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -1234,6 +1356,7 @@ async function handleCopy(text, promptId) {
           })}
         </div>
       )}
+
       {/* Bottom Pagination */}
       {filteredPrompts.length > 0 && (
         <PaginationControls
@@ -1250,57 +1373,78 @@ async function handleCopy(text, promptId) {
         teamMembers={teamMembers}
       />
 
-      {/* Bulk Operations */}
-      {prompts.length > 0 && (
+      {/* Bulk Operations - only for authenticated users */}
+      {!isGuestMode && prompts.length > 0 && effectiveUserId && (
         <BulkOperations
           prompts={filteredPrompts}
           selectedPrompts={selectedPrompts}
           onSelectionChange={setSelectedPrompts}
           onBulkDelete={async (ids) => {
-            await Promise.all(ids.map((id) => deletePrompt(activeTeam, id)));
-            setSelectedPrompts([]);
-            showSuccessToast(`Deleted ${ids.length} prompts`);
+            try {
+              await Promise.all(ids.map((id) => deletePrompt(activeTeam, id)));
+              setSelectedPrompts([]);
+              showSuccessToast(`Deleted ${ids.length} prompts`);
+            } catch (error) {
+              console.error("Error in bulk delete:", error);
+              showNotification("Failed to delete some prompts", "error");
+            }
           }}
           onBulkExport={(promptsToExport, format) => {
-            const filename = `prompts-${new Date().toISOString().split("T")[0]}`;
-            switch (format) {
-              case "json":
-                ExportUtils.exportAsJSON(promptsToExport, filename);
-                break;
-              case "csv":
-                ExportUtils.exportAsCSV(promptsToExport, filename);
-                break;
-              case "txt":
-                ExportUtils.exportAsTXT(promptsToExport, filename);
-                break;
+            try {
+              const filename = `prompts-${new Date().toISOString().split("T")[0]}`;
+              switch (format) {
+                case "json":
+                  ExportUtils.exportAsJSON(promptsToExport, filename);
+                  break;
+                case "csv":
+                  ExportUtils.exportAsCSV(promptsToExport, filename);
+                  break;
+                case "txt":
+                  ExportUtils.exportAsTXT(promptsToExport, filename);
+                  break;
+                default:
+                  throw new Error("Unknown export format");
+              }
+              showSuccessToast(`Exported ${promptsToExport.length} prompts`);
+            } catch (error) {
+              console.error("Error exporting prompts:", error);
+              showNotification("Failed to export prompts", "error");
             }
-            showSuccessToast(`Exported ${promptsToExport.length} prompts`);
           }}
           userRole={userRole}
-          userId={user.uid}
+          userId={effectiveUserId}
         />
       )}
 
-      {/* Import/Export */}
-      <ExportImport
-        onImport={async (importedPrompts) => {
-          let successCount = 0;
-          for (const prompt of importedPrompts) {
-            try {
-              await savePrompt(user.uid, prompt, activeTeam);
-              successCount++;
-            } catch (error) {
-              console.error("Import error:", error);
+      {/* Import/Export - only for authenticated users */}
+      {!isGuestMode && activeTeam && effectiveUserId && (
+        <ExportImport
+          onImport={async (importedPrompts) => {
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (const prompt of importedPrompts) {
+              try {
+                await savePrompt(effectiveUserId, prompt, activeTeam);
+                successCount++;
+              } catch (error) {
+                console.error("Import error:", error);
+                errorCount++;
+              }
             }
-          }
-          if (successCount > 0) {
-            showSuccessToast(`Imported ${successCount} prompts`);
-          }
-        }}
-        teamId={activeTeam}
-        teamName={teamName}
-        userRole={userRole}
-      />
+            
+            if (successCount > 0) {
+              showSuccessToast(`Imported ${successCount} prompts`);
+            }
+            if (errorCount > 0) {
+              showNotification(`Failed to import ${errorCount} prompts`, "error");
+            }
+          }}
+          teamId={activeTeam}
+          teamName={teamName}
+          userRole={userRole}
+        />
+      )}
 
       {/* Modals */}
       {showEditModal && editingPrompt && (
@@ -1329,3 +1473,11 @@ async function handleCopy(text, promptId) {
     </div>
   );
 }
+
+// PropTypes for type checking
+PromptList.propTypes = {
+  activeTeam: PropTypes.string,
+  userRole: PropTypes.string,
+  isGuestMode: PropTypes.bool,
+  userId: PropTypes.string,
+};
