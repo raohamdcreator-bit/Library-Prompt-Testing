@@ -49,6 +49,15 @@ import AIPromptEnhancer from "./AIPromptEnhancer";
 import PromptResults from "./PromptResults";
 import { StarRating, usePromptRating } from "./PromptAnalytics";
 import { useSoundEffects } from '../hooks/useSoundEffects';
+import { isDemoPrompt, duplicateDemoPrompt } from '../lib/guestDemoContent';
+import { 
+  getDemoPrompts, 
+  updateDemoPrompt, 
+  deleteDemoPrompt,
+  trackDemoInteraction 
+} from '../lib/demoPromptManager';
+import { useGuestMode } from '../context/GuestModeContext';
+
 
 // Rating Section Component
 function RatingSection({ teamId, promptId }) {
@@ -97,8 +106,9 @@ function RatingSection({ teamId, promptId }) {
   );
 }
 
-export default function PromptList({ activeTeam, userRole }) {
+export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId }) { {
   const { user } = useAuth();
+  const { triggerSaveModal, canEditPrompt: canEditAsGuest, canDeletePrompt: canDeleteAsGuest } = useGuestMode();
   const { playNotification } = useSoundEffects();
   const [prompts, setPrompts] = useState([]);
   const [filteredPrompts, setFilteredPrompts] = useState([]);
@@ -127,47 +137,57 @@ export default function PromptList({ activeTeam, userRole }) {
 
   const pagination = usePagination(filteredPrompts, 10);
 
-  // Load prompts
-  useEffect(() => {
-    if (!activeTeam) {
-      setPrompts([]);
-      setFilteredPrompts([]);
+  // Load prompts (with demo support for guests)
+useEffect(() => {
+  // ✅ GUEST MODE: Load demo prompts from sessionStorage
+  if (isGuestMode && !activeTeam) {
+    const demoPrompts = getDemoPrompts();
+    setPrompts(demoPrompts);
+    setFilteredPrompts(demoPrompts);
+    setLoading(false);
+    return;
+  }
+
+  // ✅ AUTHENTICATED: Load from Firestore
+  if (!activeTeam) {
+    setPrompts([]);
+    setFilteredPrompts([]);
+    setLoading(false);
+    return;
+  }
+
+  setLoading(true);
+  const q = query(
+    collection(db, "teams", activeTeam, "prompts"),
+    orderBy("createdAt", "desc")
+  );
+
+  const unsub = onSnapshot(
+    q,
+    (snap) => {
+      const data = snap.docs.map((d) => ({
+        id: d.id,
+        teamId: activeTeam,
+        ...d.data(),
+      }));
+
+      const uniqueData = Array.from(
+        new Map(data.map((item) => [item.id, item])).values()
+      );
+
+      const visiblePrompts = filterVisiblePrompts(uniqueData, userId, userRole);
+      setPrompts(visiblePrompts);
+      setFilteredPrompts(visiblePrompts);
       setLoading(false);
-      return;
+    },
+    (error) => {
+      console.error("Error loading prompts:", error);
+      setLoading(false);
     }
+  );
 
-    setLoading(true);
-    const q = query(
-      collection(db, "teams", activeTeam, "prompts"),
-      orderBy("createdAt", "desc")
-    );
-
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const data = snap.docs.map((d) => ({
-          id: d.id,
-          teamId: activeTeam,
-          ...d.data(),
-        }));
-
-        const uniqueData = Array.from(
-          new Map(data.map((item) => [item.id, item])).values()
-        );
-
-        const visiblePrompts = filterVisiblePrompts(uniqueData, user.uid, userRole);
-        setPrompts(visiblePrompts);
-        setFilteredPrompts(visiblePrompts);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error loading prompts:", error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsub();
-  }, [activeTeam, user.uid, userRole]);
+  return () => unsub();
+}, [activeTeam, userId, userRole, isGuestMode]);
 
   // Load team name
   useEffect(() => {
@@ -293,28 +313,52 @@ export default function PromptList({ activeTeam, userRole }) {
   }
 
   async function handleCreate(e) {
-    e.preventDefault();
-    if (!newPrompt.title.trim() || !newPrompt.text.trim()) {
-      showNotification("Title and prompt text are required", "error");
-      return;
+  e.preventDefault();
+  
+  // ✅ GUEST MODE: Check if guest is trying to save
+  if (isGuestMode) {
+    const newPromptData = {
+      title: newPrompt.title.trim(),
+      text: newPrompt.text.trim(),
+      tags: newPrompt.tags.split(",").map((t) => t.trim()).filter(Boolean),
+      visibility: newPrompt.visibility,
+      isDemo: false,
+      owner: 'guest',
+    };
+    
+    // Trigger signup modal
+    const canProceed = triggerSaveModal(newPromptData, async () => {
+      // This callback will execute after successful signup
+      await handleCreate(e);
+    });
+    
+    if (!canProceed) {
+      return; // Blocked - signup modal will show
     }
+  }
+  
+  // ✅ ORIGINAL CODE CONTINUES
+  if (!newPrompt.title.trim() || !newPrompt.text.trim()) {
+    showNotification("Title and prompt text are required", "error");
+    return;
+  }
 
-    try {
-      await savePrompt(
-        user.uid,
-        {
-          title: newPrompt.title.trim(),
-          text: newPrompt.text.trim(),
-          tags: newPrompt.tags.split(",").map((t) => t.trim()).filter(Boolean),
-          visibility: newPrompt.visibility,
-        },
-        activeTeam
-      );
+  try {
+    await savePrompt(
+      userId,
+      {
+        title: newPrompt.title.trim(),
+        text: newPrompt.text.trim(),
+        tags: newPrompt.tags.split(",").map((t) => t.trim()).filter(Boolean),
+        visibility: newPrompt.visibility,
+      },
+      activeTeam
+    );
 
-      setNewPrompt({ title: "", tags: "", text: "", visibility: "public" });
-      setShowCreateForm(false);
-      showSuccessToast("Prompt created successfully!");
-      if (window.gtag) {
+    setNewPrompt({ title: "", tags: "", text: "", visibility: "public" });
+    setShowCreateForm(false);
+    showSuccessToast("Prompt created successfully!");
+    if (window.gtag) {
       window.gtag('event', 'prompt_created', {
         team_id: activeTeam,
         prompt_title: newPrompt.title.trim(),
@@ -322,49 +366,91 @@ export default function PromptList({ activeTeam, userRole }) {
         tags_count: newPrompt.tags.split(",").filter(Boolean).length,
       });
     }
-    } catch (error) {
-      console.error("Error creating prompt:", error);
-      showNotification("Failed to create prompt", "error");
-    }
+  } catch (error) {
+    console.error("Error creating prompt:", error);
+    showNotification("Failed to create prompt", "error");
   }
+}
 
-  async function handleUpdate(promptId, updates) {
-    try {
-      await updatePrompt(activeTeam, promptId, updates);
+ async function handleUpdate(promptId, updates) {
+  try {
+    const prompt = prompts.find(p => p.id === promptId);
+    
+    // ✅ DEMO PROMPT: Update in sessionStorage only
+    if (isDemoPrompt(prompt)) {
+      updateDemoPrompt(promptId, updates);
+      trackDemoInteraction('edited', promptId);
+      
+      // Refresh demo prompts
+      const updatedDemos = getDemoPrompts();
+      setPrompts(updatedDemos);
+      setFilteredPrompts(updatedDemos);
+      
       setShowEditModal(false);
       setEditingPrompt(null);
-      showSuccessToast("Prompt updated successfully!");
-    } catch (error) {
-      console.error("Error updating prompt:", error);
-      showNotification("Failed to update prompt", "error");
-    }
-  }
-
-  async function handleDelete(promptId) {
-    const prompt = prompts.find((p) => p.id === promptId);
-    if (!prompt) return;
-
-    if (
-      prompt.createdBy !== user.uid &&
-      userRole !== "owner" &&
-      userRole !== "admin"
-    ) {
-      showNotification("You don't have permission to delete this prompt", "error");
+      showSuccessToast("Demo prompt updated (changes are temporary)");
       return;
     }
+    
+    // ✅ USER PROMPT: Update in Firestore
+    await updatePrompt(activeTeam, promptId, updates);
+    setShowEditModal(false);
+    setEditingPrompt(null);
+    showSuccessToast("Prompt updated successfully!");
+  } catch (error) {
+    console.error("Error updating prompt:", error);
+    showNotification("Failed to update prompt", "error");
+  }
+}
 
-    if (!confirm("Are you sure you want to delete this prompt?")) return;
+  async function handleDelete(promptId) {
+  const prompt = prompts.find((p) => p.id === promptId);
+  if (!prompt) return;
 
+  // ✅ DEMO PROMPT: Delete from sessionStorage
+  if (isDemoPrompt(prompt)) {
+    if (!confirm("Remove this demo prompt? (It will be restored on page refresh)")) return;
+    
     try {
-      await deletePrompt(activeTeam, promptId);
-      showSuccessToast("Prompt deleted");
+      deleteDemoPrompt(promptId);
+      trackDemoInteraction('deleted', promptId);
+      
+      // Refresh demo prompts
+      const updatedDemos = getDemoPrompts();
+      setPrompts(updatedDemos);
+      setFilteredPrompts(updatedDemos);
+      
+      showSuccessToast("Demo prompt removed (temporary)");
       setOpenKebabMenu(null);
+      return;
     } catch (error) {
-      console.error("Error deleting prompt:", error);
-      showNotification("Failed to delete prompt", "error");
+      console.error("Error deleting demo prompt:", error);
+      showNotification("Failed to remove demo prompt", "error");
+      return;
     }
   }
 
+  // ✅ USER PROMPT: Permission check + Firestore delete
+  if (
+    prompt.createdBy !== userId &&
+    userRole !== "owner" &&
+    userRole !== "admin"
+  ) {
+    showNotification("You don't have permission to delete this prompt", "error");
+    return;
+  }
+
+  if (!confirm("Are you sure you want to delete this prompt?")) return;
+
+  try {
+    await deletePrompt(activeTeam, promptId);
+    showSuccessToast("Prompt deleted");
+    setOpenKebabMenu(null);
+  } catch (error) {
+    console.error("Error deleting prompt:", error);
+    showNotification("Failed to delete prompt", "error");
+  }
+}
   async function handleToggleVisibility(promptId) {
     const prompt = prompts.find((p) => p.id === promptId);
     if (!prompt) return;
@@ -390,18 +476,25 @@ export default function PromptList({ activeTeam, userRole }) {
     }
   }
 
-  async function handleCopy(text, promptId) {
-    try {
-      await navigator.clipboard.writeText(text);
-      showSuccessToast("Copied to clipboard!");
-      
-      // Track copy in stats
+async function handleCopy(text, promptId) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showSuccessToast("Copied to clipboard!");
+    
+    const prompt = prompts.find(p => p.id === promptId);
+    
+    // ✅ Track demo interaction
+    if (isDemoPrompt(prompt)) {
+      trackDemoInteraction('copied', promptId);
+    } else if (activeTeam) {
+      // ✅ Track user prompt stats
       await trackPromptCopy(activeTeam, promptId);
-    } catch (error) {
-      console.error("Error copying to clipboard:", error);
-      showNotification("Failed to copy", "error");
     }
+  } catch (error) {
+    console.error("Error copying to clipboard:", error);
+    showNotification("Failed to copy", "error");
   }
+}
 
   async function handleExpand(promptId) {
     const isCurrentlyExpanded = expandedPromptId === promptId;
@@ -538,13 +631,19 @@ export default function PromptList({ activeTeam, userRole }) {
     }
   }
 
-  function canEditPrompt(prompt) {
-    return (
-      prompt.createdBy === user.uid ||
-      userRole === "owner" ||
-      userRole === "admin"
-    );
+ function canEditPrompt(prompt) {
+  // ✅ Demo prompts can be edited by anyone (changes are ephemeral)
+  if (isDemoPrompt(prompt)) {
+    return true;
   }
+  
+  // ✅ User prompts require ownership or admin role
+  return (
+    prompt.createdBy === userId ||
+    userRole === "owner" ||
+    userRole === "admin"
+  );
+}
 
   function getUserInitials(name, email) {
     if (name) {
@@ -841,18 +940,24 @@ export default function PromptList({ activeTeam, userRole }) {
       )}
 
       {/* Prompts List */}
-      {pagination.currentItems.length === 0 ? (
-        <div className="glass-card p-12 text-center">
-          <FileText className="w-16 h-16 mx-auto mb-4" style={{ color: "var(--muted-foreground)" }} />
-          <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--foreground)" }}>
-            {pagination.isFiltered ? "No matching prompts" : "No prompts yet"}
-          </h3>
-          <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
-            {pagination.isFiltered
-              ? "Try adjusting your search filters"
-              : "Create your first prompt to get started"}
-          </p>
-        </div>
+     {pagination.currentItems.length === 0 ? (
+  <div className="glass-card p-12 text-center">
+    <FileText className="w-16 h-16 mx-auto mb-4" style={{ color: "var(--muted-foreground)" }} />
+    <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--foreground)" }}>
+      {isGuestMode 
+        ? "Welcome to Prism!" 
+        : pagination.isFiltered 
+          ? "No matching prompts" 
+          : "No prompts yet"}
+    </h3>
+    <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
+      {isGuestMode
+        ? "Explore demo prompts above or create your own. Sign up to save your work!"
+        : pagination.isFiltered
+          ? "Try adjusting your search filters"
+          : "Create your first prompt to get started"}
+    </p>
+  </div>
       ) : (
         <div className="space-y-4">
           {pagination.currentItems.map((prompt) => {
@@ -889,6 +994,19 @@ export default function PromptList({ activeTeam, userRole }) {
                 {/* Title & Badge */}
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="prompt-title-premium flex-1">{prompt.title}</h3>
+                  {isDemoPrompt(prompt) && (
+  <span 
+    className="visibility-badge"
+    style={{
+      background: 'rgba(139, 92, 246, 0.15)',
+      borderColor: 'var(--primary)',
+      color: 'var(--primary)',
+    }}
+  >
+    <Sparkles className="w-3 h-3" />
+    Demo
+  </span>
+)}
                   <EnhancedBadge
                     enhanced={prompt.enhanced}
                     enhancedFor={prompt.enhancedFor}
@@ -987,6 +1105,27 @@ export default function PromptList({ activeTeam, userRole }) {
 
                       {openKebabMenu === prompt.id && (
                         <div className="kebab-menu">
+                          {/* ✅ NEW: Duplicate Demo Button */}
+    {isDemoPrompt(prompt) && (
+      <button
+        onClick={() => {
+          const duplicated = duplicateDemoPrompt(prompt, userId);
+          setNewPrompt({
+            title: duplicated.title,
+            text: duplicated.text,
+            tags: duplicated.tags.join(", "),
+            visibility: duplicated.visibility || "public",
+          });
+          setShowCreateForm(true);
+          setOpenKebabMenu(null);
+          showSuccessToast("Demo copied to create form. Click 'Create' to save your version!");
+        }}
+        className="kebab-menu-item"
+      >
+        <Copy className="w-4 h-4" />
+        <span>Duplicate as My Own</span>
+      </button>
+    )}
                           <button
                             onClick={() => handleAIEnhance(prompt)}
                             className="kebab-menu-item"
