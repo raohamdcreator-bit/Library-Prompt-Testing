@@ -1,5 +1,5 @@
 // src/components/OnboardingExperience.jsx - FIXED: Works without teams for guests
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Sparkles, 
   ArrowRight, 
