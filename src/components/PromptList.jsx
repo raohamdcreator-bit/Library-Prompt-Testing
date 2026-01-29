@@ -1474,10 +1474,4 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   );
 }
 
-// PropTypes for type checking
-PromptList.propTypes = {
-  activeTeam: PropTypes.string,
-  userRole: PropTypes.string,
-  isGuestMode: PropTypes.bool,
-  userId: PropTypes.string,
-};
+
