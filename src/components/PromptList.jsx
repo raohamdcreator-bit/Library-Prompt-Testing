@@ -57,7 +57,6 @@ import {
   trackDemoInteraction 
 } from '../lib/demoPromptManager';
 import { useGuestMode } from '../context/GuestModeContext';
-import PropTypes from 'prop-types';
 
 // Constants
 const TRUNCATE_LENGTH = 50;
@@ -111,11 +110,6 @@ function RatingSection({ teamId, promptId }) {
   );
 }
 
-RatingSection.propTypes = {
-  teamId: PropTypes.string,
-  promptId: PropTypes.string.isRequired,
-};
-
 // User Avatar Component
 function UserAvatar({ src, name, email }) {
   const [imageError, setImageError] = useState(false);
@@ -150,12 +144,6 @@ function UserAvatar({ src, name, email }) {
     />
   );
 }
-
-UserAvatar.propTypes = {
-  src: PropTypes.string,
-  name: PropTypes.string,
-  email: PropTypes.string,
-};
 
 export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId }) {
   const { user } = useAuth();
@@ -1473,5 +1461,3 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     </div>
   );
 }
-
-
