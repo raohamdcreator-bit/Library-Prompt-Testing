@@ -1,3 +1,4 @@
+// src/components/OnboardingExperience.jsx - FIXED: Works without teams for guests
 import { useState } from 'react';
 import { 
   Sparkles, 
@@ -7,54 +8,24 @@ import {
   FileText, 
   Star,
   X,
-  Clock,
 } from 'lucide-react';
+import { DEMO_PROMPTS } from '../lib/guestDemoContent';
 
-// Example prompts to populate the team
-const EXAMPLE_PROMPTS = [
-  {
-    title: "Blog Post Generator",
-    text: "Write a comprehensive blog post about [TOPIC]. Include an engaging introduction, 3-5 main points with examples, and a compelling conclusion. Make it SEO-friendly with natural keyword integration.",
-    tags: ["writing", "content", "marketing"],
-    visibility: "public",
-    category: "Content Creation"
-  },
-  {
-    title: "Code Review Assistant",
-    text: "Review the following code and provide:\n1. Bug identification\n2. Performance optimization suggestions\n3. Best practice recommendations\n4. Security considerations\n\nCode:\n[PASTE CODE HERE]",
-    tags: ["development", "code-review", "programming"],
-    visibility: "public",
-    category: "Development"
-  },
-  {
-    title: "Email Marketing Template",
-    text: "Create a professional email marketing campaign for [PRODUCT/SERVICE]. Include:\n- Attention-grabbing subject line\n- Personalized greeting\n- Value proposition\n- Clear call-to-action\n- Professional sign-off\n\nTone: [Professional/Friendly/Urgent]",
-    tags: ["marketing", "email", "sales"],
-    visibility: "public",
-    category: "Marketing"
-  },
-  {
-    title: "Data Analysis Helper",
-    text: "Analyze the following dataset and provide:\n1. Key trends and patterns\n2. Statistical insights\n3. Actionable recommendations\n4. Visualization suggestions\n\nData:\n[PASTE DATA HERE]",
-    tags: ["analytics", "data", "insights"],
-    visibility: "public",
-    category: "Analytics"
-  },
-  {
-    title: "Meeting Summary Creator",
-    text: "Summarize the following meeting notes into:\n1. Key decisions made\n2. Action items with owners\n3. Important discussions\n4. Next steps and deadlines\n\nNotes:\n[PASTE MEETING NOTES]",
-    tags: ["productivity", "meetings", "collaboration"],
-    visibility: "public",
-    category: "Productivity"
-  }
-];
-
+/**
+ * ✅ FIXED: Onboarding Experience for Guests
+ * - No team dependency
+ * - Demos stored in sessionStorage only
+ * - Works for both guests and authenticated users
+ * - For guests: Educational experience
+ * - For auth users: Adds prompts to their team
+ */
 export default function OnboardingExperience({ 
   onComplete, 
   onSkip, 
   userName,
-  teamId,
-  onCreateExamples 
+  teamId, // Optional - only for authenticated users
+  onCreateExamples, // Optional - only for authenticated users
+  isGuest = false, // ✅ NEW: Distinguish guest vs auth onboarding
 }) {
   const [step, setStep] = useState(1);
   const [selectedPrompts, setSelectedPrompts] = useState(new Set([0, 1, 2])); // Pre-select first 3
@@ -75,19 +46,39 @@ export default function OnboardingExperience({
     });
   };
 
+  /**
+   * ✅ FIXED: Handle example creation differently for guests vs auth users
+   */
   const handleCreateExamples = async () => {
     setIsCreating(true);
     
-    const selectedExamples = EXAMPLE_PROMPTS.filter((_, index) => 
+    const selectedExamples = DEMO_PROMPTS.filter((_, index) => 
       selectedPrompts.has(index)
     );
 
     try {
-      await onCreateExamples(selectedExamples);
-      setStep(2);
+      if (isGuest) {
+        // ✅ GUESTS: Demos already loaded in sessionStorage
+        // Just track interaction and proceed
+        if (window.gtag) {
+          window.gtag('event', 'demo_prompts_viewed', {
+            count: selectedExamples.length,
+            user_type: 'guest',
+          });
+        }
+        
+        // No backend operation needed
+        setStep(2);
+      } else {
+        // ✅ AUTHENTICATED: Save to their team (existing behavior)
+        if (onCreateExamples && teamId) {
+          await onCreateExamples(selectedExamples);
+        }
+        setStep(2);
+      }
     } catch (error) {
-      console.error("Error creating examples:", error);
-      alert("Failed to create example prompts. Please try again.");
+      console.error("Error in onboarding:", error);
+      alert("Failed to proceed. Please try again.");
     } finally {
       setIsCreating(false);
     }
@@ -138,10 +129,16 @@ export default function OnboardingExperience({
               </div>
               <div>
                 <h2 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
-                  Welcome to Prism, {userName?.split(' ')[0] || 'there'}! 👋
+                  {isGuest 
+                    ? "Welcome to Prism! 👋" 
+                    : `Welcome to Prism, ${userName?.split(' ')[0] || 'there'}! 👋`
+                  }
                 </h2>
                 <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>
-                  Let's get you started in less than a minute
+                  {isGuest 
+                    ? "Explore example prompts to see how teams collaborate"
+                    : "Let's get you started in less than a minute"
+                  }
                 </p>
               </div>
             </div>
@@ -179,16 +176,19 @@ export default function OnboardingExperience({
             <div className="space-y-6">
               <div className="text-center mb-8">
                 <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--foreground)' }}>
-                  Start with Ready-to-Use Examples
+                  {isGuest ? "Explore Demo Prompts" : "Start with Ready-to-Use Examples"}
                 </h3>
                 <p style={{ color: 'var(--muted-foreground)' }}>
-                  Select example prompts to add to your team. You can customize them later!
+                  {isGuest 
+                    ? "See how professional prompts are structured. You can edit these to experiment!"
+                    : "Select example prompts to add to your team. You can customize them later!"
+                  }
                 </p>
               </div>
 
               {/* Example Prompts Grid */}
               <div className="grid md:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2">
-                {EXAMPLE_PROMPTS.map((prompt, index) => {
+                {DEMO_PROMPTS.map((prompt, index) => {
                   const isSelected = selectedPrompts.has(index);
                   
                   return (
@@ -284,16 +284,16 @@ export default function OnboardingExperience({
                 </div>
                 <button
                   onClick={() => {
-                    if (selectedPrompts.size === EXAMPLE_PROMPTS.length) {
+                    if (selectedPrompts.size === DEMO_PROMPTS.length) {
                       setSelectedPrompts(new Set());
                     } else {
-                      setSelectedPrompts(new Set(EXAMPLE_PROMPTS.map((_, i) => i)));
+                      setSelectedPrompts(new Set(DEMO_PROMPTS.map((_, i) => i)));
                     }
                   }}
                   className="text-sm hover:underline"
                   style={{ color: 'var(--primary)' }}
                 >
-                  {selectedPrompts.size === EXAMPLE_PROMPTS.length ? 'Deselect All' : 'Select All'}
+                  {selectedPrompts.size === DEMO_PROMPTS.length ? 'Deselect All' : 'Select All'}
                 </button>
               </div>
 
@@ -311,11 +311,11 @@ export default function OnboardingExperience({
                   {isCreating ? (
                     <>
                       <div className="neo-spinner" />
-                      Creating...
+                      {isGuest ? "Loading..." : "Creating..."}
                     </>
                   ) : (
                     <>
-                      Add Examples & Continue
+                      {isGuest ? "Start Exploring" : "Add Examples & Continue"}
                       <ArrowRight size={20} className="btn-arrow" />
                     </>
                   )}
@@ -340,12 +340,14 @@ export default function OnboardingExperience({
               </div>
 
               <h3 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
-                You're All Set! 🎉
+                {isGuest ? "You're Ready to Explore! 🎉" : "You're All Set! 🎉"}
               </h3>
               
               <p className="text-lg max-w-md mx-auto" style={{ color: 'var(--muted-foreground)' }}>
-                We've added {selectedPrompts.size} example prompt{selectedPrompts.size !== 1 ? 's' : ''} to your team. 
-                Feel free to customize them or create your own!
+                {isGuest 
+                  ? `You can now explore ${selectedPrompts.size} demo prompt${selectedPrompts.size !== 1 ? 's' : ''}. Edit them, copy them, and see how teams collaborate!`
+                  : `We've added ${selectedPrompts.size} example prompt${selectedPrompts.size !== 1 ? 's' : ''} to your team. Feel free to customize them or create your own!`
+                }
               </p>
 
               {/* Quick Tips */}
@@ -358,24 +360,44 @@ export default function OnboardingExperience({
               >
                 <h4 className="font-semibold flex items-center gap-2" style={{ color: 'var(--foreground)' }}>
                   <Zap size={18} style={{ color: 'var(--primary)' }} />
-                  Quick Tips to Get Started:
+                  {isGuest ? "What You Can Do:" : "Quick Tips to Get Started:"}
                 </h4>
                 <ul className="space-y-2 text-sm" style={{ color: 'var(--muted-foreground)' }}>
                   <li className="flex items-start gap-2">
                     <Check size={16} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--primary)' }} />
-                    <span>Click any prompt to expand and see AI enhancement options</span>
+                    <span>
+                      {isGuest 
+                        ? "Edit demo prompts to experiment (changes won't be saved)"
+                        : "Click any prompt to expand and see AI enhancement options"
+                      }
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check size={16} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--primary)' }} />
-                    <span>Use the copy button to quickly use prompts in your AI tools</span>
+                    <span>
+                      {isGuest 
+                        ? "Copy prompts to use in your AI tools (ChatGPT, Claude, etc.)"
+                        : "Use the copy button to quickly use prompts in your AI tools"
+                      }
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check size={16} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--primary)' }} />
-                    <span>Invite team members to collaborate on prompt development</span>
+                    <span>
+                      {isGuest 
+                        ? "Sign up to create your own prompts and save your work"
+                        : "Invite team members to collaborate on prompt development"
+                      }
+                    </span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check size={16} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--primary)' }} />
-                    <span>Track prompt performance with built-in analytics</span>
+                    <span>
+                      {isGuest 
+                        ? "Demo prompts reset on refresh - they're just for exploration!"
+                        : "Track prompt performance with built-in analytics"
+                      }
+                    </span>
                   </li>
                 </ul>
               </div>
@@ -384,7 +406,7 @@ export default function OnboardingExperience({
                 onClick={handleComplete}
                 className="btn-premium px-8 py-4"
               >
-                Start Building
+                {isGuest ? "Start Exploring" : "Start Building"}
                 <ArrowRight size={20} className="btn-arrow" />
               </button>
             </div>
@@ -402,13 +424,13 @@ export default function OnboardingExperience({
           onClick={() => setShowPreview(null)}
         >
           <div 
-            className="w-full max-w-2xl glass-card"
+            className="w-full max-w-2xl glass-card p-6"
             style={{ borderRadius: '16px' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold" style={{ color: 'var(--foreground)' }}>
-                {EXAMPLE_PROMPTS[showPreview].title}
+                {DEMO_PROMPTS[showPreview].title}
               </h3>
               <button
                 onClick={() => setShowPreview(null)}
@@ -428,11 +450,11 @@ export default function OnboardingExperience({
                 color: 'var(--foreground)',
               }}
             >
-              {EXAMPLE_PROMPTS[showPreview].text}
+              {DEMO_PROMPTS[showPreview].text}
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {EXAMPLE_PROMPTS[showPreview].tags.map((tag, index) => (
+              {DEMO_PROMPTS[showPreview].tags.map((tag, index) => (
                 <span key={index} className="tag-chip-premium">
                   #{tag}
                 </span>
