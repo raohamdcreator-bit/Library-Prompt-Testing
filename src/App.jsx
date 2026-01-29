@@ -1,4 +1,4 @@
-// src/App.jsx 
+// src/App.jsx - Modified to support guest mode exploration
 import { useEffect, useState, useRef } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -15,6 +15,8 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "./context/AuthContext";
 import { useActiveTeam } from "./context/AppStateContext";
+import { useGuestMode } from "./context/GuestModeContext";
+import SaveLockModal from "./components/SaveLockModal";
 import PromptList from "./components/PromptList";
 import TeamInviteForm from "./components/TeamInviteForm";
 import MyInvites from "./components/MyInvites";
@@ -28,6 +30,7 @@ import PlagiarismChecker from "./components/PlagiarismChecker";
 import IntroVideoSection from "./components/IntroVideoSection";
 import OnboardingExperience from "./components/OnboardingExperience";
 import { savePrompt } from "./lib/prompts";
+import { migrateGuestWorkToUser } from "./lib/guestState";
 
 // Lucide React Icons
 import {
@@ -168,9 +171,9 @@ function Logo({ size = "normal", onClick }) {
 }
 
 // ===================================
-// NAVIGATION COMPONENT
+// NAVIGATION COMPONENT (UPDATED)
 // ===================================
-function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
+function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const scrolled = useNavbarScroll();
   const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
@@ -203,6 +206,19 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
             >
               <Shield size={16} />
               Admin
+              <ArrowRight size={16} className="btn-arrow" />
+            </button>
+          )}
+
+          {/* Show sign-up button for guest users */}
+          {isGuest && (
+            <button
+              onClick={onSignIn}
+              className="btn-premium"
+              style={{ padding: '10px 20px' }}
+            >
+              <Zap size={16} />
+              Sign up free
               <ArrowRight size={16} className="btn-arrow" />
             </button>
           )}
@@ -268,7 +284,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
               </button>
             )}
 
-            {!isAuthenticated && (
+            {isGuest && (
               <button
                 onClick={() => {
                   onSignIn();
@@ -277,7 +293,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user }) {
                 className="btn-premium w-full"
               >
                 <Zap size={18} />
-                Sign in with Google
+                Sign up free
                 <ArrowRight size={18} className="btn-arrow" />
               </button>
             )}
@@ -377,9 +393,9 @@ function Footer({ onNavigate }) {
 }
 
 // ===================================
-// LANDING PAGE
+// LANDING PAGE (UPDATED CTA)
 // ===================================
-function LandingPage({ onSignIn, onNavigate }) {
+function LandingPage({ onSignIn, onNavigate, onExploreApp }) {
   useScrollReveal();
 
   return (
@@ -395,6 +411,7 @@ function LandingPage({ onSignIn, onNavigate }) {
           isAuthenticated={false}
           onNavigate={onNavigate}
           user={null}
+          isGuest={true}
         />
 
         {/* Hero Section */}
@@ -422,13 +439,13 @@ function LandingPage({ onSignIn, onNavigate }) {
                 Where teams build, test, and manage AI workflows
               </p>
 
-              {/* CTA Buttons */}
+              {/* CTA Buttons - UPDATED */}
               <div className="hero-cta flex flex-row gap-4 justify-center items-center mb-8 px-4 whitespace-nowrap">
                 <button
-                  onClick={onSignIn}
+                  onClick={onExploreApp}
                   className="btn-premium inline-flex items-center gap-2"
                 >
-                  <span>Build Your Workspace</span>
+                  <span>Try it now</span>
                   <ArrowRight size={20} className="btn-arrow" />
                 </button>
 
@@ -444,7 +461,7 @@ function LandingPage({ onSignIn, onNavigate }) {
               <div className="flex items-center justify-center gap-2 text-sm px-4"
                 style={{ color: "var(--muted-foreground)" }}>
                 <span className="text-center">
-                  We're building something transformative • Your feedback will help us shape it
+                  No signup required to explore • Save your work anytime
                 </span>
               </div>
             </div>
@@ -527,15 +544,12 @@ function LandingPage({ onSignIn, onNavigate }) {
           </div>
 
           <div className="text-center scroll-reveal">
-            <button className="btn-premium" onClick={onSignIn}>
+            <button className="btn-premium" onClick={onExploreApp}>
               Explore Features
               <ArrowRight size={20} className="btn-arrow" />
             </button>
           </div>
         </section>
-
-        {/* Video Section */}
-        {/* <IntroVideoSection /> */}
 
         {/* Upcoming Features Section */}
         <section className="container mx-auto px-4 py-20">
@@ -668,7 +682,7 @@ function LandingPage({ onSignIn, onNavigate }) {
             </p>
 
             <div className="flex flex-row gap-4 justify-center items-center mb-8 px-4 whitespace-nowrap">
-              <button onClick={onSignIn} className="btn-premium">
+              <button onClick={onExploreApp} className="btn-premium">
                 See How Teams Use Prism
                 <Zap size={20} />
               </button>
@@ -690,13 +704,21 @@ function LandingPage({ onSignIn, onNavigate }) {
 }
 
 // ===================================
-// MAIN APP COMPONENT
+// MAIN APP COMPONENT (UPDATED)
 // ===================================
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
   const { activeTeam, setActiveTeam } = useActiveTeam();
+  const {
+    isGuest,
+    showSaveModal,
+    isMigrating,
+    handleSignupFromModal,
+    handleContinueWithout,
+    closeSaveModal,
+  } = useGuestMode();
+  
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
-
   const [teams, setTeams] = useState([]);
   const [role, setRole] = useState(null);
   const [avatars, setAvatars] = useState({});
@@ -707,6 +729,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [isExploringAsGuest, setIsExploringAsGuest] = useState(false);
 
   // Navigation handler
   const navigate = (path) => {
@@ -763,7 +786,7 @@ export default function App() {
     );
   }
 
-  // Load teams from Firestore
+  // Load teams from Firestore (only if authenticated)
   useEffect(() => {
     if (!user) {
       setTeams([]);
@@ -790,14 +813,14 @@ export default function App() {
     return () => unsub();
   }, [user, setActiveTeam]);
 
-  // Set first team if no active team
+  // Set first team if no active team (only for authenticated users)
   useEffect(() => {
-    if (!user || loading) return;
+    if (!user || loading || isGuest) return;
 
     if (teams.length > 0 && !activeTeam && activeView !== "favorites") {
       setActiveTeam(teams[0].id);
     }
-  }, [teams.length, activeTeam, activeView, user, loading, setActiveTeam]);
+  }, [teams.length, activeTeam, activeView, user, loading, setActiveTeam, isGuest]);
 
   // Validate active team still exists
   useEffect(() => {
@@ -929,6 +952,26 @@ export default function App() {
     }
   }, [user, teams.length, loading, activeTeam, hasCompletedOnboarding]);
 
+  // Migrate guest work after successful signup
+  useEffect(() => {
+    if (user && !isGuest && teams.length > 0) {
+      const migrateWork = async () => {
+        try {
+          const firstTeamId = teams[0].id;
+          const result = await migrateGuestWorkToUser(user.uid, firstTeamId, savePrompt);
+          
+          if (result.success && result.migratedCount > 0) {
+            console.log(`✅ Migrated ${result.migratedCount} items to your account`);
+          }
+        } catch (error) {
+          console.error('❌ Error migrating guest work:', error);
+        }
+      };
+      
+      migrateWork();
+    }
+  }, [user, isGuest, teams]);
+
   // Create new team
   async function createTeam(name) {
     if (!name || !user) return;
@@ -940,11 +983,11 @@ export default function App() {
         createdAt: serverTimestamp(),
       });
       if (window.gtag) {
-      window.gtag('event', 'workspace_created', {
-        workspace_name: name,
-        user_id: user.uid,
-      });
-    }
+        window.gtag('event', 'workspace_created', {
+          workspace_name: name,
+          user_id: user.uid,
+        });
+      }
     } catch (error) {
       console.error("Error creating team:", error);
       alert("Failed to create team. Please try again.");
@@ -1015,6 +1058,12 @@ export default function App() {
     const onboardingKey = `onboarding_completed_${user.uid}`;
     localStorage.setItem(onboardingKey, 'true');
     setShowOnboarding(false);
+  }
+
+  // Handle "Explore App" from landing page
+  function handleExploreApp() {
+    setIsExploringAsGuest(true);
+    navigate("/app");
   }
 
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
@@ -1091,6 +1140,7 @@ export default function App() {
               isAuthenticated={!!user}
               onNavigate={navigate}
               user={user}
+              isGuest={isGuest}
             />
           )}
           <Router currentPath={currentPath.split("?")[0]}>
@@ -1109,7 +1159,7 @@ export default function App() {
   }
 
   // Loading state
-  if (loading) {
+  if (loading && !isGuest) {
     return (
       <div className="app-container">
         <div className="min-h-screen flex items-center justify-center">
@@ -1122,16 +1172,30 @@ export default function App() {
     );
   }
 
-  // Not authenticated
-  if (!user) {
-    return <LandingPage onSignIn={signInWithGoogle} onNavigate={navigate} />;
+  // Show landing page only if not exploring as guest
+  if (!user && !isExploringAsGuest) {
+    return (
+      <LandingPage
+        onSignIn={signInWithGoogle}
+        onNavigate={navigate}
+        onExploreApp={handleExploreApp}
+      />
+    );
   }
 
-  // Main application UI with static sidebar
+  // Main application UI with static sidebar (GUEST MODE ENABLED)
   return (
     <div className="app-container flex min-h-screen relative">
-      {/* Onboarding Experience */}
-      {showOnboarding && activeTeam && (
+      {/* Save Lock Modal */}
+      <SaveLockModal
+        isOpen={showSaveModal}
+        onClose={closeSaveModal}
+        onSignup={handleSignupFromModal}
+        onContinueWithout={handleContinueWithout}
+      />
+
+      {/* Onboarding Experience (only for authenticated users) */}
+      {showOnboarding && activeTeam && user && (
         <OnboardingExperience
           onComplete={handleOnboardingComplete}
           onSkip={handleOnboardingSkip}
@@ -1147,7 +1211,7 @@ export default function App() {
         onClick={() => setSidebarOpen(false)}
       ></div>
 
-      {/* Static Sidebar */}
+      {/* Static Sidebar (show for both guest and authenticated) */}
       <div className={`team-sidebar ${sidebarOpen ? "mobile-visible" : ""}`}>
         {/* Mobile Close Button */}
         <div className="sidebar-mobile-header">
@@ -1159,203 +1223,264 @@ export default function App() {
 
         {/* Fixed Header Section */}
         <div className="sidebar-header-fixed">
-          {/* User Profile Section */}
-          <div className="sidebar-user-section">
-            <div className="user-info-header">
-              <div className="user-avatar-container">
-                <UserAvatar 
-                  src={user.photoURL} 
-                  name={user.displayName} 
-                  email={user.email}
-                  className="user-avatar"
-                />
-                <div className="user-status-dot"></div>
-              </div>
-              <div className="user-details">
-                <div className="user-name">
-                  {user.displayName || user.email}
+          {/* User Profile Section (show for authenticated users) */}
+          {user && (
+            <>
+              <div className="sidebar-user-section">
+                <div className="user-info-header">
+                  <div className="user-avatar-container">
+                    <UserAvatar 
+                      src={user.photoURL} 
+                      name={user.displayName} 
+                      email={user.email}
+                      className="user-avatar"
+                    />
+                    <div className="user-status-dot"></div>
+                  </div>
+                  <div className="user-details">
+                    <div className="user-name">
+                      {user.displayName || user.email}
+                    </div>
+                    <div className="user-team-count">
+                      {teams.length} {teams.length === 1 ? "team" : "teams"}
+                    </div>
+                  </div>
                 </div>
-                <div className="user-team-count">
-                  {teams.length} {teams.length === 1 ? "team" : "teams"}
-                </div>
               </div>
-            </div>
-          </div>
 
-          <div className="sidebar-divider"></div>
+              <div className="sidebar-divider"></div>
+            </>
+          )}
+
+          {/* Guest Mode Indicator */}
+          {isGuest && (
+            <>
+              <div className="sidebar-user-section">
+                <div
+                  style={{
+                    background: 'rgba(139, 92, 246, 0.08)',
+                    border: '1px solid rgba(139, 92, 246, 0.15)',
+                    borderRadius: '8px',
+                    padding: '0.75rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <Sparkles size={16} style={{ color: 'var(--primary)' }} />
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--foreground)' }}>
+                      Exploring Prism
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'rgba(228, 228, 231, 0.6)', marginBottom: '0.75rem' }}>
+                    Sign up to save your work and collaborate with teams.
+                  </p>
+                  <button
+                    onClick={signInWithGoogle}
+                    className="btn-premium w-full"
+                    style={{ padding: '0.5rem', fontSize: '0.813rem' }}
+                  >
+                    <Shield size={14} />
+                    Sign up free
+                  </button>
+                </div>
+              </div>
+
+              <div className="sidebar-divider"></div>
+            </>
+          )}
 
           {/* Quick Actions - Fixed at Top */}
-          <button
-            onClick={() => {
-              setActiveTeam(null);
-              setActiveView("favorites");
-              setIsChatOpen(false);
-              setSidebarOpen(false);
-            }}
-            className={`sidebar-menu-item ${activeView === "favorites" && !activeTeam ? "active" : ""}`}
-          >
-            <Star size={16} />
-            <span>My Favorites</span>
-          </button>
+          {user && (
+            <>
+              <button
+                onClick={() => {
+                  setActiveTeam(null);
+                  setActiveView("favorites");
+                  setIsChatOpen(false);
+                  setSidebarOpen(false);
+                }}
+                className={`sidebar-menu-item ${activeView === "favorites" && !activeTeam ? "active" : ""}`}
+              >
+                <Star size={16} />
+                <span>My Favorites</span>
+              </button>
 
-          {user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
-            <button
-              onClick={() => {
-                navigate("/admin");
-                setSidebarOpen(false);
-              }}
-              className="sidebar-menu-item primary"
-            >
-              <Shield size={16} />
-              <span>Admin Dashboard</span>
-            </button>
+              {user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase() && (
+                <button
+                  onClick={() => {
+                    navigate("/admin");
+                    setSidebarOpen(false);
+                  }}
+                  className="sidebar-menu-item primary"
+                >
+                  <Shield size={16} />
+                  <span>Admin Dashboard</span>
+                </button>
+              )}
+
+              {activeTeamObj && (
+                <button
+                  onClick={() => {
+                    setIsChatOpen(!isChatOpen);
+                    setSidebarOpen(false);
+                  }}
+                  className={`sidebar-menu-item ${isChatOpen ? "active" : ""}`}
+                >
+                  <MessageSquare size={16} />
+                  <span>Team Chat</span>
+                </button>
+              )}
+
+              <div className="sidebar-divider"></div>
+            </>
           )}
-
-          {activeTeamObj && (
-            <button
-              onClick={() => {
-                setIsChatOpen(!isChatOpen);
-                setSidebarOpen(false);
-              }}
-              className={`sidebar-menu-item ${isChatOpen ? "active" : ""}`}
-            >
-              <MessageSquare size={16} />
-              <span>Team Chat</span>
-            </button>
-          )}
-
-          <div className="sidebar-divider"></div>
         </div>
 
         {/* Scrollable Content Section */}
         <div className="sidebar-content-scroll">
-          {/* Teams Section Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0.875rem' }}>
-            <h2 className="sidebar-section-title">Teams</h2>
-            {teams.length > 0 && (
-              <span className="team-counter">
-                {teams.length}
-              </span>
-            )}
-          </div>
-
-          {/* Teams List */}
-          {teams.map((team) => {
-            const isOwner = team.ownerId === user.uid;
-            const myRole = team.members?.[user.uid];
-            const ownerData = avatars[team.ownerId];
-            const isActive = activeTeam === team.id;
-            const stats = teamStats[team.id] || { memberCount: 0, promptCount: 0 };
-
-            return (
-              <div key={team.id}>
-                <button
-                  onClick={() => {
-                    setActiveTeam(team.id);
-                    setActiveView("prompts");
-                    setSidebarOpen(false);
-                  }}
-                  className={`team-list-item ${isActive ? "active" : ""}`}
-                >
-                  <UserAvatar
-                    src={ownerData?.avatar}
-                    name={ownerData?.name}
-                    email={ownerData?.email}
-                    className="team-avatar"
-                  />
-                  <div className="team-info">
-                    <div className="team-name">{team.name}</div>
-                    <div className="team-meta">
-                      {myRole === "admin" && (
-                        <span className="role-badge-inline">admin</span>
-                      )}
-                      {myRole === "owner" && (
-                        <span className="role-badge-inline">owner</span>
-                      )}
-                      <span className="team-count-indicator">
-                        <Users size={12} />
-                        {stats.memberCount}
-                      </span>
-                      <span className="team-count-indicator">
-                        <FileText size={12} />
-                        {stats.promptCount}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Expanded details when active */}
-                {isActive && (
-                  <div className="team-details-expanded">
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.688rem' }}>
-                      <span className="owner-label">
-                        Owner: {ownerData?.name || ownerData?.email || "Unknown"}
-                      </span>
-                      {isOwner && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm(`Delete team "${team.name}"? This cannot be undone.`)) {
-                              deleteTeam(team.id);
-                            }
-                          }}
-                          className="action-btn-premium danger"
-                          title="Delete team"
-                          style={{ width: '24px', height: '24px' }}
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
+          {/* Teams Section (only for authenticated users) */}
+          {user && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0.875rem' }}>
+                <h2 className="sidebar-section-title">Teams</h2>
+                {teams.length > 0 && (
+                  <span className="team-counter">
+                    {teams.length}
+                  </span>
                 )}
               </div>
-            );
-          })}
 
-          {/* Empty State */}
-          {teams.length === 0 && (
+              {/* Teams List */}
+              {teams.map((team) => {
+                const isOwner = team.ownerId === user.uid;
+                const myRole = team.members?.[user.uid];
+                const ownerData = avatars[team.ownerId];
+                const isActive = activeTeam === team.id;
+                const stats = teamStats[team.id] || { memberCount: 0, promptCount: 0 };
+
+                return (
+                  <div key={team.id}>
+                    <button
+                      onClick={() => {
+                        setActiveTeam(team.id);
+                        setActiveView("prompts");
+                        setSidebarOpen(false);
+                      }}
+                      className={`team-list-item ${isActive ? "active" : ""}`}
+                    >
+                      <UserAvatar
+                        src={ownerData?.avatar}
+                        name={ownerData?.name}
+                        email={ownerData?.email}
+                        className="team-avatar"
+                      />
+                      <div className="team-info">
+                        <div className="team-name">{team.name}</div>
+                        <div className="team-meta">
+                          {myRole === "admin" && (
+                            <span className="role-badge-inline">admin</span>
+                          )}
+                          {myRole === "owner" && (
+                            <span className="role-badge-inline">owner</span>
+                          )}
+                          <span className="team-count-indicator">
+                            <Users size={12} />
+                            {stats.memberCount}
+                          </span>
+                          <span className="team-count-indicator">
+                            <FileText size={12} />
+                            {stats.promptCount}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Expanded details when active */}
+                    {isActive && (
+                      <div className="team-details-expanded">
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.688rem' }}>
+                          <span className="owner-label">
+                            Owner: {ownerData?.name || ownerData?.email || "Unknown"}
+                          </span>
+                          {isOwner && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Delete team "${team.name}"? This cannot be undone.`)) {
+                                  deleteTeam(team.id);
+                                }
+                              }}
+                              className="action-btn-premium danger"
+                              title="Delete team"
+                              style={{ width: '24px', height: '24px' }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Empty State */}
+              {teams.length === 0 && (
+                <div className="sidebar-empty-state">
+                  <p>No teams yet</p>
+                  <p className="text-xs">Create your first team below</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Guest Mode Placeholder */}
+          {isGuest && (
             <div className="sidebar-empty-state">
-              <p>No teams yet</p>
-              <p className="text-xs">Create your first team below</p>
+              <Sparkles size={32} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
+              <p>Exploring as guest</p>
+              <p className="text-xs">Sign up to create teams and save your work</p>
             </div>
           )}
         </div>
 
         {/* Fixed Footer Section */}
         <div className="sidebar-footer-fixed">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const name = e.target.teamName.value.trim();
-              if (name) {
-                createTeam(name);
-                e.target.reset();
-              }
-            }}
-          >
-            <input 
-              type="text" 
-              name="teamName" 
-              placeholder="New team name" 
-              className="new-team-input" 
-              required 
-            />
-            <button type="submit" className="create-team-btn">
-              <Plus size={16} />
-              Create Team
-            </button>
-          </form>
+          {user && (
+            <>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const name = e.target.teamName.value.trim();
+                  if (name) {
+                    createTeam(name);
+                    e.target.reset();
+                  }
+                }}
+              >
+                <input 
+                  type="text" 
+                  name="teamName" 
+                  placeholder="New team name" 
+                  className="new-team-input" 
+                  required 
+                />
+                <button type="submit" className="create-team-btn">
+                  <Plus size={16} />
+                  Create Team
+                </button>
+              </form>
 
-          <button onClick={logout} className="sign-out-btn">
-            <LogOut size={16} />
-            Sign Out
-          </button>
+              <button onClick={logout} className="sign-out-btn">
+                <LogOut size={16} />
+                Sign Out
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0" style={{ marginLeft: '260px' }}>
+      <div className="flex-1 flex flex-col min-w-0" style={{ marginLeft: isGuest ? '0' : '260px' }}>
         {/* Mobile Header */}
         <div className="mobile-header">
           <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn">
@@ -1368,6 +1493,8 @@ export default function App() {
               </h1>
             ) : activeView === "favorites" ? (
               <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>My Favorites</h1>
+            ) : isGuest ? (
+              <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>Prism</h1>
             ) : null}
           </div>
         </div>
@@ -1380,7 +1507,7 @@ export default function App() {
             activeTab={activeView}
             onTabChange={setActiveView}
           />
-        ) : activeView === "favorites" ? (
+        ) : activeView === "favorites" && user ? (
           <div className="hidden md:block p-6 border-b"
             style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}>
             <h1 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>
@@ -1396,7 +1523,7 @@ export default function App() {
         <div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
           {activeTeamObj && activeView === "prompts" && (
             <>
-              <PromptList activeTeam={activeTeamObj.id} userRole={role} />
+              <PromptList activeTeam={activeTeamObj.id} userRole={role} isGuestMode={isGuest} />
               {canManageMembers() && (
                 <TeamInviteForm teamId={activeTeamObj.id} teamName={activeTeamObj.name} role={role} />
               )}
@@ -1419,7 +1546,7 @@ export default function App() {
             <PlagiarismChecker teamId={activeTeamObj.id} userRole={role} />
           )}
 
-          {activeView === "favorites" && !activeTeam && <FavoritesList />}
+          {activeView === "favorites" && !activeTeam && user && <FavoritesList />}
 
           {!activeTeamObj && activeView !== "favorites" && (
             <div className="flex-1 flex items-center justify-center">
@@ -1427,12 +1554,23 @@ export default function App() {
                 <div className="glass-card p-6 md:p-8 max-w-md mx-auto">
                   <Sparkles size={48} className="mx-auto mb-4" style={{ color: "var(--primary)" }} />
                   <h2 className="text-lg md:text-xl font-semibold mb-4" style={{ color: "var(--foreground)" }}>
-                    No Team Selected
+                    {isGuest ? "Explore Prism" : "No Team Selected"}
                   </h2>
                   <p className="mb-6 text-sm md:text-base" style={{ color: "var(--muted-foreground)" }}>
-                    Select a team from the sidebar or create a new one to get started.
+                    {isGuest 
+                      ? "Create prompts and test outputs without signing up. Save your work anytime by creating a free account."
+                      : "Select a team from the sidebar or create a new one to get started."}
                   </p>
-                  {teams.length === 0 && (
+                  {isGuest && (
+                    <button
+                      onClick={signInWithGoogle}
+                      className="btn-premium"
+                    >
+                      <Shield size={18} />
+                      Sign up to save work
+                    </button>
+                  )}
+                  {!isGuest && teams.length === 0 && (
                     <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
                       Create your first team to start collaborating on AI prompts!
                     </p>
@@ -1443,11 +1581,11 @@ export default function App() {
           )}
         </div>
 
-        <MyInvites />
+        {user && <MyInvites />}
       </div>
 
-      {/* Team Chat Component */}
-      {activeTeamObj && (
+      {/* Team Chat Component (only for authenticated users with active team) */}
+      {activeTeamObj && user && (
         <TeamChat
           teamId={activeTeamObj.id}
           teamName={activeTeamObj.name}
