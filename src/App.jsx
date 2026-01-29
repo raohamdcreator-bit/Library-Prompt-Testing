@@ -31,7 +31,7 @@ import IntroVideoSection from "./components/IntroVideoSection";
 import OnboardingExperience from "./components/OnboardingExperience";
 import { savePrompt } from "./lib/prompts";
 import { migrateGuestWorkToUser } from "./lib/guestState";
-
+import { initializeDemoPrompts } from "./lib/demoPromptManager";
 // Lucide React Icons
 import {
   Menu,
@@ -84,6 +84,19 @@ import { NavigationProvider } from "./components/LegalLayout";
 
 // Admin email configuration
 const ADMIN_EMAIL = "rao.hamd.creator@gmail.com";
+
+// ===================================
+// Demo Guest Prompts
+// ===================================
+// for guest demo prompts
+const [guestDemosInitialized, setGuestDemosInitialized] = useState(false);
+// Initialize demo prompts for guest users
+useEffect(() => {
+  if (isGuest && !guestDemosInitialized) {
+    initializeDemoPrompts();
+    setGuestDemosInitialized(true);
+  }
+}, [isGuest, guestDemosInitialized]);
 
 // ===================================
 // SCROLL REVEAL HOOK
@@ -1194,16 +1207,16 @@ export default function App() {
         onContinueWithout={handleContinueWithout}
       />
 
-      {/* Onboarding Experience (only for authenticated users) */}
       {showOnboarding && activeTeam && user && (
-        <OnboardingExperience
-          onComplete={handleOnboardingComplete}
-          onSkip={handleOnboardingSkip}
-          userName={user.displayName}
-          teamId={activeTeam}
-          onCreateExamples={createExamplePrompts}
-        />
-      )}
+  <OnboardingExperience
+    onComplete={handleOnboardingComplete}
+    onSkip={handleOnboardingSkip}
+    userName={user?.displayName}
+    teamId={activeTeam}
+    onCreateExamples={createExamplePrompts}
+    isGuest={false}  // ✅ Authenticated user onboarding
+  />
+)}
 
       {/* Sidebar Overlay for Mobile */}
       <div
@@ -1523,7 +1536,12 @@ export default function App() {
         <div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
           {activeTeamObj && activeView === "prompts" && (
             <>
-              <PromptList activeTeam={activeTeamObj.id} userRole={role} isGuestMode={isGuest} />
+              <PromptList 
+              activeTeam={activeTeamObj.id} 
+              userRole={role} 
+              isGuestMode={isGuest}
+              userId={user?.uid}
+              />
               {canManageMembers() && (
                 <TeamInviteForm teamId={activeTeamObj.id} teamName={activeTeamObj.name} role={role} />
               )}
