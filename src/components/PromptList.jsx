@@ -106,7 +106,7 @@ function RatingSection({ teamId, promptId }) {
   );
 }
 
-export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId }) { {
+export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId })  {
   const { user } = useAuth();
   const { triggerSaveModal, canEditPrompt: canEditAsGuest, canDeletePrompt: canDeleteAsGuest } = useGuestMode();
   const { playNotification } = useSoundEffects();
