@@ -85,18 +85,7 @@ import { NavigationProvider } from "./components/LegalLayout";
 // Admin email configuration
 const ADMIN_EMAIL = "rao.hamd.creator@gmail.com";
 
-// ===================================
-// Demo Guest Prompts
-// ===================================
-// for guest demo prompts
-const [guestDemosInitialized, setGuestDemosInitialized] = useState(false);
-// Initialize demo prompts for guest users
-useEffect(() => {
-  if (isGuest && !guestDemosInitialized) {
-    initializeDemoPrompts();
-    setGuestDemosInitialized(true);
-  }
-}, [isGuest, guestDemosInitialized]);
+
 
 // ===================================
 // SCROLL REVEAL HOOK
@@ -743,7 +732,14 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [isExploringAsGuest, setIsExploringAsGuest] = useState(false);
-
+  const [guestDemosInitialized, setGuestDemosInitialized] = useState(false);
+// Initialize demo prompts for guest users
+useEffect(() => {
+  if (isGuest && !guestDemosInitialized) {
+    initializeDemoPrompts();
+    setGuestDemosInitialized(true);
+  }
+}, [isGuest, guestDemosInitialized]);
   // Navigation handler
   const navigate = (path) => {
     setCurrentPath(path);
