@@ -1,5 +1,16 @@
-// src/lib/guestDemoContent.js - FIXED: Unified demo source with proper ownership flags
+// src/lib/guestDemoContent.js - FIXED: Unified demo source with proper Firestore Timestamp compatibility
 // This is the SINGLE SOURCE for all demo prompts across the application
+
+// Helper to create Firestore-compatible timestamp mock
+function createTimestampMock(date) {
+  const timestamp = date instanceof Date ? date : new Date(date);
+  return {
+    toDate: () => timestamp,
+    toMillis: () => timestamp.getTime(),
+    seconds: Math.floor(timestamp.getTime() / 1000),
+    nanoseconds: (timestamp.getTime() % 1000) * 1000000,
+  };
+}
 
 export const DEMO_PROMPTS = [
   {
@@ -20,7 +31,7 @@ Length: [800/1200/1500] words`,
     visibility: 'public',
     category: 'Content Creation',
     createdBy: 'system',
-    createdAt: { toDate: () => new Date('2024-01-15') },
+    createdAt: createTimestampMock('2024-01-15'),
     stats: { views: 1247, copies: 89 },
     // ✅ CRITICAL FLAGS
     isDemo: true,
@@ -57,7 +68,7 @@ Code:
     visibility: 'public',
     category: 'Development',
     createdBy: 'system',
-    createdAt: { toDate: () => new Date('2024-01-14') },
+    createdAt: createTimestampMock('2024-01-14'),
     stats: { views: 2341, copies: 156 },
     isDemo: true,
     owner: 'system',
@@ -86,7 +97,7 @@ Target: [B2B/B2C/SaaS]`,
     visibility: 'public',
     category: 'Marketing',
     createdBy: 'system',
-    createdAt: { toDate: () => new Date('2024-01-13') },
+    createdAt: createTimestampMock('2024-01-13'),
     stats: { views: 1876, copies: 203 },
     isDemo: true,
     owner: 'system',
@@ -127,7 +138,7 @@ Data:
     visibility: 'public',
     category: 'Analytics',
     createdBy: 'system',
-    createdAt: { toDate: () => new Date('2024-01-12') },
+    createdAt: createTimestampMock('2024-01-12'),
     stats: { views: 987, copies: 67 },
     isDemo: true,
     owner: 'system',
@@ -171,7 +182,7 @@ Timeline: [DURATION]`,
     visibility: 'public',
     category: 'Business',
     createdBy: 'system',
-    createdAt: { toDate: () => new Date('2024-01-11') },
+    createdAt: createTimestampMock('2024-01-11'),
     stats: { views: 1534, copies: 124 },
     isDemo: true,
     owner: 'system',
@@ -213,7 +224,7 @@ Content:
     visibility: 'public',
     category: 'SEO',
     createdBy: 'system',
-    createdAt: { toDate: () => new Date('2024-01-10') },
+    createdAt: createTimestampMock('2024-01-10'),
     stats: { views: 2156, copies: 178 },
     isDemo: true,
     owner: 'system',
@@ -260,7 +271,7 @@ Project Context:
     visibility: 'public',
     category: 'Creative',
     createdBy: 'system',
-    createdAt: { toDate: () => new Date('2024-01-09') },
+    createdAt: createTimestampMock('2024-01-09'),
     stats: { views: 876, copies: 92 },
     isDemo: true,
     owner: 'system',
