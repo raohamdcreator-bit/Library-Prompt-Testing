@@ -85,8 +85,6 @@ import { NavigationProvider } from "./components/LegalLayout";
 // Admin email configuration
 const ADMIN_EMAIL = "rao.hamd.creator@gmail.com";
 
-
-
 // ===================================
 // SCROLL REVEAL HOOK
 // ===================================
@@ -733,13 +731,15 @@ export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [isExploringAsGuest, setIsExploringAsGuest] = useState(false);
   const [guestDemosInitialized, setGuestDemosInitialized] = useState(false);
-// Initialize demo prompts for guest users
-useEffect(() => {
-  if (isGuest && !guestDemosInitialized) {
-    initializeDemoPrompts();
-    setGuestDemosInitialized(true);
-  }
-}, [isGuest, guestDemosInitialized]);
+
+  // Initialize demo prompts for guest users
+  useEffect(() => {
+    if (isGuest && !guestDemosInitialized) {
+      initializeDemoPrompts();
+      setGuestDemosInitialized(true);
+    }
+  }, [isGuest, guestDemosInitialized]);
+
   // Navigation handler
   const navigate = (path) => {
     setCurrentPath(path);
@@ -944,39 +944,39 @@ useEffect(() => {
     };
   }, [teams]);
 
-  // Check if user needs onboarding
-useEffect(() => {
-  if (loading) return;
-  
-  // Guest onboarding - show after demos are initialized
-  if (isGuest && guestDemosInitialized && !hasCompletedOnboarding) {
-    const guestOnboardingKey = 'guest_onboarding_completed';
-    const completed = localStorage.getItem(guestOnboardingKey);
+  // ✅ FIXED: Check if user needs onboarding (guests + authenticated)
+  useEffect(() => {
+    if (loading) return;
     
-    if (!completed) {
+    // ✅ Guest onboarding - show after demos are initialized
+    if (isGuest && guestDemosInitialized && !hasCompletedOnboarding) {
+      const guestOnboardingKey = 'guest_onboarding_completed';
+      const completed = localStorage.getItem(guestOnboardingKey);
+      
+      if (!completed) {
+        const timer = setTimeout(() => {
+          setShowOnboarding(true);
+        }, 800);
+        
+        return () => clearTimeout(timer);
+      }
+      return;
+    }
+    
+    // ✅ Authenticated user onboarding
+    if (!user || !teams.length) return;
+    
+    const onboardingKey = `onboarding_completed_${user.uid}`;
+    const completed = localStorage.getItem(onboardingKey);
+    
+    if (!completed && teams.length === 1 && activeTeam && !hasCompletedOnboarding) {
       const timer = setTimeout(() => {
         setShowOnboarding(true);
       }, 800);
       
       return () => clearTimeout(timer);
     }
-    return;
-  }
-  
-  // Authenticated user onboarding
-  if (!user || !teams.length) return;
-  
-  const onboardingKey = `onboarding_completed_${user.uid}`;
-  const completed = localStorage.getItem(onboardingKey);
-  
-  if (!completed && teams.length === 1 && activeTeam && !hasCompletedOnboarding) {
-    const timer = setTimeout(() => {
-      setShowOnboarding(true);
-    }, 800);
-    
-    return () => clearTimeout(timer);
-  }
-}, [user, teams.length, loading, activeTeam, hasCompletedOnboarding, isGuest, guestDemosInitialized]);
+  }, [user, teams.length, loading, activeTeam, hasCompletedOnboarding, isGuest, guestDemosInitialized]);
 
   // Migrate guest work after successful signup
   useEffect(() => {
@@ -1072,25 +1072,25 @@ useEffect(() => {
     }
   }
 
-// ✅ FIX: Handle onboarding completion for both guests and auth users
-function handleOnboardingComplete() {
-  if (isGuest) {
-    localStorage.setItem('guest_onboarding_completed', 'true');
-  } else if (user) {
-    localStorage.setItem(`onboarding_completed_${user.uid}`, 'true');
+  // ✅ FIXED: Handle onboarding completion for both guests and auth users
+  function handleOnboardingComplete() {
+    if (isGuest) {
+      localStorage.setItem('guest_onboarding_completed', 'true');
+    } else if (user) {
+      localStorage.setItem(`onboarding_completed_${user.uid}`, 'true');
+    }
+    setShowOnboarding(false);
+    setHasCompletedOnboarding(true);
   }
-  setShowOnboarding(false);
-  setHasCompletedOnboarding(true);
-}
 
-function handleOnboardingSkip() {
-  if (isGuest) {
-    localStorage.setItem('guest_onboarding_completed', 'true');
-  } else if (user) {
-    localStorage.setItem(`onboarding_completed_${user.uid}`, 'true');
+  function handleOnboardingSkip() {
+    if (isGuest) {
+      localStorage.setItem('guest_onboarding_completed', 'true');
+    } else if (user) {
+      localStorage.setItem(`onboarding_completed_${user.uid}`, 'true');
+    }
+    setShowOnboarding(false);
   }
-  setShowOnboarding(false);
-}
 
   // Handle "Explore App" from landing page
   function handleExploreApp() {
@@ -1226,16 +1226,29 @@ function handleOnboardingSkip() {
         onContinueWithout={handleContinueWithout}
       />
 
+      {/* ✅ FIXED: Onboarding for authenticated users with team */}
       {showOnboarding && activeTeam && user && (
-  <OnboardingExperience
-    onComplete={handleOnboardingComplete}
-    onSkip={handleOnboardingSkip}
-    userName={user?.displayName}
-    teamId={activeTeam}
-    onCreateExamples={createExamplePrompts}
-    isGuest={false}  // ✅ Authenticated user onboarding
-  />
-)}
+        <OnboardingExperience
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+          userName={user?.displayName}
+          teamId={activeTeam}
+          onCreateExamples={createExamplePrompts}
+          isGuest={false}
+        />
+      )}
+
+      {/* ✅ FIXED: Onboarding for guest users */}
+      {showOnboarding && isGuest && !user && (
+        <OnboardingExperience
+          onComplete={handleOnboardingComplete}
+          onSkip={handleOnboardingSkip}
+          userName="Guest"
+          teamId={null}
+          onCreateExamples={null}
+          isGuest={true}
+        />
+      )}
 
       {/* Sidebar Overlay for Mobile */}
       <div
@@ -1511,74 +1524,25 @@ function handleOnboardingSkip() {
         </div>
       </div>
 
-     {/* Main Content */}
-<div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
-  {/* Authenticated user with team - show team content */}
-  {activeTeamObj && activeView === "prompts" && (
-    <>
-      <PromptList 
-        activeTeam={activeTeamObj.id} 
-        userRole={role} 
-        isGuestMode={isGuest}
-        userId={user?.uid}
-      />
-      {canManageMembers() && (
-        <TeamInviteForm teamId={activeTeamObj.id} teamName={activeTeamObj.name} role={role} />
-      )}
-    </>
-  )}
-
-  {activeTeamObj && activeView === "members" && (
-    <TeamMembers teamId={activeTeamObj.id} teamName={activeTeamObj.name} userRole={role} teamData={activeTeamObj} />
-  )}
-
-  {activeTeamObj && activeView === "analytics" && (
-    <div className="space-y-6">
-      <TeamAnalytics teamId={activeTeamObj.id} />
-    </div>
-  )}
-
-  {activeTeamObj && activeView === "activity" && <ActivityFeed teamId={activeTeamObj.id} />}
-
-  {activeTeamObj && activeView === "plagiarism" && (
-    <PlagiarismChecker teamId={activeTeamObj.id} userRole={role} />
-  )}
-
-  {/* Favorites view for authenticated users */}
-  {activeView === "favorites" && !activeTeam && user && <FavoritesList />}
-
-  {/* ✅ FIX: Guest Mode - Show demo prompts */}
-  {isGuest && !activeTeamObj && activeView !== "favorites" && (
-    <PromptList 
-      activeTeam={null}
-      userRole={null}
-      isGuestMode={true}
-      userId={null}
-    />
-  )}
-
-  {/* ✅ FIX: Authenticated user without team - show empty state */}
-  {!isGuest && !activeTeamObj && activeView !== "favorites" && (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center py-12">
-        <div className="glass-card p-6 md:p-8 max-w-md mx-auto">
-          <Sparkles size={48} className="mx-auto mb-4" style={{ color: "var(--primary)" }} />
-          <h2 className="text-lg md:text-xl font-semibold mb-4" style={{ color: "var(--foreground)" }}>
-            No Team Selected
-          </h2>
-          <p className="mb-6 text-sm md:text-base" style={{ color: "var(--muted-foreground)" }}>
-            Select a team from the sidebar or create a new one to get started.
-          </p>
-          {teams.length === 0 && (
-            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-              Create your first team to start collaborating on AI prompts!
-            </p>
-          )}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0" style={{ marginLeft: isGuest ? '0' : '260px' }}>
+        {/* Mobile Header */}
+        <div className="mobile-header">
+          <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn">
+            <Menu size={24} />
+          </button>
+          <div className="flex-1 min-w-0">
+            {activeTeamObj ? (
+              <h1 className="text-lg font-bold truncate" style={{ color: "var(--foreground)" }}>
+                {activeTeamObj.name}
+              </h1>
+            ) : activeView === "favorites" ? (
+              <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>My Favorites</h1>
+            ) : isGuest ? (
+              <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>Prism</h1>
+            ) : null}
+          </div>
         </div>
-      </div>
-    </div>
-  )}
-</div>
 
         {/* Desktop Header */}
         {activeTeamObj ? (
@@ -1599,6 +1563,75 @@ function handleOnboardingSkip() {
             </p>
           </div>
         ) : null}
+
+        {/* Main Content */}
+        <div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
+          {/* Authenticated user with team - show team content */}
+          {activeTeamObj && activeView === "prompts" && (
+            <>
+              <PromptList 
+                activeTeam={activeTeamObj.id} 
+                userRole={role} 
+                isGuestMode={isGuest}
+                userId={user?.uid}
+              />
+              {canManageMembers() && (
+                <TeamInviteForm teamId={activeTeamObj.id} teamName={activeTeamObj.name} role={role} />
+              )}
+            </>
+          )}
+
+          {activeTeamObj && activeView === "members" && (
+            <TeamMembers teamId={activeTeamObj.id} teamName={activeTeamObj.name} userRole={role} teamData={activeTeamObj} />
+          )}
+
+          {activeTeamObj && activeView === "analytics" && (
+            <div className="space-y-6">
+              <TeamAnalytics teamId={activeTeamObj.id} />
+            </div>
+          )}
+
+          {activeTeamObj && activeView === "activity" && <ActivityFeed teamId={activeTeamObj.id} />}
+
+          {activeTeamObj && activeView === "plagiarism" && (
+            <PlagiarismChecker teamId={activeTeamObj.id} userRole={role} />
+          )}
+
+          {/* Favorites view for authenticated users */}
+          {activeView === "favorites" && !activeTeam && user && <FavoritesList />}
+
+          {/* ✅ FIXED: Guest Mode - Show demo prompts */}
+          {isGuest && !activeTeamObj && activeView !== "favorites" && (
+            <PromptList 
+              activeTeam={null}
+              userRole={null}
+              isGuestMode={true}
+              userId={null}
+            />
+          )}
+
+          {/* ✅ FIXED: Authenticated user without team - show empty state */}
+          {!isGuest && !activeTeamObj && activeView !== "favorites" && (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center py-12">
+                <div className="glass-card p-6 md:p-8 max-w-md mx-auto">
+                  <Sparkles size={48} className="mx-auto mb-4" style={{ color: "var(--primary)" }} />
+                  <h2 className="text-lg md:text-xl font-semibold mb-4" style={{ color: "var(--foreground)" }}>
+                    No Team Selected
+                  </h2>
+                  <p className="mb-6 text-sm md:text-base" style={{ color: "var(--muted-foreground)" }}>
+                    Select a team from the sidebar or create a new one to get started.
+                  </p>
+                  {teams.length === 0 && (
+                    <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                      Create your first team to start collaborating on AI prompts!
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {user && <MyInvites />}
       </div>
