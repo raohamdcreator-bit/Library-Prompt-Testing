@@ -1600,64 +1600,6 @@ function handleOnboardingSkip() {
           </div>
         ) : null}
 
-        {/* Main Content */}
-        <div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
-          {activeTeamObj && activeView === "prompts" && (
-            <>
-              <PromptList 
-              activeTeam={activeTeamObj.id} 
-              userRole={role} 
-              isGuestMode={isGuest}
-              userId={user?.uid}
-              />
-              {canManageMembers() && (
-                <TeamInviteForm teamId={activeTeamObj.id} teamName={activeTeamObj.name} role={role} />
-              )}
-            </>
-          )}
-
-          {activeTeamObj && activeView === "members" && (
-            <TeamMembers teamId={activeTeamObj.id} teamName={activeTeamObj.name} userRole={role} teamData={activeTeamObj} />
-          )}
-
-          {activeTeamObj && activeView === "analytics" && (
-            <div className="space-y-6">
-              <TeamAnalytics teamId={activeTeamObj.id} />
-            </div>
-          )}
-
-          {activeTeamObj && activeView === "activity" && <ActivityFeed teamId={activeTeamObj.id} />}
-
-          {activeTeamObj && activeView === "plagiarism" && (
-            <PlagiarismChecker teamId={activeTeamObj.id} userRole={role} />
-          )}
-
-          {activeView === "favorites" && !activeTeam && user && <FavoritesList />}
-
-         {/* Guest Mode - Show demo prompts */}
-{isGuest && !activeTeamObj && activeView !== "favorites" && (
-  <PromptList 
-    activeTeam={null}
-    userRole={null}
-    isGuestMode={true}
-    userId={null}
-  />
-)}
-
-{/* Authenticated user without team */}
-{!isGuest && !activeTeamObj && activeView !== "favorites" && (
-  <div className="flex-1 flex items-center justify-center">
-    <div className="text-center py-12">
-      <div className="glass-card p-6 md:p-8 max-w-md mx-auto">
-        <Sparkles size={48} className="mx-auto mb-4" />
-        <h2>No Team Selected</h2>
-        <p>Select a team from the sidebar or create a new one to get started.</p>
-      </div>
-    </div>
-  </div>
-)}
-        </div>
-
         {user && <MyInvites />}
       </div>
 
