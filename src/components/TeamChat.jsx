@@ -15,6 +15,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { useTimestamp } from "../hooks/useTimestamp";
 import { 
   MessageSquare, Send, X, Edit2, Trash2, Reply, 
   Clock, Loader, Check, AlertCircle
@@ -28,6 +29,7 @@ export default function TeamChat({
   onToggle,
 }) {
   const { user } = useAuth();
+  const { formatRelative } = useTimestamp();
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -243,42 +245,7 @@ export default function TeamChat({
     inputRef.current?.focus();
   }
 
-  // Format timestamp for display
-  function formatTimestamp(timestamp) {
-    if (!timestamp) return "";
-    
-    try {
-      const date = timestamp.toDate();
-      const now = new Date();
-      const diff = now - date;
-
-      // Just now (< 1 minute)
-      if (diff < 60000) return "Just now";
-      
-      // Minutes ago (< 1 hour)
-      if (diff < 3600000) {
-        const minutes = Math.floor(diff / 60000);
-        return `${minutes}m ago`;
-      }
-      
-      // Hours ago (< 24 hours)
-      if (diff < 86400000) {
-        const hours = Math.floor(diff / 3600000);
-        return `${hours}h ago`;
-      }
-
-      // Date + time for older messages
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch (error) {
-      console.error("Error formatting timestamp:", error);
-      return "";
-    }
-  }
+ 
 
   // User Avatar Component
   function UserAvatar({ userId, userName }) {
@@ -352,7 +319,7 @@ export default function TeamChat({
               style={{ color: "var(--muted-foreground)" }}
             >
               <Clock size={10} />
-              {formatTimestamp(message.timestamp)}
+              {formatRelative(message.timestamp)}
             </span>
           </div>
 
