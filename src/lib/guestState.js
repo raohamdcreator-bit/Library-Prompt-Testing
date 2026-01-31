@@ -33,11 +33,63 @@ export class GuestStateManager {
   getGuestWork() {
     try {
       const data = localStorage.getItem(GUEST_STORAGE_KEY);
-      return data ? JSON.parse(data) : this.getDefaultState();
+      if (!data) return this.getDefaultState();
+      
+      const parsedData = JSON.parse(data);
+      
+      // ✅ FIXED: Reconstruct timestamps after JSON parse
+      if (parsedData.prompts) {
+        parsedData.prompts = parsedData.prompts.map(prompt => ({
+          ...prompt,
+          createdAt: this.reconstructTimestamp(prompt.createdAt),
+          updatedAt: prompt.updatedAt ? this.reconstructTimestamp(prompt.updatedAt) : undefined,
+        }));
+      }
+      
+      if (parsedData.outputs) {
+        parsedData.outputs = parsedData.outputs.map(output => ({
+          ...output,
+          createdAt: this.reconstructTimestamp(output.createdAt),
+        }));
+      }
+      
+      if (parsedData.chatMessages) {
+        parsedData.chatMessages = parsedData.chatMessages.map(msg => ({
+          ...msg,
+          timestamp: this.reconstructTimestamp(msg.timestamp),
+        }));
+      }
+      
+      return parsedData;
     } catch (error) {
       console.error('Error loading guest work:', error);
       return this.getDefaultState();
     }
+  }
+  
+  /**
+   * ✅ NEW HELPER: Reconstruct timestamp mock from stored data
+   */
+  reconstructTimestamp(timestamp) {
+    if (!timestamp) return undefined;
+    
+    // Already a timestamp mock (has methods)
+    if (timestamp.toMillis && typeof timestamp.toMillis === 'function') {
+      return timestamp;
+    }
+    
+    // Stored as object with seconds/nanoseconds
+    if (timestamp.seconds !== undefined) {
+      return createTimestampMock(new Date(timestamp.seconds * 1000));
+    }
+    
+    // Stored as ISO string
+    if (typeof timestamp === 'string') {
+      return createTimestampMock(new Date(timestamp));
+    }
+    
+    // Fallback
+    return createTimestampMock(new Date());
   }
 
   /**
