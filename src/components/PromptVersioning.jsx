@@ -415,7 +415,7 @@ export default function PromptVersioning({
                               )}
                             </div>
                             <p className="text-sm text-slate-400">
-                              {formatDate(version.createdAt)}
+                              {formatRelative(version.createdAt)}
                             </p>
                           </div>
 
