@@ -1,4 +1,4 @@
-// src/App.jsx - Modified to support guest mode exploration
+// src/App.jsx - FIXED: Guest mode desktop layout (sidebar overlap issue resolved)
 import { useEffect, useState, useRef } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -704,7 +704,7 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp }) {
 }
 
 // ===================================
-// MAIN APP COMPONENT (UPDATED)
+// MAIN APP COMPONENT (FIXED: Guest mode desktop layout)
 // ===================================
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
@@ -1215,7 +1215,7 @@ export default function App() {
     );
   }
 
-  // Main application UI with static sidebar (GUEST MODE ENABLED)
+  // ✅ FIXED: Main application UI - proper desktop layout for both guest and authenticated modes
   return (
     <div className="app-container flex min-h-screen relative">
       {/* Save Lock Modal */}
@@ -1524,8 +1524,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0" style={{ marginLeft: isGuest ? '0' : '260px' }}>
+      {/* ✅ FIXED: Main Content Area - consistent margin for both guest and authenticated */}
+      <div className="flex-1 flex flex-col min-w-0" style={{ marginLeft: '260px' }}>
         {/* Mobile Header */}
         <div className="mobile-header">
           <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn">
