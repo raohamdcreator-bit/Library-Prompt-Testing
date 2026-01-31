@@ -95,7 +95,7 @@ export class GuestStateManager {
     const newPrompt = {
       id: `guest_prompt_${Date.now()}`,
       ...prompt,
-      createdAt: new Date().toISOString(),
+      createdAt: createTimestampMock(new Date()),
       isGuest: true,
     };
     
@@ -119,7 +119,7 @@ export class GuestStateManager {
     work.prompts[promptIndex] = {
       ...work.prompts[promptIndex],
       ...updates,
-      updatedAt: new Date().toISOString(),
+      updatedAt: createTimestampMock(new Date()),
     };
     
     return this.saveGuestWork(work);
@@ -134,7 +134,7 @@ export class GuestStateManager {
       id: `guest_output_${Date.now()}`,
       promptId,
       ...output,
-      createdAt: new Date().toISOString(),
+      createdAt: createTimestampMock(new Date()),
       isGuest: true,
     };
     
@@ -152,7 +152,7 @@ export class GuestStateManager {
     const newMessage = {
       id: `guest_msg_${Date.now()}`,
       ...message,
-      timestamp: new Date().toISOString(),
+      timestamp: createTimestampMock(new Date()), 
       isGuest: true,
     };
     
