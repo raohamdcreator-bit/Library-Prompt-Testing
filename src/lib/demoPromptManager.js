@@ -120,6 +120,28 @@ export function updateDemoPrompt(promptId, updates) {
     throw error;
   }
 }
+
+/**
+ * Delete a demo prompt from session (ephemeral)
+ */
+export function deleteDemoPrompt(promptId) {  // ✅ ADD 'export'
+  try {
+    const prompts = getDemoPrompts();
+    const filtered = prompts.filter(p => p.id !== promptId);
+
+    const demoData = {
+      prompts: filtered,
+      initializedAt: getDemoData().initializedAt,
+    };
+
+    sessionStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(demoData));
+    return true;
+  } catch (error) {
+    console.error('Error deleting demo prompt:', error);
+    throw error;
+  }
+}
+
 /**
  * Get full demo data object
  */
