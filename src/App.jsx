@@ -1483,7 +1483,7 @@ export default function App() {
             <div className="sidebar-empty-state">
               <Sparkles size={32} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
               <p>Exploring as guest</p>
-              <p className="text-xs">Sign up to create teams and save your work</p>
+              <p className="text-xs"> You’re in Guest Mode - Create a free account to unlock everything </p>
             </div>
           )}
         </div>
