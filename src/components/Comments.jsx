@@ -16,6 +16,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { useTimestamp } from "../hooks/useTimestamp";
 import { 
   MessageCircle, 
   Send, 
@@ -97,7 +98,7 @@ export function Comment({
   const [editText, setEditText] = useState(comment.text);
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-
+  const { formatRelative } = useTimestamp();
   function getUserInitials(name, email) {
     if (name) {
       return name
@@ -153,30 +154,6 @@ export function Comment({
     }
   };
 
-  const formatDate = (timestamp) => {
-    if (!timestamp) return "";
-    try {
-      const date = timestamp.toDate();
-      const now = new Date();
-      const diffMs = now - date;
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
-
-      if (diffMins < 1) return "just now";
-      if (diffMins < 60) return `${diffMins}m ago`;
-      if (diffHours < 24) return `${diffHours}h ago`;
-      if (diffDays < 7) return `${diffDays}d ago`;
-
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-      });
-    } catch {
-      return "";
-    }
-  };
 
   return (
     <div
@@ -213,7 +190,7 @@ export function Comment({
                 className="flex items-center gap-2 text-xs"
                 style={{ color: "var(--muted-foreground)" }}
               >
-                <span>{formatDate(comment.createdAt)}</span>
+               <span>{formatRelative(comment.createdAt)}</span>
                 {comment.updatedAt && (
                   <>
                     <span>•</span>
