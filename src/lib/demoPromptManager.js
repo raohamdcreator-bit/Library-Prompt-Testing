@@ -2,7 +2,7 @@
 // Demo prompts are ephemeral and stored only in sessionStorage
 // They are discarded on refresh and never saved to backend
 
-import { DEMO_PROMPTS, isDemoPrompt } from './guestDemoContent';
+import { DEMO_PROMPTS, isDemoPrompt, createTimestampMock } from './guestDemoContent';  // 
 
 const DEMO_STORAGE_KEY = 'prism_demo_prompts_session';
 
@@ -43,11 +43,43 @@ export function getDemoPrompts() {
     }
 
     const data = JSON.parse(stored);
-    return data.prompts || DEMO_PROMPTS;
+    const prompts = data.prompts || DEMO_PROMPTS;
+    
+    // ✅ FIXED: Reconstruct timestamp mocks after JSON parse
+    return prompts.map(prompt => ({
+      ...prompt,
+      createdAt: reconstructTimestamp(prompt.createdAt),
+      updatedAt: prompt.updatedAt ? reconstructTimestamp(prompt.updatedAt) : undefined,
+    }));
   } catch (error) {
     console.error('Error loading demo prompts:', error);
     return DEMO_PROMPTS;
   }
+}
+
+/**
+ * ✅ NEW HELPER: Reconstruct timestamp mock from stored data
+ */
+function reconstructTimestamp(timestamp) {
+  if (!timestamp) return undefined;
+  
+  // Already a timestamp mock (has methods)
+  if (timestamp.toMillis && typeof timestamp.toMillis === 'function') {
+    return timestamp;
+  }
+  
+  // Stored as object with seconds/nanoseconds
+  if (timestamp.seconds !== undefined) {
+    return createTimestampMock(new Date(timestamp.seconds * 1000));
+  }
+  
+  // Stored as ISO string
+  if (typeof timestamp === 'string') {
+    return createTimestampMock(new Date(timestamp));
+  }
+  
+  // Fallback
+  return createTimestampMock(new Date());
 }
 
 /**
@@ -62,11 +94,16 @@ export function updateDemoPrompt(promptId, updates) {
       throw new Error('Demo prompt not found');
     }
 
-    // Update prompt
+    // ✅ FIXED: Preserve original createdAt, add updatedAt
+    const originalPrompt = updatedPrompts[index];
     const updatedPrompts = [...prompts];
     updatedPrompts[index] = {
-      ...updatedPrompts[index],
+      ...originalPrompt,
       ...updates,
+      // ✅ Preserve original createdAt timestamp
+      createdAt: originalPrompt.createdAt,
+      // ✅ Add updated timestamp
+      updatedAt: createTimestampMock(new Date()),
       // Preserve demo flags
       isDemo: true,
       owner: 'system',
@@ -85,7 +122,6 @@ export function updateDemoPrompt(promptId, updates) {
     throw error;
   }
 }
-
 /**
  * Delete a demo prompt from session (ephemeral)
  */
