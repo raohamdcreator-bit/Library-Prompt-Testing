@@ -1,4 +1,5 @@
-// src/components/PromptList.jsx - Mobile-Responsive Version
+// src/components/PromptList.jsx - Mobile-Responsive
+
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { db } from "../lib/firebase";
 import { trackPromptCopy, trackPromptView } from "../lib/promptStats";
