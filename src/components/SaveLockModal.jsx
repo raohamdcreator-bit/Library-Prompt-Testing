@@ -158,7 +158,7 @@ export default function SaveLockModal({ isOpen, onClose, onSignup, onContinueWit
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
             <Zap size={14} style={{ color: 'var(--primary)', opacity: 0.7 }} />
             <span style={{ fontSize: '0.813rem', color: 'rgba(228, 228, 231, 0.5)' }}>
-              Free forever
+              Free
             </span>
           </div>
           <span style={{ color: 'rgba(228, 228, 231, 0.3)' }}>•</span>
