@@ -2,7 +2,8 @@
 // This is the SINGLE SOURCE for all demo prompts across the application
 
 // Helper to create Firestore-compatible timestamp mock
-function createTimestampMock(date) {
+// Helper to create Firestore-compatible timestamp mock
+export function createTimestampMock(date) {  
   const timestamp = date instanceof Date ? date : new Date(date);
   return {
     toDate: () => timestamp,
