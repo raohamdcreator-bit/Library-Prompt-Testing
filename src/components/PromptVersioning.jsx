@@ -14,7 +14,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
-
+import { useTimestamp } from "../hooks/useTimestamp";
 // Hook to manage prompt versions
 export function usePromptVersions(teamId, promptId) {
   const [versions, setVersions] = useState([]);
@@ -116,6 +116,7 @@ export default function PromptVersioning({
 }) {
   const { user } = useAuth();
   const { success, error: notifyError } = useNotification();
+  const { formatRelative } = useTimestamp();
   const { versions, loading, authorProfiles } = usePromptVersions(
     teamId,
     promptId
@@ -123,30 +124,7 @@ export default function PromptVersioning({
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [comparing, setComparing] = useState(false);
 
-  function formatDate(timestamp) {
-    if (!timestamp) return "Unknown";
-    try {
-      const date = timestamp.toDate();
-      const now = new Date();
-      const diffMs = now - date;
-      const diffMins = Math.floor(diffMs / 60000);
-      const diffHours = Math.floor(diffMs / 3600000);
-      const diffDays = Math.floor(diffMs / 86400000);
-
-      if (diffMins < 1) return "Just now";
-      if (diffMins < 60) return `${diffMins}m ago`;
-      if (diffHours < 24) return `${diffHours}h ago`;
-      if (diffDays < 7) return `${diffDays}d ago`;
-
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-      });
-    } catch {
-      return "Invalid date";
-    }
-  }
+ 
 
   function handleRestore(version) {
     if (
@@ -316,7 +294,7 @@ export default function PromptVersioning({
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-yellow-400">📜</span>
                     <h4 className="font-semibold text-slate-100">
-                      Version from {formatDate(selectedVersion.createdAt)}
+                      Version from {formatRelative(selectedVersion.createdAt)}
                     </h4>
                   </div>
                   <div className="space-y-3">
