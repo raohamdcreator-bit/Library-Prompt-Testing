@@ -49,6 +49,7 @@ import AIPromptEnhancer from "./AIPromptEnhancer";
 import PromptResults from "./PromptResults";
 import { StarRating, usePromptRating } from "./PromptAnalytics";
 import { useSoundEffects } from '../hooks/useSoundEffects';
+import { useTimestamp, useSortByTimestamp } from '../hooks/useTimestamp';
 import { isDemoPrompt, duplicateDemoPrompt } from '../lib/guestDemoContent';
 import { 
   getDemoPrompts, 
@@ -149,6 +150,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const { user } = useAuth();
   const { triggerSaveModal, canEditPrompt: canEditAsGuest, canDeletePrompt: canDeleteAsGuest } = useGuestMode();
   const { playNotification } = useSoundEffects();
+  const { formatDate: formatTimestamp } = useTimestamp();
   const [prompts, setPrompts] = useState([]);
   const [filteredPrompts, setFilteredPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -731,21 +733,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     }, TOAST_DURATION);
   }
 
-  const formatDate = useCallback((timestamp) => {
-    if (!timestamp) return "";
-    try {
-      // Handle both Firestore timestamps and regular Date objects
-      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch (error) {
-      console.error("Error formatting date:", error);
-      return "";
-    }
-  }, []);
+ 
 
   const canEditPrompt = useCallback((prompt) => {
     if (!prompt) return false;
@@ -1091,7 +1079,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                     <div className="author-name">
                       {author.name || author.email || "Unknown"}
                     </div>
-                    <div className="author-timestamp">{formatDate(prompt.createdAt)}</div>
+                    <div className="author-timestamp">{formatTimestamp(prompt.createdAt)}</div>
                   </div>
                   <div className="ml-auto">
                     <span className={`visibility-badge ${isPrivate ? "private" : ""}`}>
