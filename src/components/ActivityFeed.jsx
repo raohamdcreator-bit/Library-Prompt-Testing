@@ -18,7 +18,7 @@ import {
   RefreshCw, Activity, Filter, Download, FileText,
   MessageSquare, Copy, TrendingUp, Users
 } from 'lucide-react';
-
+import { getTimestampMillis } from '../lib/dateUtils';
 // Activity Logger utility for creating activity records
 export const ActivityLogger = {
   async logPromptCreated(teamId, userId, promptId, promptTitle) {
@@ -204,9 +204,9 @@ export default function ActivityFeed({ teamId }) {
           setUserProfiles(profiles);
         }
 
-        activityItems.sort((a, b) => {
-          const aTime = a.timestamp?.toMillis() || 0;
-          const bTime = b.timestamp?.toMillis() || 0;
+      activityItems.sort((a, b) => {
+          const aTime = getTimestampMillis(a.timestamp);
+          const bTime = getTimestampMillis(b.timestamp);
           return bTime - aTime;
         });
 
