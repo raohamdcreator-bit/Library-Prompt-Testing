@@ -94,17 +94,15 @@ export function updateDemoPrompt(promptId, updates) {
       throw new Error('Demo prompt not found');
     }
 
-    // ✅ FIXED: Preserve original createdAt, add updatedAt
-    const originalPrompt = updatedPrompts[index];
-    const updatedPrompts = [...prompts];
+    // ✅ CORRECT: Store original first, then create updated array
+    const originalPrompt = prompts[index];          // ✅ Get from 'prompts'
+    const updatedPrompts = [...prompts];            // ✅ Then create copy
+    
     updatedPrompts[index] = {
       ...originalPrompt,
       ...updates,
-      // ✅ Preserve original createdAt timestamp
-      createdAt: originalPrompt.createdAt,
-      // ✅ Add updated timestamp
-      updatedAt: createTimestampMock(new Date()),
-      // Preserve demo flags
+      createdAt: originalPrompt.createdAt,         // ✅ Preserve timestamp
+      updatedAt: createTimestampMock(new Date()),  // ✅ Add update time
       isDemo: true,
       owner: 'system',
     };
@@ -122,27 +120,6 @@ export function updateDemoPrompt(promptId, updates) {
     throw error;
   }
 }
-/**
- * Delete a demo prompt from session (ephemeral)
- */
-export function deleteDemoPrompt(promptId) {
-  try {
-    const prompts = getDemoPrompts();
-    const filtered = prompts.filter(p => p.id !== promptId);
-
-    const demoData = {
-      prompts: filtered,
-      initializedAt: getDemoData().initializedAt,
-    };
-
-    sessionStorage.setItem(DEMO_STORAGE_KEY, JSON.stringify(demoData));
-    return true;
-  } catch (error) {
-    console.error('Error deleting demo prompt:', error);
-    throw error;
-  }
-}
-
 /**
  * Get full demo data object
  */
