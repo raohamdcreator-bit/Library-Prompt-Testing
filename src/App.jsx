@@ -173,7 +173,7 @@ function Logo({ size = "normal", onClick }) {
 // ===================================
 // NAVIGATION COMPONENT (UPDATED)
 // ===================================
-function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest }) {
+ffunction Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onExitGuestMode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const scrolled = useNavbarScroll();
   const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
@@ -181,10 +181,20 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest }) {
   return (
     <nav className={`modern-navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="navbar-content">
-        <div className="navbar-logo" onClick={() => onNavigate("/")}>
-          <Logo />
-          <span className="navbar-logo-text">Prism</span>
-        </div>
+        <div 
+  className="navbar-logo" 
+  onClick={() => {
+    if (isGuest) {
+      handleExitGuestMode();
+    } else {
+      onNavigate("/");
+    }
+  }}
+  style={{ cursor: 'pointer' }}
+>
+  <Logo />
+  <span className="navbar-logo-text">Prism</span>
+</div>
 
         {/* Desktop Navigation */}
         <div className="navbar-links hidden md:flex">
@@ -821,7 +831,30 @@ export default function App() {
 
     return () => unsub();
   }, [user, setActiveTeam]);
-
+  
+// Handle page exit/refresh for guests with unsaved work
+useEffect(() => {
+  function handleBeforeUnload(e) {
+    if (isGuest && guestState.hasUnsavedWork()) {
+      e.preventDefault();
+      e.returnValue = ''; // Chrome requires returnValue to be set
+      
+      // Trigger save modal
+      triggerSaveModal(
+        { isDemo: false, owner: 'guest' },
+        () => {
+          // After signup, allow navigation
+          window.removeEventListener('beforeunload', handleBeforeUnload);
+        }
+      );
+    }
+  }
+  
+  if (isGuest) {
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }
+}, [isGuest, triggerSaveModal]);
   // Set first team if no active team (only for authenticated users)
   useEffect(() => {
     if (!user || loading || isGuest) return;
@@ -1207,13 +1240,14 @@ export default function App() {
       <NavigationProvider navigate={navigate}>
         <div style={{ background: "var(--background)", minHeight: "100vh" }}>
           {currentPath !== "/waitlist" && (
-            <Navigation
-              onSignIn={signInWithGoogle}
-              isAuthenticated={!!user}
-              onNavigate={navigate}
-              user={user}
-              isGuest={isGuest}
-            />
+           <Navigation
+            onSignIn={signInWithGoogle}
+            isAuthenticated={!!user}
+            onNavigate={navigate}
+            user={user}
+            isGuest={isGuest}
+            onExitGuestMode={handleExitGuestMode}
+           />
           )}
           <Router currentPath={currentPath.split("?")[0]}>
             <Route path="/contact"><Contact /></Route>
@@ -1337,41 +1371,51 @@ export default function App() {
             </>
           )}
 
-          {/* Guest Mode Indicator */}
-          {isGuest && (
-            <>
-              <div className="sidebar-user-section">
-                <div
-                  style={{
-                    background: 'rgba(139, 92, 246, 0.08)',
-                    border: '1px solid rgba(139, 92, 246, 0.15)',
-                    borderRadius: '8px',
-                    padding: '0.75rem',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <Sparkles size={16} style={{ color: 'var(--primary)' }} />
-                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--foreground)' }}>
-                      Exploring Prism
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.75rem', color: 'rgba(228, 228, 231, 0.6)', marginBottom: '0.75rem' }}>
-                    Sign up to save your work and collaborate with teams.
-                  </p>
-                  <button
-                    onClick={signInWithGoogle}
-                    className="btn-premium w-full"
-                    style={{ padding: '0.5rem', fontSize: '0.813rem' }}
-                  >
-                    <Shield size={14} />
-                    Sign up free
-                  </button>
-                </div>
-              </div>
+{/* Guest Mode Indicator */}
+{isGuest && (
+  <>
+    <div className="sidebar-user-section">
+      <div
+        style={{
+          background: 'rgba(139, 92, 246, 0.08)',
+          border: '1px solid rgba(139, 92, 246, 0.15)',
+          borderRadius: '8px',
+          padding: '0.75rem',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+          <Sparkles size={16} style={{ color: 'var(--primary)' }} />
+          <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--foreground)' }}>
+            Guest Mode • Changes are temporary
+          </span>
+        </div>
+        <p style={{ fontSize: '0.75rem', color: 'rgba(228, 228, 231, 0.6)', marginBottom: '0.75rem' }}>
+          Sign up to save your work and collaborate with teams.
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={signInWithGoogle}
+            className="btn-premium"
+            style={{ flex: 1, padding: '0.5rem', fontSize: '0.813rem' }}
+          >
+            <Shield size={14} />
+            Sign up free
+          </button>
+          <button
+            onClick={handleExitGuestMode}
+            className="btn-secondary"
+            style={{ flex: 1, padding: '0.5rem', fontSize: '0.813rem' }}
+          >
+            <X size={14} />
+            Exit Demo
+          </button>
+        </div>
+      </div>
+    </div>
 
-              <div className="sidebar-divider"></div>
-            </>
-          )}
+    <div className="sidebar-divider"></div>
+  </>
+)}
 
           {/* Quick Actions - Fixed at Top */}
           {user && (
