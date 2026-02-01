@@ -1,4 +1,4 @@
-// src/context/GuestModeContext.jsx - FIXED: Ownership-based signup gating
+// src/context/GuestModeContext.jsx - FIXED: Proper callback handling for save operations
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
 import { isDemoPrompt } from '../lib/guestDemoContent';
@@ -15,8 +15,10 @@ export function GuestModeProvider({ children }) {
   const isGuest = !user;
 
   /**
-   * ✅ FIXED: Ownership-based save gating
-   * Trigger signup ONLY for non-demo, guest-owned prompts
+   * ✅ FIXED: Trigger save modal with callback support
+   * @param {Object} prompt - The prompt being saved
+   * @param {Function} onSaveCallback - Callback to execute after successful signup
+   * @returns {boolean} - True if save can proceed immediately, false if modal triggered
    */
   function triggerSaveModal(prompt, onSaveCallback) {
     // ✅ CRITICAL CHECK: Never trigger signup for demo prompts
@@ -25,7 +27,7 @@ export function GuestModeProvider({ children }) {
       return false;
     }
 
-    // ✅ If authenticated, allow save
+    // ✅ If authenticated, allow save immediately
     if (!isGuest) {
       if (onSaveCallback) {
         onSaveCallback();
@@ -36,6 +38,8 @@ export function GuestModeProvider({ children }) {
     // ✅ Guest trying to save user-created prompt → Trigger signup
     if (isGuest && !prompt.isDemo) {
       console.log('💾 Guest save attempt: Triggering signup modal');
+      
+      // Store the callback to execute after signup
       setPendingSaveCallback(() => onSaveCallback);
       setShowSaveModal(true);
       
@@ -47,7 +51,7 @@ export function GuestModeProvider({ children }) {
         });
       }
       
-      return false;
+      return false; // Modal triggered, don't proceed with save
     }
 
     return false;
@@ -63,8 +67,11 @@ export function GuestModeProvider({ children }) {
       
       // Execute pending save after successful signup
       if (pendingSaveCallback) {
+        // Give Firebase time to initialize user
         setTimeout(() => {
-          pendingSaveCallback();
+          if (typeof pendingSaveCallback === 'function') {
+            pendingSaveCallback();
+          }
           setPendingSaveCallback(null);
         }, 1000);
       }
