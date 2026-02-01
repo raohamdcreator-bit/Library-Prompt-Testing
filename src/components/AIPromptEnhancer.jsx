@@ -1,7 +1,10 @@
-// src/components/AIPromptEnhancer.jsx - FIXED: Guest mode integration with SaveLockModal
+// src/components/AIPromptEnhancer.jsx - FIXED: Guest mode enhancement with temporary demo changes
 import { useState } from "react";
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { useGuestMode } from '../context/GuestModeContext';
+import { isDemoPrompt } from '../lib/guestDemoContent';
+import { updateDemoPrompt } from '../lib/demoPromptManager';
+import { guestState } from '../lib/guestState';
 import { 
   X, 
   Sparkles, 
@@ -21,9 +24,8 @@ import {
   Zap,
   Bot,
   Globe,
-  Orbit,
-  Network,
-  Feather
+  Feather,
+  Shield,
 } from "lucide-react";
 
 export default function AIPromptEnhancer({
@@ -217,18 +219,52 @@ export default function AIPromptEnhancer({
       enhancedAt: new Date().toISOString(),
     };
 
-    // ✅ GUEST MODE: Check if guest is trying to save
+    // ✅ GUEST MODE HANDLING
     if (isGuest) {
-      const canSave = triggerSaveModal(enhancedPrompt, () => {
-        // This callback will execute after successful signup
-        onApply(enhancedPrompt);
-        showNotification("Enhanced prompt applied!", "success");
-        if (onClose) onClose();
-      });
+      // ✅ DEMO PROMPT: Update in sessionStorage + Show save modal
+      if (isDemoPrompt(prompt)) {
+        try {
+          // Update demo in sessionStorage (temporary)
+          updateDemoPrompt(prompt.id, enhancedPrompt);
+          
+          // Show save modal with custom message
+          const canProceed = triggerSaveModal(
+            enhancedPrompt,
+            () => {
+              // Callback after signup
+              onApply(enhancedPrompt);
+              showNotification("Enhancement saved to your account!", "success");
+              if (onClose) onClose();
+            }
+          );
+          
+          if (!canProceed) {
+            // Modal was shown, but also apply the temporary change
+            onApply(enhancedPrompt);
+            showNotification("Demo updated temporarily. Sign up to save your version!", "success");
+            if (onClose) onClose();
+          }
+          return;
+        } catch (error) {
+          console.error("Error updating demo:", error);
+          showNotification("Failed to update demo", "error");
+          return;
+        }
+      } 
       
-      if (!canSave) {
-        // Modal was triggered, don't proceed
-        return;
+      // ✅ USER-CREATED GUEST PROMPT: Update in guestState automatically
+      else {
+        try {
+          guestState.updatePrompt(prompt.id, enhancedPrompt);
+          onApply(enhancedPrompt);
+          showNotification("Enhancement saved to session!", "success");
+          if (onClose) onClose();
+          return;
+        } catch (error) {
+          console.error("Error updating guest prompt:", error);
+          showNotification("Failed to save enhancement", "error");
+          return;
+        }
       }
     }
 
@@ -255,18 +291,36 @@ export default function AIPromptEnhancer({
       enhancedAt: new Date().toISOString(),
     };
 
-    // ✅ GUEST MODE: Check if guest is trying to save
+    // ✅ GUEST MODE HANDLING
     if (isGuest) {
-      const canSave = triggerSaveModal(newPrompt, () => {
-        // This callback will execute after successful signup
-        onSaveAsNew(newPrompt);
-        showNotification("Saved as new prompt!", "success");
-        if (onClose) onClose();
-      });
+      // ✅ DEMO PROMPT: Show save modal for "Save as New"
+      if (isDemoPrompt(prompt)) {
+        const canSave = triggerSaveModal(newPrompt, () => {
+          // Callback after signup
+          onSaveAsNew(newPrompt);
+          showNotification("Saved to your account!", "success");
+          if (onClose) onClose();
+        });
+        
+        if (!canSave) {
+          // Modal was triggered, don't proceed
+          return;
+        }
+      } 
       
-      if (!canSave) {
-        // Modal was triggered, don't proceed
-        return;
+      // ✅ USER-CREATED GUEST PROMPT: Add to guestState
+      else {
+        try {
+          const savedPrompt = guestState.addPrompt(newPrompt);
+          onSaveAsNew(savedPrompt);
+          showNotification("Saved as new prompt in session!", "success");
+          if (onClose) onClose();
+          return;
+        } catch (error) {
+          console.error("Error saving guest prompt:", error);
+          showNotification("Failed to save as new", "error");
+          return;
+        }
       }
     }
 
@@ -329,6 +383,28 @@ export default function AIPromptEnhancer({
               <X className="w-6 h-6" />
             </button>
           </div>
+
+          {/* ✅ Guest Mode Warning for Demo Prompts */}
+          {isGuest && isDemoPrompt(prompt) && (
+            <div 
+              className="mt-4 p-3 rounded-lg border flex items-start gap-2"
+              style={{
+                background: 'rgba(139, 92, 246, 0.1)',
+                borderColor: 'rgba(139, 92, 246, 0.3)',
+              }}
+            >
+              <AlertCircle size={18} style={{ color: 'var(--primary)', marginTop: '2px' }} />
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '0.875rem', color: 'var(--foreground)', marginBottom: '0.25rem', fontWeight: '500' }}>
+                  Demo Prompt Enhancement
+                </p>
+                <p style={{ fontSize: '0.813rem', color: 'rgba(228, 228, 231, 0.7)' }}>
+                  Changes are temporary. Create a free account to save your version.
+                </p>
+              </div>
+              <Shield size={16} style={{ color: 'var(--primary)' }} />
+            </div>
+          )}
         </div>
 
         {/* Scrollable Content */}
@@ -731,7 +807,11 @@ export default function AIPromptEnhancer({
             <div style={{ color: "var(--muted-foreground)" }}>
               <AlertCircle className="w-3 h-3 inline mr-1" />
               {isGuest ? (
-                <span>Guest mode: Sign up to save enhanced prompts</span>
+                isDemoPrompt(prompt) ? (
+                  <span>Demo prompt: Changes are temporary. Sign up to save your version.</span>
+                ) : (
+                  <span>Guest mode: Changes saved to session until you sign up</span>
+                )
               ) : (
                 <span>Tip: Select target AI model first, then choose enhancement type for best results</span>
               )}
