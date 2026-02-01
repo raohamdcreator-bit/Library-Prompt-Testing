@@ -149,7 +149,7 @@ function UserAvatar({ src, name, email }) {
 
 export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId }) {
   const { user } = useAuth();
-  const { triggerSaveModal, canEditPrompt: canEditAsGuest, canDeletePrompt: canDeleteAsGuest } = useGuestMode();
+  const { isGuest, canEditPrompt: canEditAsGuest, canDeletePrompt: canDeleteAsGuest } = useGuestMode();
   const { playNotification } = useSoundEffects();
   const { formatDate: formatTimestamp } = useTimestamp();
   const [prompts, setPrompts] = useState([]);
@@ -381,61 +381,52 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   }, []);
 
   const handleCreate = useCallback(async (e) => {
-    e.preventDefault();
-    
-    // Validate input
-    if (!newPrompt.title.trim() || !newPrompt.text.trim()) {
-      showNotification("Title and prompt text are required", "error");
-      return;
-    }
+  e.preventDefault();
+  
+  // Validate input
+  if (!newPrompt.title.trim() || !newPrompt.text.trim()) {
+    showNotification("Title and prompt text are required", "error");
+    return;
+  }
 
-    // ✅ GUEST MODE: Check if guest is trying to save
-    if (isGuestMode) {
-      const newPromptData = {
+  // ✅ BOTH GUEST & AUTHENTICATED: Save directly
+  try {
+    await savePrompt(
+      effectiveUserId,
+      {
         title: newPrompt.title.trim(),
         text: newPrompt.text.trim(),
         tags: newPrompt.tags.split(",").map((t) => t.trim()).filter(Boolean),
         visibility: newPrompt.visibility,
-        isDemo: false,
-        owner: 'guest',
-      };
-      
-      // Trigger signup modal and stop here
-      triggerSaveModal(newPromptData);
-      return; // Guest must sign up first
-    }
-    
-    // ✅ AUTHENTICATED: Save to Firestore
-    try {
-      await savePrompt(
-        effectiveUserId,
-        {
-          title: newPrompt.title.trim(),
-          text: newPrompt.text.trim(),
-          tags: newPrompt.tags.split(",").map((t) => t.trim()).filter(Boolean),
-          visibility: newPrompt.visibility,
-        },
-        activeTeam
-      );
+      },
+      activeTeam
+    );
 
-      setNewPrompt({ title: "", tags: "", text: "", visibility: "public" });
-      setShowCreateForm(false);
-      showSuccessToast("Prompt created successfully!");
-      
-      // Analytics tracking
-      if (window.gtag) {
-        window.gtag('event', 'prompt_created', {
-          team_id: activeTeam,
-          prompt_title: newPrompt.title.trim(),
-          visibility: newPrompt.visibility,
-          tags_count: newPrompt.tags.split(",").filter(Boolean).length,
-        });
-      }
-    } catch (error) {
-      console.error("Error creating prompt:", error);
-      showNotification("Failed to create prompt", "error");
+    setNewPrompt({ title: "", tags: "", text: "", visibility: "public" });
+    setShowCreateForm(false);
+    
+    // Different notification for guest vs authenticated
+    showSuccessToast(
+      isGuest 
+        ? "Prompt created! Sign up to save it permanently." 
+        : "Prompt created successfully!"
+    );
+    
+    // Analytics tracking
+    if (window.gtag) {
+      window.gtag('event', 'prompt_created', {
+        team_id: activeTeam,
+        prompt_title: newPrompt.title.trim(),
+        visibility: newPrompt.visibility,
+        tags_count: newPrompt.tags.split(",").filter(Boolean).length,
+        user_type: isGuest ? 'guest' : 'authenticated',
+      });
     }
-  }, [newPrompt, isGuestMode, effectiveUserId, activeTeam, triggerSaveModal]);
+  } catch (error) {
+    console.error("Error creating prompt:", error);
+    showNotification("Failed to create prompt", "error");
+  }
+}, [newPrompt, isGuest, effectiveUserId, activeTeam]);
 
   const handleUpdate = useCallback(async (promptId, updates) => {
     try {
