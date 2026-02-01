@@ -719,14 +719,15 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp }) {
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
   const { activeTeam, setActiveTeam } = useActiveTeam();
-  const {
-    isGuest,
-    showSaveModal,
-    isMigrating,
-    handleSignupFromModal,
-    handleContinueWithout,
-    closeSaveModal,
-  } = useGuestMode();
+ const {
+  isGuest,
+  showSaveModal,
+  isMigrating,
+  triggerSaveModal,  
+  handleSignupFromModal,
+  handleContinueWithout,
+  closeSaveModal,
+} = useGuestMode();
   
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [teams, setTeams] = useState([]);
@@ -836,17 +837,13 @@ export default function App() {
 useEffect(() => {
   function handleBeforeUnload(e) {
     if (isGuest && guestState.hasUnsavedWork()) {
+      // Browser's built-in dialog
       e.preventDefault();
-      e.returnValue = ''; // Chrome requires returnValue to be set
+      e.returnValue = 'You have unsaved work. Are you sure you want to leave?';
       
-      // Trigger save modal
-      triggerSaveModal(
-        { isDemo: false, owner: 'guest' },
-        () => {
-          // After signup, allow navigation
-          window.removeEventListener('beforeunload', handleBeforeUnload);
-        }
-      );
+      // Note: Custom modals don't work in beforeunload
+      // The browser shows its own dialog
+      return e.returnValue;
     }
   }
   
@@ -854,7 +851,7 @@ useEffect(() => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }
-}, [isGuest, triggerSaveModal]);
+}, [isGuest]);
   // Set first team if no active team (only for authenticated users)
   useEffect(() => {
     if (!user || loading || isGuest) return;
@@ -1141,27 +1138,19 @@ useEffect(() => {
   function handleExitGuestMode() {
   // Check if guest has unsaved work
   if (isGuest && guestState.hasUnsavedWork()) {
-    // Trigger save modal
-    const shouldExit = triggerSaveModal(
-      { isDemo: false, owner: 'guest' },
-      () => {
-        // After signup, they're no longer in guest mode
-        setIsExploringAsGuest(false);
-      }
+    // Warn user with native confirm
+    const confirmExit = window.confirm(
+      'You have unsaved work. Sign up to save it permanently, or continue without saving?'
     );
     
-    if (!shouldExit) {
-      // Modal was shown, wait for user decision
+    if (!confirmExit) {
+      // User cancelled, stay in guest mode
       return;
     }
   }
   
   // Exit guest mode
   setIsExploringAsGuest(false);
-  setIsGuestModeContext(false);
-  
-  // Update browser history
-  window.history.pushState({ guestMode: false }, '', '/');
   
   // Track analytics
   if (window.gtag) {
@@ -1169,6 +1158,10 @@ useEffect(() => {
       had_work: guestState.hasUnsavedWork(),
     });
   }
+  
+  // Navigate to home
+  window.history.pushState({}, '', '/');
+  window.location.reload(); // Refresh to show landing page
 }
 
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
