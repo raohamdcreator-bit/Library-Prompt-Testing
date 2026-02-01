@@ -1105,6 +1105,38 @@ export default function App() {
     });
   }
 }
+  function handleExitGuestMode() {
+  // Check if guest has unsaved work
+  if (isGuest && guestState.hasUnsavedWork()) {
+    // Trigger save modal
+    const shouldExit = triggerSaveModal(
+      { isDemo: false, owner: 'guest' },
+      () => {
+        // After signup, they're no longer in guest mode
+        setIsExploringAsGuest(false);
+      }
+    );
+    
+    if (!shouldExit) {
+      // Modal was shown, wait for user decision
+      return;
+    }
+  }
+  
+  // Exit guest mode
+  setIsExploringAsGuest(false);
+  setIsGuest ModeContext(false);
+  
+  // Update browser history
+  window.history.pushState({ guestMode: false }, '', '/');
+  
+  // Track analytics
+  if (window.gtag) {
+    window.gtag('event', 'guest_mode_exited', {
+      had_work: guestState.hasUnsavedWork(),
+    });
+  }
+}
 
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
 
