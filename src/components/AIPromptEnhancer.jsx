@@ -203,14 +203,14 @@ export default function AIPromptEnhancer({
     }, 3000);
   }
 
-  function handleApply() {
+ function handleApply() {
   if (!result?.enhanced) return;
 
   const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
-  const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
+  const cleanTitle = prompt.title.replace(/\s*(Enhanced for [^)]+)\s*/g, '').trim();
   
-  const enhancedPrompt = { 
-    ...prompt, 
+  const enhancedPrompt = {
+    ...prompt,
     text: result.enhanced,
     title: `${cleanTitle} (Enhanced for ${modelName})`,
     enhanced: true,
@@ -232,11 +232,11 @@ export default function AIPromptEnhancer({
         if (onClose) onClose();
       }
     );
-    
+
     // ✅ CRITICAL: Return immediately - DON'T apply anything until signup
     return;
   }
-  
+
   // ✅ GUEST USER PROMPT: Update in guestState + show reminder
   if (isGuest && !isDemoPrompt(prompt)) {
     try {
@@ -257,36 +257,6 @@ export default function AIPromptEnhancer({
   showNotification("Enhanced prompt applied!", "success");
   if (onClose) onClose();
 }
-          return;
-        } catch (error) {
-          console.error("Error updating demo:", error);
-          showNotification("Failed to update demo", "error");
-          return;
-        }
-      } 
-      
-      // ✅ USER-CREATED GUEST PROMPT: Update in guestState automatically
-      else {
-        try {
-          guestState.updatePrompt(prompt.id, enhancedPrompt);
-          onApply(enhancedPrompt);
-          showNotification("Enhancement saved to session!", "success");
-          if (onClose) onClose();
-          return;
-        } catch (error) {
-          console.error("Error updating guest prompt:", error);
-          showNotification("Failed to save enhancement", "error");
-          return;
-        }
-      }
-    }
-
-    // ✅ AUTHENTICATED: Apply directly
-    onApply(enhancedPrompt);
-    showNotification("Enhanced prompt applied!", "success");
-    if (onClose) onClose();
-  }
-
   function handleSaveAsNew() {
   if (!result?.enhanced) return;
 
