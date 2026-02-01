@@ -173,7 +173,7 @@ function Logo({ size = "normal", onClick }) {
 // ===================================
 // NAVIGATION COMPONENT (UPDATED)
 // ===================================
-ffunction Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onExitGuestMode }) {
+function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onExitGuestMode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const scrolled = useNavbarScroll();
   const isAdmin = user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
