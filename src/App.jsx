@@ -30,7 +30,7 @@ import PlagiarismChecker from "./components/PlagiarismChecker";
 import IntroVideoSection from "./components/IntroVideoSection";
 import OnboardingExperience from "./components/OnboardingExperience";
 import { savePrompt } from "./lib/prompts";
-import { migrateGuestWorkToUser } from "./lib/guestState";
+import { migrateGuestWorkToUser, guestState } from "./lib/guestState";
 import { initializeDemoPrompts } from "./lib/demoPromptManager";
 // Lucide React Icons
 import {
