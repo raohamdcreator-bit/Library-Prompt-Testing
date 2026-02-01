@@ -312,7 +312,6 @@ export default function AIPromptEnhancer({
   showNotification("Saved as new prompt!", "success");
   if (onClose) onClose();
 }
-);
         
         if (!canSave) {
           // Modal was triggered, don't proceed
