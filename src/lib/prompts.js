@@ -1,4 +1,4 @@
-// src/lib/prompts.js - Updated with Visibility Controls
+// src/lib/prompts.js - FIXED: Added guest mode support
 import { db } from "./firebase";
 import {
   collection,
@@ -11,15 +11,30 @@ import {
   deleteDoc as fbDeleteDoc,
 } from "firebase/firestore";
 import { getInitialStats } from "./promptStats";
-
+import { guestState } from "./guestState";  // ✅ ADD THIS
 
 /**
  * Save new prompt with visibility control
- * ✅ FIXED: Explicitly extracts only needed fields to prevent ID duplication
- * ✅ NEW: Added visibility field (default: public)
- * ✅ Initialize stats
+ * ✅ FIXED: Added guest mode support
  */
 export async function savePrompt(userId, prompt, teamId) {
+  // ✅ GUEST MODE: Save to sessionStorage
+  if (userId === 'guest' || !userId) {
+    const { title, text, tags, visibility = "public" } = prompt;
+    
+    const guestPrompt = {
+      title: title || "",
+      text: text || "",
+      tags: Array.isArray(tags) ? tags : [],
+      visibility: visibility,
+      owner: 'guest',
+      isGuest: true,
+    };
+    
+    return guestState.addPrompt(guestPrompt);
+  }
+  
+  // ✅ AUTHENTICATED: Save to Firestore
   if (!teamId) throw new Error("No team selected");
 
   const { title, text, tags, visibility = "public" } = prompt;
@@ -37,21 +52,22 @@ export async function savePrompt(userId, prompt, teamId) {
 
 /**
  * Update existing prompt
- * ✅ FIXED: Filters out immutable fields that shouldn't be updated
- * ✅ NEW: Allows updating visibility
+ * ✅ FIXED: Added guest mode support
  */
 export async function updatePrompt(teamId, promptId, updates) {
+  // ✅ GUEST MODE: Update in guestState
+  if (!teamId || teamId === null) {
+    return guestState.updatePrompt(promptId, updates);
+  }
+  
+  // ✅ AUTHENTICATED: Update in Firestore
   const ref = doc(db, "teams", teamId, "prompts", promptId);
-  
-  // ✅ Filter out fields that shouldn't be updated
   const { id, teamId: tid, createdAt, createdBy, ...allowedUpdates } = updates;
-  
   await updateDoc(ref, allowedUpdates);
 }
 
 /**
  * Toggle prompt visibility between public and private
- * ✅ NEW: Dedicated function for visibility toggle
  */
 export async function togglePromptVisibility(teamId, promptId, currentVisibility) {
   const ref = doc(db, "teams", teamId, "prompts", promptId);
@@ -65,14 +81,8 @@ export async function togglePromptVisibility(teamId, promptId, currentVisibility
   return newVisibility;
 }
 
-
 /**
  * Check if user can view a prompt based on visibility rules
- * ✅ NEW: Permission checker for prompt visibility
- * 
- * Rules:
- * - Public prompts: Everyone in team can see
- * - Private prompts: Only creator, admins, and owners can see
  */
 export function canViewPrompt(prompt, userId, userRole) {
   // Public prompts are visible to all team members
@@ -82,35 +92,28 @@ export function canViewPrompt(prompt, userId, userRole) {
 
   // Private prompts visibility rules
   if (prompt.visibility === "private") {
-    // Creator can always see their own prompts
     if (prompt.createdBy === userId) {
       return true;
     }
 
-    // Admins and owners can see all prompts
     if (userRole === "admin" || userRole === "owner") {
       return true;
     }
 
-    // Others cannot see private prompts
     return false;
   }
 
-  // Default to visible (backward compatibility)
   return true;
 }
 
 /**
  * Check if user can edit a prompt's visibility
- * ✅ NEW: Permission checker for changing visibility
  */
 export function canChangeVisibility(prompt, userId, userRole) {
-  // Creator can always change their own prompt's visibility
   if (prompt.createdBy === userId) {
     return true;
   }
 
-  // Admins and owners can change any prompt's visibility
   if (userRole === "admin" || userRole === "owner") {
     return true;
   }
@@ -120,7 +123,6 @@ export function canChangeVisibility(prompt, userId, userRole) {
 
 /**
  * Filter prompts based on visibility permissions
- * ✅ NEW: Helper function to filter prompt arrays
  */
 export function filterVisiblePrompts(prompts, userId, userRole) {
   return prompts.filter(prompt => canViewPrompt(prompt, userId, userRole));
@@ -128,8 +130,16 @@ export function filterVisiblePrompts(prompts, userId, userRole) {
 
 /**
  * Delete prompt
+ * ✅ FIXED: Added guest mode support
  */
 export async function deletePrompt(teamId, promptId) {
+  // ✅ GUEST MODE: Delete from guestState (not needed, handled elsewhere)
+  if (!teamId || teamId === null) {
+    // Guest deletion handled in PromptList via deleteDemoPrompt
+    return;
+  }
+  
+  // ✅ AUTHENTICATED: Delete from Firestore
   const ref = doc(db, "teams", teamId, "prompts", promptId);
   await deleteDoc(ref);
 }
@@ -141,10 +151,8 @@ export async function toggleFavorite(userId, prompt, isFav) {
   const favRef = doc(db, "users", userId, "favorites", prompt.id);
 
   if (isFav) {
-    // remove favorite
     await fbDeleteDoc(favRef);
   } else {
-    // add favorite - include visibility info
     await setDoc(favRef, {
       teamId: prompt.teamId,
       promptId: prompt.id,
