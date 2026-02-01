@@ -1612,21 +1612,34 @@ useEffect(() => {
       <div className="flex-1 flex flex-col min-w-0" style={{ marginLeft: '260px' }}>
         {/* Mobile Header */}
         <div className="mobile-header">
-          <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn">
-            <Menu size={24} />
-          </button>
-          <div className="flex-1 min-w-0">
-            {activeTeamObj ? (
-              <h1 className="text-lg font-bold truncate" style={{ color: "var(--foreground)" }}>
-                {activeTeamObj.name}
-              </h1>
-            ) : activeView === "favorites" ? (
-              <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>My Favorites</h1>
-            ) : isGuest ? (
-              <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>Prism</h1>
-            ) : null}
-          </div>
-        </div>
+  <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn">
+    <Menu size={24} />
+  </button>
+  <div className="flex-1 min-w-0">
+    {activeTeamObj ? (
+      <h1 className="text-lg font-bold truncate" style={{ color: "var(--foreground)" }}>
+        {activeTeamObj.name}
+      </h1>
+    ) : activeView === "favorites" ? (
+      <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>My Favorites</h1>
+    ) : isGuest ? (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>Prism</h1>
+        <span style={{ fontSize: '0.688rem', color: 'var(--muted-foreground)' }}>• Guest Mode</span>
+      </div>
+    ) : null}
+  </div>
+  {isGuest && (
+    <button
+      onClick={handleExitGuestMode}
+      className="btn-secondary"
+      style={{ padding: '0.5rem 0.75rem', fontSize: '0.813rem' }}
+    >
+      <X size={16} />
+      Exit
+    </button>
+  )}
+</div>
 
         {/* Desktop Header */}
         {activeTeamObj ? (
