@@ -422,6 +422,7 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp }) {
           onNavigate={onNavigate}
           user={null}
           isGuest={true}
+          onExitGuestMode={onExitGuestMode}
         />
 
         {/* Hero Section */}
@@ -1399,7 +1400,6 @@ useEffect(() => {
             className="btn-secondary"
             style={{ flex: 1, padding: '0.5rem', fontSize: '0.813rem' }}
           >
-            <X size={14} />
             Exit Demo
           </button>
         </div>
