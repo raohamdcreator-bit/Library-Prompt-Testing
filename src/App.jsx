@@ -1158,7 +1158,7 @@ useEffect(() => {
   
   // Exit guest mode
   setIsExploringAsGuest(false);
-  setIsGuest ModeContext(false);
+  setIsGuestModeContext(false);
   
   // Update browser history
   window.history.pushState({ guestMode: false }, '', '/');
