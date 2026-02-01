@@ -1093,10 +1093,18 @@ export default function App() {
   }
 
   // Handle "Explore App" from landing page
-  function handleExploreApp() {
-    setIsExploringAsGuest(true);
-    navigate("/app");
+ function handleExploreApp() {
+  setIsExploringAsGuest(true);
+  // Update browser history without navigation
+  window.history.pushState({ guestMode: true }, '', window.location.pathname);
+  
+  // Track analytics
+  if (window.gtag) {
+    window.gtag('event', 'guest_mode_entered', {
+      source: 'landing_page_cta',
+    });
   }
+}
 
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
 
