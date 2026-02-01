@@ -405,7 +405,7 @@ function Footer({ onNavigate }) {
 // ===================================
 // LANDING PAGE (UPDATED CTA)
 // ===================================
-function LandingPage({ onSignIn, onNavigate, onExploreApp }) {
+function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
   useScrollReveal();
 
   return (
@@ -416,14 +416,14 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp }) {
       <div className="grid-overlay"></div>
 
       <div className="relative z-10">
-        <Navigation
-          onSignIn={onSignIn}
-          isAuthenticated={false}
-          onNavigate={onNavigate}
-          user={null}
-          isGuest={true}
-          onExitGuestMode={onExitGuestMode}
-        />
+       <Navigation
+  onSignIn={onSignIn}
+  isAuthenticated={false}
+  onNavigate={onNavigate}
+  user={null}
+  isGuest={true}
+  onExitGuestMode={() => onNavigate('/')}
+/>
 
         {/* Hero Section */}
         <section className="container mx-auto px-4 py-10 md:py-12">
@@ -1273,15 +1273,16 @@ useEffect(() => {
   }
 
   // Show landing page only if not exploring as guest
-  if (!user && !isExploringAsGuest) {
-    return (
-      <LandingPage
-        onSignIn={signInWithGoogle}
-        onNavigate={navigate}
-        onExploreApp={handleExploreApp}
-      />
-    );
-  }
+ if (!user && !isExploringAsGuest) {
+  return (
+    <LandingPage
+      onSignIn={signInWithGoogle}
+      onNavigate={navigate}
+      onExploreApp={handleExploreApp}
+      onExitGuestMode={handleExitGuestMode}
+    />
+  );
+}
 
   // ✅ FIXED: Main application UI - proper desktop layout for both guest and authenticated modes
   return (
