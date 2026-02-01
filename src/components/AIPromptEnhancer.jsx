@@ -1,6 +1,7 @@
-// src/components/AIPromptEnhancer.jsx - Mobile Responsive (Below 770px)
+// src/components/AIPromptEnhancer.jsx - FIXED: Guest mode integration with SaveLockModal
 import { useState } from "react";
 import { useSoundEffects } from '../hooks/useSoundEffects';
+import { useGuestMode } from '../context/GuestModeContext';
 import { 
   X, 
   Sparkles, 
@@ -37,6 +38,7 @@ export default function AIPromptEnhancer({
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const { playNotification, playEnhancement } = useSoundEffects();
+  const { isGuest, triggerSaveModal } = useGuestMode();
   
   const aiModels = [
     {
@@ -200,42 +202,78 @@ export default function AIPromptEnhancer({
   }
 
   function handleApply() {
-    if (result?.enhanced) {
-      const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
-      const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
-      
-      onApply({ 
-        ...prompt, 
-        text: result.enhanced,
-        title: `${cleanTitle} (Enhanced for ${modelName})`,
-        enhanced: true,
-        enhancedFor: targetModel,
-        enhancementType: enhancementType,
-        enhancedAt: new Date().toISOString(),
+    if (!result?.enhanced) return;
+
+    const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
+    const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
+    
+    const enhancedPrompt = { 
+      ...prompt, 
+      text: result.enhanced,
+      title: `${cleanTitle} (Enhanced for ${modelName})`,
+      enhanced: true,
+      enhancedFor: targetModel,
+      enhancementType: enhancementType,
+      enhancedAt: new Date().toISOString(),
+    };
+
+    // ✅ GUEST MODE: Check if guest is trying to save
+    if (isGuest) {
+      const canSave = triggerSaveModal(enhancedPrompt, () => {
+        // This callback will execute after successful signup
+        onApply(enhancedPrompt);
+        showNotification("Enhanced prompt applied!", "success");
+        if (onClose) onClose();
       });
-      showNotification("Enhanced prompt applied!", "success");
-      if (onClose) onClose();
+      
+      if (!canSave) {
+        // Modal was triggered, don't proceed
+        return;
+      }
     }
+
+    // ✅ AUTHENTICATED: Apply directly
+    onApply(enhancedPrompt);
+    showNotification("Enhanced prompt applied!", "success");
+    if (onClose) onClose();
   }
 
   function handleSaveAsNew() {
-    if (result?.enhanced) {
-      const { id, teamId, createdAt, createdBy, ...promptData } = prompt;
-      const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
-      const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
+    if (!result?.enhanced) return;
 
-      onSaveAsNew({
-        ...promptData,
-        text: result.enhanced,
-        title: `${cleanTitle} (Enhanced for ${modelName})`,
-        enhanced: true,
-        enhancedFor: targetModel,
-        enhancementType: enhancementType,
-        enhancedAt: new Date().toISOString(),
+    const { id, teamId, createdAt, createdBy, ...promptData } = prompt;
+    const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
+    const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
+
+    const newPrompt = {
+      ...promptData,
+      text: result.enhanced,
+      title: `${cleanTitle} (Enhanced for ${modelName})`,
+      enhanced: true,
+      enhancedFor: targetModel,
+      enhancementType: enhancementType,
+      enhancedAt: new Date().toISOString(),
+    };
+
+    // ✅ GUEST MODE: Check if guest is trying to save
+    if (isGuest) {
+      const canSave = triggerSaveModal(newPrompt, () => {
+        // This callback will execute after successful signup
+        onSaveAsNew(newPrompt);
+        showNotification("Saved as new prompt!", "success");
+        if (onClose) onClose();
       });
-      showNotification("Saved as new prompt!", "success");
-      if (onClose) onClose();
+      
+      if (!canSave) {
+        // Modal was triggered, don't proceed
+        return;
+      }
     }
+
+    // ✅ AUTHENTICATED: Save directly
+    onSaveAsNew(newPrompt);
+    showNotification("Saved as new prompt!", "success");
+    if (onClose) onClose();
   }
 
   const selectedModel = aiModels.find(m => m.id === targetModel);
@@ -692,7 +730,11 @@ export default function AIPromptEnhancer({
           <div className="flex justify-between items-center text-xs flex-wrap gap-3">
             <div style={{ color: "var(--muted-foreground)" }}>
               <AlertCircle className="w-3 h-3 inline mr-1" />
-              Tip: Select target AI model first, then choose enhancement type for best results
+              {isGuest ? (
+                <span>Guest mode: Sign up to save enhanced prompts</span>
+              ) : (
+                <span>Tip: Select target AI model first, then choose enhancement type for best results</span>
+              )}
             </div>
             <button
               onClick={onClose}
