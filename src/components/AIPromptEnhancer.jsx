@@ -203,135 +203,108 @@ export default function AIPromptEnhancer({
     }, 3000);
   }
 
- function handleApply() {
-  if (!result?.enhanced) return;
+  function handleApply() {
+    if (!result?.enhanced) return;
 
-  const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
-  const cleanTitle = prompt.title.replace(/\s*(Enhanced for [^)]+)\s*/g, '').trim();
-  
-  const enhancedPrompt = {
-    ...prompt,
-    text: result.enhanced,
-    title: `${cleanTitle} (Enhanced for ${modelName})`,
-    enhanced: true,
-    enhancedFor: targetModel,
-    enhancementType: enhancementType,
-    enhancedAt: new Date().toISOString(),
-  };
-
-  // ✅ DEMO PROMPT: Always trigger save modal (BLOCKING)
-  if (isGuest && isDemoPrompt(prompt)) {
-    console.log('🔒 Demo prompt enhancement - triggering save modal');
+    const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
+    const cleanTitle = prompt.title.replace(/\s*(Enhanced for [^)]+)\s*/g, '').trim();
     
-    triggerSaveModal(
-      enhancedPrompt,
-      () => {
-        // ✅ This ONLY runs after successful signup
-        onApply(enhancedPrompt);
-        showNotification("Enhancement saved to your account!", "success");
-        if (onClose) onClose();
-      }
-    );
+    const enhancedPrompt = {
+      ...prompt,
+      text: result.enhanced,
+      title: `${cleanTitle} (Enhanced for ${modelName})`,
+      enhanced: true,
+      enhancedFor: targetModel,
+      enhancementType: enhancementType,
+      enhancedAt: new Date().toISOString(),
+    };
 
-    // ✅ CRITICAL: Return immediately - DON'T apply anything until signup
-    return;
-  }
-
-  // ✅ GUEST USER PROMPT: Update in guestState + show reminder
-  if (isGuest && !isDemoPrompt(prompt)) {
-    try {
-      guestState.updatePrompt(prompt.id, enhancedPrompt);
-      onApply(enhancedPrompt);
-      showNotification("Enhancement saved! Sign up to keep your work.", "success");
-      if (onClose) onClose();
-      return;
-    } catch (error) {
-      console.error("Error updating guest prompt:", error);
-      showNotification("Failed to save enhancement", "error");
-      return;
-    }
-  }
-
-  // ✅ AUTHENTICATED: Apply directly
-  onApply(enhancedPrompt);
-  showNotification("Enhanced prompt applied!", "success");
-  if (onClose) onClose();
-}
-  function handleSaveAsNew() {
-  if (!result?.enhanced) return;
-
-  const { id, teamId, createdAt, createdBy, ...promptData } = prompt;
-  const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
-  const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
-
-  const newPrompt = {
-    ...promptData,
-    text: result.enhanced,
-    title: `${cleanTitle} (Enhanced for ${modelName})`,
-    enhanced: true,
-    enhancedFor: targetModel,
-    enhancementType: enhancementType,
-    enhancedAt: new Date().toISOString(),
-  };
-
-  // ✅ DEMO PROMPT: Always trigger save modal (BLOCKING)
-  if (isGuest && isDemoPrompt(prompt)) {
-    console.log('🔒 Saving enhanced demo as new - triggering save modal');
-    
-    triggerSaveModal(
-      newPrompt,
-      () => {
-        // ✅ This ONLY runs after successful signup
-        onSaveAsNew(newPrompt);
-        showNotification("Saved to your account!", "success");
-        if (onClose) onClose();
-      }
-    );
-    
-    // ✅ CRITICAL: Return immediately - DON'T save anything until signup
-    return;
-  }
-  
-  // ✅ GUEST USER PROMPT: Add to guestState
-  if (isGuest && !isDemoPrompt(prompt)) {
-    try {
-      const savedPrompt = guestState.addPrompt(newPrompt);
-      onSaveAsNew(savedPrompt);
-      showNotification("Saved as new! Sign up to keep your work.", "success");
-      if (onClose) onClose();
-      return;
-    } catch (error) {
-      console.error("Error saving guest prompt:", error);
-      showNotification("Failed to save as new", "error");
-      return;
-    }
-  }
-
-  // ✅ AUTHENTICATED: Save directly
-  onSaveAsNew(newPrompt);
-  showNotification("Saved as new prompt!", "success");
-  if (onClose) onClose();
-}
-        
-        if (!canSave) {
-          // Modal was triggered, don't proceed
-          return;
-        }
-      } 
+    // ✅ DEMO PROMPT: Always trigger save modal (BLOCKING)
+    if (isGuest && isDemoPrompt(prompt)) {
+      console.log('🔒 Demo prompt enhancement - triggering save modal');
       
-      // ✅ USER-CREATED GUEST PROMPT: Add to guestState
-      else {
-        try {
-          const savedPrompt = guestState.addPrompt(newPrompt);
-          onSaveAsNew(savedPrompt);
-          showNotification("Saved as new prompt in session!", "success");
+      triggerSaveModal(
+        enhancedPrompt,
+        () => {
+          // ✅ This ONLY runs after successful signup
+          onApply(enhancedPrompt);
+          showNotification("Enhancement saved to your account!", "success");
           if (onClose) onClose();
-          return;
-        } catch (error) {
-          console.error("Error saving guest prompt:", error);
-          showNotification("Failed to save as new", "error");
-          return;
         }
+      );
+
+      // ✅ CRITICAL: Return immediately - DON'T apply anything until signup
+      return;
+    }
+
+    // ✅ GUEST USER PROMPT: Update in guestState + show reminder
+    if (isGuest && !isDemoPrompt(prompt)) {
+      try {
+        guestState.updatePrompt(prompt.id, enhancedPrompt);
+        onApply(enhancedPrompt);
+        showNotification("Enhancement saved! Sign up to keep your work.", "success");
+        if (onClose) onClose();
+        return;
+      } catch (error) {
+        console.error("Error updating guest prompt:", error);
+        showNotification("Failed to save enhancement", "error");
+        return;
+      }
+    }
+
+    // ✅ AUTHENTICATED: Apply directly
+    onApply(enhancedPrompt);
+    showNotification("Enhanced prompt applied!", "success");
+    if (onClose) onClose();
+  }
+
+  function handleSaveAsNew() {
+    if (!result?.enhanced) return;
+
+    const { id, teamId, createdAt, createdBy, ...promptData } = prompt;
+    const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
+    const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
+
+    const newPrompt = {
+      ...promptData,
+      text: result.enhanced,
+      title: `${cleanTitle} (Enhanced for ${modelName})`,
+      enhanced: true,
+      enhancedFor: targetModel,
+      enhancementType: enhancementType,
+      enhancedAt: new Date().toISOString(),
+    };
+
+    // ✅ DEMO PROMPT: Always trigger save modal (BLOCKING)
+    if (isGuest && isDemoPrompt(prompt)) {
+      console.log('🔒 Saving enhanced demo as new - triggering save modal');
+      
+      triggerSaveModal(
+        newPrompt,
+        () => {
+          // ✅ This ONLY runs after successful signup
+          onSaveAsNew(newPrompt);
+          showNotification("Saved to your account!", "success");
+          if (onClose) onClose();
+        }
+      );
+      
+      // ✅ CRITICAL: Return immediately - DON'T save anything until signup
+      return;
+    }
+    
+    // ✅ GUEST USER PROMPT: Add to guestState
+    if (isGuest && !isDemoPrompt(prompt)) {
+      try {
+        const savedPrompt = guestState.addPrompt(newPrompt);
+        onSaveAsNew(savedPrompt);
+        showNotification("Saved as new! Sign up to keep your work.", "success");
+        if (onClose) onClose();
+        return;
+      } catch (error) {
+        console.error("Error saving guest prompt:", error);
+        showNotification("Failed to save as new", "error");
+        return;
       }
     }
 
