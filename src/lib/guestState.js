@@ -1,6 +1,6 @@
 // src/lib/guestState.js - Guest User State Management
 // Manages work for unauthenticated users before signup
-
+import { createTimestampMock } from './guestDemoContent';
 const GUEST_STORAGE_KEY = 'prism_guest_work';
 const GUEST_SESSION_KEY = 'prism_guest_session';
 
