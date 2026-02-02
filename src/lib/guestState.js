@@ -31,41 +31,25 @@ export class GuestStateManager {
    * Get all guest work from localStorage
    */
   getGuestWork() {
-    try {
-      const data = localStorage.getItem(GUEST_STORAGE_KEY);
-      if (!data) return this.getDefaultState();
-      
-      const parsedData = JSON.parse(data);
-      
-      // ✅ FIXED: Reconstruct timestamps after JSON parse
-      if (parsedData.prompts) {
-        parsedData.prompts = parsedData.prompts.map(prompt => ({
-          ...prompt,
-          createdAt: this.reconstructTimestamp(prompt.createdAt),
-          updatedAt: prompt.updatedAt ? this.reconstructTimestamp(prompt.updatedAt) : undefined,
-        }));
-      }
-      
-      if (parsedData.outputs) {
-        parsedData.outputs = parsedData.outputs.map(output => ({
-          ...output,
-          createdAt: this.reconstructTimestamp(output.createdAt),
-        }));
-      }
-      
-      if (parsedData.chatMessages) {
-        parsedData.chatMessages = parsedData.chatMessages.map(msg => ({
-          ...msg,
-          timestamp: this.reconstructTimestamp(msg.timestamp),
-        }));
-      }
-      
-      return parsedData;
-    } catch (error) {
-      console.error('Error loading guest work:', error);
-      return this.getDefaultState();
-    }
+  try {
+    const data = localStorage.getItem(GUEST_STORAGE_KEY);
+    if (!data) return this.getDefaultState();
+    
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error loading guest work:', error);
+    return this.getDefaultState();
   }
+}
+
+getDefaultState() {
+  return {
+    prompts: [],
+    enhancementCount: 0, // ✅ NEW: Track enhancements
+    lastModified: null,
+    sessionId: this.sessionId,
+  };
+}
   
   /**
    * ✅ NEW HELPER: Reconstruct timestamp mock from stored data
@@ -142,40 +126,47 @@ export class GuestStateManager {
   /**
    * Add a prompt to guest work (without persisting to backend)
    */
-  addPrompt(prompt) {
-    const work = this.getGuestWork();
-    const newPrompt = {
-      id: `guest_prompt_${Date.now()}`,
-      ...prompt,
-      createdAt: createTimestampMock(new Date()),
-      isGuest: true,
-    };
-    
-    work.prompts.push(newPrompt);
-    this.saveGuestWork(work);
-    
-    return newPrompt;
-  }
+ addPrompt(prompt) {
+  const work = this.getGuestWork();
+  const newPrompt = {
+    id: `user_${Date.now()}`,
+    ...prompt,
+    createdAt: new Date().toISOString(), // ✅ Simple ISO string
+    owner: 'guest',
+    isGuest: true,
+  };
+  
+  work.prompts.push(newPrompt);
+  this.saveGuestWork(work);
+  
+  return newPrompt;
+}
 
   /**
    * Update a guest prompt
    */
-  updatePrompt(promptId, updates) {
-    const work = this.getGuestWork();
-    const promptIndex = work.prompts.findIndex(p => p.id === promptId);
-    
-    if (promptIndex === -1) {
-      return { success: false, error: 'Prompt not found' };
-    }
-    
-    work.prompts[promptIndex] = {
-      ...work.prompts[promptIndex],
-      ...updates,
-      updatedAt: createTimestampMock(new Date()),
-    };
-    
-    return this.saveGuestWork(work);
+ updatePrompt(promptId, updates, isEnhancement = false) {
+  const work = this.getGuestWork();
+  const promptIndex = work.prompts.findIndex(p => p.id === promptId);
+  
+  if (promptIndex === -1) {
+    return { success: false, error: 'Prompt not found' };
   }
+  
+  work.prompts[promptIndex] = {
+    ...work.prompts[promptIndex],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  
+  // ✅ Track enhancements for save trigger
+  if (isEnhancement) {
+    work.enhancementCount = (work.enhancementCount || 0) + 1;
+  }
+  
+  this.saveGuestWork(work);
+  return { success: true };
+}
 
   /**
    * Add output to a prompt
@@ -222,6 +213,18 @@ export class GuestStateManager {
     return work.prompts || [];
   }
 
+  /**
+ * ✅ IMPROVED: Work summary for save modal
+ */
+getWorkSummary() {
+  const work = this.getGuestWork();
+  return {
+    promptCount: work.prompts.length,
+    enhancementCount: work.enhancementCount || 0,
+    lastModified: work.lastModified,
+    sessionId: work.sessionId,
+  };
+}
   /**
    * Get all guest outputs
    */
