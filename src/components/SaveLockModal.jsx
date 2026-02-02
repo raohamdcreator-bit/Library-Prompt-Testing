@@ -1,31 +1,73 @@
-// src/components/SaveLockModal.jsx - Signup gate for guest users attempting to save
-import { X, Zap, Shield, Clock } from 'lucide-react';
-import { guestState } from '../lib/guestState';
+// src/components/SaveLockModal.jsx - REFACTORED: Shows value, clear messaging
+import { X, Zap, Shield, Clock, Sparkles, FileText } from 'lucide-react';
 
 /**
- * Save Lock Modal
- * Triggers when guest user attempts to save work
- * Exact copy as per requirements
+ * ✅ REFACTORED Save Lock Modal
+ * - Shows accumulated work value
+ * - Clear messaging based on trigger context
+ * - Trust indicators
+ * - Easy dismissal (no guilt)
  */
-export default function SaveLockModal({ isOpen, onClose, onSignup, onContinueWithout }) {
+export default function SaveLockModal({ 
+  isOpen, 
+  onClose, 
+  onSignup, 
+  onContinueWithout,
+  workSummary,
+  modalContext,
+}) {
   if (!isOpen) return null;
 
-  const workSummary = guestState.getWorkSummary();
+  // ✅ Get trigger-specific messaging
+  const getMessage = () => {
+    if (!modalContext) {
+      return {
+        title: "Don't lose this work",
+        subtitle: "Create a free account to save your prompts",
+      };
+    }
+
+    switch (modalContext.trigger) {
+      case 'prompt_limit':
+        return {
+          title: "You're on a roll! 🎉",
+          subtitle: `You've created ${modalContext.promptCount} prompts. Save them to your account?`,
+        };
+      case 'first_enhancement':
+        return {
+          title: "Great enhancement!",
+          subtitle: "Save your optimized prompts so you can use them anytime",
+        };
+      case 'export_attempt':
+        return {
+          title: "Ready to export?",
+          subtitle: "Create an account first to export your prompts",
+        };
+      default:
+        return {
+          title: "Don't lose this work",
+          subtitle: "Create a free account to save your prompts",
+        };
+    }
+  };
+
+  const { title, subtitle } = getMessage();
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
       style={{ 
         background: 'rgba(0, 0, 0, 0.85)',
         backdropFilter: 'blur(8px)',
+        animation: 'fadeIn 0.2s ease-out',
       }}
       onClick={onClose}
     >
       <div
         className="glass-card relative w-full max-w-md mx-4"
         style={{
-          padding: '2.5rem 2rem',
-          animation: 'fadeInUp 0.3s ease-out',
+          padding: '2rem',
+          animation: 'slideUp 0.3s ease-out',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -33,82 +75,93 @@ export default function SaveLockModal({ isOpen, onClose, onSignup, onContinueWit
         <button
           onClick={onClose}
           className="action-btn-premium absolute top-4 right-4"
-          style={{
-            width: '36px',
-            height: '36px',
-          }}
-          aria-label="Close modal"
+          style={{ width: '32px', height: '32px' }}
+          aria-label="Close"
         >
-          <X size={18} />
+          <X size={16} />
         </button>
 
         {/* Icon */}
         <div
           style={{
-            width: '64px',
-            height: '64px',
-            margin: '0 auto 1.5rem',
+            width: '56px',
+            height: '56px',
+            margin: '0 auto 1.25rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%)',
-            borderRadius: '16px',
+            borderRadius: '14px',
             border: '1px solid rgba(139, 92, 246, 0.3)',
           }}
         >
-          <Shield size={32} style={{ color: 'var(--primary)' }} />
+          <Shield size={28} style={{ color: 'var(--primary)' }} />
         </div>
 
         {/* Title */}
         <h2
           style={{
-            fontSize: '1.75rem',
+            fontSize: '1.5rem',
             fontWeight: '700',
             color: 'var(--foreground)',
             textAlign: 'center',
-            marginBottom: '0.75rem',
+            marginBottom: '0.5rem',
             lineHeight: '1.2',
           }}
         >
-          Don't lose this work
+          {title}
         </h2>
 
         {/* Subtitle */}
         <p
           style={{
-            fontSize: '1rem',
+            fontSize: '0.938rem',
             color: 'rgba(228, 228, 231, 0.7)',
             textAlign: 'center',
-            marginBottom: '2rem',
+            marginBottom: '1.5rem',
             lineHeight: '1.5',
           }}
         >
-          Create a free account to save your prompts and come back anytime.
+          {subtitle}
         </p>
 
-        {/* Work Summary (if any work exists) */}
-        {workSummary.promptCount > 0 && (
+        {/* ✅ NEW: Work Summary */}
+        {workSummary && (workSummary.promptCount > 0 || workSummary.enhancementCount > 0) && (
           <div
             style={{
               background: 'rgba(139, 92, 246, 0.05)',
-              border: '1px solid rgba(139, 92, 246, 0.1)',
-              borderRadius: '12px',
+              border: '1px solid rgba(139, 92, 246, 0.15)',
+              borderRadius: '10px',
               padding: '1rem',
               marginBottom: '1.5rem',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-              <Zap size={16} style={{ color: 'var(--primary)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <Sparkles size={16} style={{ color: 'var(--primary)' }} />
               <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--foreground)' }}>
-                Your work so far:
+                What you'll save:
               </span>
             </div>
-            <div style={{ fontSize: '0.813rem', color: 'rgba(228, 228, 231, 0.6)', marginLeft: '1.75rem' }}>
+            
+            <div style={{ fontSize: '0.813rem', color: 'rgba(228, 228, 231, 0.7)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {workSummary.promptCount > 0 && (
-                <div>{workSummary.promptCount} {workSummary.promptCount === 1 ? 'prompt' : 'prompts'}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={14} style={{ color: 'var(--primary)' }} />
+                  <span>
+                    <strong style={{ color: 'var(--foreground)' }}>{workSummary.promptCount}</strong>{' '}
+                    {workSummary.promptCount === 1 ? 'prompt' : 'prompts'}
+                  </span>
+                </div>
               )}
-              {workSummary.outputCount > 0 && (
-                <div>{workSummary.outputCount} {workSummary.outputCount === 1 ? 'output' : 'outputs'}</div>
+              
+              {workSummary.enhancementCount > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Zap size={14} style={{ color: 'var(--primary)' }} />
+                  <span>
+                    <strong style={{ color: 'var(--foreground)' }}>{workSummary.enhancementCount}</strong>{' '}
+                    {workSummary.enhancementCount === 1 ? 'enhancement' : 'enhancements'}
+                  </span>
+                </div>
               )}
             </div>
           </div>
@@ -120,14 +173,14 @@ export default function SaveLockModal({ isOpen, onClose, onSignup, onContinueWit
           className="btn-premium w-full"
           style={{
             marginBottom: '0.75rem',
-            padding: '1rem',
-            fontSize: '1rem',
+            padding: '0.875rem 1rem',
+            fontSize: '0.938rem',
             fontWeight: '600',
             justifyContent: 'center',
           }}
         >
-          <Shield size={20} />
-          Save & create free account
+          <Shield size={18} />
+          <span>Save & create free account</span>
         </button>
 
         {/* Secondary CTA */}
@@ -135,8 +188,8 @@ export default function SaveLockModal({ isOpen, onClose, onSignup, onContinueWit
           onClick={onContinueWithout}
           className="btn-secondary w-full"
           style={{
-            padding: '1rem',
-            fontSize: '0.938rem',
+            padding: '0.875rem 1rem',
+            fontSize: '0.875rem',
             fontWeight: '500',
             justifyContent: 'center',
           }}
@@ -144,43 +197,49 @@ export default function SaveLockModal({ isOpen, onClose, onSignup, onContinueWit
           Continue without saving
         </button>
 
-        {/* Microcopy */}
+        {/* Trust Indicators */}
         <div
           style={{
-            marginTop: '1.5rem',
+            marginTop: '1.25rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '0.5rem',
+            gap: '0.75rem',
             flexWrap: 'wrap',
+            paddingTop: '1rem',
+            borderTop: '1px solid rgba(139, 92, 246, 0.1)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-            <Zap size={14} style={{ color: 'var(--primary)', opacity: 0.7 }} />
-            <span style={{ fontSize: '0.813rem', color: 'rgba(228, 228, 231, 0.5)' }}>
-              Free
+            <Zap size={13} style={{ color: 'rgba(139, 92, 246, 0.7)' }} />
+            <span style={{ fontSize: '0.75rem', color: 'rgba(228, 228, 231, 0.5)' }}>
+              100% Free
             </span>
           </div>
-          <span style={{ color: 'rgba(228, 228, 231, 0.3)' }}>•</span>
+          <span style={{ color: 'rgba(228, 228, 231, 0.2)' }}>•</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-            <Shield size={14} style={{ color: 'var(--primary)', opacity: 0.7 }} />
-            <span style={{ fontSize: '0.813rem', color: 'rgba(228, 228, 231, 0.5)' }}>
+            <Shield size={13} style={{ color: 'rgba(139, 92, 246, 0.7)' }} />
+            <span style={{ fontSize: '0.75rem', color: 'rgba(228, 228, 231, 0.5)' }}>
               No credit card
             </span>
           </div>
-          <span style={{ color: 'rgba(228, 228, 231, 0.3)' }}>•</span>
+          <span style={{ color: 'rgba(228, 228, 231, 0.2)' }}>•</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-            <Clock size={14} style={{ color: 'var(--primary)', opacity: 0.7 }} />
-            <span style={{ fontSize: '0.813rem', color: 'rgba(228, 228, 231, 0.5)' }}>
-              Takes 10 seconds
+            <Clock size={13} style={{ color: 'rgba(139, 92, 246, 0.7)' }} />
+            <span style={{ fontSize: '0.75rem', color: 'rgba(228, 228, 231, 0.5)' }}>
+              10 seconds
             </span>
           </div>
         </div>
       </div>
 
-      {/* Animation keyframes */}
       <style>{`
-        @keyframes fadeInUp {
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
           from {
             opacity: 0;
             transform: translateY(20px) scale(0.95);
