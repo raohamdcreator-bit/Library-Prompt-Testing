@@ -1,5 +1,5 @@
 // src/components/PromptList.jsx - ENHANCED VERSION with UI/UX Improvements
-// Single column layout, improved mobile experience, better accessibility
+
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
