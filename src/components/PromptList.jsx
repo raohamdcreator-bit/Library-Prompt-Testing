@@ -1,7 +1,7 @@
-// src/components/PromptList.jsx - PRODUCTION MERGED VERSION
-// Combines guest mode, demo prompts, real-time updates, pagination, and all advanced features
+// src/components/PromptList.jsx - ENHANCED VERSION with UI/UX Improvements
+// Single column layout, improved mobile experience, better accessibility
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
 import { trackPromptCopy, trackPromptView } from "../lib/promptStats";
 import {
@@ -48,6 +48,13 @@ import {
   AlertCircle,
   Users,
   Search,
+  Check,
+  TrendingUp,
+  Clock,
+  Zap,
+  HelpCircle,
+  Filter,
+  ChevronRight,
 } from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
 import Comments from "./Comments";
@@ -62,6 +69,42 @@ import AIPromptEnhancer from "./AIPromptEnhancer";
 import PromptResults from "./PromptResults";
 import { StarRating, usePromptRating } from "./PromptAnalytics";
 import { useSoundEffects } from '../hooks/useSoundEffects';
+
+// Utility: Get relative time
+function getRelativeTime(timestamp) {
+  if (!timestamp) return "";
+  
+  try {
+    let date;
+    if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else if (timestamp.toDate) {
+      date = timestamp.toDate();
+    } else {
+      date = new Date(timestamp);
+    }
+    
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return "Just now";
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+    
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+    });
+  } catch {
+    return "";
+  }
+}
 
 // Rating Section Component
 function RatingSection({ teamId, promptId }) {
@@ -110,6 +153,52 @@ function RatingSection({ teamId, promptId }) {
   );
 }
 
+// Copy Button with visual feedback
+function CopyButton({ text, promptId, onCopy }) {
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopy = async () => {
+    await onCopy(text, promptId);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  
+  return (
+    <button
+      onClick={handleCopy}
+      className="action-btn-premium"
+      title="Copy to clipboard"
+      aria-label="Copy prompt to clipboard"
+    >
+      {copied ? (
+        <Check className="w-4 h-4 text-green-500" />
+      ) : (
+        <Copy className="w-4 h-4" />
+      )}
+    </button>
+  );
+}
+
+// Tooltip component
+function Tooltip({ children, text }) {
+  const [show, setShow] = useState(false);
+  
+  return (
+    <div 
+      className="tooltip-container"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      {show && (
+        <div className="tooltip-content">
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId }) {
   const { user } = useAuth();
   const { playNotification } = useSoundEffects();
@@ -118,6 +207,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [userPrompts, setUserPrompts] = useState([]);
   const [filteredPrompts, setFilteredPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [newPrompt, setNewPrompt] = useState({
     title: "",
     tags: "",
@@ -141,20 +231,33 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [viewedPrompts, setViewedPrompts] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const createFormRef = useRef(null);
+  const listTopRef = useRef(null);
 
-  // Get demo prompts (always available for guests)
+  // Check if first time user
+  useEffect(() => {
+    if (isGuestMode && userPrompts.length === 0) {
+      const hasSeenTour = localStorage.getItem('hasSeenPromptTour');
+      if (!hasSeenTour) {
+        setShowTour(true);
+        localStorage.setItem('hasSeenPromptTour', 'true');
+      }
+    }
+  }, [isGuestMode, userPrompts.length]);
+
+  // Get demo prompts
   const demos = useMemo(() => {
-    // Only show demos to guest users who haven't created any prompts yet
     if (isGuestMode && userPrompts.length === 0) {
       return getAllDemoPrompts();
     }
     return [];
   }, [isGuestMode, userPrompts.length]);
 
-  // Load prompts (Firestore for auth users, guestState for guests)
+  // Load prompts
   useEffect(() => {
     if (isGuestMode) {
-      // Guest mode: Load from sessionStorage
       setUserPrompts(guestState.getPrompts());
       setLoading(false);
       return;
@@ -167,7 +270,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       return;
     }
 
-    // Authenticated: Load from Firestore with real-time updates
     setLoading(true);
     const q = query(
       collection(db, "teams", activeTeam, "prompts"),
@@ -201,8 +303,9 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsub();
   }, [activeTeam, user, userRole, isGuestMode]);
 
-  // Combine and filter all prompts (demos + user prompts)
+  // Search and filter with loading state
   const allPrompts = useMemo(() => {
+    setSearchLoading(true);
     let combined = [...demos, ...userPrompts];
     
     // Apply search filter
@@ -223,13 +326,19 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         combined = combined.filter(p => !isDemoPrompt(p));
       } else if (filterCategory === 'enhanced') {
         combined = combined.filter(p => p.enhanced === true);
+      } else if (filterCategory === 'recent') {
+        combined = combined.sort((a, b) => {
+          const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
+          const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
+          return dateB - dateA;
+        }).slice(0, 10);
       }
     }
     
+    setTimeout(() => setSearchLoading(false), 100);
     return combined;
   }, [demos, userPrompts, searchQuery, filterCategory]);
 
-  // Separate demos and user prompts for display
   const displayDemos = useMemo(() => 
     allPrompts.filter(p => isDemoPrompt(p)), 
     [allPrompts]
@@ -298,7 +407,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     loadMembers();
   }, [activeTeam, isGuestMode]);
 
-  // Load viewed prompts from localStorage
+  // Load viewed prompts
   useEffect(() => {
     async function loadViewedPrompts() {
       if (!activeTeam || !user?.uid || isGuestMode) return;
@@ -319,7 +428,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     loadViewedPrompts();
   }, [activeTeam, user?.uid, isGuestMode]);
 
-  // Persist viewed prompts to localStorage
+  // Persist viewed prompts
   useEffect(() => {
     if (!activeTeam || !user?.uid || viewedPrompts.size === 0 || isGuestMode) return;
     
@@ -337,11 +446,21 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       if (openKebabMenu && !event.target.closest('.kebab-menu-container')) {
         setOpenKebabMenu(null);
       }
+      if (showFilterMenu && !event.target.closest('.filter-menu-wrapper')) {
+        setShowFilterMenu(false);
+      }
     }
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [openKebabMenu]);
+  }, [openKebabMenu, showFilterMenu]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (listTopRef.current) {
+      listTopRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [pagination.currentPage]);
 
   function handleFilteredResults(filtered) {
     setFilteredPrompts(filtered);
@@ -366,9 +485,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     });
   }
 
-  /**
-   * Handle "Make My Own" for demo prompts
-   */
   const handleDuplicateDemo = (demoPrompt) => {
     const userPrompt = duplicateDemoToUserPrompt(demoPrompt);
     
@@ -413,7 +529,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
     try {
       if (isGuestMode) {
-        // Guest mode: Save to sessionStorage
         const savedPrompt = guestState.addPrompt({
           title: newPrompt.title.trim(),
           text: newPrompt.text.trim(),
@@ -421,11 +536,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           visibility: newPrompt.visibility,
         });
         setUserPrompts(prev => [savedPrompt, ...prev]);
-        
-        // Check if we should trigger save modal
         checkSaveRequired('create_prompt', () => {});
       } else {
-        // Authenticated: Save to Firestore
         await savePrompt(
           user.uid,
           {
@@ -480,7 +592,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     const prompt = allPrompts.find((p) => p.id === promptId);
     if (!prompt) return;
 
-    // Check permissions
     if (isGuestMode) {
       if (!canEditGuestPrompt(prompt)) {
         showNotification("Cannot delete this prompt", "error");
@@ -550,7 +661,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       await navigator.clipboard.writeText(text);
       showSuccessToast("Copied to clipboard!");
       
-      // Track copy in stats (only for authenticated users)
       if (!isGuestMode && activeTeam) {
         await trackPromptCopy(activeTeam, promptId);
       }
@@ -571,7 +681,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     
     toggleTextExpansion(promptId);
     
-    // Only track view for authenticated users
     if (!isGuestMode && !wasAlreadyExpanded && !viewedPrompts.has(promptId)) {
       try {
         await trackPromptView(activeTeam, promptId);
@@ -599,7 +708,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         guestState.updatePrompt(enhancedPrompt.id, {
           text: enhancedPrompt.text,
           title: enhancedPrompt.title,
-        }, true); // Mark as enhancement
+        }, true);
         setUserPrompts(prev => prev.map(p => 
           p.id === enhancedPrompt.id ? { ...p, ...enhancedPrompt } : p
         ));
@@ -655,6 +764,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     playNotification();
     const toast = document.createElement("div");
     toast.className = "success-toast";
+    toast.setAttribute("role", "status");
+    toast.setAttribute("aria-live", "polite");
     toast.innerHTML = `
       <div class="success-icon">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -680,6 +791,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       warning: '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>',
     };
     const notification = document.createElement("div");
+    notification.setAttribute("role", "alert");
+    notification.setAttribute("aria-live", "assertive");
     notification.innerHTML = `
       <div class="flex items-center gap-2">
         ${icons[type] || icons.info}
@@ -702,27 +815,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         }
       }, 300);
     }, 3000);
-  }
-
-  function formatDate(timestamp) {
-    if (!timestamp) return "";
-    
-    // Handle different timestamp formats
-    try {
-      if (typeof timestamp === 'string') {
-        return formatTimestamp(timestamp);
-      }
-      if (timestamp.toDate) {
-        return timestamp.toDate().toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        });
-      }
-      return formatTimestamp(timestamp);
-    } catch {
-      return "";
-    }
   }
 
   function canEditPrompt(prompt) {
@@ -749,6 +841,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
   function UserAvatar({ src, name, email }) {
     const [imageError, setImageError] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
 
     if (!src || imageError) {
       return (
@@ -762,18 +855,24 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     }
 
     return (
-      <img
-        src={src}
-        alt="avatar"
-        className="author-avatar"
-        onError={() => setImageError(true)}
-      />
+      <div className="author-avatar-wrapper">
+        {!imageLoaded && (
+          <div className="author-avatar flex items-center justify-center" style={{ backgroundColor: "var(--muted)" }}>
+            <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          </div>
+        )}
+        <img
+          src={src}
+          alt={`${name || email}'s avatar`}
+          className={`author-avatar ${imageLoaded ? 'loaded' : 'loading'}`}
+          onLoad={() => setImageLoaded(true)}
+          onError={() => setImageError(true)}
+          style={{ display: imageLoaded ? 'block' : 'none' }}
+        />
+      </div>
     );
   }
 
-  /**
-   * Render individual prompt card
-   */
   const renderPromptCard = (prompt) => {
     const badge = getPromptBadge(prompt, isGuestMode);
     const isDemo = isDemoPrompt(prompt);
@@ -783,11 +882,16 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     const isTextExpanded = expandedTextIds.has(prompt.id);
     const isPrivate = prompt.visibility === "private";
     const resultsCount = resultCounts[prompt.id] || 0;
-    const shouldTruncate = prompt.text.length >= 50;
+    const isViewed = viewedPrompts.has(prompt.id);
+    const shouldTruncate = prompt.text.length > 150;
+    const displayText = isTextExpanded ? prompt.text : prompt.text.slice(0, 150);
 
     return (
-      <div key={prompt.id} className="prompt-card-premium">
-        {/* Author Info (only for non-demo prompts) */}
+      <div 
+        key={prompt.id} 
+        className={`prompt-card-premium single-column ${isViewed ? 'viewed' : 'unviewed'}`}
+      >
+        {/* Author Info */}
         {!isDemo && (
           <div className="author-info">
             <UserAvatar
@@ -799,14 +903,19 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               <div className="author-name">
                 {isGuestMode ? "You" : (author?.name || author?.email || "Unknown")}
               </div>
-              <div className="author-timestamp">{formatDate(prompt.createdAt)}</div>
+              <div className="author-timestamp">
+                <Clock className="w-3 h-3" />
+                {getRelativeTime(prompt.createdAt)}
+              </div>
             </div>
             {!isGuestMode && (
               <div className="ml-auto">
-                <span className={`visibility-badge ${isPrivate ? "private" : ""}`}>
-                  {isPrivate ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-                  {isPrivate ? "Private" : "Public"}
-                </span>
+                <Tooltip text={isPrivate ? "Only you can see this" : "Visible to team members"}>
+                  <span className={`visibility-badge ${isPrivate ? "private" : ""}`}>
+                    {isPrivate ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+                    {isPrivate ? "Private" : "Public"}
+                  </span>
+                </Tooltip>
               </div>
             )}
           </div>
@@ -816,7 +925,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         {badge && (
           <div style={{ marginBottom: '0.75rem' }}>
             <span 
-              className="visibility-badge"
+              className="visibility-badge demo-badge"
               style={{
                 background: badge.type === 'demo' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(251, 191, 36, 0.1)',
                 borderColor: badge.type === 'demo' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(251, 191, 36, 0.2)',
@@ -829,7 +938,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         )}
 
         {/* Title & Enhancement Badge */}
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-start justify-between mb-3 gap-3">
           <h3 className="prompt-title-premium flex-1">{prompt.title}</h3>
           {!isDemo && (
             <EnhancedBadge
@@ -842,52 +951,74 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           )}
         </div>
 
-        {/* Expandable Content Preview */}
+        {/* Expandable Content Preview with Gradient */}
         <div
           className={`content-preview-box ${isTextExpanded ? 'expanded' : 'collapsed'}`}
-          style={{ cursor: 'default' }}
+          style={{ cursor: 'default', position: 'relative' }}
         >
           <pre className="content-preview-text">
-            {isTextExpanded ? prompt.text : prompt.text.slice(0, 50)}
-            {!isTextExpanded && prompt.text.length >= 50 && "..."}
+            {displayText}
           </pre>
+          {!isTextExpanded && shouldTruncate && (
+            <div className="preview-fade-gradient" />
+          )}
           {shouldTruncate && (
-            <div 
-              className="expand-indicator"
+            <button
+              className="expand-indicator-button"
               onClick={() => handleTextExpansionWithTracking(prompt.id)}
-              style={{ cursor: 'pointer' }}
+              aria-expanded={isTextExpanded}
+              aria-label={isTextExpanded ? "Collapse prompt text" : "Expand prompt text"}
             >
-              <span>{isTextExpanded ? "Click to collapse" : "Click to expand"}</span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </div>
+              <span className="expand-text">
+                {isTextExpanded ? "Show less" : "Read more"}
+              </span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isTextExpanded ? 'rotate-180' : ''}`} />
+            </button>
           )}
         </div>
 
-        {/* Metadata */}
-        <div className="prompt-metadata">
+        {/* Enhanced Metadata with Icons */}
+        <div className="prompt-metadata enhanced">
           {!isGuestMode && !isDemo && (
             <>
-              <span className="flex items-center gap-1">
-                <Eye className="w-3.5 h-3.5" />
-                {prompt.stats?.views || 0} views
-              </span>
-              <span>•</span>
+              <Tooltip text="Number of times this prompt has been viewed">
+                <span className="flex items-center gap-1.5 metadata-item">
+                  <Eye className="w-3.5 h-3.5" />
+                  <span className="metadata-value">{prompt.stats?.views || 0}</span>
+                  <span className="metadata-label">views</span>
+                </span>
+              </Tooltip>
+              <span className="metadata-separator">•</span>
             </>
           )}
-          <span>{prompt.text.length} chars</span>
+          <Tooltip text="Character count">
+            <span className="flex items-center gap-1.5 metadata-item">
+              <FileText className="w-3.5 h-3.5" />
+              <span className="metadata-value">{prompt.text.length}</span>
+              <span className="metadata-label">chars</span>
+            </span>
+          </Tooltip>
           {!isDemo && resultsCount > 0 && (
             <>
-              <span>•</span>
-              <span>{resultsCount} results</span>
+              <span className="metadata-separator">•</span>
+              <Tooltip text="Number of AI outputs saved">
+                <span className="flex items-center gap-1.5 metadata-item">
+                  <Zap className="w-3.5 h-3.5" />
+                  <span className="metadata-value">{resultsCount}</span>
+                  <span className="metadata-label">outputs</span>
+                </span>
+              </Tooltip>
             </>
           )}
           {prompt.category && (
             <>
-              <span>•</span>
-              <span className="flex items-center gap-1">
-                <Users className="w-3.5 h-3.5" />
-                {prompt.category}
-              </span>
+              <span className="metadata-separator">•</span>
+              <Tooltip text="Prompt category">
+                <span className="flex items-center gap-1.5 metadata-item">
+                  <Users className="w-3.5 h-3.5" />
+                  <span className="metadata-label">{prompt.category}</span>
+                </span>
+              </Tooltip>
             </>
           )}
         </div>
@@ -904,70 +1035,82 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         )}
 
         {/* Actions */}
-        <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+        <div className="flex items-center justify-between pt-4 border-t action-bar" style={{ borderColor: "var(--border)" }}>
           <div className="primary-actions">
             {isDemo ? (
               <>
-                <button
-                  onClick={() => handleCopy(prompt.text, prompt.id)}
-                  className="action-btn-premium"
-                  title="Copy to clipboard"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-                <button 
-                  onClick={() => handleDuplicateDemo(prompt)}
-                  className="action-btn-premium primary"
-                  title="Create your own copy"
-                >
-                  <Sparkles className="w-4 h-4" />
-                </button>
+                <Tooltip text="Copy prompt to clipboard">
+                  <CopyButton 
+                    text={prompt.text} 
+                    promptId={prompt.id}
+                    onCopy={handleCopy}
+                  />
+                </Tooltip>
+                <Tooltip text="Create your own editable copy">
+                  <button 
+                    onClick={() => handleDuplicateDemo(prompt)}
+                    className="action-btn-premium primary make-own-btn"
+                    aria-label="Make your own copy of this demo"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    <span className="btn-label">Make My Own</span>
+                  </button>
+                </Tooltip>
               </>
             ) : (
               <>
-                <button
-                  onClick={() => handleCopy(prompt.text, prompt.id)}
-                  className="action-btn-premium"
-                  title="Copy to clipboard"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
+                <Tooltip text="Copy to clipboard">
+                  <CopyButton 
+                    text={prompt.text} 
+                    promptId={prompt.id}
+                    onCopy={handleCopy}
+                  />
+                </Tooltip>
 
-                <button
-                  onClick={() => handleExpand(prompt.id)}
-                  className="action-btn-premium"
-                  title={isExpanded ? "Collapse" : "Expand details"}
-                >
-                  <Maximize2 className="w-4 h-4" />
-                </button>
+                <Tooltip text={isExpanded ? "Hide details" : "Show full details"}>
+                  <button
+                    onClick={() => handleExpand(prompt.id)}
+                    className="action-btn-premium"
+                    aria-expanded={isExpanded}
+                    aria-label={isExpanded ? "Collapse details" : "Expand details"}
+                  >
+                    <Maximize2 className="w-4 h-4" />
+                  </button>
+                </Tooltip>
 
                 {!isGuestMode && (
-                  <FavoriteButton
-                    prompt={prompt}
-                    teamId={activeTeam}
-                    teamName={teamName}
-                    size="small"
-                    className="action-btn-premium primary"
-                  />
+                  <Tooltip text="Add to favorites">
+                    <FavoriteButton
+                      prompt={prompt}
+                      teamId={activeTeam}
+                      teamName={teamName}
+                      size="small"
+                      className="action-btn-premium primary"
+                    />
+                  </Tooltip>
                 )}
 
                 {/* Kebab Menu */}
                 <div className="kebab-menu-container">
-                  <button
-                    onClick={() =>
-                      setOpenKebabMenu(openKebabMenu === prompt.id ? null : prompt.id)
-                    }
-                    className="action-btn-premium"
-                    title="More actions"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
+                  <Tooltip text="More options">
+                    <button
+                      onClick={() =>
+                        setOpenKebabMenu(openKebabMenu === prompt.id ? null : prompt.id)
+                      }
+                      className="action-btn-premium"
+                      aria-label="More actions"
+                      aria-expanded={openKebabMenu === prompt.id}
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </Tooltip>
 
                   {openKebabMenu === prompt.id && (
-                    <div className="kebab-menu">
+                    <div className="kebab-menu" role="menu">
                       <button
                         onClick={() => handleAIEnhance(prompt)}
                         className="kebab-menu-item"
+                        role="menuitem"
                       >
                         <Sparkles className="w-4 h-4" />
                         <span>Enhance with AI</span>
@@ -977,6 +1120,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                         <button
                           onClick={() => handleToggleVisibility(prompt.id)}
                           className="kebab-menu-item"
+                          role="menuitem"
                         >
                           {isPrivate ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                           <span>Make {isPrivate ? "Public" : "Private"}</span>
@@ -992,6 +1136,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                               setOpenKebabMenu(null);
                             }}
                             className="kebab-menu-item"
+                            role="menuitem"
                           >
                             <Edit2 className="w-4 h-4" />
                             <span>Edit Prompt</span>
@@ -1000,6 +1145,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                           <button
                             onClick={() => handleDelete(prompt.id)}
                             className="kebab-menu-item danger"
+                            role="menuitem"
                           >
                             <Trash2 className="w-4 h-4" />
                             <span>Delete</span>
@@ -1014,7 +1160,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           </div>
         </div>
 
-        {/* Expanded Content (only for non-demo prompts) */}
+        {/* Expanded Content */}
         {!isDemo && isExpanded && !isGuestMode && (
           <div className="expandable-section expanded">
             <div className="space-y-4 mt-6 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
@@ -1032,6 +1178,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                     setShowResults((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
                   }
                   className="expand-toggle"
+                  aria-expanded={showResults[prompt.id]}
                 >
                   <span>
                     {showResults[prompt.id] ? "Hide" : "Show"} AI Output Results
@@ -1059,6 +1206,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                   setShowComments((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
                 }
                 className="expand-toggle"
+                aria-expanded={showComments[prompt.id]}
               >
                 <span>{showComments[prompt.id] ? "Hide" : "Show"} Comments</span>
                 <ChevronDown className={`w-4 h-4 ${showComments[prompt.id] ? "rotate-180" : ""}`} />
@@ -1085,77 +1233,401 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   }
 
   return (
-    <div className="space-y-6 mobile-prompt-list-container">
+    <div className="space-y-6 mobile-prompt-list-container" ref={listTopRef}>
       <style jsx>{`
+        /* Single Column Layout */
+        .prompt-card-premium.single-column {
+          max-width: 100%;
+          margin: 0 auto 1.5rem;
+        }
+
+        /* Improved Touch Targets for Mobile */
         @media (max-width: 769px) {
-          .mobile-prompt-list-container .glass-card {
-            padding: 1rem !important;
-            border-radius: 12px !important;
+          .mobile-prompt-list-container .action-btn-premium {
+            width: 44px !important;
+            height: 44px !important;
+            min-width: 44px;
+            min-height: 44px;
           }
-          .mobile-prompt-list-container .prompt-card-premium {
-            padding: 1rem !important;
-            margin-bottom: 1rem !important;
-          }
-          .mobile-prompt-list-container .author-info {
-            flex-wrap: wrap;
+
+          .mobile-prompt-list-container .primary-actions {
             gap: 0.5rem;
           }
-          .mobile-prompt-list-container .author-avatar {
-            width: 32px !important;
-            height: 32px !important;
+        }
+
+        /* Improved Text Preview with Gradient */
+        .preview-fade-gradient {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 60px;
+          background: linear-gradient(to bottom, transparent, var(--card));
+          pointer-events: none;
+        }
+
+        .expand-indicator-button {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          margin-top: 0.75rem;
+          padding: 0.5rem 1rem;
+          background: var(--muted);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          color: var(--foreground);
+          font-size: 0.875rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+          width: 100%;
+          justify-content: center;
+        }
+
+        .expand-indicator-button:hover {
+          background: var(--accent);
+          border-color: var(--primary);
+        }
+
+        .expand-indicator-button:focus-visible {
+          outline: 2px solid var(--primary);
+          outline-offset: 2px;
+        }
+
+        /* Enhanced Metadata Styling */
+        .prompt-metadata.enhanced {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          flex-wrap: wrap;
+          font-size: 0.813rem;
+          color: var(--muted-foreground);
+          padding: 0.75rem 0;
+        }
+
+        .metadata-item {
+          cursor: help;
+          transition: color 0.2s;
+        }
+
+        .metadata-item:hover {
+          color: var(--foreground);
+        }
+
+        .metadata-value {
+          font-weight: 600;
+          color: var(--foreground);
+        }
+
+        .metadata-label {
+          color: var(--muted-foreground);
+        }
+
+        .metadata-separator {
+          color: var(--border);
+        }
+
+        /* Tooltip Styling */
+        .tooltip-container {
+          position: relative;
+          display: inline-block;
+        }
+
+        .tooltip-content {
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          margin-bottom: 0.5rem;
+          padding: 0.5rem 0.75rem;
+          background: var(--popover);
+          color: var(--popover-foreground);
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          font-size: 0.75rem;
+          white-space: nowrap;
+          z-index: 1000;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          pointer-events: none;
+        }
+
+        .tooltip-content::after {
+          content: '';
+          position: absolute;
+          top: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          border: 5px solid transparent;
+          border-top-color: var(--border);
+        }
+
+        /* Viewed/Unviewed Indicator */
+        .prompt-card-premium.unviewed {
+          border-left: 3px solid var(--primary);
+        }
+
+        .prompt-card-premium.viewed {
+          opacity: 0.95;
+        }
+
+        /* Demo Badge Enhancement */
+        .demo-badge {
+          font-weight: 600;
+          letter-spacing: 0.025em;
+        }
+
+        /* Make My Own Button */
+        .make-own-btn {
+          background: linear-gradient(135deg, var(--primary), var(--primary-dark, var(--primary)));
+          color: white;
+          font-weight: 600;
+          padding: 0 1rem !important;
+          width: auto !important;
+        }
+
+        .make-own-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-label {
+          font-size: 0.875rem;
+        }
+
+        @media (max-width: 640px) {
+          .btn-label {
+            display: none;
           }
-          .mobile-prompt-list-container .prompt-title-premium {
-            font-size: 1rem !important;
-            line-height: 1.3;
+          
+          .make-own-btn {
+            padding: 0 !important;
+            width: 44px !important;
           }
-          .mobile-prompt-list-container .content-preview-box {
-            padding: 0.75rem !important;
-            font-size: 0.813rem !important;
-          }
-          .mobile-prompt-list-container .prompt-metadata {
-            font-size: 0.688rem !important;
-            flex-wrap: wrap;
-          }
-          .mobile-prompt-list-container .tag-chip-premium {
-            font-size: 0.688rem !important;
-            padding: 0.188rem 0.5rem !important;
-          }
-          .mobile-prompt-list-container .primary-actions {
-            flex-wrap: wrap;
-            gap: 0.375rem;
-          }
-          .mobile-prompt-list-container .action-btn-premium {
-            width: 36px !important;
-            height: 36px !important;
-          }
-          .mobile-prompt-list-container .visibility-badge {
-            font-size: 0.688rem !important;
-            padding: 0.188rem 0.5rem !important;
-          }
-          .mobile-prompt-list-container > .glass-card:first-child h2 {
-            font-size: 1.5rem !important;
-          }
-          .mobile-prompt-list-container > .glass-card:first-child .flex {
-            flex-direction: column;
-            align-items: flex-start !important;
-            gap: 1rem;
-          }
-          .mobile-prompt-list-container > .glass-card:first-child button {
-            width: 100%;
-            justify-content: center;
-          }
-          .mobile-prompt-list-container .kebab-menu {
+        }
+
+        /* Avatar Loading State */
+        .author-avatar-wrapper {
+          position: relative;
+        }
+
+        .author-avatar.loading {
+          opacity: 0;
+        }
+
+        .author-avatar.loaded {
+          opacity: 1;
+          transition: opacity 0.3s;
+        }
+
+        /* Improved Action Bar */
+        .action-bar {
+          margin-top: 1rem;
+        }
+
+        /* Filter Menu */
+        .filter-menu-wrapper {
+          position: relative;
+          display: inline-block;
+        }
+
+        .filter-menu {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          margin-top: 0.5rem;
+          background: var(--popover);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          z-index: 50;
+          min-width: 200px;
+          padding: 0.5rem;
+        }
+
+        .filter-menu-item {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          padding: 0.75rem 1rem;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: background 0.2s;
+          font-size: 0.875rem;
+          color: var(--foreground);
+          border: none;
+          background: none;
+          width: 100%;
+          text-align: left;
+        }
+
+        .filter-menu-item:hover {
+          background: var(--accent);
+        }
+
+        .filter-menu-item.active {
+          background: var(--primary);
+          color: white;
+        }
+
+        /* Search Loading Indicator */
+        .search-loading {
+          position: absolute;
+          right: 0.75rem;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+
+        /* Improved Kebab Menu for Mobile */
+        @media (max-width: 769px) {
+          .kebab-menu {
             right: 0;
             left: auto;
-            min-width: 180px !important;
+            min-width: 200px;
+          }
+        }
+
+        /* Welcome Tour */
+        .tour-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 1rem;
+        }
+
+        .tour-content {
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: 12px;
+          padding: 2rem;
+          max-width: 500px;
+          width: 100%;
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .tour-title {
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin-bottom: 1rem;
+          color: var(--foreground);
+        }
+
+        .tour-text {
+          color: var(--muted-foreground);
+          margin-bottom: 1.5rem;
+          line-height: 1.6;
+        }
+
+        .tour-features {
+          list-style: none;
+          padding: 0;
+          margin: 1.5rem 0;
+        }
+
+        .tour-feature {
+          display: flex;
+          align-items: start;
+          gap: 0.75rem;
+          margin-bottom: 1rem;
+          padding: 0.75rem;
+          background: var(--muted);
+          border-radius: 8px;
+        }
+
+        .tour-feature-icon {
+          flex-shrink: 0;
+          color: var(--primary);
+        }
+
+        .tour-feature-text {
+          color: var(--foreground);
+          font-size: 0.875rem;
+        }
+
+        /* Accessibility Improvements */
+        .action-btn-premium:focus-visible,
+        .expand-toggle:focus-visible,
+        button:focus-visible {
+          outline: 2px solid var(--primary);
+          outline-offset: 2px;
+        }
+
+        /* Loading State for Search */
+        .search-input-wrapper {
+          position: relative;
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 769px) {
+          .mobile-prompt-list-container .glass-card {
+            padding: 1.25rem !important;
+          }
+
+          .mobile-prompt-list-container .prompt-card-premium {
+            padding: 1.25rem !important;
+          }
+
+          .mobile-prompt-list-container .prompt-title-premium {
+            font-size: 1.125rem !important;
+            line-height: 1.4;
+          }
+
+          .mobile-prompt-list-container .content-preview-box {
+            padding: 1rem !important;
+            font-size: 0.875rem !important;
+          }
+
+          .mobile-prompt-list-container .author-timestamp {
+            font-size: 0.75rem !important;
           }
         }
       `}</style>
 
+      {/* Welcome Tour for First Time Users */}
+      {showTour && (
+        <div className="tour-overlay" onClick={() => setShowTour(false)}>
+          <div className="tour-content" onClick={(e) => e.stopPropagation()}>
+            <h2 className="tour-title">Welcome to Prompt Library! 🎉</h2>
+            <p className="tour-text">
+              Get started with these demo prompts and learn how to create your own.
+            </p>
+            <ul className="tour-features">
+              <li className="tour-feature">
+                <Sparkles className="w-5 h-5 tour-feature-icon" />
+                <span className="tour-feature-text">
+                  <strong>Try demos:</strong> Click "Make My Own" to create an editable copy
+                </span>
+              </li>
+              <li className="tour-feature">
+                <Copy className="w-5 h-5 tour-feature-icon" />
+                <span className="tour-feature-text">
+                  <strong>Copy quickly:</strong> Use the copy button to grab any prompt
+                </span>
+              </li>
+              <li className="tour-feature">
+                <Plus className="w-5 h-5 tour-feature-icon" />
+                <span className="tour-feature-text">
+                  <strong>Create your own:</strong> Click "New Prompt" to build from scratch
+                </span>
+              </li>
+            </ul>
+            <button 
+              onClick={() => setShowTour(false)}
+              className="btn-primary w-full"
+            >
+              Got it, let's start!
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="glass-card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
+          <div className="flex-1 min-w-0">
             <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>
               {isGuestMode ? "Demo Prompts" : "Prompt Library"}
             </h2>
@@ -1168,52 +1640,149 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           </div>
 
           <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
+            onClick={() => {
+              setShowCreateForm(!showCreateForm);
+              if (!showCreateForm && createFormRef.current) {
+                setTimeout(() => {
+                  createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+              }
+            }}
             className="btn-primary px-6 py-3 flex items-center gap-2"
+            aria-label={showCreateForm ? "Cancel creating prompt" : "Create new prompt"}
           >
             {showCreateForm ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
             <span>{showCreateForm ? "Cancel" : "New Prompt"}</span>
           </button>
         </div>
 
-        {/* Quick Search for Guest Mode */}
-        {isGuestMode && allPrompts.length > 0 && (
-          <div style={{ 
-            position: 'relative',
-            marginTop: '1rem',
-          }}>
-            <Search 
-              size={18} 
-              style={{ 
-                position: 'absolute',
-                left: '0.75rem',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: 'var(--muted-foreground)',
-              }}
-            />
-            <input
-              type="text"
-              placeholder="Search prompts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
-              style={{ paddingLeft: '2.5rem' }}
-            />
+        {/* Universal Search and Filter */}
+        {allPrompts.length > 0 && (
+          <div className="flex gap-3 mt-4 flex-wrap">
+            <div className="search-input-wrapper flex-1 min-w-0" style={{ position: 'relative' }}>
+              <Search 
+                size={18} 
+                style={{ 
+                  position: 'absolute',
+                  left: '0.75rem',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--muted-foreground)',
+                }}
+              />
+              <input
+                type="text"
+                placeholder="Search prompts by title, content, or tags..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="search-input"
+                style={{ paddingLeft: '2.5rem' }}
+                aria-label="Search prompts"
+              />
+              {searchLoading && (
+                <div className="search-loading">
+                  <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                </div>
+              )}
+            </div>
+
+            <div className="filter-menu-wrapper">
+              <button
+                onClick={() => setShowFilterMenu(!showFilterMenu)}
+                className="btn-secondary px-4 py-3 flex items-center gap-2"
+                aria-label="Filter prompts"
+                aria-expanded={showFilterMenu}
+              >
+                <Filter className="w-4 h-4" />
+                <span>Filter</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${showFilterMenu ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showFilterMenu && (
+                <div className="filter-menu" role="menu">
+                  <button
+                    onClick={() => {
+                      setFilterCategory('all');
+                      setShowFilterMenu(false);
+                    }}
+                    className={`filter-menu-item ${filterCategory === 'all' ? 'active' : ''}`}
+                    role="menuitem"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>All Prompts</span>
+                  </button>
+                  {isGuestMode && displayDemos.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setFilterCategory('demos');
+                        setShowFilterMenu(false);
+                      }}
+                      className={`filter-menu-item ${filterCategory === 'demos' ? 'active' : ''}`}
+                      role="menuitem"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Demo Prompts</span>
+                    </button>
+                  )}
+                  {displayUserPrompts.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setFilterCategory('mine');
+                        setShowFilterMenu(false);
+                      }}
+                      className={`filter-menu-item ${filterCategory === 'mine' ? 'active' : ''}`}
+                      role="menuitem"
+                    >
+                      <Users className="w-4 h-4" />
+                      <span>My Prompts</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => {
+                      setFilterCategory('enhanced');
+                      setShowFilterMenu(false);
+                    }}
+                    className={`filter-menu-item ${filterCategory === 'enhanced' ? 'active' : ''}`}
+                    role="menuitem"
+                  >
+                    <Zap className="w-4 h-4" />
+                    <span>AI Enhanced</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFilterCategory('recent');
+                      setShowFilterMenu(false);
+                    }}
+                    className={`filter-menu-item ${filterCategory === 'recent' ? 'active' : ''}`}
+                    role="menuitem"
+                  >
+                    <Clock className="w-4 h-4" />
+                    <span>Recent</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
 
       {/* Create Form */}
       {showCreateForm && (
-        <div className="glass-card p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--foreground)" }}>
-            Create New Prompt
-          </h3>
+        <div className="glass-card p-6" ref={createFormRef}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
+              Create New Prompt
+            </h3>
+            {isGuestMode && (
+              <Tooltip text="Your prompts are saved locally until you sign up">
+                <HelpCircle className="w-5 h-5" style={{ color: "var(--muted-foreground)" }} />
+              </Tooltip>
+            )}
+          </div>
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
               <label className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
-                Title *
+                Title <span style={{ color: "var(--destructive)" }}>*</span>
               </label>
               <input
                 type="text"
@@ -1222,22 +1791,24 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                 value={newPrompt.title}
                 onChange={(e) => setNewPrompt({ ...newPrompt, title: e.target.value })}
                 required
+                aria-required="true"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
-                Prompt Text *
+                Prompt Text <span style={{ color: "var(--destructive)" }}>*</span>
               </label>
               <textarea
-                placeholder="Enter your prompt here..."
+                placeholder="Enter your prompt here... Be specific and clear for best results."
                 className="form-input min-h-[150px]"
                 value={newPrompt.text}
                 onChange={(e) => setNewPrompt({ ...newPrompt, text: e.target.value })}
                 required
+                aria-required="true"
               />
               <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
-                {newPrompt.text.length} characters
+                {newPrompt.text.length} characters • Aim for 50-500 for best results
               </p>
             </div>
 
@@ -1269,7 +1840,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                       onChange={(e) => setNewPrompt({ ...newPrompt, visibility: e.target.value })}
                     />
                     <Unlock className="w-4 h-4" />
-                    <span className="text-sm">Public</span>
+                    <span className="text-sm">Public - Team can see</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -1280,14 +1851,15 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                       onChange={(e) => setNewPrompt({ ...newPrompt, visibility: e.target.value })}
                     />
                     <Lock className="w-4 h-4" />
-                    <span className="text-sm">Private</span>
+                    <span className="text-sm">Private - Only you</span>
                   </label>
                 </div>
               </div>
             )}
 
-            <div className="flex gap-3">
-              <button type="submit" className="btn-primary px-6 py-2">
+            <div className="flex gap-3 pt-4">
+              <button type="submit" className="btn-primary px-6 py-2 flex-1">
+                <Plus className="w-4 h-4" />
                 Create Prompt
               </button>
               <button
@@ -1302,7 +1874,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </div>
       )}
 
-      {/* Demo Section (only for guests with no prompts) */}
+      {/* Demo Section */}
       {displayDemos.length > 0 && (
         <section style={{ marginBottom: '2rem' }}>
           <div style={{ 
@@ -1310,10 +1882,11 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             alignItems: 'center', 
             gap: '0.75rem',
             marginBottom: '1.5rem',
+            padding: '0 0.5rem',
           }}>
             <Sparkles size={20} style={{ color: 'var(--primary)' }} />
             <h3 style={{ 
-              fontSize: '1.125rem', 
+              fontSize: '1.25rem', 
               fontWeight: '600', 
               color: 'var(--foreground)',
               margin: 0,
@@ -1330,11 +1903,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               {displayDemos.length} demos
             </span>
           </div>
-          <div style={{ 
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-            gap: '1rem',
-          }}>
+          <div>
             {displayDemos.map(renderPromptCard)}
           </div>
         </section>
@@ -1343,7 +1912,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       {/* User Prompts Section */}
       {displayUserPrompts.length > 0 && (
         <>
-          {/* Pagination for authenticated users */}
           {!isGuestMode && displayUserPrompts.length > 10 && (
             <PaginationControls
               pagination={pagination}
@@ -1359,34 +1927,38 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                 alignItems: 'center', 
                 gap: '0.75rem',
                 marginBottom: '1.5rem',
+                padding: '0 0.5rem',
               }}>
                 <FileText size={20} style={{ color: 'var(--primary)' }} />
                 <h3 style={{ 
-                  fontSize: '1.125rem', 
+                  fontSize: '1.25rem', 
                   fontWeight: '600', 
                   color: 'var(--foreground)',
                   margin: 0,
                 }}>
                   Your Prompts
                 </h3>
-                <span style={{ 
-                  fontSize: '0.75rem',
-                  color: 'rgba(251, 191, 36, 0.9)',
-                  background: 'rgba(251, 191, 36, 0.1)',
-                  padding: '0.25rem 0.625rem',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(251, 191, 36, 0.2)',
-                }}>
-                  {displayUserPrompts.length} unsaved
-                </span>
+                <Tooltip text="These prompts are saved locally. Sign up to save them permanently.">
+                  <span style={{ 
+                    fontSize: '0.75rem',
+                    color: 'rgba(251, 191, 36, 0.9)',
+                    background: 'rgba(251, 191, 36, 0.1)',
+                    padding: '0.25rem 0.625rem',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(251, 191, 36, 0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem',
+                    cursor: help,
+                  }}>
+                    <AlertCircle className="w-3 h-3" />
+                    {displayUserPrompts.length} unsaved
+                  </span>
+                </Tooltip>
               </div>
             )}
             
-            <div style={{ 
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: '1rem',
-            }}>
+            <div>
               {isGuestMode 
                 ? displayUserPrompts.map(renderPromptCard)
                 : pagination.currentItems.map(renderPromptCard)
@@ -1394,7 +1966,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             </div>
           </section>
 
-          {/* Bottom Pagination */}
           {!isGuestMode && displayUserPrompts.length > 10 && (
             <PaginationControls
               pagination={pagination}
@@ -1410,21 +1981,38 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         <div className="glass-card p-12 text-center">
           <Sparkles size={48} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
           <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--foreground)" }}>
-            No prompts yet
+            {searchQuery ? "No prompts found" : "No prompts yet"}
           </h3>
           <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
-            {isGuestMode 
-              ? "Create your first prompt to get started!" 
-              : "Create your first prompt or explore demo templates"
+            {searchQuery 
+              ? `No prompts match "${searchQuery}". Try a different search term.`
+              : isGuestMode 
+                ? "Create your first prompt to get started! Or try our demo prompts above." 
+                : "Create your first prompt to start building your library."
             }
           </p>
-          <button 
-            onClick={() => setShowCreateForm(true)}
-            className="btn-primary"
-          >
-            <Plus size={18} />
-            Create First Prompt
-          </button>
+          {!searchQuery && (
+            <button 
+              onClick={() => {
+                setShowCreateForm(true);
+                setTimeout(() => {
+                  createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+              }}
+              className="btn-primary"
+            >
+              <Plus size={18} />
+              Create First Prompt
+            </button>
+          )}
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')}
+              className="btn-secondary"
+            >
+              Clear Search
+            </button>
+          )}
         </div>
       )}
 
