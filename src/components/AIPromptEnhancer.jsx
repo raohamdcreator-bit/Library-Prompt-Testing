@@ -1,815 +1,741 @@
-// src/components/AIPromptEnhancer.jsx - FIXED: Guest mode enhancement with temporary demo changes
-import { useState } from "react";
-import { useSoundEffects } from '../hooks/useSoundEffects';
+// src/components/AIPromptEnhancer.jsx
+// AI-powered prompt enhancement modal with strategic save triggers
+
+import React, { useState } from 'react';
+import { Sparkles, X, Copy, Check, Loader2, Zap, AlertCircle, RefreshCw } from 'lucide-react';
 import { useGuestMode } from '../context/GuestModeContext';
 import { isDemoPrompt } from '../lib/guestDemoContent';
-import { updateDemoPrompt } from '../lib/demoPromptManager';
 import { guestState } from '../lib/guestState';
-import { 
-  X, 
-  Sparkles, 
-  Settings, 
-  Palette, 
-  Search, 
-  FileText, 
-  BookOpen,
-  Check,
-  AlertCircle,
-  Loader2,
-  Copy,
-  Save,
-  Cpu,
-  Code,
-  Brain,
-  Zap,
-  Bot,
-  Globe,
-  Feather,
-  Shield,
-} from "lucide-react";
 
-export default function AIPromptEnhancer({
-  prompt,
-  onApply,
-  onSaveAsNew,
+export default function AIPromptEnhancer({ 
+  prompt, 
+  onApply, 
   onClose,
+  teamId,
+  updatePrompt,
 }) {
-  const [targetModel, setTargetModel] = useState("general");
-  const [enhancementType, setEnhancementType] = useState("general");
-  const [loading, setLoading] = useState(false);
+  const { isGuest, checkSaveRequired, canEditPrompt } = useGuestMode();
+  
+  const [enhancing, setEnhancing] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const { playNotification, playEnhancement } = useSoundEffects();
-  const { isGuest, triggerSaveModal } = useGuestMode();
-  
-  const aiModels = [
+  const [copied, setCopied] = useState(false);
+  const [selectedEnhancement, setSelectedEnhancement] = useState('clarity');
+
+  const canEnhance = canEditPrompt(prompt);
+  const isDemo = isDemoPrompt(prompt);
+
+  const enhancementOptions = [
     {
-      id: "general",
-      name: "Universal",
-      icon: Globe,
-      description: " Optimized for all AI models",
-      color: "#8b5cf6",
+      id: 'clarity',
+      name: 'Improve Clarity',
+      description: 'Make the prompt clearer and more specific',
+      icon: '🎯',
     },
     {
-      id: "claude",
-      name: "Claude",
-      icon: Brain,
-      description: " Contextual, reasoning-focused",
-      color: "#d97706",
+      id: 'detail',
+      name: 'Add Detail',
+      description: 'Expand with more context and examples',
+      icon: '📝',
     },
     {
-      id: "chatgpt",
-      name: "ChatGPT",
-      icon: Zap,
-      description: " Structured, role-based",
-      color: "#10b981",
+      id: 'structure',
+      name: 'Better Structure',
+      description: 'Organize into logical sections',
+      icon: '🏗️',
     },
     {
-      id: "cursor",
-      name: "Cursor",
-      icon: Code,
-      description: " Developer-optimized",
-      color: "#3b82f6",
+      id: 'professional',
+      name: 'More Professional',
+      description: 'Refine tone and language',
+      icon: '💼',
     },
     {
-      id: "gemini",
-      name: "Gemini",
-      icon: Sparkles,
-      description: " Concise, task-focused",
-      color: "#ec4899",
-    },
-    {
-      id: "copilot",
-      name: "Copilot",
-      icon: Bot,
-      description: " Code completion focus",
-      color: "#6366f1",
+      id: 'concise',
+      name: 'Make Concise',
+      description: 'Shorten while keeping key points',
+      icon: '✂️',
     },
   ];
 
-  const enhancementTypes = [
-    {
-      id: "general",
-      name: "General Enhancement",
-      icon: Feather,
-      description: "Improve clarity, structure, and effectiveness",
-    },
-    {
-      id: "technical",
-      name: "Technical Optimization",
-      icon: Cpu,
-      description: "Add technical specs, constraints, and precision",
-    },
-    {
-      id: "creative",
-      name: "Creative Expansion",
-      icon: Palette,
-      description: "Enhance creativity, style, and descriptive elements",
-    },
-    {
-      id: "analytical",
-      name: "Analytical Depth",
-      icon: Search,
-      description: "Add reasoning, analysis, and structured thinking",
-    },
-    {
-      id: "concise",
-      name: "Concise Version",
-      icon: FileText,
-      description: "Simplify while maintaining clarity",
-    },
-    {
-      id: "detailed",
-      name: "Detailed Expansion",
-      icon: BookOpen,
-      description: "Add comprehensive details and examples",
-    },
-  ];
-
-  async function handleEnhance() {
-    if (!prompt?.text) {
-      setError("No prompt text to enhance");
+  const handleEnhance = async () => {
+    if (!canEnhance) {
+      setError('This prompt cannot be enhanced. Try "Make My Own" first.');
       return;
     }
 
-    if (loading) return;
-
-    setLoading(true);
+    setEnhancing(true);
     setError(null);
     setResult(null);
 
     try {
-      const response = await fetch("/api/enhance-prompt", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const option = enhancementOptions.find(opt => opt.id === selectedEnhancement);
+      
+      const response = await fetch('/api/enhance-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: prompt.text,
-          enhancementType,
-          targetModel,
-          context: {
-            title: prompt.title,
-            tags: prompt.tags,
-          },
+          enhancementType: selectedEnhancement,
+          currentTitle: prompt.title,
+          currentTags: prompt.tags || [],
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.error || errorData.message || `HTTP ${response.status}`
-        );
+        throw new Error('Enhancement failed. Please try again.');
       }
 
       const data = await response.json();
+      
+      setResult({
+        original: prompt.text,
+        enhanced: data.enhancedText,
+        title: data.suggestedTitle || prompt.title,
+        tags: data.suggestedTags || prompt.tags,
+        enhancementType: selectedEnhancement,
+        improvements: data.improvements || [],
+      });
 
-      if (!data.success) {
-        throw new Error(data.error || "Enhancement failed");
+      if (window.gtag) {
+        window.gtag('event', 'prompt_enhancement_generated', {
+          enhancement_type: selectedEnhancement,
+          is_guest: isGuest,
+          prompt_length: prompt.text.length,
+        });
       }
-
-      setResult(data);
-      playEnhancement();
-      showNotification("Prompt enhanced successfully!", "success");
     } catch (err) {
-      console.error("Enhancement error:", err);
-      const errorMessage = err.message || "Failed to enhance prompt";
-      setError(errorMessage);
-      showNotification(errorMessage, "error");
+      console.error('Enhancement error:', err);
+      setError(err.message || 'Failed to enhance prompt. Please try again.');
     } finally {
-      setLoading(false);
+      setEnhancing(false);
     }
-  }
+  };
 
-  function showNotification(message, type = "info") {
-    const notification = document.createElement("div");
-    notification.innerHTML = `<div>${message}</div>`;
-    notification.className =
-      "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-[9999] text-sm transition-opacity duration-300";
-    notification.style.cssText = `
-      background-color: var(--card);
-      color: var(--foreground);
-      border: 1px solid var(--${type === "error" ? "destructive" : "primary"});
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    `;
-    document.body.appendChild(notification);
-    setTimeout(() => {
-      notification.style.opacity = "0";
-      setTimeout(() => {
-        if (notification.parentNode) {
-          document.body.removeChild(notification);
-        }
-      }, 300);
-    }, 3000);
-  }
-
-  function handleApply() {
+  const handleApplyEnhancement = async () => {
     if (!result?.enhanced) return;
 
-    const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
-    const cleanTitle = prompt.title.replace(/\s*(Enhanced for [^)]+)\s*/g, '').trim();
-    
     const enhancedPrompt = {
       ...prompt,
       text: result.enhanced,
-      title: `${cleanTitle} (Enhanced for ${modelName})`,
+      title: result.title,
+      tags: result.tags,
       enhanced: true,
-      enhancedFor: targetModel,
-      enhancementType: enhancementType,
       enhancedAt: new Date().toISOString(),
+      enhancedFor: result.enhancementType,
     };
 
-    // ✅ DEMO PROMPT: Always trigger save modal (BLOCKING)
-    if (isGuest && isDemoPrompt(prompt)) {
-      console.log('🔒 Demo prompt enhancement - triggering save modal');
-      
-      triggerSaveModal(
-        enhancedPrompt,
-        () => {
-          // ✅ This ONLY runs after successful signup
-          onApply(enhancedPrompt);
-          showNotification("Enhancement saved to your account!", "success");
-          if (onClose) onClose();
-        }
-      );
-
-      // ✅ CRITICAL: Return immediately - DON'T apply anything until signup
-      return;
-    }
-
-    // ✅ GUEST USER PROMPT: Update in guestState + show reminder
-    if (isGuest && !isDemoPrompt(prompt)) {
+    checkSaveRequired('enhance_prompt', async () => {
       try {
-        guestState.updatePrompt(prompt.id, enhancedPrompt);
-        onApply(enhancedPrompt);
-        showNotification("Enhancement saved! Sign up to keep your work.", "success");
-        if (onClose) onClose();
-        return;
-      } catch (error) {
-        console.error("Error updating guest prompt:", error);
-        showNotification("Failed to save enhancement", "error");
-        return;
+        if (isGuest) {
+          const updateResult = guestState.updatePrompt(
+            prompt.id, 
+            enhancedPrompt, 
+            true
+          );
+
+          if (updateResult.success) {
+            showNotification('Enhancement applied!', 'success');
+            
+            if (window.gtag) {
+              window.gtag('event', 'prompt_enhanced', {
+                enhancement_type: result.enhancementType,
+                enhancement_count: guestState.getWorkSummary().enhancementCount,
+                is_first_enhancement: guestState.getWorkSummary().enhancementCount === 1,
+              });
+            }
+
+            onApply(enhancedPrompt);
+            onClose();
+          } else {
+            showNotification('Failed to apply enhancement', 'error');
+          }
+        } else {
+          await updatePrompt(teamId, prompt.id, enhancedPrompt);
+          showNotification('Enhancement saved!', 'success');
+          
+          if (window.gtag) {
+            window.gtag('event', 'prompt_enhanced', {
+              enhancement_type: result.enhancementType,
+              user_authenticated: true,
+            });
+          }
+
+          onApply(enhancedPrompt);
+          onClose();
+        }
+      } catch (err) {
+        console.error('Apply enhancement error:', err);
+        showNotification('Failed to apply enhancement', 'error');
       }
-    }
+    });
+  };
 
-    // ✅ AUTHENTICATED: Apply directly
-    onApply(enhancedPrompt);
-    showNotification("Enhanced prompt applied!", "success");
-    if (onClose) onClose();
-  }
-
-  function handleSaveAsNew() {
+  const handleCopyEnhanced = async () => {
     if (!result?.enhanced) return;
 
-    const { id, teamId, createdAt, createdBy, ...promptData } = prompt;
-    const modelName = aiModels.find(m => m.id === targetModel)?.name || targetModel;
-    const cleanTitle = prompt.title.replace(/\s*\(Enhanced for [^)]+\)\s*/g, '').trim();
-
-    const newPrompt = {
-      ...promptData,
-      text: result.enhanced,
-      title: `${cleanTitle} (Enhanced for ${modelName})`,
-      enhanced: true,
-      enhancedFor: targetModel,
-      enhancementType: enhancementType,
-      enhancedAt: new Date().toISOString(),
-    };
-
-    // ✅ DEMO PROMPT: Always trigger save modal (BLOCKING)
-    if (isGuest && isDemoPrompt(prompt)) {
-      console.log('🔒 Saving enhanced demo as new - triggering save modal');
+    try {
+      await navigator.clipboard.writeText(result.enhanced);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
       
-      triggerSaveModal(
-        newPrompt,
-        () => {
-          // ✅ This ONLY runs after successful signup
-          onSaveAsNew(newPrompt);
-          showNotification("Saved to your account!", "success");
-          if (onClose) onClose();
-        }
-      );
-      
-      // ✅ CRITICAL: Return immediately - DON'T save anything until signup
-      return;
-    }
-    
-    // ✅ GUEST USER PROMPT: Add to guestState
-    if (isGuest && !isDemoPrompt(prompt)) {
-      try {
-        const savedPrompt = guestState.addPrompt(newPrompt);
-        onSaveAsNew(savedPrompt);
-        showNotification("Saved as new! Sign up to keep your work.", "success");
-        if (onClose) onClose();
-        return;
-      } catch (error) {
-        console.error("Error saving guest prompt:", error);
-        showNotification("Failed to save as new", "error");
-        return;
+      if (window.gtag) {
+        window.gtag('event', 'enhanced_text_copied', {
+          enhancement_type: result.enhancementType,
+        });
       }
+    } catch (err) {
+      console.error('Copy error:', err);
     }
+  };
 
-    // ✅ AUTHENTICATED: Save directly
-    onSaveAsNew(newPrompt);
-    showNotification("Saved as new prompt!", "success");
-    if (onClose) onClose();
-  }
-
-  const selectedModel = aiModels.find(m => m.id === targetModel);
+  const showNotification = (message, type = 'info') => {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+  };
 
   return (
-    <div 
-      className="fixed inset-0 z-[9998] flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(0, 0, 0, 0.7)" }}
-      onClick={onClose}
-    >
-      <div
-        className="glass-card w-full max-w-6xl max-h-[90vh] flex flex-col rounded-2xl border"
-        style={{ borderColor: "var(--border)" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Fixed Header */}
-        <div 
-          className="flex-shrink-0 p-6 border-b"
-          style={{ borderColor: "var(--border)" }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div 
-                className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ backgroundColor: "var(--primary)" }}
-              >
-                <Sparkles 
-                  className="w-5 h-5" 
-                  style={{ color: "var(--primary-foreground)" }}
-                />
-              </div>
-              <div>
-                <h2 
-                  className="text-xl font-bold"
-                  style={{ color: "var(--foreground)" }}
-                >
-                  AI Prompt Enhancement
-                </h2>
-                <p 
-                  className="text-sm"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  Model-Specific Optimization • Powered by Open Source AI
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={onClose}
-              disabled={loading}
-              className="p-2 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              <X className="w-6 h-6" />
-            </button>
+    <div className="ai-enhancer-overlay" onClick={onClose}>
+      <div className="ai-enhancer-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="enhancer-header">
+          <div className="header-title">
+            <Sparkles size={20} />
+            <h2>AI Prompt Enhancer</h2>
           </div>
-
-          {/* ✅ Guest Mode Warning for Demo Prompts */}
-          {isGuest && isDemoPrompt(prompt) && (
-            <div 
-              className="mt-4 p-3 rounded-lg border flex items-start gap-2"
-              style={{
-                background: 'rgba(139, 92, 246, 0.1)',
-                borderColor: 'rgba(139, 92, 246, 0.3)',
-              }}
-            >
-              <AlertCircle size={18} style={{ color: 'var(--primary)', marginTop: '2px' }} />
-              <div style={{ flex: 1 }}>
-                <p style={{ fontSize: '0.875rem', color: 'var(--foreground)', marginBottom: '0.25rem', fontWeight: '500' }}>
-                  Demo Prompt Enhancement
-                </p>
-                <p style={{ fontSize: '0.813rem', color: 'rgba(228, 228, 231, 0.7)' }}>
-                  Changes are temporary. Create a free account to save your version.
-                </p>
-              </div>
-              <Shield size={16} style={{ color: 'var(--primary)' }} />
-            </div>
-          )}
+          <button onClick={onClose} className="close-btn" aria-label="Close">
+            <X size={20} />
+          </button>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Target AI Model Selection */}
-          <div>
-            <label 
-              className="block text-sm font-medium mb-3"
-              style={{ color: "var(--foreground)" }}
-            >
-              <Cpu className="w-4 h-4 inline mr-2" />
-              Select Target AI Model:
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {aiModels.map((model) => {
-                const Icon = model.icon;
-                return (
-                  <button
-                    key={model.id}
-                    onClick={() => setTargetModel(model.id)}
-                    disabled={loading}
-                    className="p-4 rounded-lg border-2 transition-all duration-200 text-left disabled:opacity-50 hover:scale-105"
-                    style={{
-                      borderColor: targetModel === model.id 
-                        ? model.color
-                        : "var(--border)",
-                      backgroundColor: targetModel === model.id
-                        ? `${model.color}15`
-                        : "transparent",
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <Icon 
-                        className="w-6 h-6"
-                        style={{ 
-                          color: targetModel === model.id 
-                            ? model.color
-                            : "var(--muted-foreground)"
-                        }}
-                      />
-                      {targetModel === model.id && (
-                        <Check className="w-4 h-4" style={{ color: model.color }} />
-                      )}
-                    </div>
-                    <div 
-                      className="font-semibold text-sm mb-1"
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      {model.name}
-                    </div>
-                    <div 
-                      className="text-xs"
-                      style={{ color: "var(--muted-foreground)" }}
-                    >
-                      {model.description}
-                    </div>
-                  </button>
-                );
-              })}
+        {isDemo && (
+          <div className="demo-warning">
+            <AlertCircle size={16} />
+            <div>
+              <strong>This is a demo prompt</strong>
+              <p>Click "Make My Own" first to create an editable copy you can enhance.</p>
             </div>
           </div>
+        )}
 
-          {/* Enhancement Type Selection */}
-          <div>
-            <label 
-              className="block text-sm font-medium mb-3"
-              style={{ color: "var(--foreground)" }}
-            >
-              <Settings className="w-4 h-4 inline mr-2" />
-              Select Enhancement Type:
-            </label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {enhancementTypes.map((type) => {
-                const Icon = type.icon;
-                return (
-                  <button
-                    key={type.id}
-                    onClick={() => setEnhancementType(type.id)}
-                    disabled={loading}
-                    className="p-4 rounded-lg border-2 transition-all duration-200 text-left disabled:opacity-50"
-                    style={{
-                      borderColor: enhancementType === type.id 
-                        ? "var(--primary)" 
-                        : "var(--border)",
-                      backgroundColor: enhancementType === type.id
-                        ? "var(--secondary)"
-                        : "transparent",
-                    }}
-                  >
-                    <Icon 
-                      className="w-6 h-6 mb-2"
-                      style={{ 
-                        color: enhancementType === type.id 
-                          ? "var(--primary)" 
-                          : "var(--muted-foreground)"
-                      }}
-                    />
-                    <div 
-                      className="font-semibold text-sm mb-1"
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      {type.name}
-                    </div>
-                    <div 
-                      className="text-xs"
-                      style={{ color: "var(--muted-foreground)" }}
-                    >
-                      {type.description}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Original Prompt */}
-          <div 
-            className="glass-card p-4 rounded-xl border"
-            style={{ borderColor: "var(--border)" }}
-          >
-            <h3 
-              className="font-semibold mb-2 flex items-center gap-2"
-              style={{ color: "var(--foreground)" }}
-            >
-              <FileText className="w-4 h-4" />
-              Original Prompt:
-            </h3>
-            <div 
-              className="p-3 rounded-lg border max-h-48 overflow-y-auto"
-              style={{
-                backgroundColor: "var(--muted)",
-                borderColor: "var(--border)",
-              }}
-            >
-              <pre 
-                className="whitespace-pre-wrap text-sm"
-                style={{ color: "var(--foreground)" }}
-              >
-                {prompt?.text || "No prompt text"}
-              </pre>
-            </div>
-            <div 
-              className="mt-2 text-xs"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              {prompt?.text?.length || 0} characters
-            </div>
-          </div>
-
-          {/* Enhance Button */}
-          {!result && !loading && (
-            <button
-              onClick={handleEnhance}
-              disabled={loading || !prompt?.text}
-              className="w-full btn-primary py-4 text-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Sparkles className="w-5 h-5" />
-              <span>Enhance for {selectedModel?.name || "AI"}</span>
-            </button>
-          )}
-
-          {/* Loading State */}
-          {loading && (
-            <div 
-              className="glass-card p-6 rounded-xl border text-center"
-              style={{
-                borderColor: "var(--primary)",
-                backgroundColor: "var(--secondary)",
-              }}
-            >
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 
-                  className="w-12 h-12 animate-spin"
-                  style={{ color: "var(--primary)" }}
-                />
-                <div>
-                  <p 
-                    className="font-medium mb-1"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    Enhancing for {selectedModel?.name}...
-                  </p>
-                  <p 
-                    className="text-sm"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    Applying {enhancementType} optimization • This may take 5-10 seconds
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error Display */}
-          {error && !loading && (
-            <div 
-              className="glass-card p-4 rounded-xl border-2"
-              style={{
-                borderColor: "var(--destructive)",
-                backgroundColor: "rgba(239, 68, 68, 0.1)",
-              }}
-            >
-              <div className="flex items-start gap-3">
-                <AlertCircle 
-                  className="w-6 h-6 flex-shrink-0"
-                  style={{ color: "var(--destructive)" }}
-                />
-                <div className="flex-1">
-                  <h4 
-                    className="font-semibold mb-1"
-                    style={{ color: "var(--destructive)" }}
-                  >
-                    Enhancement Failed
-                  </h4>
-                  <p 
-                    className="text-sm mb-3"
-                    style={{ color: "var(--destructive)" }}
-                  >
-                    {error}
-                  </p>
-                  <button
-                    onClick={handleEnhance}
-                    className="btn-secondary text-sm px-4 py-2"
-                  >
-                    Try Again
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Results Display */}
-          {result && !loading && (
-            <>
-              {/* Enhanced Prompt */}
-              <div 
-                className="glass-card p-4 rounded-xl border-2"
-                style={{
-                  borderColor: selectedModel?.color || "var(--primary)",
-                  backgroundColor: "var(--secondary)",
-                }}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h3 
-                    className="font-semibold flex items-center gap-2"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    <Check className="w-4 h-4" style={{ color: selectedModel?.color || "var(--primary)" }} />
-                    <span>Enhanced Prompt:</span>
-                  </h3>
-                  <div className="flex items-center gap-2 flex-wrap justify-end">
-                    <span 
-                      className="text-xs px-3 py-1 rounded-full font-semibold"
-                      style={{
-                        backgroundColor: selectedModel?.color || "var(--primary)",
-                        color: "white",
-                      }}
-                    >
-                      ✓ Enhanced
-                    </span>
-                    <span 
-                      className="text-xs px-2 py-1 rounded"
-                      style={{
-                        backgroundColor: `${selectedModel?.color || "var(--primary)"}20`,
-                        color: selectedModel?.color || "var(--primary)",
-                      }}
-                    >
-                      {selectedModel?.name}
-                    </span>
+        {!result && (
+          <div className="enhancement-options">
+            <label className="section-label">Choose Enhancement Type:</label>
+            <div className="options-grid">
+              {enhancementOptions.map((option) => (
+                <button
+                  key={option.id}
+                  onClick={() => setSelectedEnhancement(option.id)}
+                  className={`option-card ${selectedEnhancement === option.id ? 'selected' : ''}`}
+                  disabled={!canEnhance}
+                >
+                  <span className="option-icon">{option.icon}</span>
+                  <div className="option-content">
+                    <span className="option-name">{option.name}</span>
+                    <span className="option-description">{option.description}</span>
                   </div>
-                </div>
-                <div 
-                  className="p-3 rounded-lg border max-h-64 overflow-y-auto"
-                  style={{
-                    backgroundColor: "var(--muted)",
-                    borderColor: "var(--border)",
-                  }}
-                >
-                  <pre 
-                    className="whitespace-pre-wrap text-sm"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    {result.enhanced}
-                  </pre>
-                </div>
-                <div 
-                  className="mt-2 flex items-center justify-between text-xs flex-wrap gap-2"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  <span>{result.enhanced?.length || 0} characters</span>
-                  {prompt?.text && (
-                    <span style={{ color: selectedModel?.color || "var(--primary)" }}>
-                      {result.enhanced.length > prompt.text.length ? "+" : ""}
-                      {result.enhanced.length - prompt.text.length} chars
-                    </span>
+                  {selectedEnhancement === option.id && (
+                    <Check size={16} className="selected-check" />
                   )}
-                </div>
-              </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-              {/* Improvements List */}
-              {result.improvements && result.improvements.length > 0 && (
-                <div 
-                  className="glass-card p-4 rounded-xl border"
-                  style={{ borderColor: "var(--border)" }}
-                >
-                  <h3 
-                    className="font-semibold mb-3 flex items-center gap-2"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    <Check className="w-4 h-4" />
-                    Applied Improvements:
-                  </h3>
-                  <ul className="space-y-2">
-                    {result.improvements.map((improvement, index) => (
-                      <li
-                        key={index}
-                        className="flex items-start gap-2 text-sm"
-                      >
-                        <Check 
-                          className="w-4 h-4 flex-shrink-0 mt-0.5"
-                          style={{ color: "var(--primary)" }}
-                        />
-                        <span style={{ color: "var(--foreground)" }}>
-                          {improvement}
-                        </span>
-                      </li>
+        <div className="prompt-section">
+          <label className="section-label">Original Prompt:</label>
+          <div className="prompt-display original">
+            <p>{prompt.text}</p>
+          </div>
+        </div>
+
+        {result && (
+          <div className="prompt-section">
+            <label className="section-label">
+              Enhanced Prompt:
+              <button 
+                onClick={handleCopyEnhanced}
+                className="copy-btn"
+                title="Copy to clipboard"
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </label>
+            <div className="prompt-display enhanced">
+              <p>{result.enhanced}</p>
+            </div>
+
+            {result.improvements && result.improvements.length > 0 && (
+              <div className="improvements-section">
+                <label className="section-label">
+                  <Zap size={14} />
+                  Key Improvements:
+                </label>
+                <ul className="improvements-list">
+                  {result.improvements.map((improvement, index) => (
+                    <li key={index}>{improvement}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {(result.title !== prompt.title || result.tags !== prompt.tags) && (
+              <div className="suggestions-section">
+                <label className="section-label">Suggested Changes:</label>
+                {result.title !== prompt.title && (
+                  <div className="suggestion">
+                    <strong>Title:</strong> {result.title}
+                  </div>
+                )}
+                {result.tags && result.tags.length > 0 && (
+                  <div className="suggestion">
+                    <strong>Tags:</strong>{' '}
+                    {result.tags.map((tag, i) => (
+                      <span key={i} className="tag-badge">{tag}</span>
                     ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex gap-3 flex-wrap">
-                <button
-                  onClick={handleApply}
-                  className="flex-1 min-w-[200px] btn-primary py-3 text-sm font-semibold flex items-center justify-center gap-2"
-                >
-                  <Copy className="w-4 h-4" />
-                  {isGuest && isDemoPrompt(prompt) ? "Sign up to Apply" : "Apply Enhanced Prompt"}
-                </button>
-                <button
-                  onClick={handleSaveAsNew}
-                  className="flex-1 min-w-[200px] btn-secondary py-3 text-sm font-semibold flex items-center justify-center gap-2"
-                >
-                  <Save className="w-4 h-4" />
-                  {isGuest && isDemoPrompt(prompt) ? "Sign up to Save" : "Save as New Prompt"}
-                </button>
-                <button
-                  onClick={() => {
-                    setResult(null);
-                    setError(null);
-                  }}
-                  className="px-6 py-3 text-sm font-semibold rounded-lg border transition-colors"
-                  style={{
-                    backgroundColor: "var(--secondary)",
-                    borderColor: "var(--border)",
-                    color: "var(--foreground)",
-                  }}
-                >
-                  Enhance Again
-                </button>
+                  </div>
+                )}
               </div>
+            )}
+          </div>
+        )}
+
+        {error && (
+          <div className="error-message">
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <div className="enhancer-actions">
+          {!result ? (
+            <>
+              <button 
+                onClick={onClose} 
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleEnhance}
+                className="btn-primary"
+                disabled={enhancing || !canEnhance}
+              >
+                {enhancing ? (
+                  <>
+                    <Loader2 size={16} className="spinning" />
+                    Enhancing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={16} />
+                    Enhance Prompt
+                  </>
+                )}
+              </button>
+            </>
+          ) : (
+            <>
+              <button 
+                onClick={() => {
+                  setResult(null);
+                  setError(null);
+                }}
+                className="btn-secondary"
+              >
+                <RefreshCw size={16} />
+                Try Different
+              </button>
+              <button 
+                onClick={handleApplyEnhancement}
+                className="btn-primary"
+              >
+                <Check size={16} />
+                Apply Enhancement
+              </button>
             </>
           )}
-
-          {/* Metadata Display */}
-          {result?.metadata && (
-            <div 
-              className="text-xs space-y-1 border-t pt-4"
-              style={{
-                color: "var(--muted-foreground)",
-                borderColor: "var(--border)",
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <span className="font-semibold">Enhancement Details:</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                <div>Provider: {result.provider}</div>
-                <div>Model: {result.model}</div>
-                <div>Target: {selectedModel?.name || targetModel}</div>
-                <div>Type: {result.metadata.enhancementType}</div>
-              </div>
-              <div className="mt-2">
-                Processed: {new Date(result.metadata.timestamp).toLocaleString()}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Fixed Footer */}
-        <div 
-          className="flex-shrink-0 p-4 border-t"
-          style={{
-            borderColor: "var(--border)",
-            backgroundColor: "var(--muted)",
-          }}
-        >
-          <div className="flex justify-between items-center text-xs flex-wrap gap-3">
-            <div style={{ color: "var(--muted-foreground)" }}>
-              <AlertCircle className="w-3 h-3 inline mr-1" />
-              {isGuest ? (
-                isDemoPrompt(prompt) ? (
-                  <span>Demo prompt: Changes are temporary. Sign up to save your version.</span>
-                ) : (
-                  <span>Guest mode: Changes saved to session until you sign up</span>
-                )
-              ) : (
-                <span>Tip: Select target AI model first, then choose enhancement type for best results</span>
-              )}
-            </div>
-            <button
-              onClick={onClose}
-              disabled={loading}
-              className="btn-secondary px-4 py-2 disabled:opacity-50"
-            >
-              Close
-            </button>
+        {isGuest && !isDemo && (
+          <div className="guest-info">
+            <p>
+              <Sparkles size={12} />
+              Your enhancement will be saved in this session. 
+              Sign up to keep it permanently!
+            </p>
           </div>
-        </div>
+        )}
       </div>
+
+      <style jsx>{`
+        .ai-enhancer-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.85);
+          backdrop-filter: blur(8px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9998;
+          padding: 1rem;
+          animation: fadeIn 0.2s ease-out;
+        }
+
+        .ai-enhancer-modal {
+          background: var(--card-bg, #1a1a1a);
+          border: 1px solid rgba(139, 92, 246, 0.2);
+          border-radius: 16px;
+          width: 100%;
+          max-width: 800px;
+          max-height: 90vh;
+          overflow-y: auto;
+          padding: 2rem;
+          animation: slideUp 0.3s ease-out;
+        }
+
+        .enhancer-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: 1.5rem;
+        }
+
+        .header-title {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+        }
+
+        .header-title h2 {
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: var(--foreground, #fff);
+          margin: 0;
+        }
+
+        .close-btn {
+          width: 32px;
+          height: 32px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 8px;
+          color: rgba(255, 255, 255, 0.7);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .close-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 1);
+        }
+
+        .demo-warning {
+          display: flex;
+          gap: 0.75rem;
+          padding: 1rem;
+          background: rgba(251, 191, 36, 0.1);
+          border: 1px solid rgba(251, 191, 36, 0.3);
+          border-radius: 10px;
+          margin-bottom: 1.5rem;
+          color: rgba(251, 191, 36, 0.9);
+        }
+
+        .demo-warning strong {
+          display: block;
+          margin-bottom: 0.25rem;
+          color: rgba(251, 191, 36, 1);
+        }
+
+        .demo-warning p {
+          margin: 0;
+          font-size: 0.875rem;
+          opacity: 0.9;
+        }
+
+        .section-label {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: var(--foreground, #fff);
+          margin-bottom: 0.75rem;
+        }
+
+        .enhancement-options {
+          margin-bottom: 1.5rem;
+        }
+
+        .options-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 0.75rem;
+        }
+
+        .option-card {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 0.5rem;
+          padding: 1rem;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+          cursor: pointer;
+          transition: all 0.2s;
+          text-align: left;
+        }
+
+        .option-card:not(:disabled):hover {
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(139, 92, 246, 0.4);
+          transform: translateY(-2px);
+        }
+
+        .option-card.selected {
+          background: rgba(139, 92, 246, 0.1);
+          border-color: rgba(139, 92, 246, 0.5);
+        }
+
+        .option-card:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .option-icon {
+          font-size: 1.5rem;
+        }
+
+        .option-content {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+        }
+
+        .option-name {
+          font-size: 0.875rem;
+          font-weight: 600;
+          color: var(--foreground, #fff);
+        }
+
+        .option-description {
+          font-size: 0.75rem;
+          color: rgba(255, 255, 255, 0.6);
+          line-height: 1.4;
+        }
+
+        .selected-check {
+          position: absolute;
+          top: 0.75rem;
+          right: 0.75rem;
+          color: var(--primary, #8b5cf6);
+        }
+
+        .prompt-section {
+          margin-bottom: 1.5rem;
+        }
+
+        .copy-btn {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          padding: 0.375rem 0.75rem;
+          background: rgba(139, 92, 246, 0.1);
+          border: 1px solid rgba(139, 92, 246, 0.3);
+          border-radius: 6px;
+          font-size: 0.75rem;
+          color: var(--primary, #8b5cf6);
+          cursor: pointer;
+          transition: all 0.2s;
+          margin-left: auto;
+        }
+
+        .copy-btn:hover {
+          background: rgba(139, 92, 246, 0.2);
+        }
+
+        .prompt-display {
+          padding: 1rem;
+          border-radius: 10px;
+          font-size: 0.938rem;
+          line-height: 1.6;
+          white-space: pre-wrap;
+        }
+
+        .prompt-display.original {
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        .prompt-display.enhanced {
+          background: rgba(139, 92, 246, 0.05);
+          border: 1px solid rgba(139, 92, 246, 0.2);
+          color: rgba(255, 255, 255, 0.9);
+        }
+
+        .improvements-section {
+          margin-top: 1rem;
+        }
+
+        .improvements-list {
+          margin: 0;
+          padding-left: 1.5rem;
+          color: rgba(255, 255, 255, 0.8);
+          font-size: 0.875rem;
+        }
+
+        .improvements-list li {
+          margin-bottom: 0.5rem;
+        }
+
+        .suggestions-section {
+          margin-top: 1rem;
+          padding: 1rem;
+          background: rgba(139, 92, 246, 0.05);
+          border: 1px solid rgba(139, 92, 246, 0.15);
+          border-radius: 8px;
+        }
+
+        .suggestion {
+          margin-bottom: 0.5rem;
+          font-size: 0.875rem;
+          color: rgba(255, 255, 255, 0.8);
+        }
+
+        .suggestion:last-child {
+          margin-bottom: 0;
+        }
+
+        .tag-badge {
+          display: inline-block;
+          padding: 0.25rem 0.5rem;
+          margin: 0 0.25rem 0.25rem 0;
+          background: rgba(139, 92, 246, 0.2);
+          border: 1px solid rgba(139, 92, 246, 0.3);
+          border-radius: 4px;
+          font-size: 0.75rem;
+          color: var(--primary, #8b5cf6);
+        }
+
+        .error-message {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 1rem;
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: 8px;
+          color: rgba(239, 68, 68, 0.9);
+          margin-bottom: 1.5rem;
+          font-size: 0.875rem;
+        }
+
+        .enhancer-actions {
+          display: flex;
+          gap: 0.75rem;
+          justify-content: flex-end;
+        }
+
+        .btn-secondary,
+        .btn-primary {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          font-size: 0.938rem;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          border: none;
+        }
+
+        .btn-secondary {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          color: rgba(255, 255, 255, 0.9);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-primary {
+          background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+          color: white;
+          border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-primary:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-secondary:disabled,
+        .btn-primary:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .spinning {
+          animation: spin 1s linear infinite;
+        }
+
+        .guest-info {
+          margin-top: 1rem;
+          padding: 0.75rem 1rem;
+          background: rgba(139, 92, 246, 0.05);
+          border: 1px solid rgba(139, 92, 246, 0.15);
+          border-radius: 8px;
+          text-align: center;
+        }
+
+        .guest-info p {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          margin: 0;
+          font-size: 0.813rem;
+          color: rgba(255, 255, 255, 0.7);
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+          .ai-enhancer-modal {
+            padding: 1.5rem;
+          }
+
+          .options-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
     </div>
   );
 }
