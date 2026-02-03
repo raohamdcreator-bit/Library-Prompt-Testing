@@ -1,6 +1,6 @@
-// src/lib/guestState.js - Guest User State Manageme
-// Manages work for unauthenticated users before signup
+// src/lib/guestState.js - FIXED: Removed duplicate getWorkSummary method
 import { createTimestampMock } from './guestDemoContent';
+
 const GUEST_STORAGE_KEY = 'prism_guest_work';
 const GUEST_SESSION_KEY = 'prism_guest_session';
 
@@ -31,28 +31,33 @@ export class GuestStateManager {
    * Get all guest work from localStorage
    */
   getGuestWork() {
-  try {
-    const data = localStorage.getItem(GUEST_STORAGE_KEY);
-    if (!data) return this.getDefaultState();
-    
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error loading guest work:', error);
-    return this.getDefaultState();
+    try {
+      const data = localStorage.getItem(GUEST_STORAGE_KEY);
+      if (!data) return this.getDefaultState();
+      
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('Error loading guest work:', error);
+      return this.getDefaultState();
+    }
   }
-}
 
-getDefaultState() {
-  return {
-    prompts: [],
-    enhancementCount: 0, // ✅ NEW: Track enhancements
-    lastModified: null,
-    sessionId: this.sessionId,
-  };
-}
+  /**
+   * Default empty state structure
+   */
+  getDefaultState() {
+    return {
+      prompts: [],
+      outputs: [],
+      chatMessages: [],
+      enhancementCount: 0, // ✅ Track enhancements
+      lastModified: null,
+      sessionId: this.sessionId,
+    };
+  }
   
   /**
-   * ✅ NEW HELPER: Reconstruct timestamp mock from stored data
+   * ✅ HELPER: Reconstruct timestamp mock from stored data
    */
   reconstructTimestamp(timestamp) {
     if (!timestamp) return undefined;
@@ -74,19 +79,6 @@ getDefaultState() {
     
     // Fallback
     return createTimestampMock(new Date());
-  }
-
-  /**
-   * Default empty state structure
-   */
-  getDefaultState() {
-    return {
-      prompts: [],
-      outputs: [],
-      chatMessages: [],
-      lastModified: null,
-      sessionId: this.sessionId,
-    };
   }
 
   /**
@@ -124,49 +116,59 @@ getDefaultState() {
   }
 
   /**
-   * Add a prompt to guest work (without persisting to backend)
+   * Add a prompt to guest work
    */
- addPrompt(prompt) {
-  const work = this.getGuestWork();
-  const newPrompt = {
-    id: `user_${Date.now()}`,
-    ...prompt,
-    createdAt: new Date().toISOString(), // ✅ Simple ISO string
-    owner: 'guest',
-    isGuest: true,
-  };
-  
-  work.prompts.push(newPrompt);
-  this.saveGuestWork(work);
-  
-  return newPrompt;
-}
+  addPrompt(prompt) {
+    const work = this.getGuestWork();
+    const newPrompt = {
+      id: `user_${Date.now()}`,
+      ...prompt,
+      createdAt: new Date().toISOString(),
+      owner: 'guest',
+      isGuest: true,
+    };
+    
+    work.prompts.push(newPrompt);
+    this.saveGuestWork(work);
+    
+    return newPrompt;
+  }
 
   /**
    * Update a guest prompt
    */
- updatePrompt(promptId, updates, isEnhancement = false) {
-  const work = this.getGuestWork();
-  const promptIndex = work.prompts.findIndex(p => p.id === promptId);
-  
-  if (promptIndex === -1) {
-    return { success: false, error: 'Prompt not found' };
+  updatePrompt(promptId, updates, isEnhancement = false) {
+    const work = this.getGuestWork();
+    const promptIndex = work.prompts.findIndex(p => p.id === promptId);
+    
+    if (promptIndex === -1) {
+      return { success: false, error: 'Prompt not found' };
+    }
+    
+    work.prompts[promptIndex] = {
+      ...work.prompts[promptIndex],
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    
+    // ✅ Track enhancements for save trigger
+    if (isEnhancement) {
+      work.enhancementCount = (work.enhancementCount || 0) + 1;
+    }
+    
+    this.saveGuestWork(work);
+    return { success: true };
   }
-  
-  work.prompts[promptIndex] = {
-    ...work.prompts[promptIndex],
-    ...updates,
-    updatedAt: new Date().toISOString(),
-  };
-  
-  // ✅ Track enhancements for save trigger
-  if (isEnhancement) {
-    work.enhancementCount = (work.enhancementCount || 0) + 1;
+
+  /**
+   * Delete a guest prompt
+   */
+  deletePrompt(promptId) {
+    const work = this.getGuestWork();
+    work.prompts = work.prompts.filter(p => p.id !== promptId);
+    this.saveGuestWork(work);
+    return { success: true };
   }
-  
-  this.saveGuestWork(work);
-  return { success: true };
-}
 
   /**
    * Add output to a prompt
@@ -214,18 +216,6 @@ getDefaultState() {
   }
 
   /**
- * ✅ IMPROVED: Work summary for save modal
- */
-getWorkSummary() {
-  const work = this.getGuestWork();
-  return {
-    promptCount: work.prompts.length,
-    enhancementCount: work.enhancementCount || 0,
-    lastModified: work.lastModified,
-    sessionId: work.sessionId,
-  };
-}
-  /**
    * Get all guest outputs
    */
   getOutputs(promptId = null) {
@@ -260,7 +250,7 @@ getWorkSummary() {
   }
 
   /**
-   * Get work summary for display in save modal
+   * ✅ FIXED: Single getWorkSummary method (removed duplicate)
    */
   getWorkSummary() {
     const work = this.getGuestWork();
@@ -268,7 +258,9 @@ getWorkSummary() {
       promptCount: work.prompts.length,
       outputCount: work.outputs.length,
       chatCount: work.chatMessages.length,
+      enhancementCount: work.enhancementCount || 0,
       lastModified: work.lastModified,
+      sessionId: work.sessionId,
     };
   }
 
