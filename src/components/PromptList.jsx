@@ -1,5 +1,5 @@
 // src/components/PromptList.jsx - ENHANCED VERSION with UI/UX Improvements
-
+// Single column layout, improved mobile experience, better accessibility
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -951,30 +951,29 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           )}
         </div>
 
-        {/* Expandable Content Preview with Gradient */}
+        {/* Expandable Content Preview */}
         <div
           className={`content-preview-box ${isTextExpanded ? 'expanded' : 'collapsed'}`}
-          style={{ cursor: 'default', position: 'relative' }}
+          style={{ cursor: 'default' }}
         >
           <pre className="content-preview-text">
             {displayText}
+            {!isTextExpanded && shouldTruncate && "..."}
           </pre>
-          {!isTextExpanded && shouldTruncate && (
-            <div className="preview-fade-gradient" />
-          )}
-          {shouldTruncate && (
-            <button
-              className="expand-indicator-button"
-              onClick={() => handleTextExpansionWithTracking(prompt.id)}
-              aria-expanded={isTextExpanded}
-              aria-label={isTextExpanded ? "Collapse prompt text" : "Expand prompt text"}
-            >
-              <span className="expand-text">
-                {isTextExpanded ? "Show less" : "Read more"}
-              </span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${isTextExpanded ? 'rotate-180' : ''}`} />
-            </button>
-          )}
+        </div>
+        {shouldTruncate && (
+          <button
+            className="expand-indicator-button"
+            onClick={() => handleTextExpansionWithTracking(prompt.id)}
+            aria-expanded={isTextExpanded}
+            aria-label={isTextExpanded ? "Collapse prompt text" : "Expand prompt text"}
+          >
+            <span className="expand-text">
+              {isTextExpanded ? "Show less" : "Read more"}
+            </span>
+            <ChevronDown className={`w-3.5 h-3.5 ${isTextExpanded ? 'rotate-180' : ''}`} />
+          </button>
+        )}
         </div>
 
         {/* Enhanced Metadata with Icons */}
@@ -1046,6 +1045,20 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                     onCopy={handleCopy}
                   />
                 </Tooltip>
+                
+                {shouldTruncate && (
+                  <Tooltip text={isTextExpanded ? "Show less" : "Read full prompt"}>
+                    <button
+                      onClick={() => handleTextExpansionWithTracking(prompt.id)}
+                      className="action-btn-premium"
+                      aria-expanded={isTextExpanded}
+                      aria-label={isTextExpanded ? "Collapse prompt text" : "Expand full prompt"}
+                    >
+                      <Maximize2 className="w-4 h-4" />
+                    </button>
+                  </Tooltip>
+                )}
+                
                 <Tooltip text="Create your own editable copy">
                   <button 
                     onClick={() => handleDuplicateDemo(prompt)}
@@ -1161,59 +1174,71 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </div>
 
         {/* Expanded Content */}
-        {!isDemo && isExpanded && !isGuestMode && (
+        {!isDemo && isExpanded && (
           <div className="expandable-section expanded">
             <div className="space-y-4 mt-6 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
-              <CompactAITools text={prompt.text} />
+              {!isGuestMode && (
+                <>
+                  <CompactAITools text={prompt.text} />
 
-              {/* Rating Section */}
-              <div className="glass-card p-4 rounded-lg border" style={{ borderColor: "var(--border)" }}>
-                <RatingSection teamId={activeTeam} promptId={prompt.id} />
-              </div>
-
-              {/* Results Section */}
-              <div>
-                <button
-                  onClick={() =>
-                    setShowResults((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
-                  }
-                  className="expand-toggle"
-                  aria-expanded={showResults[prompt.id]}
-                >
-                  <span>
-                    {showResults[prompt.id] ? "Hide" : "Show"} AI Output Results
-                    {resultsCount > 0 && ` (${resultsCount})`}
-                  </span>
-                  <ChevronDown className={`w-4 h-4 ${showResults[prompt.id] ? "rotate-180" : ""}`} />
-                </button>
-
-                {showResults[prompt.id] && (
-                  <div className="mt-4">
-                    <PromptResults
-                      key={`results-${prompt.id}`}
-                      teamId={activeTeam}
-                      promptId={prompt.id}
-                      userRole={userRole}
-                      onResultsChange={(count) => handleResultsChange(prompt.id, count)}
-                    />
+                  {/* Rating Section */}
+                  <div className="glass-card p-4 rounded-lg border" style={{ borderColor: "var(--border)" }}>
+                    <RatingSection teamId={activeTeam} promptId={prompt.id} />
                   </div>
-                )}
-              </div>
 
-              {/* Comments */}
-              <button
-                onClick={() =>
-                  setShowComments((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
-                }
-                className="expand-toggle"
-                aria-expanded={showComments[prompt.id]}
-              >
-                <span>{showComments[prompt.id] ? "Hide" : "Show"} Comments</span>
-                <ChevronDown className={`w-4 h-4 ${showComments[prompt.id] ? "rotate-180" : ""}`} />
-              </button>
+                  {/* Results Section */}
+                  <div>
+                    <button
+                      onClick={() =>
+                        setShowResults((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
+                      }
+                      className="expand-toggle"
+                      aria-expanded={showResults[prompt.id]}
+                    >
+                      <span>
+                        {showResults[prompt.id] ? "Hide" : "Show"} AI Output Results
+                        {resultsCount > 0 && ` (${resultsCount})`}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 ${showResults[prompt.id] ? "rotate-180" : ""}`} />
+                    </button>
 
-              {showComments[prompt.id] && (
-                <Comments teamId={activeTeam} promptId={prompt.id} userRole={userRole} />
+                    {showResults[prompt.id] && (
+                      <div className="mt-4">
+                        <PromptResults
+                          key={`results-${prompt.id}`}
+                          teamId={activeTeam}
+                          promptId={prompt.id}
+                          userRole={userRole}
+                          onResultsChange={(count) => handleResultsChange(prompt.id, count)}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Comments */}
+                  <button
+                    onClick={() =>
+                      setShowComments((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
+                    }
+                    className="expand-toggle"
+                    aria-expanded={showComments[prompt.id]}
+                  >
+                    <span>{showComments[prompt.id] ? "Hide" : "Show"} Comments</span>
+                    <ChevronDown className={`w-4 h-4 ${showComments[prompt.id] ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {showComments[prompt.id] && (
+                    <Comments teamId={activeTeam} promptId={prompt.id} userRole={userRole} />
+                  )}
+                </>
+              )}
+              
+              {isGuestMode && (
+                <div className="p-4 rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--muted)" }}>
+                  <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                    Sign up to access AI tools, ratings, results tracking, and comments.
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -1255,43 +1280,35 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           }
         }
 
-        /* Improved Text Preview with Gradient */
-        .preview-fade-gradient {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          height: 60px;
-          background: linear-gradient(to bottom, transparent, var(--card));
-          pointer-events: none;
-        }
-
+        /* Improved Text Preview */
         .expand-indicator-button {
-          display: flex;
+          display: inline-flex;
           align-items: center;
-          gap: 0.5rem;
-          margin-top: 0.75rem;
-          padding: 0.5rem 1rem;
-          background: var(--muted);
-          border: 1px solid var(--border);
-          border-radius: 6px;
-          color: var(--foreground);
-          font-size: 0.875rem;
+          gap: 0.375rem;
+          margin-top: 0.5rem;
+          padding: 0.375rem 0.75rem;
+          background: transparent;
+          border: none;
+          border-radius: 4px;
+          color: var(--primary);
+          font-size: 0.813rem;
           font-weight: 500;
           cursor: pointer;
           transition: all 0.2s;
-          width: 100%;
-          justify-content: center;
         }
 
         .expand-indicator-button:hover {
-          background: var(--accent);
-          border-color: var(--primary);
+          background: rgba(139, 92, 246, 0.1);
+          color: var(--primary);
         }
 
         .expand-indicator-button:focus-visible {
           outline: 2px solid var(--primary);
           outline-offset: 2px;
+        }
+        
+        .expand-indicator-button svg {
+          transition: transform 0.2s;
         }
 
         /* Enhanced Metadata Styling */
@@ -1432,16 +1449,22 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
         .filter-menu {
           position: absolute;
-          top: 100%;
+          top: calc(100% + 0.5rem);
           right: 0;
-          margin-top: 0.5rem;
           background: var(--popover);
           border: 1px solid var(--border);
           border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-          z-index: 50;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+          z-index: 100;
           min-width: 200px;
           padding: 0.5rem;
+        }
+        
+        @media (max-width: 640px) {
+          .filter-menu {
+            right: auto;
+            left: 0;
+          }
         }
 
         .filter-menu-item {
@@ -1985,34 +2008,44 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           </h3>
           <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
             {searchQuery 
-              ? `No prompts match "${searchQuery}". Try a different search term.`
+              ? `No prompts match "${searchQuery}". Try a different search term or adjust your filters.`
               : isGuestMode 
                 ? "Create your first prompt to get started! Or try our demo prompts above." 
                 : "Create your first prompt to start building your library."
             }
           </p>
-          {!searchQuery && (
-            <button 
-              onClick={() => {
-                setShowCreateForm(true);
-                setTimeout(() => {
-                  createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
-              }}
-              className="btn-primary"
-            >
-              <Plus size={18} />
-              Create First Prompt
-            </button>
-          )}
-          {searchQuery && (
-            <button 
-              onClick={() => setSearchQuery('')}
-              className="btn-secondary"
-            >
-              Clear Search
-            </button>
-          )}
+          <div className="flex gap-3 justify-center flex-wrap">
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="btn-secondary"
+              >
+                Clear Search
+              </button>
+            )}
+            {filterCategory !== 'all' && (
+              <button 
+                onClick={() => setFilterCategory('all')}
+                className="btn-secondary"
+              >
+                Clear Filter
+              </button>
+            )}
+            {!searchQuery && filterCategory === 'all' && (
+              <button 
+                onClick={() => {
+                  setShowCreateForm(true);
+                  setTimeout(() => {
+                    createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 100);
+                }}
+                className="btn-primary"
+              >
+                <Plus size={18} />
+                Create First Prompt
+              </button>
+            )}
+          </div>
         </div>
       )}
 
