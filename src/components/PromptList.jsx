@@ -974,7 +974,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             <ChevronDown className={`w-3.5 h-3.5 ${isTextExpanded ? 'rotate-180' : ''}`} />
           </button>
         )}
-        </div>
+        
 
         {/* Enhanced Metadata with Icons */}
         <div className="prompt-metadata enhanced">
