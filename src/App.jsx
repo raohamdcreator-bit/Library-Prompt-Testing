@@ -32,6 +32,7 @@ import OnboardingExperience from "./components/OnboardingExperience";
 import { savePrompt } from "./lib/prompts";
 import { migrateGuestWorkToUser, guestState } from "./lib/guestState";
 import { initializeDemoPrompts } from "./lib/demoPromptManager";
+import { getAllDemoPrompts } from './lib/guestDemoContent';
 // Lucide React Icons
 import {
   Menu,
@@ -728,6 +729,8 @@ export default function App() {
   handleSignupFromModal,
   handleContinueWithout,
   closeSaveModal,
+  modalContext,
+  getWorkSummary,
 } = useGuestMode();
   
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
@@ -1293,6 +1296,8 @@ useEffect(() => {
         onClose={closeSaveModal}
         onSignup={handleSignupFromModal}
         onContinueWithout={handleContinueWithout}
+        workSummary={getWorkSummary()}
+        modalContext={modalContext}
       />
 
       {/* ✅ FIXED: Onboarding for authenticated users with team */}
