@@ -1,4 +1,4 @@
-// src/context/GuestModeContext.jsx - FIXED: Proper callback handling for save operations
+// src/context/GuestModeContext.jsx - FIXED: Added missing modalContext state
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { isDemoPrompt } from '../lib/guestDemoContent';
@@ -11,108 +11,106 @@ export function GuestModeProvider({ children }) {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
   const [pendingSaveCallback, setPendingSaveCallback] = useState(null);
+  const [modalContext, setModalContext] = useState(null); // ✅ FIXED: Added missing state
 
   // User is guest if not authenticated
   const isGuest = !user;
 
   /**
    * ✅ FIXED: Trigger save modal with callback support
-   * @param {Object} prompt - The prompt being saved
-   * @param {Function} onSaveCallback - Callback to execute after successful signup
-   * @returns {boolean} - True if save can proceed immediately, false if modal triggered
    */
   const checkSaveRequired = useCallback((action, onProceed, context = {}) => {
-  // ✅ Authenticated users always proceed
-  if (!isGuest) {
-    if (onProceed) onProceed();
-    return true;
-  }
+    // ✅ Authenticated users always proceed
+    if (!isGuest) {
+      if (onProceed) onProceed();
+      return true;
+    }
 
-  // ✅ Get current work state
-  const work = guestState.getWorkSummary();
+    // ✅ Get current work state
+    const work = guestState.getWorkSummary();
 
-  // ✅ NEVER BLOCK: Demo interactions
-  const nonBlockingActions = [
-    'view_demo',
-    'copy_demo', 
-    'duplicate_demo', // "Make My Own" button
-    'edit_guest_prompt', // Editing already-created prompts
-    'delete_guest_prompt',
-  ];
+    // ✅ NEVER BLOCK: Demo interactions
+    const nonBlockingActions = [
+      'view_demo',
+      'copy_demo', 
+      'duplicate_demo', // "Make My Own" button
+      'edit_guest_prompt', // Editing already-created prompts
+      'delete_guest_prompt',
+    ];
 
-  if (nonBlockingActions.includes(action)) {
-    if (onProceed) onProceed();
-    return true;
-  }
+    if (nonBlockingActions.includes(action)) {
+      if (onProceed) onProceed();
+      return true;
+    }
 
-  // ✅ TRIGGER MODAL: After 3rd prompt creation
-  if (action === 'create_prompt' && work.promptCount >= 3) {
-    console.log('💾 Save trigger: 3+ prompts created');
-    setPendingSaveCallback(() => onProceed);
-    setModalContext({
-      trigger: 'prompt_limit',
-      promptCount: work.promptCount,
-      message: `You've created ${work.promptCount} prompts`,
-    });
-    setShowSaveModal(true);
-    
-    // Track analytics
-    if (window.gtag) {
-      window.gtag('event', 'save_modal_shown', {
+    // ✅ TRIGGER MODAL: After 3rd prompt creation
+    if (action === 'create_prompt' && work.promptCount >= 3) {
+      console.log('💾 Save trigger: 3+ prompts created');
+      setPendingSaveCallback(() => onProceed);
+      setModalContext({
         trigger: 'prompt_limit',
-        prompt_count: work.promptCount,
+        promptCount: work.promptCount,
+        message: `You've created ${work.promptCount} prompts`,
       });
+      setShowSaveModal(true);
+      
+      // Track analytics
+      if (window.gtag) {
+        window.gtag('event', 'save_modal_shown', {
+          trigger: 'prompt_limit',
+          prompt_count: work.promptCount,
+        });
+      }
+      
+      return false;
     }
-    
-    return false;
-  }
 
-  // ✅ TRIGGER MODAL: First enhancement
-  if (action === 'enhance_prompt' && work.enhancementCount === 0) {
-    console.log('💾 Save trigger: First enhancement');
-    setPendingSaveCallback(() => onProceed);
-    setModalContext({
-      trigger: 'first_enhancement',
-      promptCount: work.promptCount,
-      message: 'Save your enhanced prompts',
-    });
-    setShowSaveModal(true);
-    
-    if (window.gtag) {
-      window.gtag('event', 'save_modal_shown', {
+    // ✅ TRIGGER MODAL: First enhancement
+    if (action === 'enhance_prompt' && work.enhancementCount === 0) {
+      console.log('💾 Save trigger: First enhancement');
+      setPendingSaveCallback(() => onProceed);
+      setModalContext({
         trigger: 'first_enhancement',
-        prompt_count: work.promptCount,
+        promptCount: work.promptCount,
+        message: 'Save your enhanced prompts',
       });
+      setShowSaveModal(true);
+      
+      if (window.gtag) {
+        window.gtag('event', 'save_modal_shown', {
+          trigger: 'first_enhancement',
+          prompt_count: work.promptCount,
+        });
+      }
+      
+      return false;
     }
-    
-    return false;
-  }
 
-  // ✅ TRIGGER MODAL: Before export
-  if (action === 'export_prompts') {
-    console.log('💾 Save trigger: Export attempt');
-    setPendingSaveCallback(() => onProceed);
-    setModalContext({
-      trigger: 'export_attempt',
-      promptCount: work.promptCount,
-      message: 'Save before exporting',
-    });
-    setShowSaveModal(true);
-    
-    if (window.gtag) {
-      window.gtag('event', 'save_modal_shown', {
+    // ✅ TRIGGER MODAL: Before export
+    if (action === 'export_prompts') {
+      console.log('💾 Save trigger: Export attempt');
+      setPendingSaveCallback(() => onProceed);
+      setModalContext({
         trigger: 'export_attempt',
-        prompt_count: work.promptCount,
+        promptCount: work.promptCount,
+        message: 'Save before exporting',
       });
+      setShowSaveModal(true);
+      
+      if (window.gtag) {
+        window.gtag('event', 'save_modal_shown', {
+          trigger: 'export_attempt',
+          prompt_count: work.promptCount,
+        });
+      }
+      
+      return false;
     }
-    
-    return false;
-  }
 
-  // ✅ DEFAULT: Allow action
-  if (onProceed) onProceed();
-  return true;
-}, [isGuest]);
+    // ✅ DEFAULT: Allow action
+    if (onProceed) onProceed();
+    return true;
+  }, [isGuest]);
 
   /**
    * Handle signup from save modal
@@ -134,6 +132,7 @@ export function GuestModeProvider({ children }) {
       }
       
       setShowSaveModal(false);
+      setModalContext(null); // ✅ FIXED: Clear context
       
       // Track conversion
       if (window.gtag) {
@@ -153,6 +152,7 @@ export function GuestModeProvider({ children }) {
   function handleContinueWithout() {
     setShowSaveModal(false);
     setPendingSaveCallback(null);
+    setModalContext(null); // ✅ FIXED: Clear context
   }
 
   /**
@@ -161,31 +161,15 @@ export function GuestModeProvider({ children }) {
   function closeSaveModal() {
     setShowSaveModal(false);
     setPendingSaveCallback(null);
+    setModalContext(null); // ✅ FIXED: Clear context
   }
-  /**
- * Get work summary for display
- */
-const getWorkSummary = useCallback(() => {
-  return guestState.getWorkSummary();
-}, []);
 
   /**
-   * Check if a specific prompt can be saved
+   * Get work summary for display
    */
-  function canSavePrompt(prompt) {
-    // Demo prompts cannot be saved
-    if (isDemoPrompt(prompt)) {
-      return false;
-    }
-
-    // Authenticated users can save any non-demo prompt
-    if (!isGuest) {
-      return true;
-    }
-
-    // Guests cannot save without signup
-    return false;
-  }
+  const getWorkSummary = useCallback(() => {
+    return guestState.getWorkSummary();
+  }, []);
 
   /**
    * Check if a prompt can be edited
@@ -232,24 +216,24 @@ const getWorkSummary = useCallback(() => {
   }
 
   const value = {
-  isGuest,
-  showSaveModal,
-  isMigrating,
-  modalContext, // ✅ NEW: Context for modal messaging
-  
-  // ✅ NEW: Strategic API
-  checkSaveRequired,
-  getWorkSummary,
-  
-  // Modal controls
-  handleSignupFromModal,
-  handleContinueWithout,
-  closeSaveModal,
-  
-  // Permissions
-  canEditPrompt,
-  canDeletePrompt,
-};
+    isGuest,
+    showSaveModal,
+    isMigrating,
+    modalContext, // ✅ FIXED: Now properly defined
+    
+    // Strategic API
+    checkSaveRequired,
+    getWorkSummary,
+    
+    // Modal controls
+    handleSignupFromModal,
+    handleContinueWithout,
+    closeSaveModal,
+    
+    // Permissions
+    canEditPrompt,
+    canDeletePrompt,
+  };
 
   return (
     <GuestModeContext.Provider value={value}>
