@@ -182,11 +182,11 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onEx
   return (
     <nav className={`modern-navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="navbar-content">
-        <div 
+      <div 
   className="navbar-logo" 
   onClick={() => {
     if (isGuest) {
-      handleExitGuestMode();
+      onExitGuestMode(); // ✅ FIXED: Use prop instead of undefined function
     } else {
       onNavigate("/");
     }
@@ -1141,7 +1141,7 @@ useEffect(() => {
 }
   function handleExitGuestMode() {
   // Check if guest has unsaved work
-  if (isGuest && guestState.hasUnsavedWork()) {
+  if (guestState.hasUnsavedWork()) {
     // Warn user with native confirm
     const confirmExit = window.confirm(
       'You have unsaved work. Sign up to save it permanently, or continue without saving?'
@@ -1153,6 +1153,9 @@ useEffect(() => {
     }
   }
   
+  // Clear guest work if exiting
+  guestState.clearGuestWork();
+  
   // Exit guest mode
   setIsExploringAsGuest(false);
   
@@ -1163,10 +1166,13 @@ useEffect(() => {
     });
   }
   
-  // Navigate to home
-  window.history.pushState({}, '', '/');
-  window.location.reload(); // Refresh to show landing page
+  // Navigate to home and reload
+  navigate('/');
+  setTimeout(() => {
+    window.location.reload();
+  }, 100);
 }
+
 
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
 
@@ -1619,7 +1625,7 @@ useEffect(() => {
       <h1 className="text-lg font-bold truncate" style={{ color: "var(--foreground)" }}>
         {activeTeamObj.name}
       </h1>
-    ) : activeView === "favorites" ? (
+    ) : activeView === "favorites" && user ? (
       <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>My Favorites</h1>
     ) : isGuest ? (
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1639,6 +1645,7 @@ useEffect(() => {
     </button>
   )}
 </div>
+
 
         {/* Desktop Header */}
         {activeTeamObj ? (
@@ -1665,12 +1672,12 @@ useEffect(() => {
           {/* Authenticated user with team - show team content */}
           {activeTeamObj && activeView === "prompts" && (
             <>
-              <PromptList 
-                activeTeam={activeTeamObj.id} 
-                userRole={role} 
-                isGuestMode={isGuest}
-                userId={user?.uid}
-              />
+             <PromptList 
+  activeTeam={activeTeamObj ? activeTeamObj.id : null}
+  userRole={role} 
+  isGuestMode={isGuest}
+  userId={user?.uid}
+/>
               {canManageMembers() && (
                 <TeamInviteForm teamId={activeTeamObj.id} teamName={activeTeamObj.name} role={role} />
               )}
@@ -1698,12 +1705,12 @@ useEffect(() => {
 
           {/* ✅ FIXED: Guest Mode - Show demo prompts */}
           {isGuest && !activeTeamObj && activeView !== "favorites" && (
-            <PromptList 
-              activeTeam={null}
-              userRole={null}
-              isGuestMode={true}
-              userId={null}
-            />
+           <PromptList 
+    activeTeam={null}
+    userRole={null}
+    isGuestMode={true}
+    userId={null}
+  />
           )}
 
           {/* ✅ FIXED: Authenticated user without team - show empty state */}
