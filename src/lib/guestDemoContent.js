@@ -1,325 +1,533 @@
-// src/lib/guestDemoContent.js - FIXED: Unified demo source with proper Firestore Timestamp compatibility
-// This is the SINGLE SOURCE for all demo prompts across the application
+// src/lib/guestDemoContent.js
+// Production-ready demo content system with duplication and helper utilities
 
-// Helper to create Firestore-compatible timestamp mock
-// Helper to create Firestore-compatible timestamp mock
-export function createTimestampMock(date) {  
-  const timestamp = date instanceof Date ? date : new Date(date);
-  return {
-    toDate: () => timestamp,
-    toMillis: () => timestamp.getTime(),
-    seconds: Math.floor(timestamp.getTime() / 1000),
-    nanoseconds: (timestamp.getTime() % 1000) * 1000000,
-  };
-}
-
+/**
+ * DEMO PROMPTS - System-owned examples (Read-only)
+ * These are high-quality example prompts that guests can view and duplicate
+ */
 export const DEMO_PROMPTS = [
   {
     id: 'demo-1',
     title: '📝 Blog Post Generator',
-    text: `Write a comprehensive blog post about [TOPIC]. 
+    text: `Create an engaging blog post about [TOPIC] that:
 
-Requirements:
-- Engaging introduction with hook
-- 3-5 main points with supporting examples
-- Clear section headers
-- SEO-friendly with natural keyword integration
-- Compelling conclusion with call-to-action
+1. Starts with a compelling hook that grabs attention
+2. Includes 3-5 main sections with clear subheadings
+3. Uses conversational tone while maintaining professionalism
+4. Incorporates relevant examples and data points
+5. Ends with a strong call-to-action
+6. Optimizes for SEO with natural keyword integration
 
-Tone: [Professional/Conversational/Technical]
-Length: [800/1200/1500] words`,
-    tags: ['writing', 'content', 'marketing', 'seo'],
-    visibility: 'public',
+Target audience: [DESCRIBE AUDIENCE]
+Tone: [Professional/Casual/Educational]
+Length: [800-1200 words]
+
+Include:
+- An attention-grabbing title
+- Meta description (150-160 characters)
+- 2-3 internal linking opportunities
+- Conclusion with next steps`,
+    tags: ['writing', 'content', 'blogging', 'seo', 'marketing'],
     category: 'Content Creation',
-    createdBy: 'system',
-    createdAt: createTimestampMock('2024-01-15'),
-    stats: { views: 1247, copies: 89 },
-    // ✅ CRITICAL FLAGS
+    visibility: 'public',
+    
+    // Demo-specific flags
     isDemo: true,
+    isReadOnly: true,
     owner: 'system',
+    demoOrder: 1,
+    
+    // Demo metadata
+    stats: {
+      views: 1250,
+      copies: 340,
+      rating: 4.8,
+    },
   },
+  
   {
     id: 'demo-2',
-    title: '💻 Code Review Assistant',
-    text: `Review the following code and provide:
+    title: '💼 Professional Email Writer',
+    text: `Compose a professional email for [PURPOSE]:
 
-1. **Bug Identification**
-   - Syntax errors
-   - Logic flaws
-   - Edge cases
+Context:
+- Recipient: [NAME/ROLE]
+- Relationship: [Client/Colleague/Manager/Vendor]
+- Purpose: [Meeting request/Follow-up/Proposal/Update]
+- Urgency: [High/Medium/Low]
 
-2. **Performance Optimization**
-   - Time complexity analysis
-   - Memory usage improvements
-   - Best practices
+Email should:
+1. Have a clear, specific subject line
+2. Start with appropriate greeting
+3. State purpose in first paragraph
+4. Provide necessary context and details
+5. Include clear call-to-action or next steps
+6. End with professional signature
 
-3. **Security Considerations**
-   - Vulnerability assessment
-   - Input validation
-   - Data handling
+Tone: [Formal/Semi-formal/Friendly-professional]
+Length: [Brief/Standard/Detailed]
 
-4. **Recommendations**
-   - Refactoring suggestions
-   - Design patterns
-   - Documentation improvements
-
-Code:
-[PASTE CODE HERE]`,
-    tags: ['development', 'code-review', 'programming', 'debugging'],
+Special considerations:
+- Previous conversation context: [IF APPLICABLE]
+- Attachments to mention: [IF ANY]
+- Deadline or time-sensitive elements: [IF ANY]`,
+    tags: ['email', 'business', 'communication', 'professional'],
+    category: 'Business Communication',
     visibility: 'public',
-    category: 'Development',
-    createdBy: 'system',
-    createdAt: createTimestampMock('2024-01-14'),
-    stats: { views: 2341, copies: 156 },
+    
     isDemo: true,
+    isReadOnly: true,
     owner: 'system',
+    demoOrder: 2,
+    
+    stats: {
+      views: 980,
+      copies: 245,
+      rating: 4.7,
+    },
   },
+  
   {
     id: 'demo-3',
-    title: '📧 Email Marketing Template',
-    text: `Create a professional email marketing campaign for [PRODUCT/SERVICE].
+    title: '🎯 Product Description Creator',
+    text: `Write a compelling product description for:
 
-Structure:
-- **Subject Line:** Attention-grabbing, 50 chars max
-- **Preview Text:** Complement subject, build curiosity
-- **Header:** Personalized greeting
-- **Body:** 
-  • Problem identification
-  • Solution presentation
-  • Social proof/testimonials
-  • Value proposition
-  • Urgency element
-- **CTA:** Clear, action-oriented button
-- **Footer:** Contact info, unsubscribe
+Product: [PRODUCT NAME]
+Category: [CATEGORY]
+Target Customer: [DESCRIBE TARGET AUDIENCE]
 
-Tone: [Professional/Friendly/Urgent]
-Target: [B2B/B2C/SaaS]`,
-    tags: ['marketing', 'email', 'sales', 'copywriting'],
+Include:
+1. Headline (benefit-focused, 5-10 words)
+2. Opening hook that addresses customer pain point
+3. Key features (3-5 bullet points)
+4. Benefits (how features solve problems)
+5. Social proof element (testimonial/stats if available)
+6. Strong call-to-action
+
+Format:
+- Use sensory language and vivid descriptions
+- Focus on benefits over features
+- Address common objections
+- Create urgency where appropriate
+- Optimize for conversions
+
+Technical details to incorporate:
+- Specifications: [LIST KEY SPECS]
+- Unique selling points: [WHAT MAKES IT DIFFERENT]
+- Use cases: [WHO/WHEN/WHERE WOULD USE IT]
+
+Length: [Short (50-100 words) / Medium (150-250 words) / Long (300-500 words)]`,
+    tags: ['ecommerce', 'copywriting', 'marketing', 'sales', 'product'],
+    category: 'Sales & Marketing',
     visibility: 'public',
-    category: 'Marketing',
-    createdBy: 'system',
-    createdAt: createTimestampMock('2024-01-13'),
-    stats: { views: 1876, copies: 203 },
+    
     isDemo: true,
+    isReadOnly: true,
     owner: 'system',
+    demoOrder: 3,
+    
+    stats: {
+      views: 1100,
+      copies: 310,
+      rating: 4.9,
+    },
   },
+  
   {
     id: 'demo-4',
-    title: '📊 Data Analysis Helper',
-    text: `Analyze the following dataset and provide comprehensive insights:
+    title: '📱 Social Media Post Generator',
+    text: `Create an engaging social media post for [PLATFORM]:
 
-1. **Descriptive Statistics**
-   - Mean, median, mode
-   - Standard deviation
-   - Distribution analysis
+Platform: [Instagram/LinkedIn/Twitter/Facebook/TikTok]
+Topic: [TOPIC/ANNOUNCEMENT/PRODUCT]
+Goal: [Engagement/Traffic/Sales/Awareness]
 
-2. **Trends & Patterns**
-   - Temporal trends
-   - Correlations
-   - Outlier detection
+Post should include:
+1. Attention-grabbing opening (first 1-2 lines)
+2. Value proposition or main message
+3. Engaging body content
+4. Clear call-to-action
+5. Relevant hashtags (3-10 depending on platform)
+6. Emoji usage (if appropriate for platform/brand)
 
-3. **Insights & Findings**
-   - Key takeaways
-   - Anomalies
-   - Predictive indicators
+Content specifications:
+- Tone: [Professional/Casual/Inspirational/Educational]
+- Voice: [First person/Brand voice/Expert]
+- Length: [Optimized for platform]
+- Visual description: [Suggest image/video type]
 
-4. **Actionable Recommendations**
-   - Data-driven decisions
-   - Risk assessment
-   - Opportunity identification
+Additional elements:
+- Question to spark engagement (if applicable)
+- Tag suggestions (if applicable)
+- Best posting time recommendation
+- Engagement hooks (polls/questions/CTAs)
 
-5. **Visualization Suggestions**
-   - Chart types
-   - Dashboard layout
-   - KPI tracking
-
-Data:
-[PASTE DATA/CSV HERE]`,
-    tags: ['analytics', 'data', 'insights', 'statistics'],
+Platform-specific optimization:
+- Character limits
+- Hashtag best practices
+- Format preferences`,
+    tags: ['social-media', 'marketing', 'content', 'engagement', 'branding'],
+    category: 'Social Media',
     visibility: 'public',
-    category: 'Analytics',
-    createdBy: 'system',
-    createdAt: createTimestampMock('2024-01-12'),
-    stats: { views: 987, copies: 67 },
+    
     isDemo: true,
+    isReadOnly: true,
     owner: 'system',
+    demoOrder: 4,
+    
+    stats: {
+      views: 1350,
+      copies: 425,
+      rating: 4.8,
+    },
   },
+  
   {
     id: 'demo-5',
-    title: '🎯 Product Launch Strategy',
-    text: `Develop a comprehensive product launch strategy for [PRODUCT NAME].
+    title: '🎓 Educational Content Creator',
+    text: `Create educational content that explains [TOPIC/CONCEPT]:
 
-**Pre-Launch Phase (4-6 weeks):**
-- Market research & competitive analysis
-- Target audience identification
-- Beta testing program
-- Influencer/partner outreach
-- Landing page creation
-- Email list building
+Learning objective: [WHAT SHOULD LEARNER UNDERSTAND/DO]
+Audience level: [Beginner/Intermediate/Advanced]
+Format: [Tutorial/Guide/Explanation/How-to]
 
-**Launch Phase (Week 1-2):**
-- Press release distribution
-- Social media campaign
-- Launch event/webinar
-- Special launch pricing
-- Early adopter incentives
+Structure:
+1. Introduction (Why this matters)
+2. Prerequisites (What learner should know first)
+3. Main content broken into digestible sections
+4. Practical examples and use cases
+5. Common mistakes to avoid
+6. Practice exercises or application ideas
+7. Additional resources
 
-**Post-Launch Phase (Week 3-8):**
-- Customer feedback collection
-- Content marketing (case studies, tutorials)
-- Paid advertising campaigns
-- Partnership announcements
-- Community building
+Teaching approach:
+- Use analogies and metaphors for complex concepts
+- Include visual descriptions where helpful
+- Build from simple to complex
+- Provide real-world applications
+- Address common misconceptions
 
-**Success Metrics:**
-- Sign-ups/sales targets
-- Media mentions
-- Social engagement
-- Customer satisfaction scores
+Content should:
+- Be clear and jargon-free (or explain necessary jargon)
+- Include step-by-step instructions where applicable
+- Provide checkpoints for understanding
+- Encourage active learning
+- Include summary/key takeaways
 
-Budget: $[AMOUNT]
-Timeline: [DURATION]`,
-    tags: ['marketing', 'strategy', 'product-launch', 'business'],
+Tone: [Patient/Enthusiastic/Professional/Conversational]
+Length: [Quick overview / Comprehensive guide / In-depth tutorial]`,
+    tags: ['education', 'teaching', 'tutorial', 'learning', 'training'],
+    category: 'Education & Training',
     visibility: 'public',
-    category: 'Business',
-    createdBy: 'system',
-    createdAt: createTimestampMock('2024-01-11'),
-    stats: { views: 1534, copies: 124 },
+    
     isDemo: true,
+    isReadOnly: true,
     owner: 'system',
-  },
-  {
-    id: 'demo-6',
-    title: '🔍 SEO Content Optimizer',
-    text: `Optimize the following content for SEO:
-
-**Analysis Required:**
-1. Keyword Research
-   - Primary keyword: [KEYWORD]
-   - Secondary keywords (LSI)
-   - Search intent analysis
-   - Competitor gap analysis
-
-2. On-Page SEO
-   - Title tag optimization (60 chars)
-   - Meta description (155 chars)
-   - Header structure (H1-H6)
-   - Internal linking opportunities
-   - Image alt text
-
-3. Content Quality
-   - Readability score (Flesch-Kincaid)
-   - Word count optimization
-   - Content depth vs. competitors
-   - Unique value proposition
-
-4. Technical SEO
-   - URL structure
-   - Schema markup suggestions
-   - Mobile optimization
-   - Page speed considerations
-
-Content:
-[PASTE CONTENT HERE]`,
-    tags: ['seo', 'content', 'optimization', 'marketing'],
-    visibility: 'public',
-    category: 'SEO',
-    createdBy: 'system',
-    createdAt: createTimestampMock('2024-01-10'),
-    stats: { views: 2156, copies: 178 },
-    isDemo: true,
-    owner: 'system',
-  },
-  {
-    id: 'demo-7',
-    title: '🎨 Creative Brainstorm Generator',
-    text: `Generate creative ideas for [PROJECT/CAMPAIGN].
-
-**Brainstorming Framework:**
-
-1. **Problem Statement**
-   - What challenge are we solving?
-   - Target audience pain points
-   - Desired outcome
-
-2. **Ideation Techniques**
-   - Mind mapping
-   - SCAMPER method (Substitute, Combine, Adapt, Modify, Put to other use, Eliminate, Reverse)
-   - Random word association
-   - Role-playing scenarios
-
-3. **Concept Development**
-   - Generate 10-15 raw ideas
-   - No self-censoring
-   - Build on others' suggestions
-   - Wild ideas encouraged
-
-4. **Evaluation Criteria**
-   - Feasibility (1-10)
-   - Impact (1-10)
-   - Innovation (1-10)
-   - Resource requirements
-
-5. **Top 3 Concepts**
-   - Detailed description
-   - Execution plan
-   - Budget estimate
-   - Timeline
-
-Project Context:
-[DESCRIBE PROJECT]`,
-    tags: ['creativity', 'brainstorming', 'ideation', 'innovation'],
-    visibility: 'public',
-    category: 'Creative',
-    createdBy: 'system',
-    createdAt: createTimestampMock('2024-01-09'),
-    stats: { views: 876, copies: 92 },
-    isDemo: true,
-    owner: 'system',
+    demoOrder: 5,
+    
+    stats: {
+      views: 890,
+      copies: 215,
+      rating: 4.7,
+    },
   },
 ];
 
 /**
- * Get all demo prompts for guest users
- * These are loaded immediately when guests access the app
- */
-export function getGuestDemoPrompts() {
-  return DEMO_PROMPTS;
-}
-
-/**
- * Get aggregated stats for demo prompts
- */
-export function getGuestDemoStats() {
-  return {
-    totalPrompts: DEMO_PROMPTS.length,
-    totalViews: DEMO_PROMPTS.reduce((sum, p) => sum + (p.stats?.views || 0), 0),
-    totalCopies: DEMO_PROMPTS.reduce((sum, p) => sum + (p.stats?.copies || 0), 0),
-  };
-}
-
-/**
- * Check if a prompt is a demo prompt
+ * Check if a prompt is a demo
+ * @param {Object} prompt - Prompt object to check
+ * @returns {boolean} - True if prompt is a demo
  */
 export function isDemoPrompt(prompt) {
-  return prompt?.isDemo === true && prompt?.owner === 'system';
+  if (!prompt) return false;
+  
+  return (
+    prompt.isDemo === true || 
+    prompt.owner === 'system' || 
+    (prompt.id && prompt.id.startsWith('demo-'))
+  );
 }
 
 /**
- * Duplicate a demo prompt to create a user-owned prompt
- * This removes demo flags and creates a fresh user prompt
+ * Get all demo prompts (sorted by demoOrder)
+ * @returns {Array} - Array of demo prompts
  */
-export function duplicateDemoPrompt(demoPrompt, userId) {
-  const { id, isDemo, owner, createdBy, createdAt, stats, ...promptData } = demoPrompt;
+export function getAllDemoPrompts() {
+  return [...DEMO_PROMPTS].sort((a, b) => a.demoOrder - b.demoOrder);
+}
+
+/**
+ * Get demo prompts by category
+ * @param {string} category - Category to filter by
+ * @returns {Array} - Filtered demo prompts
+ */
+export function getDemoPromptsByCategory(category) {
+  return DEMO_PROMPTS.filter(prompt => prompt.category === category)
+    .sort((a, b) => a.demoOrder - b.demoOrder);
+}
+
+/**
+ * Get all demo categories
+ * @returns {Array} - Unique categories
+ */
+export function getDemoCategories() {
+  const categories = new Set(DEMO_PROMPTS.map(p => p.category));
+  return Array.from(categories).sort();
+}
+
+/**
+ * Duplicate demo to create user-owned prompt
+ * This is called when user clicks "Make My Own" on a demo
+ * 
+ * @param {Object} demoPrompt - Demo prompt to duplicate
+ * @returns {Object|null} - New user prompt or null if invalid
+ */
+export function duplicateDemoToUserPrompt(demoPrompt) {
+  if (!isDemoPrompt(demoPrompt)) {
+    console.warn('Attempted to duplicate non-demo prompt:', demoPrompt.id);
+    return null;
+  }
   
+  // Remove demo-specific and system fields
+  const {
+    id,
+    isDemo,
+    isReadOnly,
+    owner,
+    createdAt,
+    updatedAt,
+    demoOrder,
+    stats,
+    views,
+    copies,
+    rating,
+    ...promptData
+  } = demoPrompt;
+  
+  // Create new user prompt
   return {
     ...promptData,
-    // Remove system ownership
-    owner: userId ? userId : 'guest',
-    createdBy: userId || 'guest',
-    // Mark as user-created, NOT demo
-    isDemo: false,
-    // User can now save this
     title: `${promptData.title} (My Copy)`,
+    owner: 'guest',
+    isDemo: false,
+    isReadOnly: false,
+    duplicatedFrom: id,
+    createdAt: new Date().toISOString(),
+    visibility: 'private',
   };
 }
+
+/**
+ * Get demo prompt by ID
+ * @param {string} demoId - Demo ID to find
+ * @returns {Object|undefined} - Demo prompt or undefined
+ */
+export function getDemoPromptById(demoId) {
+  return DEMO_PROMPTS.find(p => p.id === demoId);
+}
+
+/**
+ * Search demo prompts
+ * @param {string} query - Search query
+ * @returns {Array} - Matching demo prompts
+ */
+export function searchDemoPrompts(query) {
+  if (!query || query.trim() === '') {
+    return getAllDemoPrompts();
+  }
+  
+  const lowerQuery = query.toLowerCase();
+  
+  return DEMO_PROMPTS.filter(prompt => {
+    return (
+      prompt.title.toLowerCase().includes(lowerQuery) ||
+      prompt.text.toLowerCase().includes(lowerQuery) ||
+      prompt.tags.some(tag => tag.toLowerCase().includes(lowerQuery)) ||
+      prompt.category.toLowerCase().includes(lowerQuery)
+    );
+  }).sort((a, b) => a.demoOrder - b.demoOrder);
+}
+
+/**
+ * Get recommended demos based on user's activity
+ * @param {Array} userTags - User's tags from previous prompts
+ * @param {number} limit - Number of recommendations
+ * @returns {Array} - Recommended demo prompts
+ */
+export function getRecommendedDemos(userTags = [], limit = 3) {
+  if (userTags.length === 0) {
+    return [...DEMO_PROMPTS]
+      .sort((a, b) => (b.stats?.rating || 0) - (a.stats?.rating || 0))
+      .slice(0, limit);
+  }
+  
+  const scoredDemos = DEMO_PROMPTS.map(demo => {
+    const tagOverlap = demo.tags.filter(tag => 
+      userTags.some(userTag => 
+        userTag.toLowerCase() === tag.toLowerCase()
+      )
+    ).length;
+    
+    return {
+      demo,
+      score: tagOverlap * 10 + (demo.stats?.rating || 0),
+    };
+  });
+  
+  return scoredDemos
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(item => item.demo);
+}
+
+/**
+ * Get display badge for prompt
+ * @param {Object} prompt - Prompt object
+ * @param {boolean} isGuest - Whether user is in guest mode
+ * @returns {Object|null} - Badge configuration or null
+ */
+export function getPromptBadge(prompt, isGuest) {
+  if (isDemoPrompt(prompt)) {
+    return {
+      type: 'demo',
+      label: 'Demo - Read Only',
+      icon: '✨',
+      color: 'primary',
+    };
+  }
+  
+  if (isGuest && prompt.owner === 'guest') {
+    return {
+      type: 'unsaved',
+      label: 'Unsaved',
+      icon: '📝',
+      color: 'warning',
+    };
+  }
+  
+  if (prompt.enhanced) {
+    return {
+      type: 'enhanced',
+      label: 'Enhanced',
+      icon: '⚡',
+      color: 'success',
+    };
+  }
+  
+  return null;
+}
+
+/**
+ * Create mock timestamp for compatibility with Firestore
+ * @returns {Object} - Timestamp object with Firestore-like interface
+ */
+export function createTimestampMock() {
+  const now = new Date();
+  return {
+    seconds: Math.floor(now.getTime() / 1000),
+    nanoseconds: (now.getTime() % 1000) * 1000000,
+    toDate: function() { return now; },
+    toMillis: function() { return now.getTime(); },
+  };
+}
+
+/**
+ * Reconstruct timestamp from various formats
+ * Handles Firestore timestamps, ISO strings, and plain objects
+ * 
+ * @param {*} timestamp - Timestamp in various formats
+ * @returns {Object} - Normalized timestamp object
+ */
+export function reconstructTimestamp(timestamp) {
+  if (!timestamp) {
+    return createTimestampMock();
+  }
+  
+  // Already a Firestore timestamp with toDate method
+  if (typeof timestamp.toDate === 'function') {
+    return timestamp;
+  }
+  
+  // ISO string
+  if (typeof timestamp === 'string') {
+    const date = new Date(timestamp);
+    return {
+      seconds: Math.floor(date.getTime() / 1000),
+      nanoseconds: (date.getTime() % 1000) * 1000000,
+      toDate: function() { return date; },
+      toMillis: function() { return date.getTime(); },
+    };
+  }
+  
+  // Plain object with seconds
+  if (timestamp.seconds !== undefined) {
+    const date = new Date(timestamp.seconds * 1000);
+    return {
+      seconds: timestamp.seconds,
+      nanoseconds: timestamp.nanoseconds || 0,
+      toDate: function() { return date; },
+      toMillis: function() { return date.getTime(); },
+    };
+  }
+  
+  return createTimestampMock();
+}
+
+/**
+ * Format timestamp for display
+ * @param {*} timestamp - Timestamp to format
+ * @returns {string} - Formatted date string
+ */
+export function formatTimestamp(timestamp) {
+  if (!timestamp) return 'Unknown';
+  
+  try {
+    let date;
+    
+    if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else if (timestamp.toDate) {
+      date = timestamp.toDate();
+    } else if (timestamp.seconds) {
+      date = new Date(timestamp.seconds * 1000);
+    } else {
+      return 'Unknown';
+    }
+    
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+    });
+  } catch (error) {
+    console.error('Error formatting timestamp:', error);
+    return 'Unknown';
+  }
+}
+
+export default {
+  DEMO_PROMPTS,
+  isDemoPrompt,
+  getAllDemoPrompts,
+  getDemoPromptsByCategory,
+  getDemoCategories,
+  duplicateDemoToUserPrompt,
+  getDemoPromptById,
+  searchDemoPrompts,
+  getRecommendedDemos,
+  getPromptBadge,
+  createTimestampMock,
+  reconstructTimestamp,
+  formatTimestamp,
+};
