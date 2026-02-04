@@ -1265,7 +1265,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         )}
           </div>
         </div>
-      </div>
+      
     );
   };
 
