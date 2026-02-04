@@ -1,9 +1,10 @@
-// src/components/PromptList.jsx - REDESIGNED with Responsive Info-Rich Cards
-// Desktop: Two-column layout | Tablet: Stacked | Mobile: Compact vertical
+// src/components/PromptList.jsx - UPDATED with Output Previews, Inline Rating & Comments
+// Preserves existing imports and structure, adds new features inline
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
 import { trackPromptCopy, trackPromptView } from "../lib/promptStats";
+import { updateCommentCount } from "../lib/promptStats";
 import {
   collection,
   onSnapshot,
@@ -11,6 +12,11 @@ import {
   orderBy,
   getDoc,
   doc,
+  addDoc,
+  serverTimestamp,
+  updateDoc,
+  deleteDoc,
+  getDocs,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useGuestMode } from "../context/GuestModeContext";
@@ -27,9 +33,9 @@ import {
   isDemoPrompt, 
   duplicateDemoToUserPrompt,
   getPromptBadge,
-  formatTimestamp,
 } from '../lib/guestDemoContent';
 import { guestState } from '../lib/guestState';
+import { subscribeToResults, deleteResult } from "../lib/results";
 import {
   Plus,
   X,
@@ -38,40 +44,34 @@ import {
   Edit2,
   Trash2,
   ChevronDown,
+  ChevronUp,
   MoreVertical,
   Lock,
   Unlock,
   Eye,
   Star,
   FileText,
-  AlertCircle,
-  Users,
   Search,
   Check,
   Clock,
-  Zap,
-  HelpCircle,
   Filter,
   MessageSquare,
-  DollarSign,
-  Cpu,
-  TrendingUp,
-  Award,
   Activity,
+  Code,
+  Image as ImageIcon,
+  Send,
+  Loader2,
 } from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
-import Comments from "./Comments";
 import { FavoriteButton } from "./Favorites";
-import { CompactAITools } from "./AIModelTools";
-import AdvancedSearch from "./AdvancedSearch";
-import BulkOperations from "./BulkOperations";
 import EnhancedBadge from './EnhancedBadge';
-import ExportImport, { ExportUtils } from "./ExportImport";
+import ExportImport from "./ExportImport";
 import usePagination, { PaginationControls } from "../hooks/usePagination";
 import AIPromptEnhancer from "./AIPromptEnhancer";
-import PromptResults from "./PromptResults";
+import AddResultModal from "./AddResultModal";
 import { StarRating, usePromptRating } from "./PromptAnalytics";
 import { useSoundEffects } from '../hooks/useSoundEffects';
+import { useTimestamp } from "../hooks/useTimestamp";
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -98,12 +98,10 @@ function getRelativeTime(timestamp) {
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
     
     return date.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
-      year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
     });
   } catch {
     return "";
@@ -120,61 +118,15 @@ function getUserInitials(name, email) {
   return "U";
 }
 
-// ==================== AI MODEL ANALYSIS CALCULATOR ====================
+// ==================== SUB-COMPONENTS ====================
 
-function calculateAIAnalysis(prompt) {
-  // Simple token estimation (4 chars ≈ 1 token)
-  const estimatedTokens = Math.ceil(prompt.text.length / 4);
-  
-  // Cost estimation per 1k tokens (simplified pricing)
-  const modelPricing = {
-    'gpt-4': 0.03,
-    'gpt-3.5': 0.002,
-    'claude-3': 0.015,
-    'gemini-pro': 0.00025,
-  };
-  
-  // Calculate cost for each model
-  const costs = Object.entries(modelPricing).map(([model, price]) => ({
-    model,
-    cost: ((estimatedTokens / 1000) * price).toFixed(4),
-  }));
-  
-  // Find best (cheapest) model
-  const bestModel = costs.reduce((prev, curr) => 
-    parseFloat(curr.cost) < parseFloat(prev.cost) ? curr : prev
-  );
-  
-  // Determine compatibility based on prompt complexity
-  const complexity = prompt.text.length > 500 ? 'high' : 
-                     prompt.text.length > 200 ? 'medium' : 'low';
-  
-  const compatibilityScores = {
-    'gpt-4': complexity === 'high' ? 95 : 90,
-    'gpt-3.5': complexity === 'low' ? 95 : 75,
-    'claude-3': complexity === 'high' ? 98 : 85,
-    'gemini-pro': complexity === 'medium' ? 92 : 80,
-  };
-  
-  return {
-    tokens: estimatedTokens,
-    estimatedCost: parseFloat(bestModel.cost),
-    bestModel: bestModel.model,
-    compatibility: compatibilityScores,
-    topModel: Object.entries(compatibilityScores).reduce((a, b) => a[1] > b[1] ? a : b)[0],
-  };
-}
-
-// ==================== MICRO COMPONENTS ====================
-
-function UserAvatar({ src, name, email, size = "md" }) {
+function UserAvatar({ src, name, email, size = "sm" }) {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   
   const sizeClasses = {
     sm: "w-6 h-6 text-xs",
     md: "w-8 h-8 text-sm",
-    lg: "w-10 h-10 text-base",
   };
 
   if (!src || imageError) {
@@ -189,11 +141,11 @@ function UserAvatar({ src, name, email, size = "md" }) {
   }
 
   return (
-    <div className="relative">
+    <>
       {!imageLoaded && (
         <div className={`${sizeClasses[size]} rounded-full flex items-center justify-center`} 
              style={{ backgroundColor: "var(--muted)" }}>
-          <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <Loader2 className="w-3 h-3 animate-spin" />
         </div>
       )}
       <img
@@ -203,7 +155,7 @@ function UserAvatar({ src, name, email, size = "md" }) {
         onLoad={() => setImageLoaded(true)}
         onError={() => setImageError(true)}
       />
-    </div>
+    </>
   );
 }
 
@@ -219,267 +171,324 @@ function CopyButton({ text, promptId, onCopy }) {
   return (
     <button
       onClick={handleCopy}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all hover:bg-primary/10 border border-transparent hover:border-primary/20"
-      style={{ color: copied ? 'var(--success)' : 'var(--muted-foreground)' }}
-      title="Copy to clipboard"
+      className="btn-action-secondary"
     >
-      {copied ? (
-        <>
-          <Check className="w-3.5 h-3.5" />
-          <span>Copied</span>
-        </>
-      ) : (
-        <>
-          <Copy className="w-3.5 h-3.5" />
-          <span>Copy</span>
-        </>
-      )}
+      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+      <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
     </button>
   );
 }
 
-function Tooltip({ children, text }) {
-  const [show, setShow] = useState(false);
-  
+// Output Preview Panel Component
+function OutputPreviewPanel({ outputs, onViewAll }) {
+  if (!outputs || outputs.length === 0) {
+    return (
+      <div className="output-preview-panel-empty">
+        <FileText className="w-5 h-5 text-muted-foreground opacity-50" />
+        <p className="text-sm text-muted-foreground">No outputs yet</p>
+        <button onClick={onViewAll} className="text-xs text-primary hover:underline mt-1">
+          Attach first output
+        </button>
+      </div>
+    );
+  }
+
+  const latestOutput = outputs[0];
+  const outputTypeCounts = outputs.reduce((acc, output) => {
+    acc[output.type] = (acc[output.type] || 0) + 1;
+    return acc;
+  }, {});
+
+  const getOutputIcon = (type) => {
+    switch (type) {
+      case 'text':
+        return <FileText className="w-4 h-4 text-blue-400" />;
+      case 'code':
+        return <Code className="w-4 h-4 text-purple-400" />;
+      case 'image':
+        return <ImageIcon className="w-4 h-4 text-pink-400" />;
+      default:
+        return <FileText className="w-4 h-4" />;
+    }
+  };
+
   return (
     <div 
-      className="relative inline-block"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
+      className="output-preview-panel"
+      onClick={onViewAll}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && onViewAll()}
+      aria-label={`View all ${outputs.length} outputs`}
     >
-      {children}
-      {show && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2.5 py-1.5 bg-popover text-popover-foreground text-xs rounded-md border border-border shadow-lg whitespace-nowrap z-50 pointer-events-none">
-          {text}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-border" />
+      <div className="output-preview-header">
+        <div className="flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5 text-muted-foreground" />
+          <span className="output-preview-label">Latest Output</span>
+        </div>
+        <span className="output-count-badge">
+          {outputs.length} Output{outputs.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+      
+      <div className="output-preview-content">
+        {latestOutput.type === 'text' && (
+          <div className="output-text-preview">
+            {getOutputIcon('text')}
+            <div className="flex-1 min-w-0">
+              <p className="output-preview-title">{latestOutput.title}</p>
+              <p className="truncate-2-lines">{latestOutput.content}</p>
+            </div>
+          </div>
+        )}
+        
+        {latestOutput.type === 'code' && (
+          <div className="output-code-preview">
+            {getOutputIcon('code')}
+            <div className="flex-1 min-w-0">
+              <p className="output-preview-title">{latestOutput.title}</p>
+              <pre className="code-snippet">{latestOutput.content.slice(0, 80)}...</pre>
+              {latestOutput.language && (
+                <span className="code-language">{latestOutput.language}</span>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {latestOutput.type === 'image' && latestOutput.imageUrl && (
+          <div className="output-image-preview">
+            <img 
+              src={latestOutput.imageUrl} 
+              alt={latestOutput.title}
+              className="preview-thumbnail"
+            />
+            <div className="image-overlay">
+              <ImageIcon className="w-5 h-5" />
+              <span className="text-xs font-medium">{latestOutput.title}</span>
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {outputs.length > 1 && (
+        <div className="output-type-summary">
+          {outputTypeCounts.text > 0 && (
+            <span className="type-badge">
+              <FileText className="w-3 h-3" />
+              {outputTypeCounts.text} Text
+            </span>
+          )}
+          {outputTypeCounts.code > 0 && (
+            <span className="type-badge">
+              <Code className="w-3 h-3" />
+              {outputTypeCounts.code} Code
+            </span>
+          )}
+          {outputTypeCounts.image > 0 && (
+            <span className="type-badge">
+              <ImageIcon className="w-3 h-3" />
+              {outputTypeCounts.image} Image
+            </span>
+          )}
+        </div>
+      )}
+      
+      <div className="output-preview-footer">
+        <span className="text-xs text-primary font-medium flex items-center gap-1">
+          View all outputs
+          <ChevronDown className="w-3 h-3" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// Inline Rating Component
+function InlineRating({ teamId, promptId, onRate }) {
+  const { user } = useAuth();
+  const { averageRating, totalRatings, userRating, submitRating } = usePromptRating(teamId, promptId);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleRate = async (rating) => {
+    if (!user || isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      await submitRating(rating);
+      if (onRate) onRate(rating);
+    } catch (error) {
+      console.error("Error rating:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const displayRating = hoverRating || userRating || 0;
+
+  return (
+    <div className="inline-rating-section">
+      <div className="rating-stars-display" role="radiogroup" aria-label="Rate this prompt">
+        {[1, 2, 3, 4, 5].map(star => (
+          <button
+            key={star}
+            onClick={() => handleRate(star)}
+            onMouseEnter={() => setHoverRating(star)}
+            onMouseLeave={() => setHoverRating(0)}
+            className="star-button"
+            disabled={isSubmitting}
+            role="radio"
+            aria-checked={userRating === star}
+            aria-label={`${star} star${star > 1 ? 's' : ''}`}
+          >
+            <Star 
+              className={`w-4 h-4 transition-all ${
+                star <= displayRating
+                  ? 'fill-yellow-400 text-yellow-400' 
+                  : 'text-gray-600'
+              }`}
+            />
+          </button>
+        ))}
+      </div>
+      
+      {totalRatings > 0 && (
+        <div className="rating-summary">
+          <span className="rating-value">{averageRating.toFixed(1)}</span>
+          <span className="rating-count">({totalRatings})</span>
         </div>
       )}
     </div>
   );
 }
 
-// ==================== AI ANALYSIS PANEL ====================
+// Inline Comment Box Component
+function InlineCommentBox({ 
+  promptId, 
+  teamId, 
+  commentCount, 
+  recentComments = [],
+  onCommentPosted,
+  onViewAll,
+  onClose 
+}) {
+  const { user } = useAuth();
+  const [commentText, setCommentText] = useState("");
+  const [isPosting, setIsPosting] = useState(false);
+  const textareaRef = useRef(null);
 
-function AIAnalysisPanel({ analysis, compact = false }) {
-  if (!analysis) return null;
-  
-  const getModelIcon = (model) => {
-    if (model.includes('gpt')) return '🤖';
-    if (model.includes('claude')) return '🧠';
-    if (model.includes('gemini')) return '💎';
-    return '⚡';
-  };
-  
-  const formatModelName = (model) => {
-    const names = {
-      'gpt-4': 'GPT-4',
-      'gpt-3.5': 'GPT-3.5',
-      'claude-3': 'Claude 3',
-      'gemini-pro': 'Gemini Pro',
-    };
-    return names[model] || model;
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  const handlePost = async () => {
+    if (!commentText.trim() || isPosting) return;
+    
+    setIsPosting(true);
+    try {
+      await addDoc(
+        collection(db, "teams", teamId, "prompts", promptId, "comments"),
+        {
+          text: commentText.trim(),
+          createdBy: user.uid,
+          createdAt: serverTimestamp(),
+          parentId: null,
+        }
+      );
+      
+      await updateCommentCount(teamId, promptId, 1);
+      
+      setCommentText("");
+      if (onCommentPosted) onCommentPosted();
+    } catch (error) {
+      console.error("Error posting comment:", error);
+    } finally {
+      setIsPosting(false);
+    }
   };
 
-  if (compact) {
-    // Mobile/Tablet: Horizontal pill layout
-    return (
-      <div className="ai-analysis-compact">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="ai-stat-pill">
-            <Cpu className="w-3.5 h-3.5" />
-            <span className="font-semibold">{analysis.tokens.toLocaleString()}</span>
-            <span className="text-muted-foreground">tokens</span>
-          </div>
-          
-          <div className="ai-stat-pill">
-            <DollarSign className="w-3.5 h-3.5" />
-            <span className="font-semibold">${analysis.estimatedCost}</span>
-          </div>
-          
-          <div className="ai-stat-pill primary">
-            <span className="text-xs">{getModelIcon(analysis.topModel)}</span>
-            <span className="font-semibold">{formatModelName(analysis.topModel)}</span>
-            <Award className="w-3 h-3 ml-0.5" style={{ color: 'var(--primary)' }} />
+  return (
+    <div className="inline-comment-box">
+      <div className="comment-input-section">
+        <textarea
+          ref={textareaRef}
+          placeholder="Add a comment..."
+          value={commentText}
+          onChange={(e) => setCommentText(e.target.value)}
+          className="comment-textarea"
+          rows={3}
+          maxLength={500}
+        />
+        <div className="comment-actions">
+          <span className="text-xs text-muted-foreground">
+            {commentText.length}/500
+          </span>
+          <div className="flex gap-2">
+            <button 
+              onClick={onClose} 
+              className="btn-secondary text-xs px-3 py-1.5"
+              disabled={isPosting}
+            >
+              Cancel
+            </button>
+            <button 
+              onClick={handlePost} 
+              className="btn-primary text-xs px-3 py-1.5"
+              disabled={!commentText.trim() || isPosting}
+            >
+              {isPosting ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Send className="w-3 h-3" />
+              )}
+              Post
+            </button>
           </div>
         </div>
-      </div>
-    );
-  }
-
-  // Desktop: Vertical panel layout
-  return (
-    <div className="ai-analysis-panel">
-      <div className="ai-panel-header">
-        <Activity className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-        <h4 className="text-xs font-semibold uppercase tracking-wide" 
-            style={{ color: 'var(--muted-foreground)' }}>
-          AI Analysis
-        </h4>
       </div>
       
-      <div className="ai-panel-content">
-        {/* Token count */}
-        <div className="ai-metric">
-          <div className="ai-metric-icon">
-            <Cpu className="w-4 h-4" />
+      {recentComments.length > 0 && (
+        <div className="recent-comments-preview">
+          <div className="comment-preview-header">
+            Recent Comments
           </div>
-          <div className="ai-metric-content">
-            <div className="ai-metric-value">{analysis.tokens.toLocaleString()}</div>
-            <div className="ai-metric-label">Tokens</div>
-          </div>
-        </div>
-
-        {/* Cost */}
-        <div className="ai-metric">
-          <div className="ai-metric-icon">
-            <DollarSign className="w-4 h-4" />
-          </div>
-          <div className="ai-metric-content">
-            <div className="ai-metric-value">${analysis.estimatedCost}</div>
-            <div className="ai-metric-label">Est. Cost</div>
-          </div>
-        </div>
-
-        {/* Best Model */}
-        <div className="ai-metric primary">
-          <div className="ai-metric-icon">
-            <Award className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-          </div>
-          <div className="ai-metric-content">
-            <div className="ai-metric-value flex items-center gap-1">
-              <span>{getModelIcon(analysis.topModel)}</span>
-              <span>{formatModelName(analysis.topModel)}</span>
+          {recentComments.slice(0, 2).map(comment => (
+            <div key={comment.id} className="comment-preview-item">
+              <UserAvatar 
+                src={comment.authorAvatar} 
+                name={comment.authorName}
+                email={comment.authorEmail}
+                size="sm" 
+              />
+              <div className="comment-preview-content">
+                <span className="comment-author">{comment.authorName || 'Unknown'}</span>
+                <p className="comment-text-preview">{comment.text}</p>
+                <span className="comment-time">{getRelativeTime(comment.createdAt)}</span>
+              </div>
             </div>
-            <div className="ai-metric-label">Best Match</div>
-          </div>
+          ))}
+          {commentCount > 2 && (
+            <button onClick={onViewAll} className="view-all-comments-link">
+              View all {commentCount} comments →
+            </button>
+          )}
         </div>
-
-        {/* Compatibility */}
-        <div className="ai-metric">
-          <div className="ai-metric-icon">
-            <TrendingUp className="w-4 h-4" />
-          </div>
-          <div className="ai-metric-content">
-            <div className="ai-metric-value">{analysis.compatibility[analysis.topModel]}%</div>
-            <div className="ai-metric-label">Match Score</div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
 
-// ==================== INLINE RATING DISPLAY ====================
-
-function InlineRating({ teamId, promptId, isGuestMode }) {
-  const { averageRating, totalRatings } = usePromptRating(teamId, promptId);
-  
-  if (isGuestMode || totalRatings === 0) return null;
-  
-  return (
-    <div className="inline-rating">
-      <div className="flex items-center gap-1">
-        <Star className="w-3.5 h-3.5 fill-current" style={{ color: '#fbbf24' }} />
-        <span className="font-semibold text-sm" style={{ color: 'var(--foreground)' }}>
-          {averageRating.toFixed(1)}
-        </span>
-        <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-          ({totalRatings})
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ==================== FEATURED COMMENT ====================
-
-function FeaturedComment({ teamId, promptId, teamMembers }) {
-  const [comment, setComment] = useState(null);
-  
-  useEffect(() => {
-    if (!teamId || !promptId) return;
-    
-    const q = query(
-      collection(db, "teams", teamId, "prompts", promptId, "comments"),
-      orderBy("createdAt", "desc")
-    );
-    
-    const unsub = onSnapshot(q, (snap) => {
-      if (!snap.empty) {
-        const latest = { id: snap.docs[0].id, ...snap.docs[0].data() };
-        setComment(latest);
-      }
-    });
-    
-    return () => unsub();
-  }, [teamId, promptId]);
-  
-  if (!comment) return null;
-  
-  const author = teamMembers[comment.userId];
-  
-  return (
-    <div className="featured-comment">
-      <div className="flex items-start gap-2">
-        <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" style={{ color: 'var(--muted-foreground)' }} />
-        <div className="flex-1 min-w-0">
-          <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-            <span className="font-medium" style={{ color: 'var(--foreground)' }}>
-              {author?.name || 'Unknown'}
-            </span>
-            {' • '}
-            <span className="truncate">{comment.text.slice(0, 80)}{comment.text.length > 80 ? '...' : ''}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ==================== OPTIMIZATION BADGES ====================
-
-function OptimizationBadges({ prompt, analysis }) {
-  const badges = [];
-  
-  // Determine optimization badges (max 2)
-  if (analysis.topModel.includes('claude')) {
-    badges.push({ label: 'Claude-Optimized', icon: '🧠', variant: 'primary' });
-  } else if (analysis.topModel.includes('gpt-4')) {
-    badges.push({ label: 'GPT-4 Ready', icon: '🤖', variant: 'primary' });
-  }
-  
-  if (analysis.estimatedCost < 0.01) {
-    badges.push({ label: 'Low-Cost', icon: '💰', variant: 'success' });
-  } else if (analysis.compatibility[analysis.topModel] >= 95) {
-    badges.push({ label: 'High-Reasoning', icon: '🎯', variant: 'info' });
-  }
-  
-  // Limit to 2 badges
-  const displayBadges = badges.slice(0, 2);
-  
-  if (displayBadges.length === 0) return null;
-  
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {displayBadges.map((badge, idx) => (
-        <span key={idx} className={`optimization-badge ${badge.variant}`}>
-          <span className="badge-icon">{badge.icon}</span>
-          <span className="badge-label">{badge.label}</span>
-        </span>
-      ))}
-    </div>
-  );
-}
-
-// ==================== MAIN PROMPT CARD ====================
+// ==================== MAIN PROMPT CARD COMPONENT ====================
 
 function PromptCard({ 
   prompt, 
-  isDemo,
-  canEdit,
+  outputs = [],
+  comments = [],
+  isDemo = false,
+  canEdit = false,
   author,
-  teamMembers,
-  isGuestMode,
+  teamMembers = {},
+  isGuestMode = false,
   activeTeam,
   teamName,
   userRole,
@@ -488,13 +497,15 @@ function PromptCard({
   onDelete,
   onToggleVisibility,
   onDuplicate,
-  onAIEnhance,
-  viewedPrompts,
+  onViewOutputs,
+  onAttachOutput,
+  viewedPrompts = new Set(),
   onMarkViewed,
+  showCommentInput,
+  onToggleComments,
 }) {
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [showFullAnalysis, setShowFullAnalysis] = useState(false);
   const menuRef = useRef(null);
   
   const isPrivate = prompt.visibility === "private";
@@ -502,7 +513,6 @@ function PromptCard({
   const shouldTruncate = prompt.text.length > 200;
   const displayText = isTextExpanded ? prompt.text : prompt.text.slice(0, 200);
   const badge = getPromptBadge(prompt, isGuestMode);
-  const analysis = useMemo(() => calculateAIAnalysis(prompt), [prompt.text]);
   
   // Close menu when clicking outside
   useEffect(() => {
@@ -522,14 +532,21 @@ function PromptCard({
       onMarkViewed(prompt.id);
     }
   };
+
+  const handleCommentClick = () => {
+    if (isGuestMode) {
+      alert("Sign up to add comments");
+      return;
+    }
+    onToggleComments(prompt.id);
+  };
   
   return (
-    <article className={`prompt-card-redesign ${isViewed ? 'viewed' : 'new'}`}>
-      {/* Mobile/Tablet: Header Section */}
+    <article className={`prompt-card-v2 ${isViewed ? 'viewed' : 'new'}`}>
+      {/* Header Section */}
       <div className="prompt-card-header">
-        {/* Author Info */}
         <div className="prompt-author-row">
-          {!isDemo && (
+          {!isDemo && author && (
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <UserAvatar
                 src={author?.avatar}
@@ -538,10 +555,10 @@ function PromptCard({
                 size="sm"
               />
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium truncate" style={{ color: 'var(--foreground)' }}>
+                <div className="text-xs font-medium truncate text-foreground">
                   {isGuestMode ? "You" : (author?.name || author?.email || "Unknown")}
                 </div>
-                <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Clock className="w-3 h-3" />
                   <span>{getRelativeTime(prompt.createdAt)}</span>
                 </div>
@@ -551,216 +568,242 @@ function PromptCard({
           
           {/* Privacy Badge */}
           {!isGuestMode && !isDemo && (
-            <Tooltip text={isPrivate ? "Only you can see this" : "Visible to team"}>
-              <span className={`privacy-badge ${isPrivate ? 'private' : 'public'}`}>
-                {isPrivate ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-              </span>
-            </Tooltip>
+            <div className={`privacy-badge ${isPrivate ? 'private' : 'public'}`}>
+              {isPrivate ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
+              <span className="hidden sm:inline">{isPrivate ? 'Private' : 'Public'}</span>
+            </div>
           )}
           
           {/* Demo Badge */}
           {badge && (
             <span className="demo-badge-small">
-              {badge.icon} {badge.label}
+              {badge.label}
             </span>
           )}
         </div>
       </div>
 
-      {/* Desktop: Two-Column Layout | Mobile/Tablet: Stacked */}
-      <div className="prompt-card-body">
-        {/* LEFT COLUMN: Main Content */}
-        <div className="prompt-main-content">
-          {/* Title with Enhancement Badge */}
-          <div className="prompt-title-row">
-            <h3 className="prompt-title-text">{prompt.title}</h3>
-            {!isDemo && (
-              <EnhancedBadge
-                enhanced={prompt.enhanced}
-                enhancedFor={prompt.enhancedFor}
-                enhancementType={prompt.enhancementType}
-                size="sm"
-              />
-            )}
-          </div>
-
-          {/* Prompt Preview */}
-          <div className="prompt-preview-section">
-            <div className={`prompt-text-content ${isTextExpanded ? 'expanded' : 'collapsed'}`}>
-              {displayText}
-              {!isTextExpanded && shouldTruncate && <span className="text-muted-foreground">...</span>}
-            </div>
-            {shouldTruncate && (
-              <button
-                onClick={handleTextExpand}
-                className="read-more-btn"
-              >
-                {isTextExpanded ? "Show less" : "Read more"}
-                <ChevronDown className={`w-3 h-3 transition-transform ${isTextExpanded ? 'rotate-180' : ''}`} />
-              </button>
-            )}
-          </div>
-
-          {/* Tags */}
-          {prompt.tags && prompt.tags.length > 0 && (
-            <div className="prompt-tags">
-              {prompt.tags.slice(0, 4).map((tag, idx) => (
-                <span key={idx} className="prompt-tag">#{tag}</span>
-              ))}
-              {prompt.tags.length > 4 && (
-                <span className="prompt-tag-more">+{prompt.tags.length - 4} more</span>
-              )}
-            </div>
+      {/* Title & Content */}
+      <div className="prompt-main-content">
+        <div className="prompt-title-row">
+          <h3 className="prompt-title-text">{prompt.title}</h3>
+          {!isDemo && prompt.enhanced && (
+            <EnhancedBadge
+              enhanced={prompt.enhanced}
+              enhancedFor={prompt.enhancedFor}
+              enhancementType={prompt.enhancementType}
+              size="sm"
+            />
           )}
-
-          {/* Mobile/Tablet: AI Analysis (Compact) */}
-          <div className="ai-analysis-mobile">
-            <AIAnalysisPanel analysis={analysis} compact={true} />
-            <OptimizationBadges prompt={prompt} analysis={analysis} />
-          </div>
-
-          {/* Rating & Comments Preview */}
-          <div className="prompt-metadata-row">
-            <div className="flex items-center gap-3 flex-wrap">
-              {!isGuestMode && !isDemo && (
-                <>
-                  <InlineRating teamId={activeTeam} promptId={prompt.id} isGuestMode={isGuestMode} />
-                  <div className="metadata-dot" />
-                </>
-              )}
-              
-              <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                <Eye className="w-3.5 h-3.5" />
-                <span>{prompt.stats?.views || 0} views</span>
-              </div>
-              
-              <div className="metadata-dot" />
-              
-              <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                <FileText className="w-3.5 h-3.5" />
-                <span>{prompt.text.length} chars</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Featured Comment */}
-          {!isGuestMode && !isDemo && (
-            <FeaturedComment teamId={activeTeam} promptId={prompt.id} teamMembers={teamMembers} />
-          )}
-
-          {/* Action Buttons */}
-          <div className="prompt-actions">
-            {isDemo ? (
-              <>
-                <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} />
-                <button 
-                  onClick={() => onDuplicate(prompt)}
-                  className="btn-action-primary"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Make My Own</span>
-                </button>
-              </>
-            ) : (
-              <>
-                <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} />
-                
-                {!isGuestMode && (
-                  <FavoriteButton
-                    prompt={prompt}
-                    teamId={activeTeam}
-                    teamName={teamName}
-                    size="small"
-                    className="btn-action-secondary"
-                  />
-                )}
-
-                <button
-                  onClick={() => setShowFullAnalysis(!showFullAnalysis)}
-                  className="btn-action-secondary"
-                >
-                  <Activity className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Details</span>
-                </button>
-
-                {/* More Menu */}
-                <div className="relative" ref={menuRef}>
-                  <button
-                    onClick={() => setShowMoreMenu(!showMoreMenu)}
-                    className="btn-action-secondary"
-                  >
-                    <MoreVertical className="w-3.5 h-3.5" />
-                  </button>
-
-                  {showMoreMenu && (
-                    <div className="more-actions-menu">
-                      <button onClick={() => { onAIEnhance(prompt); setShowMoreMenu(false); }} className="menu-item">
-                        <Sparkles className="w-4 h-4" />
-                        <span>Enhance with AI</span>
-                      </button>
-
-                      {!isGuestMode && canChangeVisibility(prompt, author?.uid, userRole) && (
-                        <button onClick={() => { onToggleVisibility(prompt.id); setShowMoreMenu(false); }} className="menu-item">
-                          {isPrivate ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                          <span>Make {isPrivate ? "Public" : "Private"}</span>
-                        </button>
-                      )}
-
-                      {canEdit && (
-                        <>
-                          <button onClick={() => { onEdit(prompt); setShowMoreMenu(false); }} className="menu-item">
-                            <Edit2 className="w-4 h-4" />
-                            <span>Edit</span>
-                          </button>
-
-                          <button onClick={() => { onDelete(prompt.id); setShowMoreMenu(false); }} className="menu-item danger">
-                            <Trash2 className="w-4 h-4" />
-                            <span>Delete</span>
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
         </div>
 
-        {/* RIGHT COLUMN: AI Analysis Panel (Desktop Only) */}
-        {!isDemo && (
-          <div className="prompt-ai-panel-desktop">
-            <AIAnalysisPanel analysis={analysis} compact={false} />
-            <div className="mt-3">
-              <OptimizationBadges prompt={prompt} analysis={analysis} />
-            </div>
+        {/* Prompt Preview */}
+        <div className="prompt-preview-section">
+          <div className={`prompt-text-content ${isTextExpanded ? 'expanded' : 'collapsed'}`}>
+            {displayText}
+            {!isTextExpanded && shouldTruncate && <span className="text-muted-foreground">...</span>}
+          </div>
+          {shouldTruncate && (
+            <button
+              onClick={handleTextExpand}
+              className="read-more-btn"
+            >
+              {isTextExpanded ? "Show less" : "Read more"}
+              <ChevronDown className={`w-3 h-3 transition-transform ${isTextExpanded ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+        </div>
+
+        {/* Tags */}
+        {prompt.tags && prompt.tags.length > 0 && (
+          <div className="prompt-tags">
+            {prompt.tags.slice(0, 4).map((tag, idx) => (
+              <span key={idx} className="prompt-tag">#{tag}</span>
+            ))}
+            {prompt.tags.length > 4 && (
+              <span className="prompt-tag-more">+{prompt.tags.length - 4}</span>
+            )}
           </div>
         )}
-      </div>
 
-      {/* Expandable Full Analysis (All devices) */}
-      {!isDemo && showFullAnalysis && (
-        <div className="prompt-expanded-section">
-          <div className="expanded-content">
-            <CompactAITools text={prompt.text} />
-            
-            {!isGuestMode && (
+        {/* Output Preview Panel */}
+        {!isDemo && (
+          <OutputPreviewPanel 
+            outputs={outputs} 
+            onViewAll={() => onViewOutputs && onViewOutputs(prompt)}
+          />
+        )}
+
+        {/* Metadata Row */}
+        <div className="prompt-metadata-row">
+          <div className="flex items-center gap-3 flex-wrap">
+            {!isGuestMode && !isDemo && (
               <>
-                <div className="expanded-divider" />
-                <PromptResults
-                  teamId={activeTeam}
+                <InlineRating 
+                  teamId={activeTeam} 
                   promptId={prompt.id}
-                  userRole={userRole}
-                  onResultsChange={() => {}}
                 />
-                
-                <div className="expanded-divider" />
-                <Comments teamId={activeTeam} promptId={prompt.id} userRole={userRole} />
+                <div className="metadata-dot" />
               </>
             )}
+            
+            <button
+              onClick={handleCommentClick}
+              className="metadata-item-button"
+              aria-label={`${comments.length} comments`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>{comments.length}</span>
+            </button>
+            
+            <div className="metadata-dot" />
+            
+            <div className="metadata-item">
+              <Eye className="w-3.5 h-3.5" />
+              <span>{prompt.stats?.views || 0}</span>
+            </div>
+            
+            <div className="metadata-dot" />
+            
+            <div className="metadata-item">
+              <FileText className="w-3.5 h-3.5" />
+              <span>{prompt.text.length} chars</span>
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Inline Comment Box */}
+        {showCommentInput && !isDemo && (
+          <InlineCommentBox
+            promptId={prompt.id}
+            teamId={activeTeam}
+            commentCount={comments.length}
+            recentComments={comments}
+            onCommentPosted={() => {
+              // Refresh handled by real-time listener
+            }}
+            onViewAll={() => {
+              // Could open full comments modal if you have one
+            }}
+            onClose={() => onToggleComments(prompt.id)}
+          />
+        )}
+
+        {/* Action Buttons */}
+        <div className="prompt-actions">
+          {isDemo ? (
+            <>
+              <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} />
+              <button 
+                onClick={() => onDuplicate && onDuplicate(prompt)}
+                className="btn-action-primary"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Make My Own</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} />
+
+              {!isGuestMode && (
+                <button
+                  onClick={handleCommentClick}
+                  className="btn-action-secondary"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Comment</span>
+                </button>
+              )}
+
+              {/* More Menu */}
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  className="btn-action-secondary"
+                  aria-label="More actions"
+                  aria-expanded={showMoreMenu}
+                >
+                  <MoreVertical className="w-3.5 h-3.5" />
+                </button>
+
+                {showMoreMenu && (
+                  <div className="kebab-menu-v2">
+                    {outputs.length > 0 && (
+                      <>
+                        <button 
+                          onClick={() => { 
+                            onViewOutputs && onViewOutputs(prompt); 
+                            setShowMoreMenu(false); 
+                          }} 
+                          className="menu-item"
+                        >
+                          <FileText className="w-4 h-4" />
+                          <span>View All Outputs ({outputs.length})</span>
+                        </button>
+                        <div className="menu-divider" />
+                      </>
+                    )}
+
+                    <button 
+                      onClick={() => { 
+                        onAttachOutput && onAttachOutput(prompt); 
+                        setShowMoreMenu(false); 
+                      }} 
+                      className="menu-item"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Attach New Output</span>
+                    </button>
+
+                    <div className="menu-divider" />
+
+                    {!isGuestMode && (
+                      <button 
+                        onClick={() => { 
+                          onToggleVisibility && onToggleVisibility(prompt.id); 
+                          setShowMoreMenu(false); 
+                        }} 
+                        className="menu-item"
+                      >
+                        {isPrivate ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                        <span>Make {isPrivate ? "Public" : "Private"}</span>
+                      </button>
+                    )}
+
+                    {canEdit && (
+                      <>
+                        <div className="menu-divider" />
+                        <button 
+                          onClick={() => { 
+                            onEdit && onEdit(prompt); 
+                            setShowMoreMenu(false); 
+                          }} 
+                          className="menu-item"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                          <span>Edit</span>
+                        </button>
+
+                        <button 
+                          onClick={() => { 
+                            onDelete && onDelete(prompt.id); 
+                            setShowMoreMenu(false); 
+                          }} 
+                          className="menu-item danger"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Delete</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </article>
   );
 }
@@ -786,12 +829,21 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [teamMembers, setTeamMembers] = useState({});
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [teamName, setTeamName] = useState("");
-  const [showAIEnhancer, setShowAIEnhancer] = useState(false);
-  const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
   const [viewedPrompts, setViewedPrompts] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
+  
+  // NEW: Outputs and comments state
+  const [promptOutputs, setPromptOutputs] = useState({});
+  const [promptComments, setPromptComments] = useState({});
+  const [showCommentInput, setShowCommentInput] = useState({});
+  
+  // NEW: Modal states
+  const [selectedPromptForAttach, setSelectedPromptForAttach] = useState(null);
+  const [showAIEnhancer, setShowAIEnhancer] = useState(false);
+  const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
+  
   const createFormRef = useRef(null);
   const listTopRef = useRef(null);
 
@@ -851,43 +903,69 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsub();
   }, [activeTeam, user, userRole, isGuestMode]);
 
-  // Search and filter
-  const allPrompts = useMemo(() => {
-    let combined = [...demos, ...userPrompts];
-    
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      combined = combined.filter(p => 
-        p.title.toLowerCase().includes(query) ||
-        p.text.toLowerCase().includes(query) ||
-        (p.tags && p.tags.some(tag => tag.toLowerCase().includes(query)))
+  // NEW: Load outputs for each prompt
+  useEffect(() => {
+    if (isGuestMode || !activeTeam) return;
+
+    const unsubscribers = [];
+
+    userPrompts.forEach((prompt) => {
+      const unsub = subscribeToResults(activeTeam, prompt.id, (results) => {
+        setPromptOutputs((prev) => ({
+          ...prev,
+          [prompt.id]: results,
+        }));
+      });
+      unsubscribers.push(unsub);
+    });
+
+    return () => {
+      unsubscribers.forEach((unsub) => unsub());
+    };
+  }, [userPrompts, activeTeam, isGuestMode]);
+
+  // NEW: Load comments for each prompt
+  useEffect(() => {
+    if (isGuestMode || !activeTeam) return;
+
+    const unsubscribers = [];
+
+    userPrompts.forEach((prompt) => {
+      const q = query(
+        collection(db, "teams", activeTeam, "prompts", prompt.id, "comments"),
+        orderBy("createdAt", "desc")
       );
-    }
-    
-    if (filterCategory !== 'all') {
-      if (filterCategory === 'demos') {
-        combined = combined.filter(p => isDemoPrompt(p));
-      } else if (filterCategory === 'mine') {
-        combined = combined.filter(p => !isDemoPrompt(p));
-      } else if (filterCategory === 'enhanced') {
-        combined = combined.filter(p => p.enhanced === true);
-      }
-    }
-    
-    return combined;
-  }, [demos, userPrompts, searchQuery, filterCategory]);
 
-  const displayDemos = useMemo(() => 
-    allPrompts.filter(p => isDemoPrompt(p)), 
-    [allPrompts]
-  );
-  
-  const displayUserPrompts = useMemo(() => 
-    allPrompts.filter(p => !isDemoPrompt(p)), 
-    [allPrompts]
-  );
+      const unsub = onSnapshot(q, async (snap) => {
+        const commentData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        
+        // Load author profiles for comments
+        const authorIds = [...new Set(commentData.map((c) => c.createdBy).filter(Boolean))];
+        const enrichedComments = await Promise.all(
+          commentData.map(async (comment) => {
+            const author = teamMembers[comment.createdBy];
+            return {
+              ...comment,
+              authorName: author?.name,
+              authorEmail: author?.email,
+              authorAvatar: author?.avatar,
+            };
+          })
+        );
+        
+        setPromptComments((prev) => ({
+          ...prev,
+          [prompt.id]: enrichedComments,
+        }));
+      });
 
-  const pagination = usePagination(displayUserPrompts, 10);
+      unsubscribers.push(unsub);
+    });
+
+    return () => {
+      unsubscribers.forEach((unsub) => unsub());
+    };
+  }, [userPrompts, activeTeam, isGuestMode, teamMembers]);
 
   // Load team data
   useEffect(() => {
@@ -923,6 +1001,42 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
     loadTeamData();
   }, [activeTeam, isGuestMode]);
+
+  // Search and filter
+  const allPrompts = useMemo(() => {
+    let combined = [...demos, ...userPrompts];
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      combined = combined.filter(p => 
+        p.title.toLowerCase().includes(query) ||
+        p.text.toLowerCase().includes(query) ||
+        (p.tags && p.tags.some(tag => tag.toLowerCase().includes(query)))
+      );
+    }
+    
+    if (filterCategory !== 'all') {
+      if (filterCategory === 'demos') {
+        combined = combined.filter(p => isDemoPrompt(p));
+      } else if (filterCategory === 'mine') {
+        combined = combined.filter(p => !isDemoPrompt(p));
+      } else if (filterCategory === 'enhanced') {
+        combined = combined.filter(p => p.enhanced === true);
+      }
+    }
+    
+    return combined;
+  }, [demos, userPrompts, searchQuery, filterCategory]);
+
+  const displayDemos = useMemo(() => 
+    allPrompts.filter(p => isDemoPrompt(p)), 
+    [allPrompts]
+  );
+  
+  const displayUserPrompts = useMemo(() => 
+    allPrompts.filter(p => !isDemoPrompt(p)), 
+    [allPrompts]
+  );
 
   // Handlers
   const handleDuplicateDemo = (demoPrompt) => {
@@ -1059,64 +1173,30 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     }
   }
 
-  function handleAIEnhance(prompt) {
-    if (isGuestMode && isDemoPrompt(prompt)) {
-      showNotification('Duplicate this demo first to enhance it', 'warning');
-      return;
+  function canEditPrompt(prompt) {
+    if (isGuestMode) {
+      return canEditGuestPrompt(prompt);
     }
     
-    setCurrentPromptForAI(prompt);
-    setShowAIEnhancer(true);
+    return (
+      prompt.createdBy === user.uid ||
+      userRole === "owner" ||
+      userRole === "admin"
+    );
   }
 
-  async function handleApplyAIEnhancement(enhancedPrompt) {
-    try {
-      if (isGuestMode) {
-        guestState.updatePrompt(enhancedPrompt.id, {
-          text: enhancedPrompt.text,
-          title: enhancedPrompt.title,
-        }, true);
-        setUserPrompts(prev => prev.map(p => 
-          p.id === enhancedPrompt.id ? { ...p, ...enhancedPrompt } : p
-        ));
-      } else {
-        await updatePromptFirestore(activeTeam, enhancedPrompt.id, {
-          text: enhancedPrompt.text,
-          title: enhancedPrompt.title,
-        });
-      }
-      
-      setShowAIEnhancer(false);
-      setCurrentPromptForAI(null);
-      showSuccessToast("AI enhancement applied!");
-    } catch (error) {
-      showNotification("Failed to apply enhancement", "error");
-    }
-  }
-
-  async function handleMarkViewed(promptId) {
-    if (isGuestMode || viewedPrompts.has(promptId)) return;
-    
-    try {
-      await trackPromptView(activeTeam, promptId);
-      setViewedPrompts(prev => new Set([...prev, promptId]));
-    } catch (error) {
-      console.error("Error tracking view:", error);
-    }
+  function handleToggleComments(promptId) {
+    setShowCommentInput(prev => ({
+      ...prev,
+      [promptId]: !prev[promptId]
+    }));
   }
 
   function showSuccessToast(message) {
     playNotification();
     const toast = document.createElement("div");
     toast.className = "success-toast";
-    toast.innerHTML = `
-      <div class="flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-        </svg>
-        <span>${message}</span>
-      </div>
-    `;
+    toast.innerHTML = `<span>${message}</span>`;
     document.body.appendChild(toast);
     setTimeout(() => {
       if (toast.parentNode) document.body.removeChild(toast);
@@ -1137,18 +1217,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     }, 3000);
   }
 
-  function canEditPrompt(prompt) {
-    if (isGuestMode) {
-      return canEditGuestPrompt(prompt);
-    }
-    
-    return (
-      prompt.createdBy === user.uid ||
-      userRole === "owner" ||
-      userRole === "admin"
-    );
-  }
-
   if (loading) {
     return (
       <div className="space-y-4">
@@ -1160,490 +1228,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
   return (
     <div className="prompt-list-container" ref={listTopRef}>
-      <style jsx>{`
-        /* ==================== REDESIGNED CARD STYLES ==================== */
-        
-        .prompt-card-redesign {
-          background: rgba(17, 19, 24, 0.6);
-          border: 1px solid rgba(139, 92, 246, 0.12);
-          border-radius: 16px;
-          padding: 1.5rem;
-          margin-bottom: 1.5rem;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-        }
-
-        .prompt-card-redesign.new {
-          border-left: 3px solid var(--primary);
-        }
-
-        .prompt-card-redesign:hover {
-          border-color: rgba(139, 92, 246, 0.3);
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-          transform: translateY(-2px);
-        }
-
-        /* Header */
-        .prompt-card-header {
-          margin-bottom: 1rem;
-        }
-
-        .prompt-author-row {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          flex-wrap: wrap;
-        }
-
-        .privacy-badge {
-          display: inline-flex;
-          align-items: center;
-          padding: 0.25rem 0.5rem;
-          border-radius: 6px;
-          font-size: 0.688rem;
-          font-weight: 600;
-          border: 1px solid;
-        }
-
-        .privacy-badge.private {
-          background: rgba(251, 191, 36, 0.1);
-          border-color: rgba(251, 191, 36, 0.2);
-          color: rgba(251, 191, 36, 0.9);
-        }
-
-        .privacy-badge.public {
-          background: rgba(16, 185, 129, 0.1);
-          border-color: rgba(16, 185, 129, 0.2);
-          color: rgba(16, 185, 129, 0.9);
-        }
-
-        .demo-badge-small {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.25rem;
-          padding: 0.25rem 0.5rem;
-          background: rgba(139, 92, 246, 0.1);
-          border: 1px solid rgba(139, 92, 246, 0.2);
-          border-radius: 6px;
-          font-size: 0.688rem;
-          font-weight: 600;
-          color: rgba(139, 92, 246, 0.9);
-        }
-
-        /* Body Layout */
-        .prompt-card-body {
-          display: flex;
-          gap: 1.5rem;
-        }
-
-        .prompt-main-content {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .prompt-ai-panel-desktop {
-          display: none;
-        }
-
-        .ai-analysis-mobile {
-          display: block;
-          margin-top: 1rem;
-        }
-
-        /* Desktop: Show AI panel */
-        @media (min-width: 1024px) {
-          .prompt-ai-panel-desktop {
-            display: block;
-            flex-shrink: 0;
-            width: 220px;
-          }
-
-          .ai-analysis-mobile {
-            display: none;
-          }
-        }
-
-        /* Title */
-        .prompt-title-row {
-          display: flex;
-          align-items: start;
-          gap: 0.75rem;
-          margin-bottom: 0.75rem;
-        }
-
-        .prompt-title-text {
-          font-size: 1.125rem;
-          font-weight: 600;
-          color: var(--foreground);
-          line-height: 1.4;
-          flex: 1;
-        }
-
-        /* Preview */
-        .prompt-preview-section {
-          margin-bottom: 1rem;
-        }
-
-        .prompt-text-content {
-          font-size: 0.875rem;
-          line-height: 1.6;
-          color: rgba(228, 228, 231, 0.75);
-          white-space: pre-wrap;
-          word-break: break-word;
-        }
-
-        .read-more-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.375rem;
-          margin-top: 0.5rem;
-          padding: 0.25rem 0.5rem;
-          background: transparent;
-          border: none;
-          color: var(--primary);
-          font-size: 0.813rem;
-          font-weight: 500;
-          cursor: pointer;
-          border-radius: 4px;
-          transition: all 0.2s;
-        }
-
-        .read-more-btn:hover {
-          background: rgba(139, 92, 246, 0.1);
-        }
-
-        /* Tags */
-        .prompt-tags {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-          margin-bottom: 1rem;
-        }
-
-        .prompt-tag {
-          display: inline-block;
-          padding: 0.25rem 0.625rem;
-          background: rgba(139, 92, 246, 0.08);
-          border: 1px solid rgba(139, 92, 246, 0.15);
-          border-radius: 6px;
-          font-size: 0.75rem;
-          font-weight: 500;
-          color: rgba(139, 92, 246, 0.9);
-        }
-
-        .prompt-tag-more {
-          padding: 0.25rem 0.625rem;
-          font-size: 0.75rem;
-          color: var(--muted-foreground);
-        }
-
-        /* Metadata */
-        .prompt-metadata-row {
-          margin-bottom: 1rem;
-          padding-bottom: 1rem;
-          border-bottom: 1px solid rgba(139, 92, 246, 0.08);
-        }
-
-        .metadata-dot {
-          width: 3px;
-          height: 3px;
-          border-radius: 50%;
-          background: var(--muted-foreground);
-        }
-
-        /* Featured Comment */
-        .featured-comment {
-          padding: 0.75rem;
-          background: rgba(139, 92, 246, 0.03);
-          border-left: 2px solid rgba(139, 92, 246, 0.2);
-          border-radius: 6px;
-          margin-bottom: 1rem;
-        }
-
-        /* Actions */
-        .prompt-actions {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          flex-wrap: wrap;
-        }
-
-        .btn-action-primary {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 1rem;
-          background: var(--primary);
-          color: white;
-          border: none;
-          border-radius: 6px;
-          font-size: 0.875rem;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .btn-action-primary:hover {
-          background: var(--primary-hover);
-          transform: translateY(-1px);
-        }
-
-        .btn-action-secondary {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.5rem 0.875rem;
-          background: transparent;
-          color: var(--muted-foreground);
-          border: 1px solid rgba(139, 92, 246, 0.15);
-          border-radius: 6px;
-          font-size: 0.875rem;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .btn-action-secondary:hover {
-          background: rgba(139, 92, 246, 0.08);
-          border-color: rgba(139, 92, 246, 0.3);
-          color: var(--foreground);
-        }
-
-        /* More Menu */
-        .more-actions-menu {
-          position: absolute;
-          bottom: calc(100% + 0.5rem);
-          right: 0;
-          min-width: 200px;
-          background: rgba(17, 19, 24, 0.98);
-          border: 1px solid rgba(139, 92, 246, 0.2);
-          border-radius: 8px;
-          padding: 0.5rem;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-          z-index: 100;
-        }
-
-        .menu-item {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-          width: 100%;
-          padding: 0.625rem 0.875rem;
-          background: transparent;
-          border: none;
-          border-radius: 6px;
-          color: var(--foreground);
-          font-size: 0.875rem;
-          text-align: left;
-          cursor: pointer;
-          transition: all 0.15s;
-        }
-
-        .menu-item:hover {
-          background: rgba(139, 92, 246, 0.12);
-        }
-
-        .menu-item.danger {
-          color: var(--destructive);
-        }
-
-        .menu-item.danger:hover {
-          background: rgba(239, 68, 68, 0.12);
-        }
-
-        /* AI Analysis Panel */
-        .ai-analysis-panel {
-          background: rgba(139, 92, 246, 0.03);
-          border: 1px solid rgba(139, 92, 246, 0.1);
-          border-radius: 12px;
-          padding: 1rem;
-        }
-
-        .ai-panel-header {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          margin-bottom: 1rem;
-          padding-bottom: 0.75rem;
-          border-bottom: 1px solid rgba(139, 92, 246, 0.1);
-        }
-
-        .ai-panel-content {
-          display: flex;
-          flex-direction: column;
-          gap: 0.875rem;
-        }
-
-        .ai-metric {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-
-        .ai-metric-icon {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 32px;
-          height: 32px;
-          background: rgba(139, 92, 246, 0.1);
-          border-radius: 8px;
-          color: var(--primary);
-          flex-shrink: 0;
-        }
-
-        .ai-metric.primary .ai-metric-icon {
-          background: rgba(139, 92, 246, 0.15);
-        }
-
-        .ai-metric-content {
-          flex: 1;
-          min-width: 0;
-        }
-
-        .ai-metric-value {
-          font-size: 0.938rem;
-          font-weight: 600;
-          color: var(--foreground);
-          line-height: 1.2;
-        }
-
-        .ai-metric-label {
-          font-size: 0.688rem;
-          color: var(--muted-foreground);
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        /* AI Analysis Compact (Mobile/Tablet) */
-        .ai-analysis-compact {
-          padding: 0.875rem;
-          background: rgba(139, 92, 246, 0.03);
-          border: 1px solid rgba(139, 92, 246, 0.1);
-          border-radius: 10px;
-          margin-bottom: 0.875rem;
-        }
-
-        .ai-stat-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.375rem;
-          padding: 0.375rem 0.75rem;
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(139, 92, 246, 0.15);
-          border-radius: 20px;
-          font-size: 0.75rem;
-          color: var(--foreground);
-        }
-
-        .ai-stat-pill.primary {
-          background: rgba(139, 92, 246, 0.1);
-          border-color: rgba(139, 92, 246, 0.25);
-        }
-
-        /* Optimization Badges */
-        .optimization-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.375rem;
-          padding: 0.25rem 0.625rem;
-          border-radius: 6px;
-          font-size: 0.688rem;
-          font-weight: 600;
-          border: 1px solid;
-        }
-
-        .optimization-badge.primary {
-          background: rgba(139, 92, 246, 0.1);
-          border-color: rgba(139, 92, 246, 0.2);
-          color: rgba(139, 92, 246, 0.9);
-        }
-
-        .optimization-badge.success {
-          background: rgba(16, 185, 129, 0.1);
-          border-color: rgba(16, 185, 129, 0.2);
-          color: rgba(16, 185, 129, 0.9);
-        }
-
-        .optimization-badge.info {
-          background: rgba(59, 130, 246, 0.1);
-          border-color: rgba(59, 130, 246, 0.2);
-          color: rgba(59, 130, 246, 0.9);
-        }
-
-        .badge-icon {
-          font-size: 0.875rem;
-        }
-
-        /* Expanded Section */
-        .prompt-expanded-section {
-          margin-top: 1.5rem;
-          padding-top: 1.5rem;
-          border-top: 1px solid rgba(139, 92, 246, 0.1);
-        }
-
-        .expanded-content {
-          display: flex;
-          flex-direction: column;
-          gap: 1.5rem;
-        }
-
-        .expanded-divider {
-          height: 1px;
-          background: rgba(139, 92, 246, 0.08);
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 639px) {
-          .prompt-card-redesign {
-            padding: 1rem;
-          }
-
-          .prompt-title-text {
-            font-size: 1rem;
-          }
-
-          .prompt-text-content {
-            font-size: 0.813rem;
-          }
-
-          .btn-action-primary span,
-          .btn-action-secondary span {
-            display: none;
-          }
-
-          .btn-action-primary {
-            padding: 0.5rem 0.75rem;
-          }
-
-          .more-actions-menu {
-            right: 0;
-            left: auto;
-          }
-
-          .ai-stat-pill {
-            font-size: 0.688rem;
-            padding: 0.313rem 0.625rem;
-          }
-        }
-
-        /* Tablet Responsive */
-        @media (min-width: 640px) and (max-width: 1023px) {
-          .prompt-card-body {
-            flex-direction: column;
-          }
-
-          .ai-analysis-mobile {
-            display: block;
-          }
-
-          .prompt-ai-panel-desktop {
-            display: none;
-          }
-        }
-      `}</style>
-
       {/* Header */}
       <div className="glass-card p-6 mb-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
@@ -1652,10 +1236,9 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               {isGuestMode ? "Demo Prompts" : "Prompt Library"}
             </h2>
             <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-              {isGuestMode 
+              {isGuestMode
                 ? `${displayDemos.length} demos • ${displayUserPrompts.length} your prompts`
-                : `${displayUserPrompts.length} ${displayUserPrompts.length === 1 ? "prompt" : "prompts"}`
-              }
+                : `${displayUserPrompts.length} ${displayUserPrompts.length === 1 ? "prompt" : "prompts"}`}
             </p>
           </div>
 
@@ -1828,6 +1411,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             <PromptCard
               key={prompt.id}
               prompt={prompt}
+              outputs={[]}
+              comments={[]}
               isDemo={true}
               canEdit={false}
               author={null}
@@ -1839,6 +1424,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               onCopy={handleCopy}
               onDuplicate={handleDuplicateDemo}
               viewedPrompts={viewedPrompts}
+              showCommentInput={false}
+              onToggleComments={() => {}}
             />
           ))}
         </section>
@@ -1856,14 +1443,12 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             </div>
           )}
 
-          {!isGuestMode && displayUserPrompts.length > 10 && (
-            <PaginationControls pagination={pagination} showPageSizeSelector={true} />
-          )}
-
-          {(isGuestMode ? displayUserPrompts : pagination.currentItems).map((prompt) => (
+          {displayUserPrompts.map((prompt) => (
             <PromptCard
               key={prompt.id}
               prompt={prompt}
+              outputs={promptOutputs[prompt.id] || []}
+              comments={promptComments[prompt.id] || []}
               isDemo={false}
               canEdit={canEditPrompt(prompt)}
               author={teamMembers[prompt.createdBy]}
@@ -1873,18 +1458,23 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               teamName={teamName}
               userRole={userRole}
               onCopy={handleCopy}
-              onEdit={setEditingPrompt}
+              onEdit={(p) => {
+                setEditingPrompt(p);
+                setShowEditModal(true);
+              }}
               onDelete={handleDelete}
               onToggleVisibility={handleToggleVisibility}
-              onAIEnhance={handleAIEnhance}
+              onViewOutputs={(p) => {
+                // Open your existing PromptResults component
+                // You can add a modal state here if needed
+              }}
+              onAttachOutput={(p) => setSelectedPromptForAttach(p)}
               viewedPrompts={viewedPrompts}
-              onMarkViewed={handleMarkViewed}
+              onMarkViewed={(id) => setViewedPrompts(prev => new Set([...prev, id]))}
+              showCommentInput={showCommentInput[prompt.id] || false}
+              onToggleComments={handleToggleComments}
             />
           ))}
-
-          {!isGuestMode && displayUserPrompts.length > 10 && (
-            <PaginationControls pagination={pagination} />
-          )}
         </section>
       )}
 
@@ -1916,18 +1506,26 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         />
       )}
 
+      {selectedPromptForAttach && (
+        <AddResultModal
+          isOpen={!!selectedPromptForAttach}
+          onClose={() => setSelectedPromptForAttach(null)}
+          promptId={selectedPromptForAttach.id}
+          teamId={activeTeam}
+          userId={user?.uid}
+        />
+      )}
+
       {showAIEnhancer && currentPromptForAI && (
         <AIPromptEnhancer
           prompt={currentPromptForAI}
-          onApply={handleApplyAIEnhancement}
+          onApply={async (enhanced) => {
+            await handleUpdate(enhanced.id, enhanced);
+            setShowAIEnhancer(false);
+          }}
           onSaveAsNew={(enhanced) => {
             if (isGuestMode) {
-              const newPrompt = guestState.addPrompt({
-                title: enhanced.title,
-                text: enhanced.text,
-                tags: enhanced.tags || [],
-                visibility: enhanced.visibility || "public",
-              });
+              const newPrompt = guestState.addPrompt(enhanced);
               setUserPrompts(prev => [newPrompt, ...prev]);
             } else {
               savePrompt(user.uid, enhanced, activeTeam);
@@ -1940,28 +1538,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             setCurrentPromptForAI(null);
           }}
         />
-      )}
-
-      {/* Advanced Features */}
-      {!isGuestMode && displayUserPrompts.length > 0 && (
-        <>
-          <AdvancedSearch
-            prompts={userPrompts}
-            onFilteredResults={setFilteredPrompts}
-            teamMembers={teamMembers}
-          />
-          <ExportImport
-            onImport={async (imported) => {
-              for (const prompt of imported) {
-                await savePrompt(user.uid, prompt, activeTeam);
-              }
-              showSuccessToast(`Imported ${imported.length} prompts`);
-            }}
-            teamId={activeTeam}
-            teamName={teamName}
-            userRole={userRole}
-          />
-        </>
       )}
     </div>
   );
