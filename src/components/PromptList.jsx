@@ -885,14 +885,34 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     const isViewed = viewedPrompts.has(prompt.id);
     const shouldTruncate = prompt.text.length > 150;
     const displayText = isTextExpanded ? prompt.text : prompt.text.slice(0, 150);
+    const hasOutputs = resultsCount > 0;
 
     return (
       <div 
         key={prompt.id} 
-        className={`prompt-card-premium single-column ${isViewed ? 'viewed' : 'unviewed'}`}
+        className={`prompt-card-premium single-column ${isViewed ? 'viewed' : 'unviewed'} ${hasOutputs ? 'has-outputs' : ''}`}
       >
-        {/* Author Info */}
-        {!isDemo && (
+        {/* Main Content Wrapper with Outputs Sidebar */}
+        <div className="prompt-card-content-wrapper">
+          {/* Left Sidebar - Outputs Indicator */}
+          {!isDemo && hasOutputs && (
+            <div className="outputs-sidebar">
+              <div className="outputs-indicator">
+                <div className="outputs-count">
+                  <Zap className="w-4 h-4" />
+                  <span className="count-text">{resultsCount}</span>
+                </div>
+                <div className="outputs-label">
+                  Output{resultsCount !== 1 ? 's' : ''}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Main Card Content */}
+          <div className="prompt-card-main-content">
+            {/* Author Info */}
+            {!isDemo && (
           <div className="author-info">
             <UserAvatar
               src={author?.avatar}
@@ -974,7 +994,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             <ChevronDown className={`w-3.5 h-3.5 ${isTextExpanded ? 'rotate-180' : ''}`} />
           </button>
         )}
-        
+        </div>
 
         {/* Enhanced Metadata with Icons */}
         <div className="prompt-metadata enhanced">
@@ -1243,6 +1263,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             </div>
           </div>
         )}
+          </div>
+        </div>
       </div>
     );
   };
@@ -1264,6 +1286,128 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         .prompt-card-premium.single-column {
           max-width: 100%;
           margin: 0 auto 1.5rem;
+        }
+
+        /* Outputs Sidebar Layout */
+        .prompt-card-content-wrapper {
+          display: flex;
+          gap: 0;
+          position: relative;
+        }
+
+        .outputs-sidebar {
+          width: 80px;
+          flex-shrink: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: flex-start;
+          padding: 1.5rem 0;
+          background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(59, 130, 246, 0.08));
+          border-right: 2px solid rgba(139, 92, 246, 0.2);
+          border-radius: 12px 0 0 12px;
+          position: relative;
+        }
+
+        .outputs-sidebar::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 100%;
+          background: linear-gradient(180deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%);
+          pointer-events: none;
+        }
+
+        .outputs-indicator {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.5rem;
+          position: relative;
+          z-index: 1;
+        }
+
+        .outputs-count {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 0.25rem;
+          width: 50px;
+          height: 50px;
+          background: linear-gradient(135deg, var(--primary), rgba(139, 92, 246, 0.8));
+          border-radius: 12px;
+          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+          color: white;
+          font-weight: 700;
+          font-size: 1.125rem;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .outputs-count::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1));
+        }
+
+        .outputs-count .w-4 {
+          width: 1rem;
+          height: 1rem;
+        }
+
+        .count-text {
+          font-size: 1.25rem;
+          line-height: 1;
+        }
+
+        .outputs-label {
+          font-size: 0.625rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--primary);
+          text-align: center;
+          writing-mode: vertical-rl;
+          transform: rotate(180deg);
+          margin-top: 0.5rem;
+        }
+
+        .prompt-card-main-content {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .prompt-card-premium.has-outputs .prompt-card-main-content {
+          padding-left: 1.5rem;
+        }
+
+        @media (max-width: 769px) {
+          .outputs-sidebar {
+            width: 60px;
+            padding: 1rem 0;
+          }
+
+          .outputs-count {
+            width: 40px;
+            height: 40px;
+            font-size: 0.875rem;
+          }
+
+          .count-text {
+            font-size: 1rem;
+          }
+
+          .outputs-label {
+            font-size: 0.563rem;
+          }
+
+          .prompt-card-premium.has-outputs .prompt-card-main-content {
+            padding-left: 1rem;
+          }
         }
 
         /* Improved Touch Targets for Mobile */
