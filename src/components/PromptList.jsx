@@ -1,5 +1,5 @@
-// src/components/PromptList.jsx - ENHANCED VERSION with UI/UX Improvements
-// Single column layout, improved mobile experience, better accessibility
+// src/components/PromptList.jsx - OPTIMIZED VERSION
+// Enhanced mobile responsiveness, accessibility, and user experience
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -70,7 +70,10 @@ import PromptResults from "./PromptResults";
 import { StarRating, usePromptRating } from "./PromptAnalytics";
 import { useSoundEffects } from '../hooks/useSoundEffects';
 
-// Utility: Get relative time
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
 function getRelativeTime(timestamp) {
   if (!timestamp) return "";
   
@@ -106,6 +109,20 @@ function getRelativeTime(timestamp) {
   }
 }
 
+function getUserInitials(name, email) {
+  if (name) {
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  }
+  if (email) {
+    return email[0].toUpperCase();
+  }
+  return "U";
+}
+
+// ============================================================================
+// CHILD COMPONENTS
+// ============================================================================
+
 // Rating Section Component
 function RatingSection({ teamId, promptId }) {
   const { userRating, averageRating, totalRatings, ratePrompt, loading } = 
@@ -114,10 +131,8 @@ function RatingSection({ teamId, promptId }) {
   if (loading) {
     return (
       <div className="flex items-center gap-2 py-2">
-        <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-          Loading ratings...
-        </span>
+        <div className="spinner-sm" />
+        <span className="text-xs text-muted">Loading ratings...</span>
       </div>
     );
   }
@@ -131,17 +146,17 @@ function RatingSection({ teamId, promptId }) {
             onRate={ratePrompt}
             size="normal"
           />
-          <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+          <span className="text-sm font-medium">
             {userRating ? "Your Rating" : "Rate this prompt"}
           </span>
         </div>
       </div>
       
       {totalRatings > 0 && (
-        <div className="flex items-center gap-3 text-sm" style={{ color: "var(--muted-foreground)" }}>
+        <div className="flex items-center gap-3 text-sm text-muted">
           <div className="flex items-center gap-1">
             <Star className="w-4 h-4" fill="#fbbf24" color="#fbbf24" />
-            <span className="font-semibold" style={{ color: "var(--foreground)" }}>
+            <span className="font-semibold text-foreground">
               {averageRating.toFixed(1)}
             </span>
           </div>
@@ -166,12 +181,12 @@ function CopyButton({ text, promptId, onCopy }) {
   return (
     <button
       onClick={handleCopy}
-      className="action-btn-premium"
+      className="action-btn"
       title="Copy to clipboard"
       aria-label="Copy prompt to clipboard"
     >
       {copied ? (
-        <Check className="w-4 h-4 text-green-500" />
+        <Check className="w-4 h-4 text-success" />
       ) : (
         <Copy className="w-4 h-4" />
       )}
@@ -185,13 +200,13 @@ function Tooltip({ children, text }) {
   
   return (
     <div 
-      className="tooltip-container"
+      className="tooltip-wrapper"
       onMouseEnter={() => setShow(true)}
       onMouseLeave={() => setShow(false)}
     >
       {children}
       {show && (
-        <div className="tooltip-content">
+        <div className="tooltip" role="tooltip">
           {text}
         </div>
       )}
@@ -199,11 +214,114 @@ function Tooltip({ children, text }) {
   );
 }
 
+// User Avatar Component
+function UserAvatar({ src, name, email }) {
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  if (!src || imageError) {
+    return (
+      <div className="avatar avatar-initials">
+        {getUserInitials(name, email)}
+      </div>
+    );
+  }
+
+  return (
+    <div className="avatar-container">
+      {!imageLoaded && (
+        <div className="avatar avatar-loading">
+          <div className="spinner-sm" />
+        </div>
+      )}
+      <img
+        src={src}
+        alt={`${name || email}'s avatar`}
+        className={`avatar ${imageLoaded ? 'loaded' : 'loading'}`}
+        onLoad={() => setImageLoaded(true)}
+        onError={() => setImageError(true)}
+      />
+    </div>
+  );
+}
+
+// Welcome Tour Component
+function WelcomeTour({ onClose }) {
+  return (
+    <div className="tour-overlay" onClick={onClose}>
+      <div className="tour-content" onClick={(e) => e.stopPropagation()}>
+        <h2 className="tour-title">Welcome to Prompt Library! 🎉</h2>
+        <p className="tour-description">
+          Get started with these demo prompts and learn how to create your own.
+        </p>
+        <ul className="tour-list">
+          <li className="tour-item">
+            <Sparkles className="w-5 h-5 text-primary" />
+            <div>
+              <strong>Try demos:</strong> Click "Make My Own" to create an editable copy
+            </div>
+          </li>
+          <li className="tour-item">
+            <Copy className="w-5 h-5 text-primary" />
+            <div>
+              <strong>Copy quickly:</strong> Use the copy button to grab any prompt
+            </div>
+          </li>
+          <li className="tour-item">
+            <Plus className="w-5 h-5 text-primary" />
+            <div>
+              <strong>Create your own:</strong> Click "New Prompt" to build from scratch
+            </div>
+          </li>
+        </ul>
+        <button onClick={onClose} className="btn-primary w-full">
+          Got it, let's start!
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Filter Menu Component
+function FilterMenu({ currentFilter, onFilterChange, onClose, isGuestMode, hasUserPrompts, hasDemos }) {
+  const filters = [
+    { id: 'all', label: 'All Prompts', icon: FileText },
+    ...(isGuestMode && hasDemos ? [{ id: 'demos', label: 'Demo Prompts', icon: Sparkles }] : []),
+    ...(hasUserPrompts ? [{ id: 'mine', label: 'My Prompts', icon: Users }] : []),
+    { id: 'enhanced', label: 'AI Enhanced', icon: Zap },
+    { id: 'recent', label: 'Recent', icon: Clock },
+  ];
+
+  return (
+    <div className="filter-menu" role="menu">
+      {filters.map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          onClick={() => {
+            onFilterChange(id);
+            onClose();
+          }}
+          className={`filter-menu-item ${currentFilter === id ? 'active' : ''}`}
+          role="menuitem"
+        >
+          <Icon className="w-4 h-4" />
+          <span>{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId }) {
   const { user } = useAuth();
   const { playNotification } = useSoundEffects();
   const { checkSaveRequired, canEditPrompt: canEditGuestPrompt } = useGuestMode();
   
+  // State Management
   const [userPrompts, setUserPrompts] = useState([]);
   const [filteredPrompts, setFilteredPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -233,8 +351,14 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [filterCategory, setFilterCategory] = useState('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showTour, setShowTour] = useState(false);
+  
+  // Refs
   const createFormRef = useRef(null);
   const listTopRef = useRef(null);
+
+  // ============================================================================
+  // EFFECTS
+  // ============================================================================
 
   // Check if first time user
   useEffect(() => {
@@ -303,7 +427,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsub();
   }, [activeTeam, user, userRole, isGuestMode]);
 
-  // Search and filter with loading state
+  // Search and filter
   const allPrompts = useMemo(() => {
     setSearchLoading(true);
     let combined = [...demos, ...userPrompts];
@@ -440,13 +564,13 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     }
   }, [viewedPrompts, activeTeam, user?.uid, isGuestMode]);
 
-  // Close kebab menu when clicking outside
+  // Close menus when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
-      if (openKebabMenu && !event.target.closest('.kebab-menu-container')) {
+      if (openKebabMenu && !event.target.closest('.kebab-container')) {
         setOpenKebabMenu(null);
       }
-      if (showFilterMenu && !event.target.closest('.filter-menu-wrapper')) {
+      if (showFilterMenu && !event.target.closest('.filter-wrapper')) {
         setShowFilterMenu(false);
       }
     }
@@ -461,6 +585,10 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       listTopRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [pagination.currentPage]);
+
+  // ============================================================================
+  // EVENT HANDLERS
+  // ============================================================================
 
   function handleFilteredResults(filtered) {
     setFilteredPrompts(filtered);
@@ -763,11 +891,11 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   function showSuccessToast(message) {
     playNotification();
     const toast = document.createElement("div");
-    toast.className = "success-toast";
+    toast.className = "toast toast-success";
     toast.setAttribute("role", "status");
     toast.setAttribute("aria-live", "polite");
     toast.innerHTML = `
-      <div class="success-icon">
+      <div class="toast-icon">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
         </svg>
@@ -799,13 +927,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         <span>${message}</span>
       </div>
     `;
-    notification.className =
-      "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-50 text-sm transition-opacity duration-300";
-    notification.style.cssText = `
-      background-color: var(--card);
-      color: var(--foreground);
-      border: 1px solid var(--${type === "error" ? "destructive" : "primary"});
-    `;
+    notification.className = `toast toast-${type}`;
     document.body.appendChild(notification);
     setTimeout(() => {
       notification.style.opacity = "0";
@@ -829,49 +951,9 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     );
   }
 
-  function getUserInitials(name, email) {
-    if (name) {
-      return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
-    }
-    if (email) {
-      return email[0].toUpperCase();
-    }
-    return "U";
-  }
-
-  function UserAvatar({ src, name, email }) {
-    const [imageError, setImageError] = useState(false);
-    const [imageLoaded, setImageLoaded] = useState(false);
-
-    if (!src || imageError) {
-      return (
-        <div
-          className="author-avatar flex items-center justify-center text-white font-semibold text-sm"
-          style={{ backgroundColor: "var(--primary)" }}
-        >
-          {getUserInitials(name, email)}
-        </div>
-      );
-    }
-
-    return (
-      <div className="author-avatar-wrapper">
-        {!imageLoaded && (
-          <div className="author-avatar flex items-center justify-center" style={{ backgroundColor: "var(--muted)" }}>
-            <div className="w-3 h-3 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-          </div>
-        )}
-        <img
-          src={src}
-          alt={`${name || email}'s avatar`}
-          className={`author-avatar ${imageLoaded ? 'loaded' : 'loading'}`}
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageError(true)}
-          style={{ display: imageLoaded ? 'block' : 'none' }}
-        />
-      </div>
-    );
-  }
+  // ============================================================================
+  // RENDER PROMPT CARD
+  // ============================================================================
 
   const renderPromptCard = (prompt) => {
     const badge = getPromptBadge(prompt, isGuestMode);
@@ -890,175 +972,140 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return (
       <div 
         key={prompt.id} 
-        className={`prompt-card-premium single-column ${isViewed ? 'viewed' : 'unviewed'} ${hasOutputs ? 'has-outputs' : ''}`}
+        className={`prompt-card ${isViewed ? 'viewed' : 'unviewed'} ${hasOutputs ? 'has-outputs' : ''}`}
       >
-        {/* Main Content Wrapper with Outputs Sidebar */}
-        <div className="prompt-card-content-wrapper">
-          {/* Left Sidebar - Outputs Indicator */}
-          {!isDemo && hasOutputs && (
-            <div className="outputs-sidebar">
-              <div className="outputs-indicator">
-                <div className="outputs-count">
-                  <Zap className="w-4 h-4" />
-                  <span className="count-text">{resultsCount}</span>
-                </div>
-                <div className="outputs-label">
-                  Output{resultsCount !== 1 ? 's' : ''}
-                </div>
+        {/* Outputs Sidebar */}
+        {!isDemo && hasOutputs && (
+          <div className="outputs-sidebar">
+            <div className="outputs-indicator">
+              <div className="outputs-badge">
+                <Zap className="w-4 h-4" />
+                <span>{resultsCount}</span>
               </div>
+              <div className="outputs-label">Outputs</div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Main Card Content */}
-          <div className="prompt-card-main-content">
-            {/* Author Info */}
-            {!isDemo && (
-          <div className="author-info">
-            <UserAvatar
-              src={author?.avatar}
-              name={author?.name}
-              email={author?.email}
-            />
-            <div className="author-details">
-              <div className="author-name">
-                {isGuestMode ? "You" : (author?.name || author?.email || "Unknown")}
+        {/* Main Content */}
+        <div className="prompt-content">
+          {/* Author Info */}
+          {!isDemo && (
+            <div className="author-section">
+              <UserAvatar
+                src={author?.avatar}
+                name={author?.name}
+                email={author?.email}
+              />
+              <div className="author-info">
+                <div className="author-name">
+                  {isGuestMode ? "You" : (author?.name || author?.email || "Unknown")}
+                </div>
+                <div className="author-meta">
+                  <Clock className="w-3 h-3" />
+                  {getRelativeTime(prompt.createdAt)}
+                </div>
               </div>
-              <div className="author-timestamp">
-                <Clock className="w-3 h-3" />
-                {getRelativeTime(prompt.createdAt)}
-              </div>
-            </div>
-            {!isGuestMode && (
-              <div className="ml-auto">
+              {!isGuestMode && (
                 <Tooltip text={isPrivate ? "Only you can see this" : "Visible to team members"}>
                   <span className={`visibility-badge ${isPrivate ? "private" : ""}`}>
                     {isPrivate ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
                     {isPrivate ? "Private" : "Public"}
                   </span>
                 </Tooltip>
-              </div>
+              )}
+            </div>
+          )}
+
+          {/* Demo Badge */}
+          {badge && (
+            <div className="badge-container">
+              <span className={`badge badge-${badge.type}`}>
+                {badge.icon} {badge.label}
+              </span>
+            </div>
+          )}
+
+          {/* Title & Enhancement Badge */}
+          <div className="title-section">
+            <h3 className="prompt-title">{prompt.title}</h3>
+            {!isDemo && (
+              <EnhancedBadge
+                enhanced={prompt.enhanced}
+                enhancedFor={prompt.enhancedFor}
+                enhancementType={prompt.enhancementType}
+                size="md"
+                showDetails={true}
+              />
             )}
           </div>
-        )}
 
-        {/* Badge for demo prompts */}
-        {badge && (
-          <div style={{ marginBottom: '0.75rem' }}>
-            <span 
-              className="visibility-badge demo-badge"
-              style={{
-                background: badge.type === 'demo' ? 'rgba(139, 92, 246, 0.1)' : 'rgba(251, 191, 36, 0.1)',
-                borderColor: badge.type === 'demo' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(251, 191, 36, 0.2)',
-                color: badge.type === 'demo' ? 'rgba(139, 92, 246, 0.9)' : 'rgba(251, 191, 36, 0.9)',
-              }}
+          {/* Expandable Text Preview */}
+          <div className={`text-preview ${isTextExpanded ? 'expanded' : 'collapsed'}`}>
+            <pre className="text-content">
+              {displayText}
+              {!isTextExpanded && shouldTruncate && "..."}
+            </pre>
+          </div>
+          
+          {shouldTruncate && (
+            <button
+              className="expand-btn"
+              onClick={() => handleTextExpansionWithTracking(prompt.id)}
+              aria-expanded={isTextExpanded}
+              aria-label={isTextExpanded ? "Show less" : "Show more"}
             >
-              {badge.icon} {badge.label}
-            </span>
-          </div>
-        )}
-
-        {/* Title & Enhancement Badge */}
-        <div className="flex items-start justify-between mb-3 gap-3">
-          <h3 className="prompt-title-premium flex-1">{prompt.title}</h3>
-          {!isDemo && (
-            <EnhancedBadge
-              enhanced={prompt.enhanced}
-              enhancedFor={prompt.enhancedFor}
-              enhancementType={prompt.enhancementType}
-              size="md"
-              showDetails={true}
-            />
+              <span>{isTextExpanded ? "Show less" : "Read more"}</span>
+              <ChevronDown className={`w-3.5 h-3.5 ${isTextExpanded ? 'rotate-180' : ''}`} />
+            </button>
           )}
-        </div>
 
-        {/* Expandable Content Preview */}
-        <div
-          className={`content-preview-box ${isTextExpanded ? 'expanded' : 'collapsed'}`}
-          style={{ cursor: 'default' }}
-        >
-          <pre className="content-preview-text">
-            {displayText}
-            {!isTextExpanded && shouldTruncate && "..."}
-          </pre>
-        </div>
-        {shouldTruncate && (
-          <button
-            className="expand-indicator-button"
-            onClick={() => handleTextExpansionWithTracking(prompt.id)}
-            aria-expanded={isTextExpanded}
-            aria-label={isTextExpanded ? "Collapse prompt text" : "Expand prompt text"}
-          >
-            <span className="expand-text">
-              {isTextExpanded ? "Show less" : "Read more"}
-            </span>
-            <ChevronDown className={`w-3.5 h-3.5 ${isTextExpanded ? 'rotate-180' : ''}`} />
-          </button>
-        )}
-        </div>
-
-        {/* Enhanced Metadata with Icons */}
-        <div className="prompt-metadata enhanced">
-          {!isGuestMode && !isDemo && (
-            <>
-              <Tooltip text="Number of times this prompt has been viewed">
-                <span className="flex items-center gap-1.5 metadata-item">
-                  <Eye className="w-3.5 h-3.5" />
-                  <span className="metadata-value">{prompt.stats?.views || 0}</span>
-                  <span className="metadata-label">views</span>
-                </span>
-              </Tooltip>
-              <span className="metadata-separator">•</span>
-            </>
-          )}
-          <Tooltip text="Character count">
-            <span className="flex items-center gap-1.5 metadata-item">
-              <FileText className="w-3.5 h-3.5" />
-              <span className="metadata-value">{prompt.text.length}</span>
-              <span className="metadata-label">chars</span>
-            </span>
-          </Tooltip>
-          {!isDemo && resultsCount > 0 && (
-            <>
-              <span className="metadata-separator">•</span>
-              <Tooltip text="Number of AI outputs saved">
-                <span className="flex items-center gap-1.5 metadata-item">
-                  <Zap className="w-3.5 h-3.5" />
-                  <span className="metadata-value">{resultsCount}</span>
-                  <span className="metadata-label">outputs</span>
-                </span>
-              </Tooltip>
-            </>
-          )}
-          {prompt.category && (
-            <>
-              <span className="metadata-separator">•</span>
-              <Tooltip text="Prompt category">
-                <span className="flex items-center gap-1.5 metadata-item">
-                  <Users className="w-3.5 h-3.5" />
-                  <span className="metadata-label">{prompt.category}</span>
-                </span>
-              </Tooltip>
-            </>
-          )}
-        </div>
-
-        {/* Tags */}
-        {prompt.tags && prompt.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {prompt.tags.map((tag, index) => (
-              <span key={index} className="tag-chip-premium">
-                #{tag}
+          {/* Metadata */}
+          <div className="metadata">
+            {!isGuestMode && !isDemo && (
+              <>
+                <Tooltip text="Views">
+                  <span className="metadata-item">
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>{prompt.stats?.views || 0}</span>
+                  </span>
+                </Tooltip>
+                <span className="separator">•</span>
+              </>
+            )}
+            <Tooltip text="Characters">
+              <span className="metadata-item">
+                <FileText className="w-3.5 h-3.5" />
+                <span>{prompt.text.length}</span>
               </span>
-            ))}
+            </Tooltip>
+            {!isDemo && resultsCount > 0 && (
+              <>
+                <span className="separator">•</span>
+                <Tooltip text="Outputs">
+                  <span className="metadata-item">
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>{resultsCount}</span>
+                  </span>
+                </Tooltip>
+              </>
+            )}
           </div>
-        )}
 
-        {/* Actions */}
-        <div className="flex items-center justify-between pt-4 border-t action-bar" style={{ borderColor: "var(--border)" }}>
-          <div className="primary-actions">
+          {/* Tags */}
+          {prompt.tags && prompt.tags.length > 0 && (
+            <div className="tags">
+              {prompt.tags.map((tag, index) => (
+                <span key={index} className="tag">#{tag}</span>
+              ))}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="actions">
             {isDemo ? (
               <>
-                <Tooltip text="Copy prompt to clipboard">
+                <Tooltip text="Copy to clipboard">
                   <CopyButton 
                     text={prompt.text} 
                     promptId={prompt.id}
@@ -1070,23 +1117,21 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                   <Tooltip text={isTextExpanded ? "Show less" : "Read full prompt"}>
                     <button
                       onClick={() => handleTextExpansionWithTracking(prompt.id)}
-                      className="action-btn-premium"
+                      className="action-btn"
                       aria-expanded={isTextExpanded}
-                      aria-label={isTextExpanded ? "Collapse prompt text" : "Expand full prompt"}
                     >
                       <Maximize2 className="w-4 h-4" />
                     </button>
                   </Tooltip>
                 )}
                 
-                <Tooltip text="Create your own editable copy">
+                <Tooltip text="Create your own copy">
                   <button 
                     onClick={() => handleDuplicateDemo(prompt)}
-                    className="action-btn-premium primary make-own-btn"
-                    aria-label="Make your own copy of this demo"
+                    className="action-btn action-btn-primary"
                   >
                     <Sparkles className="w-4 h-4" />
-                    <span className="btn-label">Make My Own</span>
+                    <span className="btn-text">Make My Own</span>
                   </button>
                 </Tooltip>
               </>
@@ -1100,12 +1145,11 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                   />
                 </Tooltip>
 
-                <Tooltip text={isExpanded ? "Hide details" : "Show full details"}>
+                <Tooltip text={isExpanded ? "Hide details" : "Show details"}>
                   <button
                     onClick={() => handleExpand(prompt.id)}
-                    className="action-btn-premium"
+                    className="action-btn"
                     aria-expanded={isExpanded}
-                    aria-label={isExpanded ? "Collapse details" : "Expand details"}
                   >
                     <Maximize2 className="w-4 h-4" />
                   </button>
@@ -1118,19 +1162,17 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                       teamId={activeTeam}
                       teamName={teamName}
                       size="small"
-                      className="action-btn-premium primary"
+                      className="action-btn"
                     />
                   </Tooltip>
                 )}
 
                 {/* Kebab Menu */}
-                <div className="kebab-menu-container">
+                <div className="kebab-container">
                   <Tooltip text="More options">
                     <button
-                      onClick={() =>
-                        setOpenKebabMenu(openKebabMenu === prompt.id ? null : prompt.id)
-                      }
-                      className="action-btn-premium"
+                      onClick={() => setOpenKebabMenu(openKebabMenu === prompt.id ? null : prompt.id)}
+                      className="action-btn"
                       aria-label="More actions"
                       aria-expanded={openKebabMenu === prompt.id}
                     >
@@ -1142,7 +1184,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                     <div className="kebab-menu" role="menu">
                       <button
                         onClick={() => handleAIEnhance(prompt)}
-                        className="kebab-menu-item"
+                        className="kebab-item"
                         role="menuitem"
                       >
                         <Sparkles className="w-4 h-4" />
@@ -1152,7 +1194,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                       {!isGuestMode && canChangeVisibility(prompt, user.uid, userRole) && (
                         <button
                           onClick={() => handleToggleVisibility(prompt.id)}
-                          className="kebab-menu-item"
+                          className="kebab-item"
                           role="menuitem"
                         >
                           {isPrivate ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
@@ -1168,7 +1210,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                               setShowEditModal(true);
                               setOpenKebabMenu(null);
                             }}
-                            className="kebab-menu-item"
+                            className="kebab-item"
                             role="menuitem"
                           >
                             <Edit2 className="w-4 h-4" />
@@ -1177,7 +1219,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
                           <button
                             onClick={() => handleDelete(prompt.id)}
-                            className="kebab-menu-item danger"
+                            className="kebab-item danger"
                             role="menuitem"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1191,27 +1233,21 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               </>
             )}
           </div>
-        </div>
 
-        {/* Expanded Content */}
-        {!isDemo && isExpanded && (
-          <div className="expandable-section expanded">
-            <div className="space-y-4 mt-6 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
-              {!isGuestMode && (
+          {/* Expanded Content */}
+          {!isDemo && isExpanded && (
+            <div className="expanded-content">
+              {!isGuestMode ? (
                 <>
                   <CompactAITools text={prompt.text} />
 
-                  {/* Rating Section */}
-                  <div className="glass-card p-4 rounded-lg border" style={{ borderColor: "var(--border)" }}>
+                  <div className="rating-card">
                     <RatingSection teamId={activeTeam} promptId={prompt.id} />
                   </div>
 
-                  {/* Results Section */}
                   <div>
                     <button
-                      onClick={() =>
-                        setShowResults((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
-                      }
+                      onClick={() => setShowResults((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))}
                       className="expand-toggle"
                       aria-expanded={showResults[prompt.id]}
                     >
@@ -1223,7 +1259,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                     </button>
 
                     {showResults[prompt.id] && (
-                      <div className="mt-4">
+                      <div className="results-container">
                         <PromptResults
                           key={`results-${prompt.id}`}
                           teamId={activeTeam}
@@ -1235,11 +1271,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                     )}
                   </div>
 
-                  {/* Comments */}
                   <button
-                    onClick={() =>
-                      setShowComments((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))
-                    }
+                    onClick={() => setShowComments((prev) => ({ ...prev, [prompt.id]: !prev[prompt.id] }))}
                     className="expand-toggle"
                     aria-expanded={showComments[prompt.id]}
                   >
@@ -1251,23 +1284,21 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                     <Comments teamId={activeTeam} promptId={prompt.id} userRole={userRole} />
                   )}
                 </>
-              )}
-              
-              {isGuestMode && (
-                <div className="p-4 rounded-lg border" style={{ borderColor: "var(--border)", background: "var(--muted)" }}>
-                  <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                    Sign up to access AI tools, ratings, results tracking, and comments.
-                  </p>
+              ) : (
+                <div className="guest-notice">
+                  <p>Sign up to access AI tools, ratings, results tracking, and comments.</p>
                 </div>
               )}
             </div>
-          </div>
-        )}
-          </div>
+          )}
         </div>
-      
+      </div>
     );
   };
+
+  // ============================================================================
+  // RENDER
+  // ============================================================================
 
   if (loading) {
     return (
@@ -1280,21 +1311,95 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   }
 
   return (
-    <div className="space-y-6 mobile-prompt-list-container" ref={listTopRef}>
+    <div className="prompt-list-container" ref={listTopRef}>
       <style jsx>{`
-        /* Single Column Layout */
-        .prompt-card-premium.single-column {
-          max-width: 100%;
-          margin: 0 auto 1.5rem;
+        /* ============================================================================
+           GLOBAL STYLES
+           ============================================================================ */
+        
+        .prompt-list-container {
+          --spacing-xs: 0.25rem;
+          --spacing-sm: 0.5rem;
+          --spacing-md: 1rem;
+          --spacing-lg: 1.5rem;
+          --spacing-xl: 2rem;
+          --radius-sm: 6px;
+          --radius-md: 8px;
+          --radius-lg: 12px;
+          --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+          --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+          --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.2);
         }
 
-        /* Outputs Sidebar Layout */
-        .prompt-card-content-wrapper {
+        /* ============================================================================
+           UTILITY CLASSES
+           ============================================================================ */
+
+        .text-foreground { color: var(--foreground); }
+        .text-muted { color: var(--muted-foreground); }
+        .text-primary { color: var(--primary); }
+        .text-success { color: #10b981; }
+        .bg-card { background: var(--card); }
+        .bg-muted { background: var(--muted); }
+        .border-color { border-color: var(--border); }
+
+        .spinner-sm {
+          width: 1rem;
+          height: 1rem;
+          border: 2px solid rgba(139, 92, 246, 0.3);
+          border-top-color: var(--primary);
+          border-radius: 50%;
+          animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+
+        /* ============================================================================
+           LAYOUT
+           ============================================================================ */
+
+        .glass-card {
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-lg);
+          box-shadow: var(--shadow-sm);
+        }
+
+        .space-y-4 > * + * { margin-top: 1rem; }
+        .space-y-6 > * + * { margin-top: 1.5rem; }
+
+        /* ============================================================================
+           PROMPT CARD
+           ============================================================================ */
+
+        .prompt-card {
           display: flex;
-          gap: 0;
-          position: relative;
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
+          overflow: hidden;
+          margin-bottom: var(--spacing-lg);
+          transition: all 0.2s ease;
+          box-shadow: var(--shadow-sm);
         }
 
+        .prompt-card:hover {
+          box-shadow: var(--shadow-md);
+          transform: translateY(-2px);
+        }
+
+        .prompt-card.unviewed {
+          border-left: 3px solid var(--primary);
+        }
+
+        .prompt-card.viewed {
+          opacity: 0.95;
+        }
+
+        /* Outputs Sidebar */
         .outputs-sidebar {
           width: 80px;
           flex-shrink: 0;
@@ -1302,20 +1407,16 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           flex-direction: column;
           align-items: center;
           justify-content: flex-start;
-          padding: 1.5rem 0;
+          padding: var(--spacing-lg) 0;
           background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(59, 130, 246, 0.08));
           border-right: 2px solid rgba(139, 92, 246, 0.2);
-          border-radius: 12px 0 0 12px;
           position: relative;
         }
 
         .outputs-sidebar::before {
           content: '';
           position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 100%;
+          inset: 0;
           background: linear-gradient(180deg, rgba(139, 92, 246, 0.1) 0%, transparent 100%);
           pointer-events: none;
         }
@@ -1324,12 +1425,12 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 0.5rem;
+          gap: var(--spacing-sm);
           position: relative;
           z-index: 1;
         }
 
-        .outputs-count {
+        .outputs-badge {
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -1338,30 +1439,11 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           width: 50px;
           height: 50px;
           background: linear-gradient(135deg, var(--primary), rgba(139, 92, 246, 0.8));
-          border-radius: 12px;
+          border-radius: var(--radius-lg);
           box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
           color: white;
           font-weight: 700;
           font-size: 1.125rem;
-          position: relative;
-          overflow: hidden;
-        }
-
-        .outputs-count::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(135deg, transparent, rgba(255, 255, 255, 0.1));
-        }
-
-        .outputs-count .w-4 {
-          width: 1rem;
-          height: 1rem;
-        }
-
-        .count-text {
-          font-size: 1.25rem;
-          line-height: 1;
         }
 
         .outputs-label {
@@ -1373,67 +1455,177 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           text-align: center;
           writing-mode: vertical-rl;
           transform: rotate(180deg);
-          margin-top: 0.5rem;
+          margin-top: var(--spacing-sm);
         }
 
-        .prompt-card-main-content {
+        /* Main Content */
+        .prompt-content {
+          flex: 1;
+          padding: var(--spacing-lg);
+          min-width: 0;
+        }
+
+        /* Author Section */
+        .author-section {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-md);
+          margin-bottom: var(--spacing-md);
+        }
+
+        .avatar-container {
+          position: relative;
+          width: 40px;
+          height: 40px;
+        }
+
+        .avatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          object-fit: cover;
+        }
+
+        .avatar-initials {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--primary);
+          color: white;
+          font-weight: 600;
+          font-size: 0.875rem;
+        }
+
+        .avatar-loading {
+          background: var(--muted);
+        }
+
+        .avatar.loading {
+          opacity: 0;
+          position: absolute;
+        }
+
+        .avatar.loaded {
+          opacity: 1;
+          transition: opacity 0.3s;
+        }
+
+        .author-info {
           flex: 1;
           min-width: 0;
         }
 
-        .prompt-card-premium.has-outputs .prompt-card-main-content {
-          padding-left: 1.5rem;
+        .author-name {
+          font-weight: 600;
+          font-size: 0.875rem;
+          color: var(--foreground);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
-        @media (max-width: 769px) {
-          .outputs-sidebar {
-            width: 60px;
-            padding: 1rem 0;
-          }
-
-          .outputs-count {
-            width: 40px;
-            height: 40px;
-            font-size: 0.875rem;
-          }
-
-          .count-text {
-            font-size: 1rem;
-          }
-
-          .outputs-label {
-            font-size: 0.563rem;
-          }
-
-          .prompt-card-premium.has-outputs .prompt-card-main-content {
-            padding-left: 1rem;
-          }
+        .author-meta {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          font-size: 0.75rem;
+          color: var(--muted-foreground);
+          margin-top: 0.125rem;
         }
 
-        /* Improved Touch Targets for Mobile */
-        @media (max-width: 769px) {
-          .mobile-prompt-list-container .action-btn-premium {
-            width: 44px !important;
-            height: 44px !important;
-            min-width: 44px;
-            min-height: 44px;
-          }
-
-          .mobile-prompt-list-container .primary-actions {
-            gap: 0.5rem;
-          }
+        .visibility-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          padding: 0.25rem 0.625rem;
+          border-radius: var(--radius-sm);
+          font-size: 0.75rem;
+          font-weight: 500;
+          background: rgba(139, 92, 246, 0.1);
+          color: var(--primary);
+          border: 1px solid rgba(139, 92, 246, 0.2);
         }
 
-        /* Improved Text Preview */
-        .expand-indicator-button {
+        .visibility-badge.private {
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+          border-color: rgba(239, 68, 68, 0.2);
+        }
+
+        /* Badge */
+        .badge-container {
+          margin-bottom: var(--spacing-md);
+        }
+
+        .badge {
           display: inline-flex;
           align-items: center;
           gap: 0.375rem;
-          margin-top: 0.5rem;
+          padding: 0.375rem 0.75rem;
+          border-radius: var(--radius-sm);
+          font-size: 0.75rem;
+          font-weight: 600;
+          letter-spacing: 0.025em;
+        }
+
+        .badge-demo {
+          background: rgba(139, 92, 246, 0.1);
+          color: rgba(139, 92, 246, 0.9);
+          border: 1px solid rgba(139, 92, 246, 0.2);
+        }
+
+        .badge-featured {
+          background: rgba(251, 191, 36, 0.1);
+          color: rgba(251, 191, 36, 0.9);
+          border: 1px solid rgba(251, 191, 36, 0.2);
+        }
+
+        /* Title */
+        .title-section {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: var(--spacing-md);
+          margin-bottom: var(--spacing-md);
+        }
+
+        .prompt-title {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: var(--foreground);
+          line-height: 1.4;
+          flex: 1;
+          min-width: 0;
+        }
+
+        /* Text Preview */
+        .text-preview {
+          margin-bottom: var(--spacing-md);
+          padding: var(--spacing-md);
+          background: var(--muted);
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border);
+        }
+
+        .text-content {
+          font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+          font-size: 0.875rem;
+          line-height: 1.6;
+          color: var(--foreground);
+          white-space: pre-wrap;
+          word-break: break-word;
+          margin: 0;
+        }
+
+        .expand-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.375rem;
+          margin-bottom: var(--spacing-md);
           padding: 0.375rem 0.75rem;
           background: transparent;
           border: none;
-          border-radius: 4px;
+          border-radius: var(--radius-sm);
           color: var(--primary);
           font-size: 0.813rem;
           font-weight: 500;
@@ -1441,32 +1633,34 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           transition: all 0.2s;
         }
 
-        .expand-indicator-button:hover {
+        .expand-btn:hover {
           background: rgba(139, 92, 246, 0.1);
-          color: var(--primary);
         }
 
-        .expand-indicator-button:focus-visible {
+        .expand-btn:focus-visible {
           outline: 2px solid var(--primary);
           outline-offset: 2px;
         }
-        
-        .expand-indicator-button svg {
+
+        .expand-btn svg {
           transition: transform 0.2s;
         }
 
-        /* Enhanced Metadata Styling */
-        .prompt-metadata.enhanced {
+        /* Metadata */
+        .metadata {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
+          gap: var(--spacing-md);
           flex-wrap: wrap;
           font-size: 0.813rem;
           color: var(--muted-foreground);
-          padding: 0.75rem 0;
+          margin-bottom: var(--spacing-md);
         }
 
         .metadata-item {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
           cursor: help;
           transition: color 0.2s;
         }
@@ -1475,44 +1669,207 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           color: var(--foreground);
         }
 
-        .metadata-value {
-          font-weight: 600;
-          color: var(--foreground);
-        }
-
-        .metadata-label {
-          color: var(--muted-foreground);
-        }
-
-        .metadata-separator {
+        .separator {
           color: var(--border);
         }
 
-        /* Tooltip Styling */
-        .tooltip-container {
+        /* Tags */
+        .tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: var(--spacing-sm);
+          margin-bottom: var(--spacing-md);
+        }
+
+        .tag {
+          padding: 0.25rem 0.625rem;
+          background: rgba(139, 92, 246, 0.1);
+          color: var(--primary);
+          border: 1px solid rgba(139, 92, 246, 0.2);
+          border-radius: var(--radius-sm);
+          font-size: 0.75rem;
+          font-weight: 500;
+        }
+
+        /* Actions */
+        .actions {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          padding-top: var(--spacing-md);
+          border-top: 1px solid var(--border);
+        }
+
+        .action-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          width: 40px;
+          height: 40px;
+          padding: 0;
+          background: var(--muted);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          color: var(--foreground);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+          background: var(--accent);
+          transform: translateY(-1px);
+        }
+
+        .action-btn:focus-visible {
+          outline: 2px solid var(--primary);
+          outline-offset: 2px;
+        }
+
+        .action-btn-primary {
+          background: linear-gradient(135deg, var(--primary), rgba(139, 92, 246, 0.8));
+          color: white;
+          border-color: transparent;
+          padding: 0 var(--spacing-md);
+          width: auto;
+          font-weight: 600;
+        }
+
+        .action-btn-primary:hover {
+          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-text {
+          font-size: 0.875rem;
+        }
+
+        /* Kebab Menu */
+        .kebab-container {
+          position: relative;
+        }
+
+        .kebab-menu {
+          position: absolute;
+          top: calc(100% + 0.5rem);
+          right: 0;
+          background: var(--popover);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          box-shadow: var(--shadow-lg);
+          z-index: 100;
+          min-width: 200px;
+          padding: 0.5rem;
+        }
+
+        .kebab-item {
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-md);
+          padding: 0.75rem var(--spacing-md);
+          border-radius: var(--radius-sm);
+          cursor: pointer;
+          transition: background 0.2s;
+          font-size: 0.875rem;
+          color: var(--foreground);
+          border: none;
+          background: none;
+          width: 100%;
+          text-align: left;
+        }
+
+        .kebab-item:hover {
+          background: var(--accent);
+        }
+
+        .kebab-item.danger {
+          color: #ef4444;
+        }
+
+        .kebab-item.danger:hover {
+          background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Expanded Content */
+        .expanded-content {
+          margin-top: var(--spacing-lg);
+          padding-top: var(--spacing-lg);
+          border-top: 1px solid var(--border);
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-lg);
+        }
+
+        .rating-card {
+          padding: var(--spacing-md);
+          background: var(--muted);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+        }
+
+        .expand-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          padding: var(--spacing-md);
+          background: var(--muted);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          color: var(--foreground);
+          font-size: 0.875rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .expand-toggle:hover {
+          background: var(--accent);
+        }
+
+        .expand-toggle svg {
+          transition: transform 0.2s;
+        }
+
+        .results-container {
+          margin-top: var(--spacing-md);
+        }
+
+        .guest-notice {
+          padding: var(--spacing-md);
+          background: var(--muted);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          color: var(--muted-foreground);
+          font-size: 0.875rem;
+        }
+
+        /* ============================================================================
+           TOOLTIP
+           ============================================================================ */
+
+        .tooltip-wrapper {
           position: relative;
           display: inline-block;
         }
 
-        .tooltip-content {
+        .tooltip {
           position: absolute;
-          bottom: 100%;
+          bottom: calc(100% + 0.5rem);
           left: 50%;
           transform: translateX(-50%);
-          margin-bottom: 0.5rem;
           padding: 0.5rem 0.75rem;
           background: var(--popover);
           color: var(--popover-foreground);
           border: 1px solid var(--border);
-          border-radius: 6px;
+          border-radius: var(--radius-sm);
           font-size: 0.75rem;
           white-space: nowrap;
           z-index: 1000;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+          box-shadow: var(--shadow-md);
           pointer-events: none;
         }
 
-        .tooltip-content::after {
+        .tooltip::after {
           content: '';
           position: absolute;
           top: 100%;
@@ -1522,71 +1879,131 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           border-top-color: var(--border);
         }
 
-        /* Viewed/Unviewed Indicator */
-        .prompt-card-premium.unviewed {
-          border-left: 3px solid var(--primary);
-        }
+        /* ============================================================================
+           TOAST NOTIFICATIONS
+           ============================================================================ */
 
-        .prompt-card-premium.viewed {
-          opacity: 0.95;
-        }
-
-        /* Demo Badge Enhancement */
-        .demo-badge {
-          font-weight: 600;
-          letter-spacing: 0.025em;
-        }
-
-        /* Make My Own Button */
-        .make-own-btn {
-          background: linear-gradient(135deg, var(--primary), var(--primary-dark, var(--primary)));
-          color: white;
-          font-weight: 600;
-          padding: 0 1rem !important;
-          width: auto !important;
-        }
-
-        .make-own-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-        }
-
-        .btn-label {
+        .toast {
+          position: fixed;
+          top: 1rem;
+          right: 1rem;
+          display: flex;
+          align-items: center;
+          gap: var(--spacing-sm);
+          padding: var(--spacing-md) var(--spacing-lg);
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          box-shadow: var(--shadow-lg);
+          z-index: 9999;
           font-size: 0.875rem;
-        }
-
-        @media (max-width: 640px) {
-          .btn-label {
-            display: none;
-          }
-          
-          .make-own-btn {
-            padding: 0 !important;
-            width: 44px !important;
-          }
-        }
-
-        /* Avatar Loading State */
-        .author-avatar-wrapper {
-          position: relative;
-        }
-
-        .author-avatar.loading {
-          opacity: 0;
-        }
-
-        .author-avatar.loaded {
-          opacity: 1;
           transition: opacity 0.3s;
+          max-width: 400px;
         }
 
-        /* Improved Action Bar */
-        .action-bar {
-          margin-top: 1rem;
+        .toast-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 1.5rem;
+          height: 1.5rem;
+          border-radius: 50%;
         }
 
-        /* Filter Menu */
-        .filter-menu-wrapper {
+        .toast-success {
+          border-left: 4px solid #10b981;
+        }
+
+        .toast-success .toast-icon {
+          color: #10b981;
+        }
+
+        .toast-error {
+          border-left: 4px solid #ef4444;
+        }
+
+        .toast-error .toast-icon {
+          color: #ef4444;
+        }
+
+        .toast-info {
+          border-left: 4px solid var(--primary);
+        }
+
+        .toast-info .toast-icon {
+          color: var(--primary);
+        }
+
+        .toast-warning {
+          border-left: 4px solid #f59e0b;
+        }
+
+        .toast-warning .toast-icon {
+          color: #f59e0b;
+        }
+
+        /* ============================================================================
+           TOUR
+           ============================================================================ */
+
+        .tour-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(4px);
+          z-index: 9999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: var(--spacing-md);
+        }
+
+        .tour-content {
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-lg);
+          padding: var(--spacing-xl);
+          max-width: 500px;
+          width: 100%;
+          box-shadow: var(--shadow-lg);
+        }
+
+        .tour-title {
+          font-size: 1.5rem;
+          font-weight: 700;
+          margin-bottom: var(--spacing-md);
+          color: var(--foreground);
+        }
+
+        .tour-description {
+          color: var(--muted-foreground);
+          margin-bottom: var(--spacing-lg);
+          line-height: 1.6;
+        }
+
+        .tour-list {
+          list-style: none;
+          padding: 0;
+          margin: var(--spacing-lg) 0;
+          display: flex;
+          flex-direction: column;
+          gap: var(--spacing-md);
+        }
+
+        .tour-item {
+          display: flex;
+          align-items: flex-start;
+          gap: var(--spacing-md);
+          padding: var(--spacing-md);
+          background: var(--muted);
+          border-radius: var(--radius-md);
+        }
+
+        /* ============================================================================
+           FILTER MENU
+           ============================================================================ */
+
+        .filter-wrapper {
           position: relative;
           display: inline-block;
         }
@@ -1597,26 +2014,19 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           right: 0;
           background: var(--popover);
           border: 1px solid var(--border);
-          border-radius: 8px;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+          border-radius: var(--radius-md);
+          box-shadow: var(--shadow-lg);
           z-index: 100;
           min-width: 200px;
           padding: 0.5rem;
-        }
-        
-        @media (max-width: 640px) {
-          .filter-menu {
-            right: auto;
-            left: 0;
-          }
         }
 
         .filter-menu-item {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
-          padding: 0.75rem 1rem;
-          border-radius: 6px;
+          gap: var(--spacing-md);
+          padding: 0.75rem var(--spacing-md);
+          border-radius: var(--radius-sm);
           cursor: pointer;
           transition: background 0.2s;
           font-size: 0.875rem;
@@ -1636,169 +2046,227 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           color: white;
         }
 
-        /* Search Loading Indicator */
-        .search-loading {
-          position: absolute;
-          right: 0.75rem;
-          top: 50%;
-          transform: translateY(-50%);
+        /* ============================================================================
+           BUTTONS
+           ============================================================================ */
+
+        .btn-primary {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-sm);
+          padding: 0.75rem 1.5rem;
+          background: var(--primary);
+          color: white;
+          border: none;
+          border-radius: var(--radius-md);
+          font-weight: 600;
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
         }
 
-        /* Improved Kebab Menu for Mobile */
-        @media (max-width: 769px) {
+        .btn-primary:hover {
+          background: rgba(139, 92, 246, 0.9);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-secondary {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--spacing-sm);
+          padding: 0.75rem 1.5rem;
+          background: var(--muted);
+          color: var(--foreground);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          font-weight: 600;
+          font-size: 0.875rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          white-space: nowrap;
+        }
+
+        .btn-secondary:hover {
+          background: var(--accent);
+        }
+
+        /* ============================================================================
+           FORMS
+           ============================================================================ */
+
+        .form-input {
+          width: 100%;
+          padding: 0.75rem;
+          background: var(--background);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          color: var(--foreground);
+          font-size: 0.875rem;
+          transition: all 0.2s;
+        }
+
+        .form-input:focus {
+          outline: none;
+          border-color: var(--primary);
+          box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        .search-input {
+          width: 100%;
+          padding: 0.75rem 1rem;
+          padding-left: 2.5rem;
+          background: var(--background);
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          color: var(--foreground);
+          font-size: 0.875rem;
+          transition: all 0.2s;
+        }
+
+        .search-input:focus {
+          outline: none;
+          border-color: var(--primary);
+          box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+        }
+
+        /* ============================================================================
+           SKELETON LOADING
+           ============================================================================ */
+
+        .skeleton-card {
+          height: 200px;
+          background: linear-gradient(
+            90deg,
+            var(--muted) 0%,
+            var(--accent) 50%,
+            var(--muted) 100%
+          );
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+          border-radius: var(--radius-lg);
+        }
+
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
+        }
+
+        /* ============================================================================
+           RESPONSIVE DESIGN
+           ============================================================================ */
+
+        @media (max-width: 768px) {
+          .outputs-sidebar {
+            width: 60px;
+            padding: var(--spacing-md) 0;
+          }
+
+          .outputs-badge {
+            width: 40px;
+            height: 40px;
+            font-size: 0.875rem;
+          }
+
+          .outputs-label {
+            font-size: 0.563rem;
+          }
+
+          .prompt-content {
+            padding: var(--spacing-md);
+          }
+
+          .prompt-title {
+            font-size: 1.125rem;
+          }
+
+          .text-preview {
+            padding: var(--spacing-sm);
+          }
+
+          .text-content {
+            font-size: 0.813rem;
+          }
+
+          .action-btn {
+            width: 44px;
+            height: 44px;
+          }
+
+          .btn-text {
+            display: none;
+          }
+
+          .action-btn-primary {
+            width: 44px;
+            padding: 0;
+          }
+
+          .filter-menu {
+            right: auto;
+            left: 0;
+          }
+
           .kebab-menu {
-            right: 0;
-            left: auto;
-            min-width: 200px;
+            right: auto;
+            left: 0;
+          }
+
+          .tour-content {
+            padding: var(--spacing-lg);
+          }
+
+          .tour-title {
+            font-size: 1.25rem;
           }
         }
 
-        /* Welcome Tour */
-        .tour-overlay {
-          position: fixed;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.5);
-          z-index: 9999;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 1rem;
+        @media (max-width: 480px) {
+          .outputs-sidebar {
+            display: none;
+          }
+
+          .prompt-card {
+            flex-direction: column;
+          }
+
+          .actions {
+            flex-wrap: wrap;
+          }
         }
 
-        .tour-content {
-          background: var(--card);
-          border: 1px solid var(--border);
-          border-radius: 12px;
-          padding: 2rem;
-          max-width: 500px;
-          width: 100%;
-          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-        }
+        /* ============================================================================
+           ACCESSIBILITY
+           ============================================================================ */
 
-        .tour-title {
-          font-size: 1.5rem;
-          font-weight: 700;
-          margin-bottom: 1rem;
-          color: var(--foreground);
-        }
-
-        .tour-text {
-          color: var(--muted-foreground);
-          margin-bottom: 1.5rem;
-          line-height: 1.6;
-        }
-
-        .tour-features {
-          list-style: none;
-          padding: 0;
-          margin: 1.5rem 0;
-        }
-
-        .tour-feature {
-          display: flex;
-          align-items: start;
-          gap: 0.75rem;
-          margin-bottom: 1rem;
-          padding: 0.75rem;
-          background: var(--muted);
-          border-radius: 8px;
-        }
-
-        .tour-feature-icon {
-          flex-shrink: 0;
-          color: var(--primary);
-        }
-
-        .tour-feature-text {
-          color: var(--foreground);
-          font-size: 0.875rem;
-        }
-
-        /* Accessibility Improvements */
-        .action-btn-premium:focus-visible,
-        .expand-toggle:focus-visible,
-        button:focus-visible {
+        *:focus-visible {
           outline: 2px solid var(--primary);
           outline-offset: 2px;
         }
 
-        /* Loading State for Search */
-        .search-input-wrapper {
-          position: relative;
-        }
-
-        /* Mobile Responsiveness */
-        @media (max-width: 769px) {
-          .mobile-prompt-list-container .glass-card {
-            padding: 1.25rem !important;
-          }
-
-          .mobile-prompt-list-container .prompt-card-premium {
-            padding: 1.25rem !important;
-          }
-
-          .mobile-prompt-list-container .prompt-title-premium {
-            font-size: 1.125rem !important;
-            line-height: 1.4;
-          }
-
-          .mobile-prompt-list-container .content-preview-box {
-            padding: 1rem !important;
-            font-size: 0.875rem !important;
-          }
-
-          .mobile-prompt-list-container .author-timestamp {
-            font-size: 0.75rem !important;
+        @media (prefers-reduced-motion: reduce) {
+          * {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
           }
         }
       `}</style>
 
-      {/* Welcome Tour for First Time Users */}
-      {showTour && (
-        <div className="tour-overlay" onClick={() => setShowTour(false)}>
-          <div className="tour-content" onClick={(e) => e.stopPropagation()}>
-            <h2 className="tour-title">Welcome to Prompt Library! 🎉</h2>
-            <p className="tour-text">
-              Get started with these demo prompts and learn how to create your own.
-            </p>
-            <ul className="tour-features">
-              <li className="tour-feature">
-                <Sparkles className="w-5 h-5 tour-feature-icon" />
-                <span className="tour-feature-text">
-                  <strong>Try demos:</strong> Click "Make My Own" to create an editable copy
-                </span>
-              </li>
-              <li className="tour-feature">
-                <Copy className="w-5 h-5 tour-feature-icon" />
-                <span className="tour-feature-text">
-                  <strong>Copy quickly:</strong> Use the copy button to grab any prompt
-                </span>
-              </li>
-              <li className="tour-feature">
-                <Plus className="w-5 h-5 tour-feature-icon" />
-                <span className="tour-feature-text">
-                  <strong>Create your own:</strong> Click "New Prompt" to build from scratch
-                </span>
-              </li>
-            </ul>
-            <button 
-              onClick={() => setShowTour(false)}
-              className="btn-primary w-full"
-            >
-              Got it, let's start!
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Welcome Tour */}
+      {showTour && <WelcomeTour onClose={() => setShowTour(false)} />}
 
       {/* Header */}
-      <div className="glass-card p-6">
+      <div className="glass-card">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>
+          <div>
+            <h2 className="text-2xl font-bold mb-2 text-foreground">
               {isGuestMode ? "Demo Prompts" : "Prompt Library"}
             </h2>
-            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            <p className="text-sm text-muted">
               {isGuestMode 
                 ? `${displayDemos.length} demos • ${displayUserPrompts.length} your prompts`
                 : `${displayUserPrompts.length} ${displayUserPrompts.length === 1 ? "prompt" : "prompts"} in this team`
@@ -1815,18 +2283,18 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                 }, 100);
               }
             }}
-            className="btn-primary px-6 py-3 flex items-center gap-2"
-            aria-label={showCreateForm ? "Cancel creating prompt" : "Create new prompt"}
+            className="btn-primary"
+            aria-label={showCreateForm ? "Cancel" : "Create new prompt"}
           >
             {showCreateForm ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
             <span>{showCreateForm ? "Cancel" : "New Prompt"}</span>
           </button>
         </div>
 
-        {/* Universal Search and Filter */}
+        {/* Search and Filter */}
         {allPrompts.length > 0 && (
           <div className="flex gap-3 mt-4 flex-wrap">
-            <div className="search-input-wrapper flex-1 min-w-0" style={{ position: 'relative' }}>
+            <div className="flex-1 min-w-0" style={{ position: 'relative' }}>
               <Search 
                 size={18} 
                 style={{ 
@@ -1835,98 +2303,45 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                   top: '50%',
                   transform: 'translateY(-50%)',
                   color: 'var(--muted-foreground)',
+                  pointerEvents: 'none',
                 }}
               />
               <input
                 type="text"
-                placeholder="Search prompts by title, content, or tags..."
+                placeholder="Search prompts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="search-input"
-                style={{ paddingLeft: '2.5rem' }}
                 aria-label="Search prompts"
               />
               {searchLoading && (
-                <div className="search-loading">
-                  <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <div style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)' }}>
+                  <div className="spinner-sm" />
                 </div>
               )}
             </div>
 
-            <div className="filter-menu-wrapper">
+            <div className="filter-wrapper">
               <button
                 onClick={() => setShowFilterMenu(!showFilterMenu)}
-                className="btn-secondary px-4 py-3 flex items-center gap-2"
+                className="btn-secondary"
                 aria-label="Filter prompts"
                 aria-expanded={showFilterMenu}
               >
                 <Filter className="w-4 h-4" />
                 <span>Filter</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showFilterMenu ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 ${showFilterMenu ? 'rotate-180' : ''}`} />
               </button>
 
               {showFilterMenu && (
-                <div className="filter-menu" role="menu">
-                  <button
-                    onClick={() => {
-                      setFilterCategory('all');
-                      setShowFilterMenu(false);
-                    }}
-                    className={`filter-menu-item ${filterCategory === 'all' ? 'active' : ''}`}
-                    role="menuitem"
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span>All Prompts</span>
-                  </button>
-                  {isGuestMode && displayDemos.length > 0 && (
-                    <button
-                      onClick={() => {
-                        setFilterCategory('demos');
-                        setShowFilterMenu(false);
-                      }}
-                      className={`filter-menu-item ${filterCategory === 'demos' ? 'active' : ''}`}
-                      role="menuitem"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span>Demo Prompts</span>
-                    </button>
-                  )}
-                  {displayUserPrompts.length > 0 && (
-                    <button
-                      onClick={() => {
-                        setFilterCategory('mine');
-                        setShowFilterMenu(false);
-                      }}
-                      className={`filter-menu-item ${filterCategory === 'mine' ? 'active' : ''}`}
-                      role="menuitem"
-                    >
-                      <Users className="w-4 h-4" />
-                      <span>My Prompts</span>
-                    </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      setFilterCategory('enhanced');
-                      setShowFilterMenu(false);
-                    }}
-                    className={`filter-menu-item ${filterCategory === 'enhanced' ? 'active' : ''}`}
-                    role="menuitem"
-                  >
-                    <Zap className="w-4 h-4" />
-                    <span>AI Enhanced</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFilterCategory('recent');
-                      setShowFilterMenu(false);
-                    }}
-                    className={`filter-menu-item ${filterCategory === 'recent' ? 'active' : ''}`}
-                    role="menuitem"
-                  >
-                    <Clock className="w-4 h-4" />
-                    <span>Recent</span>
-                  </button>
-                </div>
+                <FilterMenu
+                  currentFilter={filterCategory}
+                  onFilterChange={setFilterCategory}
+                  onClose={() => setShowFilterMenu(false)}
+                  isGuestMode={isGuestMode}
+                  hasUserPrompts={displayUserPrompts.length > 0}
+                  hasDemos={displayDemos.length > 0}
+                />
               )}
             </div>
           </div>
@@ -1935,21 +2350,20 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
       {/* Create Form */}
       {showCreateForm && (
-        <div className="glass-card p-6" ref={createFormRef}>
+        <div className="glass-card" ref={createFormRef}>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
-              Create New Prompt
-            </h3>
+            <h3 className="text-lg font-semibold text-foreground">Create New Prompt</h3>
             {isGuestMode && (
-              <Tooltip text="Your prompts are saved locally until you sign up">
-                <HelpCircle className="w-5 h-5" style={{ color: "var(--muted-foreground)" }} />
+              <Tooltip text="Saved locally until you sign up">
+                <HelpCircle className="w-5 h-5 text-muted" />
               </Tooltip>
             )}
           </div>
+          
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
-                Title <span style={{ color: "var(--destructive)" }}>*</span>
+              <label className="block text-sm font-medium mb-2 text-foreground">
+                Title <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
                 type="text"
@@ -1958,29 +2372,27 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                 value={newPrompt.title}
                 onChange={(e) => setNewPrompt({ ...newPrompt, title: e.target.value })}
                 required
-                aria-required="true"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
-                Prompt Text <span style={{ color: "var(--destructive)" }}>*</span>
+              <label className="block text-sm font-medium mb-2 text-foreground">
+                Prompt Text <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <textarea
-                placeholder="Enter your prompt here... Be specific and clear for best results."
+                placeholder="Enter your prompt here..."
                 className="form-input min-h-[150px]"
                 value={newPrompt.text}
                 onChange={(e) => setNewPrompt({ ...newPrompt, text: e.target.value })}
                 required
-                aria-required="true"
               />
-              <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
-                {newPrompt.text.length} characters • Aim for 50-500 for best results
+              <p className="text-xs mt-1 text-muted">
+                {newPrompt.text.length} characters
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
+              <label className="block text-sm font-medium mb-2 text-foreground">
                 Tags (comma separated)
               </label>
               <input
@@ -1994,7 +2406,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
             {!isGuestMode && (
               <div>
-                <label className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
+                <label className="block text-sm font-medium mb-2 text-foreground">
                   Visibility
                 </label>
                 <div className="flex gap-4">
@@ -2007,7 +2419,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                       onChange={(e) => setNewPrompt({ ...newPrompt, visibility: e.target.value })}
                     />
                     <Unlock className="w-4 h-4" />
-                    <span className="text-sm">Public - Team can see</span>
+                    <span className="text-sm">Public</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -2018,21 +2430,21 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                       onChange={(e) => setNewPrompt({ ...newPrompt, visibility: e.target.value })}
                     />
                     <Lock className="w-4 h-4" />
-                    <span className="text-sm">Private - Only you</span>
+                    <span className="text-sm">Private</span>
                   </label>
                 </div>
               </div>
             )}
 
             <div className="flex gap-3 pt-4">
-              <button type="submit" className="btn-primary px-6 py-2 flex-1">
+              <button type="submit" className="btn-primary flex-1">
                 <Plus className="w-4 h-4" />
                 Create Prompt
               </button>
               <button
                 type="button"
                 onClick={() => setShowCreateForm(false)}
-                className="btn-secondary px-6 py-2"
+                className="btn-secondary"
               >
                 Cancel
               </button>
@@ -2043,30 +2455,13 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
       {/* Demo Section */}
       {displayDemos.length > 0 && (
-        <section style={{ marginBottom: '2rem' }}>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.75rem',
-            marginBottom: '1.5rem',
-            padding: '0 0.5rem',
-          }}>
-            <Sparkles size={20} style={{ color: 'var(--primary)' }} />
-            <h3 style={{ 
-              fontSize: '1.25rem', 
-              fontWeight: '600', 
-              color: 'var(--foreground)',
-              margin: 0,
-            }}>
+        <section>
+          <div className="flex items-center gap-3 mb-6 px-2">
+            <Sparkles size={20} className="text-primary" />
+            <h3 className="text-xl font-semibold text-foreground">
               Try These Examples
             </h3>
-            <span style={{ 
-              fontSize: '0.875rem',
-              color: 'var(--muted-foreground)',
-              background: 'rgba(139, 92, 246, 0.1)',
-              padding: '0.25rem 0.625rem',
-              borderRadius: '6px',
-            }}>
+            <span className="badge badge-demo">
               {displayDemos.length} demos
             </span>
           </div>
@@ -2089,35 +2484,13 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
           <section>
             {isGuestMode && displayDemos.length > 0 && (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.75rem',
-                marginBottom: '1.5rem',
-                padding: '0 0.5rem',
-              }}>
-                <FileText size={20} style={{ color: 'var(--primary)' }} />
-                <h3 style={{ 
-                  fontSize: '1.25rem', 
-                  fontWeight: '600', 
-                  color: 'var(--foreground)',
-                  margin: 0,
-                }}>
+              <div className="flex items-center gap-3 mb-6 px-2">
+                <FileText size={20} className="text-primary" />
+                <h3 className="text-xl font-semibold text-foreground">
                   Your Prompts
                 </h3>
-                <Tooltip text="These prompts are saved locally. Sign up to save them permanently.">
-                  <span style={{ 
-                    fontSize: '0.75rem',
-                    color: 'rgba(251, 191, 36, 0.9)',
-                    background: 'rgba(251, 191, 36, 0.1)',
-                    padding: '0.25rem 0.625rem',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(251, 191, 36, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                    cursor: help,
-                  }}>
+                <Tooltip text="Saved locally. Sign up to save permanently.">
+                  <span className="badge badge-featured">
                     <AlertCircle className="w-3 h-3" />
                     {displayUserPrompts.length} unsaved
                   </span>
@@ -2145,33 +2518,27 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
       {/* Empty State */}
       {allPrompts.length === 0 && (
-        <div className="glass-card p-12 text-center">
+        <div className="glass-card text-center" style={{ padding: '3rem 1.5rem' }}>
           <Sparkles size={48} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
-          <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--foreground)" }}>
+          <h3 className="text-lg font-semibold mb-2 text-foreground">
             {searchQuery ? "No prompts found" : "No prompts yet"}
           </h3>
-          <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
+          <p className="mb-6 text-muted">
             {searchQuery 
-              ? `No prompts match "${searchQuery}". Try a different search term or adjust your filters.`
+              ? `No prompts match "${searchQuery}"`
               : isGuestMode 
-                ? "Create your first prompt to get started! Or try our demo prompts above." 
+                ? "Create your first prompt to get started!" 
                 : "Create your first prompt to start building your library."
             }
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
             {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="btn-secondary"
-              >
+              <button onClick={() => setSearchQuery('')} className="btn-secondary">
                 Clear Search
               </button>
             )}
             {filterCategory !== 'all' && (
-              <button 
-                onClick={() => setFilterCategory('all')}
-                className="btn-secondary"
-              >
+              <button onClick={() => setFilterCategory('all')} className="btn-secondary">
                 Clear Filter
               </button>
             )}
@@ -2180,7 +2547,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                 onClick={() => {
                   setShowCreateForm(true);
                   setTimeout(() => {
-                    createFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    createFormRef.current?.scrollIntoView({ behavior: 'smooth' });
                   }, 100);
                 }}
                 className="btn-primary"
@@ -2193,7 +2560,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </div>
       )}
 
-      {/* Advanced Features (Authenticated Users Only) */}
+      {/* Advanced Features */}
       {!isGuestMode && displayUserPrompts.length > 0 && (
         <>
           <AdvancedSearch
