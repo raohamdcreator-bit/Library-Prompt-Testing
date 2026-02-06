@@ -3040,7 +3040,7 @@ select option {
 }
 
 /* ==================== PROMPT CARD V2 STYLES ==================== */
-
+/* 
 .prompt-card-v2 {
   background: rgba(17, 19, 24, 0.6);
   border: 1px solid rgba(139, 92, 246, 0.12);
@@ -4152,4 +4152,4 @@ select option {
     flex: 1;
     justify-content: center;
   }
-}
+} */
