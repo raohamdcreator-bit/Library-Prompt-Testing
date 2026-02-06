@@ -231,7 +231,7 @@ function InlineRating({ teamId, promptId, isGuestMode }) {
   );
 }
 
-// Inline Comment Box
+// Updated InlineCommentBox component
 function InlineCommentBox({ promptId, teamId, commentCount, recentComments = [], onClose }) {
   const { user } = useAuth();
   const [commentText, setCommentText] = useState("");
@@ -242,7 +242,10 @@ function InlineCommentBox({ promptId, teamId, commentCount, recentComments = [],
     setIsPosting(true);
     try {
       await addDoc(collection(db, "teams", teamId, "prompts", promptId, "comments"), {
-        text: commentText.trim(), createdBy: user.uid, createdAt: serverTimestamp(), parentId: null,
+        text: commentText.trim(), 
+        createdBy: user.uid, 
+        createdAt: serverTimestamp(), 
+        parentId: null,
       });
       await updateCommentCount(teamId, promptId, 1);
       setCommentText("");
@@ -256,23 +259,71 @@ function InlineCommentBox({ promptId, teamId, commentCount, recentComments = [],
   return (
     <div className="inline-comment-box">
       <div className="comment-input-section">
-        <textarea placeholder="Add a comment..." value={commentText}
+        <textarea 
+          placeholder="Add a comment..." 
+          value={commentText}
           onChange={(e) => setCommentText(e.target.value)}
-          className="comment-textarea" rows={3} maxLength={500} />
+          className="comment-textarea" 
+          rows={3} 
+          maxLength={500} 
+        />
         <div className="comment-actions">
-          <span className="text-xs text-muted-foreground">{commentText.length}/500</span>
+          <span className="text-xs text-muted-foreground">
+            {commentText.length}/500
+          </span>
           <div className="flex gap-2">
-            <button onClick={onClose} className="btn-secondary text-xs px-3 py-1.5" disabled={isPosting}>
+            <button 
+              onClick={onClose} 
+              className="btn-secondary text-xs px-3 py-1.5" 
+              disabled={isPosting}
+            >
               Cancel
             </button>
-            <button onClick={handlePost} className="btn-primary text-xs px-3 py-1.5"
-              disabled={!commentText.trim() || isPosting}>
+            <button 
+              onClick={handlePost} 
+              className="btn-primary text-xs px-3 py-1.5"
+              disabled={!commentText.trim() || isPosting}
+            >
               {isPosting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
               Post
             </button>
           </div>
         </div>
       </div>
+
+      {/* ADD THIS SECTION - Display recent comments */}
+      {recentComments && recentComments.length > 0 && (
+        <div className="recent-comments-preview">
+          <div className="comment-preview-header">
+            Recent Comments ({commentCount})
+          </div>
+          {recentComments.slice(0, 3).map((comment) => (
+            <div key={comment.id} className="comment-preview-item">
+              <UserAvatar 
+                src={comment.authorAvatar} 
+                name={comment.authorName} 
+                email={comment.authorEmail} 
+                size="sm" 
+              />
+              <div className="comment-preview-content">
+                <span className="comment-author">
+                  {comment.authorName || comment.authorEmail || "Unknown"}
+                </span>
+                <p className="comment-text-preview">{comment.text}</p>
+                <span className="comment-time">
+                  {getRelativeTime(comment.createdAt)}
+                </span>
+              </div>
+            </div>
+          ))}
+          {commentCount > 3 && (
+            <button className="view-all-comments-link">
+              View all {commentCount} comments
+              <ChevronDown className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
