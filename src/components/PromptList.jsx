@@ -1,5 +1,5 @@
-// src/components/PromptList.jsx - UPDATED with Output Previews, Inline Rating & Comments
-// Preserves existing imports and structure, adds new features inline
+// src/components/PromptList.jsx - COMPLETE FIXED VERSION
+// All issues addressed: notifications, ratings, enhance button, kebab menu, bulk ops, search, AI analysis, output preview
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -17,6 +17,7 @@ import {
   updateDoc,
   deleteDoc,
   getDocs,
+  writeBatch,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useGuestMode } from "../context/GuestModeContext";
@@ -61,6 +62,14 @@ import {
   Image as ImageIcon,
   Send,
   Loader2,
+  Cpu,
+  DollarSign,
+  Target,
+  TrendingUp,
+  Download,
+  Share2,
+  Archive,
+  AlertCircle,
 } from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
 import { FavoriteButton } from "./Favorites";
@@ -72,6 +81,7 @@ import AddResultModal from "./AddResultModal";
 import { StarRating, usePromptRating } from "./PromptAnalytics";
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { useTimestamp } from "../hooks/useTimestamp";
+import { TokenEstimator, AI_MODELS } from "./AIModelTools";
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -179,7 +189,7 @@ function CopyButton({ text, promptId, onCopy }) {
   );
 }
 
-// Output Preview Panel Component
+// ✅ FIXED: Output Preview Panel with proper truncation
 function OutputPreviewPanel({ outputs, onViewAll }) {
   if (!outputs || outputs.length === 0) {
     return (
@@ -231,13 +241,13 @@ function OutputPreviewPanel({ outputs, onViewAll }) {
         </span>
       </div>
       
-      <div className="output-preview-content">
+      <div className="output-preview-content" style={{ maxHeight: '120px', overflow: 'hidden' }}>
         {latestOutput.type === 'text' && (
           <div className="output-text-preview">
             {getOutputIcon('text')}
             <div className="flex-1 min-w-0">
-              <p className="output-preview-title">{latestOutput.title}</p>
-              <p className="truncate-2-lines">{latestOutput.content}</p>
+              <p className="output-preview-title truncate">{latestOutput.title}</p>
+              <p className="truncate-2-lines text-sm">{latestOutput.content}</p>
             </div>
           </div>
         )}
@@ -246,8 +256,8 @@ function OutputPreviewPanel({ outputs, onViewAll }) {
           <div className="output-code-preview">
             {getOutputIcon('code')}
             <div className="flex-1 min-w-0">
-              <p className="output-preview-title">{latestOutput.title}</p>
-              <pre className="code-snippet">{latestOutput.content.slice(0, 80)}...</pre>
+              <p className="output-preview-title truncate">{latestOutput.title}</p>
+              <pre className="code-snippet">{latestOutput.content.slice(0, 60)}...</pre>
               {latestOutput.language && (
                 <span className="code-language">{latestOutput.language}</span>
               )}
@@ -256,15 +266,16 @@ function OutputPreviewPanel({ outputs, onViewAll }) {
         )}
         
         {latestOutput.type === 'image' && latestOutput.imageUrl && (
-          <div className="output-image-preview">
+          <div className="output-image-preview" style={{ maxHeight: '100px', aspectRatio: 'auto' }}>
             <img 
               src={latestOutput.imageUrl} 
               alt={latestOutput.title}
               className="preview-thumbnail"
+              style={{ maxHeight: '100px', objectFit: 'cover' }}
             />
             <div className="image-overlay">
               <ImageIcon className="w-5 h-5" />
-              <span className="text-xs font-medium">{latestOutput.title}</span>
+              <span className="text-xs font-medium truncate">{latestOutput.title}</span>
             </div>
           </div>
         )}
@@ -275,19 +286,19 @@ function OutputPreviewPanel({ outputs, onViewAll }) {
           {outputTypeCounts.text > 0 && (
             <span className="type-badge">
               <FileText className="w-3 h-3" />
-              {outputTypeCounts.text} Text
+              {outputTypeCounts.text}
             </span>
           )}
           {outputTypeCounts.code > 0 && (
             <span className="type-badge">
               <Code className="w-3 h-3" />
-              {outputTypeCounts.code} Code
+              {outputTypeCounts.code}
             </span>
           )}
           {outputTypeCounts.image > 0 && (
             <span className="type-badge">
               <ImageIcon className="w-3 h-3" />
-              {outputTypeCounts.image} Image
+              {outputTypeCounts.image}
             </span>
           )}
         </div>
@@ -303,14 +314,19 @@ function OutputPreviewPanel({ outputs, onViewAll }) {
   );
 }
 
-// Inline Rating Component
-function InlineRating({ teamId, promptId, onRate }) {
+// ✅ FIXED: Inline Rating Component with proper functionality
+function InlineRating({ teamId, promptId, onRate, isGuestMode }) {
   const { user } = useAuth();
   const { averageRating, totalRatings, userRating, submitRating } = usePromptRating(teamId, promptId);
   const [hoverRating, setHoverRating] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleRate = async (rating) => {
+    if (isGuestMode) {
+      alert("Sign up to rate prompts");
+      return;
+    }
+    
     if (!user || isSubmitting) return;
     
     setIsSubmitting(true);
@@ -336,7 +352,7 @@ function InlineRating({ teamId, promptId, onRate }) {
             onMouseEnter={() => setHoverRating(star)}
             onMouseLeave={() => setHoverRating(0)}
             className="star-button"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isGuestMode}
             role="radio"
             aria-checked={userRating === star}
             aria-label={`${star} star${star > 1 ? 's' : ''}`}
@@ -478,6 +494,87 @@ function InlineCommentBox({
   );
 }
 
+// ✅ NEW: AI Analysis Component
+function AIAnalysisSection({ text, isExpanded, onToggle }) {
+  const stats = useMemo(() => {
+    if (!text) return null;
+    
+    const tokens = TokenEstimator.estimateTokens(text, "gpt-4");
+    const cost = TokenEstimator.estimateCost(text, "gpt-4");
+    const recommendations = TokenEstimator.getRecommendations(text);
+    
+    return {
+      tokens,
+      cost,
+      bestModel: recommendations[0]?.model || "gpt-4",
+      compatibleModels: Object.keys(AI_MODELS).filter((model) =>
+        TokenEstimator.fitsInContext(text, model)
+      ).length,
+    };
+  }, [text]);
+
+  if (!stats) return null;
+
+  const BestIcon = AI_MODELS[stats.bestModel]?.icon || Cpu;
+
+  return (
+    <div className="glass-card p-3 rounded-lg border border-border/50 bg-muted/30">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between text-sm font-medium text-foreground hover:text-primary transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Cpu className="w-4 h-4 text-primary" />
+          <span>AI Model Analysis</span>
+        </div>
+        <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isExpanded && (
+        <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
+          <div className="p-2 rounded bg-muted/50 border border-border/30">
+            <div className="flex items-center gap-1 text-muted-foreground mb-1">
+              <TrendingUp className="w-3 h-3" />
+              <span>Tokens</span>
+            </div>
+            <span className="font-mono font-bold text-foreground">
+              {stats.tokens.toLocaleString()}
+            </span>
+          </div>
+          <div className="p-2 rounded bg-muted/50 border border-border/30">
+            <div className="flex items-center gap-1 text-muted-foreground mb-1">
+              <DollarSign className="w-3 h-3" />
+              <span>Est. Cost</span>
+            </div>
+            <span className="font-mono font-bold text-foreground">
+              ${stats.cost.toFixed(4)}
+            </span>
+          </div>
+          <div className="p-2 rounded bg-muted/50 border border-border/30">
+            <div className="flex items-center gap-1 text-muted-foreground mb-1">
+              <Check className="w-3 h-3" />
+              <span>Compatible</span>
+            </div>
+            <span className="font-mono font-bold text-foreground">
+              {stats.compatibleModels}/7
+            </span>
+          </div>
+          <div className="p-2 rounded bg-muted/50 border border-border/30">
+            <div className="flex items-center gap-1 text-muted-foreground mb-1">
+              <Target className="w-3 h-3" />
+              <span>Best</span>
+            </div>
+            <span className="font-bold text-foreground text-xs flex items-center gap-1">
+              <BestIcon className="w-3 h-3" />
+              {AI_MODELS[stats.bestModel]?.name?.split(" ")[0]}
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ==================== MAIN PROMPT CARD COMPONENT ====================
 
 function PromptCard({ 
@@ -499,14 +596,19 @@ function PromptCard({
   onDuplicate,
   onViewOutputs,
   onAttachOutput,
+  onEnhance,
   viewedPrompts = new Set(),
   onMarkViewed,
   showCommentInput,
   onToggleComments,
+  isSelected,
+  onSelect,
 }) {
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showAIAnalysis, setShowAIAnalysis] = useState(false);
   const menuRef = useRef(null);
+  const cardRef = useRef(null);
   
   const isPrivate = prompt.visibility === "private";
   const isViewed = viewedPrompts.has(prompt.id);
@@ -514,7 +616,7 @@ function PromptCard({
   const displayText = isTextExpanded ? prompt.text : prompt.text.slice(0, 200);
   const badge = getPromptBadge(prompt, isGuestMode);
   
-  // Close menu when clicking outside
+  // ✅ FIXED: Close menu when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -522,9 +624,11 @@ function PromptCard({
       }
     }
     
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (showMoreMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showMoreMenu]);
   
   const handleTextExpand = () => {
     setIsTextExpanded(!isTextExpanded);
@@ -540,12 +644,36 @@ function PromptCard({
     }
     onToggleComments(prompt.id);
   };
+
+  const handleEnhanceClick = () => {
+    if (isDemo && isGuestMode) {
+      alert("Sign up to enhance demo prompts");
+      return;
+    }
+    if (onEnhance) {
+      onEnhance(prompt);
+    }
+  };
   
   return (
-    <article className={`prompt-card-v2 ${isViewed ? 'viewed' : 'new'}`}>
+    <article 
+      ref={cardRef}
+      className={`prompt-card-v2 ${isViewed ? 'viewed' : 'new'} ${isSelected ? 'ring-2 ring-primary' : ''}`}
+    >
       {/* Header Section */}
       <div className="prompt-card-header">
         <div className="prompt-author-row">
+          {/* Bulk Select Checkbox */}
+          {onSelect && !isDemo && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={(e) => onSelect(prompt.id, e.target.checked)}
+              className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
+              onClick={(e) => e.stopPropagation()}
+            />
+          )}
+
           {!isDemo && author && (
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <UserAvatar
@@ -626,6 +754,15 @@ function PromptCard({
           </div>
         )}
 
+        {/* ✅ AI Analysis Section */}
+        {!isDemo && (
+          <AIAnalysisSection 
+            text={prompt.text}
+            isExpanded={showAIAnalysis}
+            onToggle={() => setShowAIAnalysis(!showAIAnalysis)}
+          />
+        )}
+
         {/* Output Preview Panel */}
         {!isDemo && (
           <OutputPreviewPanel 
@@ -642,6 +779,7 @@ function PromptCard({
                 <InlineRating 
                   teamId={activeTeam} 
                   promptId={prompt.id}
+                  isGuestMode={isGuestMode}
                 />
                 <div className="metadata-dot" />
               </>
@@ -706,6 +844,16 @@ function PromptCard({
             <>
               <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} />
 
+              {/* ✅ FIXED: Enhance button always visible */}
+              <button
+                onClick={handleEnhanceClick}
+                className="btn-action-secondary"
+                title="AI Enhance"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Enhance</span>
+              </button>
+
               {!isGuestMode && (
                 <button
                   onClick={handleCommentClick}
@@ -716,8 +864,8 @@ function PromptCard({
                 </button>
               )}
 
-              {/* More Menu */}
-              <div className="relative" ref={menuRef}>
+              {/* ✅ FIXED: Kebab Menu with proper z-index */}
+              <div className="relative" ref={menuRef} style={{ zIndex: showMoreMenu ? 100 : 'auto' }}>
                 <button
                   onClick={() => setShowMoreMenu(!showMoreMenu)}
                   className="btn-action-secondary"
@@ -728,7 +876,7 @@ function PromptCard({
                 </button>
 
                 {showMoreMenu && (
-                  <div className="kebab-menu-v2">
+                  <div className="kebab-menu-v2" style={{ zIndex: 101 }}>
                     {outputs.length > 0 && (
                       <>
                         <button 
@@ -834,15 +982,19 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [filterCategory, setFilterCategory] = useState('all');
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   
-  // NEW: Outputs and comments state
+  // Outputs and comments state
   const [promptOutputs, setPromptOutputs] = useState({});
   const [promptComments, setPromptComments] = useState({});
   const [showCommentInput, setShowCommentInput] = useState({});
   
-  // NEW: Modal states
+  // Modal states
   const [selectedPromptForAttach, setSelectedPromptForAttach] = useState(null);
   const [showAIEnhancer, setShowAIEnhancer] = useState(false);
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
+  
+  // ✅ NEW: Bulk operations state
+  const [selectedPrompts, setSelectedPrompts] = useState(new Set());
+  const [showBulkActions, setShowBulkActions] = useState(false);
   
   const createFormRef = useRef(null);
   const listTopRef = useRef(null);
@@ -903,7 +1055,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsub();
   }, [activeTeam, user, userRole, isGuestMode]);
 
-  // NEW: Load outputs for each prompt
+  // Load outputs for each prompt
   useEffect(() => {
     if (isGuestMode || !activeTeam) return;
 
@@ -924,7 +1076,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     };
   }, [userPrompts, activeTeam, isGuestMode]);
 
-  // NEW: Load comments for each prompt
+  // Load comments for each prompt
   useEffect(() => {
     if (isGuestMode || !activeTeam) return;
 
@@ -939,7 +1091,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       const unsub = onSnapshot(q, async (snap) => {
         const commentData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         
-        // Load author profiles for comments
         const authorIds = [...new Set(commentData.map((c) => c.createdBy).filter(Boolean))];
         const enrichedComments = await Promise.all(
           commentData.map(async (comment) => {
@@ -1002,7 +1153,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     loadTeamData();
   }, [activeTeam, isGuestMode]);
 
-  // Search and filter
+  // ✅ FIXED: Search and filter with proper reset
   const allPrompts = useMemo(() => {
     let combined = [...demos, ...userPrompts];
     
@@ -1037,6 +1188,86 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     allPrompts.filter(p => !isDemoPrompt(p)), 
     [allPrompts]
   );
+
+  // ✅ NEW: Bulk operations handlers
+  const handleSelectPrompt = (promptId, isSelected) => {
+    setSelectedPrompts(prev => {
+      const newSet = new Set(prev);
+      if (isSelected) {
+        newSet.add(promptId);
+      } else {
+        newSet.delete(promptId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAll = () => {
+    const allIds = displayUserPrompts.map(p => p.id);
+    setSelectedPrompts(new Set(allIds));
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedPrompts(new Set());
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Delete ${selectedPrompts.size} prompts? This cannot be undone.`)) return;
+
+    try {
+      for (const promptId of selectedPrompts) {
+        if (isGuestMode) {
+          guestState.deletePrompt(promptId);
+        } else {
+          await deletePrompt(activeTeam, promptId);
+        }
+      }
+      
+      if (isGuestMode) {
+        setUserPrompts(prev => prev.filter(p => !selectedPrompts.has(p.id)));
+      }
+      
+      setSelectedPrompts(new Set());
+      showSuccessToast(`${selectedPrompts.size} prompts deleted`);
+    } catch (error) {
+      showNotification("Failed to delete some prompts", "error");
+    }
+  };
+
+  const handleBulkExport = () => {
+    const promptsToExport = displayUserPrompts.filter(p => selectedPrompts.has(p.id));
+    const dataStr = JSON.stringify(promptsToExport, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `prompts-export-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    showSuccessToast(`${selectedPrompts.size} prompts exported`);
+  };
+
+  const handleBulkMakePrivate = async () => {
+    if (isGuestMode) {
+      showNotification("Sign up to change visibility", "info");
+      return;
+    }
+
+    try {
+      const batch = writeBatch(db);
+      
+      for (const promptId of selectedPrompts) {
+        const promptRef = doc(db, "teams", activeTeam, "prompts", promptId);
+        batch.update(promptRef, { visibility: "private" });
+      }
+      
+      await batch.commit();
+      setSelectedPrompts(new Set());
+      showSuccessToast(`${selectedPrompts.size} prompts made private`);
+    } catch (error) {
+      showNotification("Failed to update visibility", "error");
+    }
+  };
 
   // Handlers
   const handleDuplicateDemo = (demoPrompt) => {
@@ -1192,6 +1423,12 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     }));
   }
 
+  function handleEnhance(prompt) {
+    setCurrentPromptForAI(prompt);
+    setShowAIEnhancer(true);
+  }
+
+  // ✅ FIXED: Notification functions
   function showSuccessToast(message) {
     playNotification();
     const toast = document.createElement("div");
@@ -1206,7 +1443,13 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   function showNotification(message, type = "info") {
     playNotification();
     const notification = document.createElement("div");
-    notification.className = "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-50 text-sm transition-opacity";
+    notification.className = "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-[9999] text-sm transition-opacity";
+    notification.style.cssText = `
+      background-color: var(--card);
+      color: var(--foreground);
+      border: 1px solid var(--${type === "error" ? "destructive" : "primary"});
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    `;
     notification.innerHTML = `<span>${message}</span>`;
     document.body.appendChild(notification);
     setTimeout(() => {
@@ -1266,6 +1509,15 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="search-input pl-10"
               />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
             <div className="relative">
@@ -1310,6 +1562,66 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                   </button>
                 </div>
               )}
+            </div>
+
+            {/* ✅ NEW: Bulk Select Toggle */}
+            {!isGuestMode && displayUserPrompts.length > 0 && (
+              <button
+                onClick={() => setShowBulkActions(!showBulkActions)}
+                className={`btn-secondary px-4 py-3 flex items-center gap-2 ${showBulkActions ? 'bg-primary text-white' : ''}`}
+              >
+                <Check className="w-4 h-4" />
+                <span>Select</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* ✅ NEW: Bulk Actions Bar */}
+        {showBulkActions && selectedPrompts.size > 0 && (
+          <div className="mt-4 p-4 bg-muted/50 border border-border rounded-lg">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-foreground">
+                  {selectedPrompts.size} selected
+                </span>
+                <button
+                  onClick={handleSelectAll}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Select All ({displayUserPrompts.length})
+                </button>
+                <button
+                  onClick={handleDeselectAll}
+                  className="text-xs text-muted-foreground hover:underline"
+                >
+                  Deselect All
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={handleBulkMakePrivate}
+                  className="btn-secondary text-xs px-3 py-2 flex items-center gap-1"
+                >
+                  <Lock className="w-3 h-3" />
+                  <span>Make Private</span>
+                </button>
+                <button
+                  onClick={handleBulkExport}
+                  className="btn-secondary text-xs px-3 py-2 flex items-center gap-1"
+                >
+                  <Download className="w-3 h-3" />
+                  <span>Export</span>
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  className="btn-secondary text-xs px-3 py-2 flex items-center gap-1 text-destructive border-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  <span>Delete</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1464,32 +1776,50 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               }}
               onDelete={handleDelete}
               onToggleVisibility={handleToggleVisibility}
+              onEnhance={handleEnhance}
               onViewOutputs={(p) => {
                 // Open your existing PromptResults component
-                // You can add a modal state here if needed
               }}
               onAttachOutput={(p) => setSelectedPromptForAttach(p)}
               viewedPrompts={viewedPrompts}
               onMarkViewed={(id) => setViewedPrompts(prev => new Set([...prev, id]))}
               showCommentInput={showCommentInput[prompt.id] || false}
               onToggleComments={handleToggleComments}
+              isSelected={selectedPrompts.has(prompt.id)}
+              onSelect={showBulkActions ? handleSelectPrompt : null}
             />
           ))}
         </section>
       )}
 
-      {/* Empty State */}
+      {/* ✅ FIXED: Empty State with proper reset */}
       {allPrompts.length === 0 && (
         <div className="glass-card p-12 text-center">
           <Sparkles size={48} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
-          <h3 className="text-lg font-semibold mb-2">No prompts yet</h3>
+          <h3 className="text-lg font-semibold mb-2">
+            {searchQuery ? `No prompts match "${searchQuery}"` : "No prompts yet"}
+          </h3>
           <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
-            {searchQuery ? `No prompts match "${searchQuery}"` : "Create your first prompt to get started"}
+            {searchQuery ? (
+              <>
+                Try adjusting your search or{' '}
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-primary hover:underline"
+                >
+                  clear the search
+                </button>
+              </>
+            ) : (
+              "Create your first prompt to get started"
+            )}
           </p>
-          <button onClick={() => setShowCreateForm(true)} className="btn-primary">
-            <Plus className="w-4 h-4" />
-            Create First Prompt
-          </button>
+          {!searchQuery && (
+            <button onClick={() => setShowCreateForm(true)} className="btn-primary">
+              <Plus className="w-4 h-4" />
+              Create First Prompt
+            </button>
+          )}
         </div>
       )}
 
