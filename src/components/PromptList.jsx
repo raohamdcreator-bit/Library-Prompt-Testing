@@ -329,49 +329,134 @@ function InlineCommentBox({ promptId, teamId, commentCount, recentComments = [],
   );
 }
 
-// AI Analysis Section
-function AIAnalysisSection({ text, isExpanded, onToggle }) {
+function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
   const stats = useMemo(() => {
     if (!text) return null;
     const tokens = TokenEstimator.estimateTokens(text, "gpt-4");
     const cost = TokenEstimator.estimateCost(text, "gpt-4");
     const recommendations = TokenEstimator.getRecommendations(text);
     return {
-      tokens, cost,
+      tokens,
+      cost,
       bestModel: recommendations[0]?.model || "gpt-4",
+      bestModelReason: recommendations[0]?.reason || "Recommended for this prompt",
       compatibleModels: Object.keys(AI_MODELS).filter((model) =>
         TokenEstimator.fitsInContext(text, model)
       ).length,
+      totalModels: Object.keys(AI_MODELS).length,
     };
   }, [text]);
 
   if (!stats) return null;
+  
   const BestIcon = AI_MODELS[stats.bestModel]?.icon || Cpu;
+  const BestModelConfig = AI_MODELS[stats.bestModel];
+  const compatibilityPercentage = Math.round((stats.compatibleModels / stats.totalModels) * 100);
 
   return (
-    <div className="glass-card p-3 rounded-lg border border-border/50 bg-muted/30">
-      <button onClick={onToggle}
-        className="w-full flex items-center justify-between text-sm font-medium text-foreground hover:text-primary transition-colors">
+    <div className="glass-card p-3 rounded-lg border border-border/50 bg-muted/30 transition-all duration-300 hover:border-primary/30">
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between text-sm font-medium text-foreground hover:text-primary transition-colors"
+      >
         <div className="flex items-center gap-2">
           <Cpu className="w-4 h-4 text-primary" />
           <span>AI Model Analysis</span>
+          <span className={`text-xs px-2 py-0.5 rounded-full ${
+            compatibilityPercentage >= 80 
+              ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+              : compatibilityPercentage >= 50 
+              ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' 
+              : 'bg-red-500/20 text-red-400 border border-red-500/30'
+          }`}>
+            {compatibilityPercentage}% compatible
+          </span>
         </div>
         <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
       </button>
+
       {isExpanded && (
-        <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-          <div className="p-2 rounded bg-muted/50 border border-border/30">
-            <div className="flex items-center gap-1 text-muted-foreground mb-1">
-              <TrendingUp className="w-3 h-3" /><span>Tokens</span>
+        <div className="mt-3 space-y-3" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="p-2 rounded bg-muted/50 border border-border/30 hover:border-primary/30 transition-colors">
+              <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                <TrendingUp className="w-3 h-3" />
+                <span>Tokens (GPT-4)</span>
+              </div>
+              <span className="font-mono font-bold text-foreground">
+                {stats.tokens.toLocaleString()}
+              </span>
             </div>
-            <span className="font-mono font-bold text-foreground">{stats.tokens.toLocaleString()}</span>
-          </div>
-          <div className="p-2 rounded bg-muted/50 border border-border/30">
-            <div className="flex items-center gap-1 text-muted-foreground mb-1">
-              <DollarSign className="w-3 h-3" /><span>Est. Cost</span>
+
+            <div className="p-2 rounded bg-muted/50 border border-border/30 hover:border-primary/30 transition-colors">
+              <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                <DollarSign className="w-3 h-3" />
+                <span>Est. Cost</span>
+              </div>
+              <span className="font-mono font-bold text-foreground">
+                ${stats.cost.toFixed(4)}
+              </span>
             </div>
-            <span className="font-mono font-bold text-foreground">${stats.cost.toFixed(4)}</span>
+
+            <div className="p-2 rounded bg-muted/50 border border-border/30 hover:border-primary/30 transition-colors">
+              <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                <Target className="w-3 h-3" />
+                <span>Compatible</span>
+              </div>
+              <span className="font-mono font-bold text-foreground">
+                {stats.compatibleModels}/{stats.totalModels} models
+              </span>
+            </div>
+
+            <div className="p-2 rounded bg-primary/10 border border-primary/30 hover:border-primary/50 transition-colors">
+              <div className="flex items-center gap-1 text-primary mb-1">
+                <BestIcon className="w-3 h-3" />
+                <span className="font-semibold">Best Model</span>
+              </div>
+              <span className="font-bold text-foreground text-xs truncate block">
+                {BestModelConfig?.name || stats.bestModel}
+              </span>
+            </div>
           </div>
+
+          <div className="p-2 rounded-lg bg-primary/5 border border-primary/20">
+            <div className="flex items-start gap-2">
+              <BestIcon className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-foreground mb-1">
+                  {BestModelConfig?.name} • {BestModelConfig?.provider}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {stats.bestModelReason}
+                </div>
+                {BestModelConfig?.strengths && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {BestModelConfig.strengths.map((strength) => (
+                      <span
+                        key={strength}
+                        className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
+                      >
+                        {strength}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {onEnhance && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEnhance();
+              }}
+              className="w-full btn-secondary text-xs py-2 flex items-center justify-center gap-2 hover:bg-primary/10 hover:text-primary transition-all"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              View Detailed Analysis & Enhancement
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -472,10 +557,14 @@ function PromptCard({
           </div>
         )}
 
-        {!isDemo && (
-          <AIAnalysisSection text={prompt.text} isExpanded={showAIAnalysis}
-            onToggle={() => setShowAIAnalysis(!showAIAnalysis)} />
-        )}
+       {!isDemo && (
+  <AIAnalysisSection 
+    text={prompt.text} 
+    isExpanded={showAIAnalysis}
+    onToggle={() => setShowAIAnalysis(!showAIAnalysis)} 
+    onEnhance={() => onEnhance && onEnhance(prompt)}
+  />
+)}
 
         {!isDemo && (
           <OutputPreviewPanel outputs={outputs} onViewAll={() => onViewOutputs && onViewOutputs(prompt)} />
