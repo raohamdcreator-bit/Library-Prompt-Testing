@@ -1461,36 +1461,36 @@ select option {
 
 .success-toast {
   position: fixed;
-  top: 24px;
+  top: 24px; /* CHANGED: From bottom to top */
   right: 24px;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+  left: auto; /* ADDED: Prevent full width */
+  width: auto; /* ADDED: Don't stretch */
+  max-width: 400px; /* ADDED: Limit maximum width */
+  display: flex; /* ADDED: Flex layout */
+  align-items: center; /* ADDED: Center content */
+  gap: 0.75rem; /* ADDED: Space between elements */
   padding: 1rem 1.25rem;
-  background: rgba(16, 185, 129, 0.15);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.95);
+  color: white;
   border-radius: 8px;
-  color: var(--success);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   font-size: 0.875rem;
   font-weight: 500;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  z-index: 2000;
-  animation: toastSlideIn 0.3s ease-out, toastSlideOut 0.3s ease-in 2.7s forwards;
+  z-index: 9999;
+  animation: toastSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: auto; /* ADDED: Allow interaction */
 }
 
 @keyframes toastSlideIn {
   from {
     opacity: 0;
-    transform: translateX(100px);
+    transform: translateX(100px); /* CHANGED: Slide from right instead of up */
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateX(0); /* CHANGED: Slide to position */
   }
 }
-
 @keyframes toastSlideOut {
   from {
     opacity: 1;
@@ -2882,11 +2882,12 @@ select option {
     height: 14px !important;
   }
 
-  /* Success Toast - Mobile Position */
+ /* Success Toast - Mobile Position */
   .success-toast {
     top: 16px !important;
     right: 16px !important;
     left: 16px !important;
+    max-width: calc(100vw - 32px); /* ADDED: Limit width on mobile */
     padding: 0.75rem 1rem !important;
   }
 
@@ -3050,6 +3051,14 @@ select option {
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  position: relative; /* ADDED: Establish positioning context */
+  z-index: 1; /* ADDED: Base z-index */
+  isolation: isolate; /* ADDED: Create stacking context */
+}
+
+/* ADDED: Increase z-index when menu is open */
+.prompt-card-v2:has(.kebab-menu-v2) {
+  z-index: 10;
 }
 
 .prompt-card-v2.new {
@@ -3289,7 +3298,8 @@ select option {
   font-size: 0.75rem;
 }
 
-/* Inline Comment Box */
+/* ==================== COMMENT BOX ENHANCEMENTS ==================== */
+
 .inline-comment-box {
   background: rgba(139, 92, 246, 0.03);
   border: 1px solid rgba(139, 92, 246, 0.15);
@@ -3297,51 +3307,7 @@ select option {
   padding: 1rem;
   margin-top: 1rem;
   animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.comment-input-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.comment-textarea {
   width: 100%;
-  padding: 0.75rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(139, 92, 246, 0.2);
-  border-radius: 8px;
-  color: var(--foreground);
-  font-size: 0.875rem;
-  font-family: inherit;
-  resize: vertical;
-  min-height: 80px;
-  transition: all 0.2s;
-}
-
-.comment-textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.comment-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
 }
 
 .recent-comments-preview {
@@ -3416,10 +3382,27 @@ select option {
   padding: 0.5rem;
   border-radius: 6px;
   transition: all 0.2s;
+  margin-top: 0.5rem;
 }
 
 .view-all-comments-link:hover {
   background: rgba(139, 92, 246, 0.1);
+}
+
+/* Mobile adjustments for comments */
+@media (max-width: 639px) {
+  .comment-preview-item {
+    padding: 0.5rem;
+  }
+  
+  .comment-author {
+    font-size: 0.75rem;
+  }
+  
+  .comment-text-preview {
+    font-size: 0.75rem;
+    -webkit-line-clamp: 1;
+  }
 }
 
 /* Action Buttons */
@@ -3861,32 +3844,32 @@ select option {
   border-color: rgba(139, 92, 246, 0.3);
 }
 
-/* Kebab Menu V2 */
+/* ==================== MODAL STYLES ==================== */
+
 .kebab-menu-v2 {
   position: absolute;
-  top: calc(100% + 0.5rem);
+  bottom: calc(100% + 0.5rem); /* CHANGED: Opens upward instead of downward */
   right: 0;
   min-width: 200px;
   background: var(--popover);
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-  z-index: 100;
+  z-index: 1000; /* CHANGED: Increased from 100 to 1000 */
   padding: 0.5rem;
-  animation: menuSlideUp 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: menuSlideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1); /* CHANGED: Animation name */
 }
 
-@keyframes menuSlideUp {
+@keyframes menuSlideDown { /* CHANGED: Renamed and direction reversed */
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translateY(4px); /* CHANGED: Positive instead of negative */
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
-
 .menu-item {
   display: flex;
   align-items: center;
