@@ -36,7 +36,7 @@ import { usePromptRating } from "./PromptAnalytics";
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { TokenEstimator, AI_MODELS } from "./AIModelTools";
 import BulkOperations, { PromptSelector } from "./BulkOperations";
-
+import { useNotification } from "../context/NotificationContext";
 // Utility functions
 function getRelativeTime(timestamp) {
   if (!timestamp) return "";
@@ -579,7 +579,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const { user } = useAuth();
   const { playNotification } = useSoundEffects();
   const { checkSaveRequired, canEditPrompt: canEditGuestPrompt } = useGuestMode();
-  
+  const { success, error, info } = useNotification();
   const [userPrompts, setUserPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newPrompt, setNewPrompt] = useState({ title: "", tags: "", text: "", visibility: "public" });
@@ -600,7 +600,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
   const [selectedPrompts, setSelectedPrompts] = useState([]);
   const [openMenuId, setOpenMenuId] = useState(null);
-
+  
   const demos = useMemo(() => {
     if (isGuestMode && userPrompts.length === 0) return getAllDemoPrompts();
     return [];
@@ -844,27 +844,20 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     setShowAIEnhancer(true);
   }
 
-  // ✅ FIXED: Notification functions using CSS
-  function showSuccessToast(message) {
+ function showSuccessToast(message) {
     playNotification();
-    const toast = document.createElement("div");
-    toast.className = "success-toast";
-    toast.innerHTML = `<span>${message}</span>`;
-    document.body.appendChild(toast);
-    setTimeout(() => { if (toast.parentNode) document.body.removeChild(toast); }, 3000);
+    success(message, 3000);
   }
 
   function showNotification(message, type = "info") {
     playNotification();
-    const notification = document.createElement("div");
-    notification.className = "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-[9999] text-sm transition-opacity";
-    notification.style.cssText = `background-color: var(--card); color: var(--foreground); border: 1px solid var(--${type === "error" ? "destructive" : "primary"}); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);`;
-    notification.innerHTML = `<span>${message}</span>`;
-    document.body.appendChild(notification);
-    setTimeout(() => {
-      notification.style.opacity = "0";
-      setTimeout(() => { if (notification.parentNode) document.body.removeChild(notification); }, 300);
-    }, 3000);
+    if (type === "error") {
+      error(message, 3000);
+    } else if (type === "info") {
+      info(message, 3000);
+    } else {
+      success(message, 3000);
+    }
   }
 
   if (loading) {
