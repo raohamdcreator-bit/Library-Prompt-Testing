@@ -1455,75 +1455,6 @@ select option {
   color: rgba(228, 228, 231, 0.5);
 }
 
-/* ======================================
-   SUCCESS FEEDBACK TOAST
-====================================== */
-
-.success-toast {
-  position: fixed;
-  top: 24px; /* CHANGED: From bottom to top */
-  right: 24px;
-  left: auto; /* ADDED: Prevent full width */
-  width: auto; /* ADDED: Don't stretch */
-  max-width: 400px; /* ADDED: Limit maximum width */
-  display: flex; /* ADDED: Flex layout */
-  align-items: center; /* ADDED: Center content */
-  gap: 0.75rem; /* ADDED: Space between elements */
-  padding: 1rem 1.25rem;
-  background: rgba(16, 185, 129, 0.95);
-  color: white;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  font-size: 0.875rem;
-  font-weight: 500;
-  z-index: 9999;
-  animation: toastSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: auto; /* ADDED: Allow interaction */
-}
-
-@keyframes toastSlideIn {
-  from {
-    opacity: 0;
-    transform: translateX(100px); /* CHANGED: Slide from right instead of up */
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0); /* CHANGED: Slide to position */
-  }
-}
-@keyframes toastSlideOut {
-  from {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(100px);
-  }
-}
-
-.success-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  background: rgba(16, 185, 129, 0.2);
-  border-radius: 50%;
-  animation: checkmark 0.4s ease-out 0.2s backwards;
-}
-
-@keyframes checkmark {
-  0% {
-    transform: scale(0);
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
 
 /* ======================================
    EXPANDABLE SECTIONS
@@ -2882,15 +2813,7 @@ select option {
     height: 14px !important;
   }
 
- /* Success Toast - Mobile Position */
-  .success-toast {
-    top: 16px !important;
-    right: 16px !important;
-    left: 16px !important;
-    max-width: calc(100vw - 32px); /* ADDED: Limit width on mobile */
-    padding: 0.75rem 1rem !important;
-  }
-
+ 
   /* Kebab Menu - Mobile */
   .kebab-menu {
     right: 0 !important;
