@@ -8,7 +8,7 @@ import { AuthProvider } from "./context/AuthContext.jsx";
 import { AppStateProvider } from "./context/AppStateContext.jsx";
 import { GuestModeProvider } from "./context/GuestModeContext.jsx"; // NEW
 import { initSentry } from "./lib/sentry.js";
-
+import { NotificationProvider } from "./context/NotificationContext";
 // Initialize error tracking
 initSentry();
 
@@ -17,7 +17,9 @@ createRoot(document.getElementById("root")).render(
     <AuthProvider>
       <AppStateProvider>
         <GuestModeProvider>
+          <NotificationProvider>
           <App />
+          </NotificationProvider>
         </GuestModeProvider>
       </AppStateProvider>
     </AuthProvider>
