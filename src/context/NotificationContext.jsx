@@ -96,6 +96,7 @@ export function NotificationProvider({ children }) {
   );
 }
 
+// Notification Container Component
 function NotificationContainer() {
   const { notifications, removeNotification } = useNotification();
 
@@ -132,36 +133,72 @@ function Notification({ notification, onClose }) {
     }
   };
 
-  const getStyles = () => {
-    const baseStyles = {
-      backgroundColor: "var(--card)",
-      color: "var(--foreground)",
-      border: "1px solid",
-    };
-
+  const getBackgroundColor = () => {
     switch (type) {
       case "success":
-        return { ...baseStyles, borderColor: "rgb(34, 197, 94)" };
+        return "rgba(34, 197, 94, 0.12)"; // Light green tint
       case "error":
-        return { ...baseStyles, borderColor: "var(--destructive)" };
+        return "rgba(239, 68, 68, 0.12)"; // Light red tint
       case "warning":
-        return { ...baseStyles, borderColor: "rgb(234, 179, 8)" };
+        return "rgba(234, 179, 8, 0.12)"; // Light yellow tint
       case "info":
       default:
-        return { ...baseStyles, borderColor: "var(--primary)" };
+        return "rgba(139, 92, 246, 0.12)"; // Light purple tint
     }
+  };
+
+  const getBorderColor = () => {
+    switch (type) {
+      case "success":
+        return "rgba(34, 197, 94, 0.4)";
+      case "error":
+        return "rgba(239, 68, 68, 0.4)";
+      case "warning":
+        return "rgba(234, 179, 8, 0.4)";
+      case "info":
+      default:
+        return "rgba(139, 92, 246, 0.4)";
+    }
+  };
+
+  const getIconColor = () => {
+    switch (type) {
+      case "success":
+        return "rgb(34, 197, 94)";
+      case "error":
+        return "rgb(239, 68, 68)";
+      case "warning":
+        return "rgb(234, 179, 8)";
+      case "info":
+      default:
+        return "rgb(139, 92, 246)";
+    }
+  };
+
+  const getStyles = () => {
+    return {
+      backgroundColor: getBackgroundColor(),
+      color: "var(--foreground)",
+      border: `1px solid ${getBorderColor()}`,
+      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.15)",
+    };
   };
 
   return (
     <div
-      className="glass-card px-4 py-3 rounded-lg text-sm shadow-lg animate-slideIn"
+      className="px-4 py-3 rounded-lg text-sm shadow-lg animate-slideIn backdrop-blur-sm"
       style={getStyles()}
       role="alert"
       aria-live="polite"
     >
       <div className="flex items-center gap-3">
-        <span className="text-lg flex-shrink-0">{getIcon()}</span>
-        <span className="flex-1">{message}</span>
+        <span 
+          className="text-lg flex-shrink-0 font-bold" 
+          style={{ color: getIconColor() }}
+        >
+          {getIcon()}
+        </span>
+        <span className="flex-1 font-medium">{message}</span>
         <button
           onClick={onClose}
           className="flex-shrink-0 hover:opacity-70 transition-opacity"
@@ -174,24 +211,3 @@ function Notification({ notification, onClose }) {
     </div>
   );
 }
-
-// Add animation styles to App.css
-const animationStyles = `
-@keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.animate-slideIn {
-  animation: slideIn 0.3s ease-out;
-}
-`;
-
-// Export styles to be added to App.css
-export { animationStyles };
