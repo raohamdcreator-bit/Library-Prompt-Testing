@@ -1,5 +1,5 @@
-// src/components/PromptList.jsx - COMPLETE FIXED VERSION
-// ✅ All 8 issues resolved
+// src/components/PromptList.jsx - COMPLETE FIXED VERSION with Working View Outputs
+// ✅ All 8 issues resolved + ViewOutputsModal integration
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -32,11 +32,13 @@ import EnhancedBadge from './EnhancedBadge';
 import { ExportUtils } from "./ExportImport";
 import AIPromptEnhancer from "./AIPromptEnhancer";
 import AddResultModal from "./AddResultModal";
+import ViewOutputsModal from "./ViewOutputsModal";
 import { usePromptRating } from "./PromptAnalytics";
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { TokenEstimator, AI_MODELS } from "./AIModelTools";
 import BulkOperations, { PromptSelector } from "./BulkOperations";
 import { useNotification } from "../context/NotificationContext";
+
 // Utility functions
 function getRelativeTime(timestamp) {
   if (!timestamp) return "";
@@ -291,7 +293,6 @@ function InlineCommentBox({ promptId, teamId, commentCount, recentComments = [],
         </div>
       </div>
 
-      {/* ADD THIS SECTION - Display recent comments */}
       {recentComments && recentComments.length > 0 && (
         <div className="recent-comments-preview">
           <div className="comment-preview-header">
@@ -514,7 +515,6 @@ function PromptCard({
           ) : (
             <>
               <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} />
-              {/* ✅ FIXED: Enhance button always visible */}
               <button onClick={() => onEnhance(prompt)} className="btn-action-secondary" title="AI Enhance">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Enhance</span>
@@ -600,6 +600,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
   const [selectedPrompts, setSelectedPrompts] = useState([]);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [viewOutputsPrompt, setViewOutputsPrompt] = useState(null); // ✅ NEW
   
   const demos = useMemo(() => {
     if (isGuestMode && userPrompts.length === 0) return getAllDemoPrompts();
@@ -689,7 +690,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     loadTeamData();
   }, [activeTeam, isGuestMode]);
 
-  // ✅ FIXED: Search with filter
   const allPrompts = useMemo(() => {
     let combined = [...demos, ...userPrompts];
     if (searchQuery.trim()) {
@@ -711,7 +711,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const displayDemos = useMemo(() => allPrompts.filter(p => isDemoPrompt(p)), [allPrompts]);
   const displayUserPrompts = useMemo(() => allPrompts.filter(p => !isDemoPrompt(p)), [allPrompts]);
 
-  // Bulk operations
   const handleSelectPrompt = (promptId, isSelected) => {
     setSelectedPrompts(prev => isSelected ? [...prev, promptId] : prev.filter(id => id !== promptId));
   };
@@ -844,7 +843,12 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     setShowAIEnhancer(true);
   }
 
- function showSuccessToast(message) {
+  // ✅ NEW: Handle viewing all outputs
+  function handleViewOutputs(prompt) {
+    setViewOutputsPrompt(prompt);
+  }
+
+  function showSuccessToast(message) {
     playNotification();
     success(message, 3000);
   }
@@ -889,7 +893,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           </button>
         </div>
 
-        {/* ✅ FIXED: Search with clear button */}
         {allPrompts.length > 0 && (
           <div className="flex gap-3 mt-4 flex-wrap">
             <div className="flex-1 min-w-0 relative">
@@ -937,7 +940,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         )}
       </div>
 
-      {/* ✅ FIXED: Bulk Operations always visible */}
       {!isGuestMode && displayUserPrompts.length > 0 && (
         <BulkOperations prompts={displayUserPrompts} selectedPrompts={selectedPrompts}
           onSelectionChange={setSelectedPrompts} onBulkDelete={handleBulkDelete}
@@ -1018,7 +1020,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               author={teamMembers[prompt.createdBy]} isGuestMode={isGuestMode} activeTeam={activeTeam}
               userRole={userRole} onCopy={handleCopy} onEdit={(p) => { setEditingPrompt(p); setShowEditModal(true); }}
               onDelete={handleDelete} onToggleVisibility={handleToggleVisibility} onEnhance={handleEnhance}
-              onViewOutputs={(p) => {}} onAttachOutput={(p) => setSelectedPromptForAttach(p)}
+              onViewOutputs={handleViewOutputs} onAttachOutput={(p) => setSelectedPromptForAttach(p)}
               viewedPrompts={viewedPrompts} onMarkViewed={(id) => setViewedPrompts(prev => new Set([...prev, id]))}
               showCommentInput={showCommentInput[prompt.id] || false} onToggleComments={handleToggleComments}
               isSelected={selectedPrompts.includes(prompt.id)} onSelect={handleSelectPrompt}
@@ -1027,7 +1029,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </section>
       )}
 
-      {/* ✅ FIXED: Empty state with clear search */}
       {allPrompts.length === 0 && (
         <div className="glass-card p-12 text-center">
           <Sparkles size={48} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
@@ -1064,6 +1065,21 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         <AddResultModal isOpen={!!selectedPromptForAttach}
           onClose={() => setSelectedPromptForAttach(null)}
           promptId={selectedPromptForAttach.id} teamId={activeTeam} userId={user?.uid} />
+      )}
+
+      {/* ✅ NEW: ViewOutputsModal */}
+      {viewOutputsPrompt && (
+        <ViewOutputsModal 
+          isOpen={!!viewOutputsPrompt}
+          onClose={() => setViewOutputsPrompt(null)}
+          prompt={viewOutputsPrompt}
+          teamId={activeTeam}
+          userRole={userRole}
+          onAttachNew={() => {
+            setViewOutputsPrompt(null);
+            setSelectedPromptForAttach(viewOutputsPrompt);
+          }}
+        />
       )}
 
       {showAIEnhancer && currentPromptForAI && (
