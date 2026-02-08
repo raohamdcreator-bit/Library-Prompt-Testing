@@ -1,4 +1,4 @@
-// src/components/AdvancedSearch.jsx - Professional 
+// src/components/AdvancedSearch.jsx - FIXED: Search icon + z-index
 import { useState, useEffect, useMemo } from "react";
 import { 
   Search, 
@@ -228,10 +228,13 @@ export default function AdvancedSearch({
         </h3>
       </div>
 
-      {/* Basic Search */}
+      {/* Basic Search - ✅ FIXED: Added search icon inside input */}
       <div className="flex items-center gap-3 mb-4">
         <div className="flex-1 relative">
-        
+          <Search 
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" 
+            style={{ color: 'var(--muted-foreground)', pointerEvents: 'none' }} 
+          />
           <input
             type="text"
             placeholder="Search prompts, titles, tags..."
