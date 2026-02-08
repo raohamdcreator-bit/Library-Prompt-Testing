@@ -7,7 +7,7 @@ import { trackPromptCopy } from "../lib/promptStats";
 import { updateCommentCount } from "../lib/promptStats";
 import {
   collection, onSnapshot, query, orderBy, getDoc, doc,
-  addDoc, serverTimestamp, deleteDoc,
+  addDoc, serverTimestamp, deleteDoc, updateDoc,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useGuestMode } from "../context/GuestModeContext";
@@ -483,7 +483,7 @@ function PromptCard({
   onCopy, onEdit, onDelete, onToggleVisibility, onDuplicate,
   onViewOutputs, onAttachOutput, onEnhance, viewedPrompts = new Set(),
   onMarkViewed, showCommentInput, onToggleComments,
-  isSelected, onSelect, openMenuId, onMenuToggle,
+  isSelected, onSelect, openMenuId, onMenuToggle, onTrackView,
 }) {
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
@@ -554,7 +554,16 @@ function PromptCard({
             {!isTextExpanded && shouldTruncate && <span className="text-muted-foreground">...</span>}
           </div>
           {shouldTruncate && (
-            <button onClick={() => setIsTextExpanded(!isTextExpanded)} className="read-more-btn">
+            <button 
+              onClick={() => {
+                setIsTextExpanded(!isTextExpanded);
+                // Track view when expanding
+                if (!isTextExpanded && onTrackView) {
+                  onTrackView(prompt.id);
+                }
+              }} 
+              className="read-more-btn"
+            >
               {isTextExpanded ? "Show less" : "Read more"}
               <ChevronDown className={`w-3 h-3 transition-transform ${isTextExpanded ? 'rotate-180' : ''}`} />
             </button>
@@ -659,10 +668,15 @@ function PromptCard({
                   <span className="hidden sm:inline">Comment</span>
                 </button>
               )}
-              {/* ✅ FIXED: Kebab menu with z-index fix and auto-close + Guest mode lock icons */}
+              {/* ✅ UPDATED: More Actions with text label */}
               <div className="relative" ref={menuRef}>
-                <button onClick={() => onMenuToggle(showMenu ? null : prompt.id)}
-                  className="btn-action-secondary" aria-expanded={showMenu}>
+                <button 
+                  onClick={() => onMenuToggle(showMenu ? null : prompt.id)}
+                  className="btn-action-secondary" 
+                  aria-expanded={showMenu}
+                  title="More actions"
+                >
+                  <span className="hidden sm:inline text-sm">More Actions</span>
                   <MoreVertical className="w-3.5 h-3.5" />
                 </button>
                 {showMenu && (
@@ -750,6 +764,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [selectedPrompts, setSelectedPrompts] = useState([]);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [viewOutputsPrompt, setViewOutputsPrompt] = useState(null); // ✅ NEW
+  const [trackedViews, setTrackedViews] = useState(new Set()); // ✅ Track which prompts user has viewed
   
   const demos = useMemo(() => {
     if (isGuestMode && userPrompts.length === 0) return getAllDemoPrompts();
@@ -1001,6 +1016,40 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     setViewOutputsPrompt(prompt);
   }
 
+  // ✅ NEW: Track view count when user expands prompt
+  async function handleTrackView(promptId) {
+    // Prevent duplicate counts
+    if (trackedViews.has(promptId)) return;
+    
+    // Mark as tracked immediately to prevent race conditions
+    setTrackedViews(prev => new Set([...prev, promptId]));
+    
+    // Update Firestore if not guest mode
+    if (!isGuestMode && activeTeam) {
+      try {
+        const promptRef = doc(db, "teams", activeTeam, "prompts", promptId);
+        const promptDoc = await getDoc(promptRef);
+        
+        if (promptDoc.exists()) {
+          const currentStats = promptDoc.data().stats || {};
+          const currentViews = currentStats.views || 0;
+          
+          await updateDoc(promptRef, {
+            'stats.views': currentViews + 1
+          });
+        }
+      } catch (error) {
+        console.error("Error tracking view:", error);
+        // Remove from tracked on error so it can be retried
+        setTrackedViews(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(promptId);
+          return newSet;
+        });
+      }
+    }
+  }
+
   function showSuccessToast(message) {
     playNotification();
     success(message, 3000);
@@ -1154,7 +1203,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               canEdit={false} author={null} isGuestMode={isGuestMode} activeTeam={activeTeam}
               userRole={userRole} onCopy={handleCopy} onDuplicate={handleDuplicateDemo}
               viewedPrompts={viewedPrompts} showCommentInput={false} onToggleComments={() => {}}
-              openMenuId={openMenuId} onMenuToggle={setOpenMenuId} />
+              openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView} />
           ))}
         </section>
       )}
@@ -1177,7 +1226,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               viewedPrompts={viewedPrompts} onMarkViewed={(id) => setViewedPrompts(prev => new Set([...prev, id]))}
               showCommentInput={showCommentInput[prompt.id] || false} onToggleComments={handleToggleComments}
               isSelected={selectedPrompts.includes(prompt.id)} onSelect={handleSelectPrompt}
-              openMenuId={openMenuId} onMenuToggle={setOpenMenuId} />
+              openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView} />
           ))}
         </section>
       )}
