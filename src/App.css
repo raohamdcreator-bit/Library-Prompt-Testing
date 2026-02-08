@@ -4185,3 +4185,99 @@ select option {
     max-width: calc(100vw - 2rem);
   }
 }
+
+/* ==========================================
+   SEARCH BAR & FILTER MENU FIXES
+   Add these rules to src/App.css
+========================================== */
+
+/* ✅ FIX: Ensure filter dropdown appears above all cards */
+.glass-card {
+  /* Remove or reduce z-index to allow dropdowns to appear above */
+  z-index: auto;
+  position: relative;
+}
+
+/* ✅ FIX: Dropdown menu stacking context */
+.relative:has(.absolute.z-\[100\]) {
+  z-index: 101; /* Higher than glass-card */
+}
+
+/* ✅ FIX: Filter menu proper stacking */
+.absolute.z-\[100\] {
+  z-index: 100 !important;
+}
+
+/* ✅ FIX: Ensure proper input padding for icon */
+.search-input {
+  padding-left: 2.5rem;
+}
+
+.search-input.pl-10 {
+  padding-left: 2.5rem !important;
+}
+
+/* ✅ FIX: Search icon positioning */
+.search-input + .absolute,
+.relative > .absolute[style*="pointer-events: none"] {
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ✅ FIX: Clear button positioning */
+.search-input ~ button.absolute {
+  pointer-events: auto;
+  z-index: 10;
+}
+
+/* ==========================================
+   ADDITIONAL Z-INDEX HIERARCHY
+========================================== */
+
+/* Base layer */
+.prompt-card-v2,
+.glass-card {
+  z-index: 1;
+}
+
+/* Interactive elements */
+.kebab-menu-v2 {
+  z-index: 1000;
+}
+
+/* Dropdowns and menus */
+[class*="absolute"][class*="z-"] {
+  z-index: 100;
+}
+
+/* Modals */
+.modal-overlay {
+  z-index: 10000;
+}
+
+/* Notifications */
+.notification-container {
+  z-index: 99999;
+}
+
+/* ==========================================
+   SEARCH INPUT ENHANCEMENTS
+========================================== */
+
+/* Ensure search icon doesn't interfere with input */
+.search-input:focus ~ .absolute svg,
+.search-input:focus + .absolute svg {
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+/* Better visual feedback for search */
+.search-input:not(:placeholder-shown) {
+  background: var(--popover);
+}
+
+/* Clear button hover state */
+.search-input ~ button.absolute:hover {
+  color: var(--destructive);
+}
+
