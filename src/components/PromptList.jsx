@@ -676,7 +676,7 @@ function PromptCard({
                   aria-expanded={showMenu}
                   title="More actions"
                 >
-                  <span className="hidden sm:inline text-sm">More Actions</span>
+                  <span className="hidden sm:inline">More Actions</span>
                   <MoreVertical className="w-3.5 h-3.5" />
                 </button>
                 {showMenu && (
