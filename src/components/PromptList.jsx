@@ -1048,7 +1048,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               </button>
               {/* ✅ FIXED: Increased z-index to z-[100] to appear above glass-card */}
               {showFilterMenu && (
-                <div className="absolute top-full mt-2 right-0 min-w-[200px] bg-popover border border-border rounded-lg shadow-lg z-[100] p-2">
+                <div className="absolute top-full mt-2 right-0 min-w-[200px] bg-popover border border-border rounded-lg shadow-lg z-[10000] p-2">
                   <button onClick={() => { setFilterCategory('all'); setShowFilterMenu(false); }}
                     className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent ${filterCategory === 'all' ? 'bg-primary text-white' : ''}`}>
                     All Prompts
