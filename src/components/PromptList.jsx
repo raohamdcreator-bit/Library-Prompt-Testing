@@ -1,5 +1,5 @@
-// src/components/PromptList.jsx - COMPLETE FIXED VERSION with Working View Outputs + Guest Mode Lock Icons
-// ✅ All 8 issues resolved + ViewOutputsModal integration + Guest mode lock icons for comments/outputs
+// src/components/PromptList.jsx - COMPLETE with Comments Integration + Pagination
+// ✅ Full comment edit/delete/reply functionality + Per-page prompt configuration
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -33,11 +33,13 @@ import { ExportUtils } from "./ExportImport";
 import AIPromptEnhancer from "./AIPromptEnhancer";
 import AddResultModal from "./AddResultModal";
 import ViewOutputsModal from "./ViewOutputsModal";
+import Comments from "./Comments"; // ✅ Import full Comments component
 import { usePromptRating } from "./PromptAnalytics";
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { TokenEstimator, AI_MODELS } from "./AIModelTools";
 import BulkOperations, { PromptSelector } from "./BulkOperations";
 import { useNotification } from "../context/NotificationContext";
+import usePagination, { PaginationControls } from "../hooks/usePagination"; // ✅ Import pagination
 
 // Utility functions
 function getRelativeTime(timestamp) {
@@ -111,7 +113,7 @@ function CopyButton({ text, promptId, onCopy }) {
   );
 }
 
-// ✅ FIXED: Output Preview with 120px truncation + Guest Mode Lock Icons
+// Output Preview with 120px truncation + Guest Mode Lock Icons
 function OutputPreviewPanel({ outputs, onViewAll, isGuestMode = false }) {
   if (!outputs || outputs.length === 0) {
     return (
@@ -200,7 +202,7 @@ function OutputPreviewPanel({ outputs, onViewAll, isGuestMode = false }) {
   );
 }
 
-// ✅ FIXED: Inline Rating with functional integration
+// Inline Rating with functional integration
 function InlineRating({ teamId, promptId, isGuestMode }) {
   const { user } = useAuth();
   const { averageRating, totalRatings, userRating, ratePrompt } = usePromptRating(teamId, promptId);
@@ -246,98 +248,32 @@ function InlineRating({ teamId, promptId, isGuestMode }) {
   );
 }
 
-// Updated InlineCommentBox component
-function InlineCommentBox({ promptId, teamId, commentCount, recentComments = [], onClose }) {
-  const { user } = useAuth();
-  const [commentText, setCommentText] = useState("");
-  const [isPosting, setIsPosting] = useState(false);
-
-  const handlePost = async () => {
-    if (!commentText.trim() || isPosting) return;
-    setIsPosting(true);
-    try {
-      await addDoc(collection(db, "teams", teamId, "prompts", promptId, "comments"), {
-        text: commentText.trim(), 
-        createdBy: user.uid, 
-        createdAt: serverTimestamp(), 
-        parentId: null,
-      });
-      await updateCommentCount(teamId, promptId, 1);
-      setCommentText("");
-    } catch (error) {
-      console.error("Error posting comment:", error);
-    } finally {
-      setIsPosting(false);
-    }
-  };
-
+// ✅ NEW: Full Comments Section with Edit/Delete/Reply
+function ExpandedCommentsSection({ promptId, teamId, commentCount, onClose, userRole }) {
   return (
-    <div className="inline-comment-box">
-      <div className="comment-input-section">
-        <textarea 
-          placeholder="Add a comment..." 
-          value={commentText}
-          onChange={(e) => setCommentText(e.target.value)}
-          className="comment-textarea" 
-          rows={3} 
-          maxLength={500} 
-        />
-        <div className="comment-actions">
-          <span className="text-xs text-muted-foreground">
-            {commentText.length}/500
-          </span>
-          <div className="flex gap-2">
-            <button 
-              onClick={onClose} 
-              className="btn-secondary text-xs px-3 py-1.5" 
-              disabled={isPosting}
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={handlePost} 
-              className="btn-primary text-xs px-3 py-1.5"
-              disabled={!commentText.trim() || isPosting}
-            >
-              {isPosting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
-              Post
-            </button>
-          </div>
+    <div className="expanded-comments-section" style={{
+      marginTop: '1rem',
+      padding: '1rem',
+      backgroundColor: 'var(--muted)',
+      borderRadius: '0.75rem',
+      border: '1px solid var(--border)'
+    }}>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <MessageSquare className="w-4 h-4 text-primary" />
+          <h4 className="text-sm font-semibold text-foreground">
+            Comments ({commentCount})
+          </h4>
         </div>
+        <button 
+          onClick={onClose}
+          className="p-1 hover:bg-background rounded transition-colors"
+          title="Close comments"
+        >
+          <X className="w-4 h-4 text-muted-foreground" />
+        </button>
       </div>
-
-      {recentComments && recentComments.length > 0 && (
-        <div className="recent-comments-preview">
-          <div className="comment-preview-header">
-            Recent Comments ({commentCount})
-          </div>
-          {recentComments.slice(0, 3).map((comment) => (
-            <div key={comment.id} className="comment-preview-item">
-              <UserAvatar 
-                src={comment.authorAvatar} 
-                name={comment.authorName} 
-                email={comment.authorEmail} 
-                size="sm" 
-              />
-              <div className="comment-preview-content">
-                <span className="comment-author">
-                  {comment.authorName || comment.authorEmail || "Unknown"}
-                </span>
-                <p className="comment-text-preview">{comment.text}</p>
-                <span className="comment-time">
-                  {getRelativeTime(comment.createdAt)}
-                </span>
-              </div>
-            </div>
-          ))}
-          {commentCount > 3 && (
-            <button className="view-all-comments-link">
-              View all {commentCount} comments
-              <ChevronDown className="w-3 h-3" />
-            </button>
-          )}
-        </div>
-      )}
+      <Comments teamId={teamId} promptId={promptId} userRole={userRole} />
     </div>
   );
 }
@@ -478,11 +414,11 @@ function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
 
 // Main Prompt Card Component
 function PromptCard({ 
-  prompt, outputs = [], comments = [], isDemo = false, canEdit = false,
+  prompt, outputs = [], commentCount = 0, isDemo = false, canEdit = false,
   author, isGuestMode = false, activeTeam, userRole,
   onCopy, onEdit, onDelete, onToggleVisibility, onDuplicate,
   onViewOutputs, onAttachOutput, onEnhance, viewedPrompts = new Set(),
-  onMarkViewed, showCommentInput, onToggleComments,
+  onMarkViewed, showCommentSection, onToggleComments,
   isSelected, onSelect, openMenuId, onMenuToggle, onTrackView,
 }) {
   const [isTextExpanded, setIsTextExpanded] = useState(false);
@@ -495,7 +431,7 @@ function PromptCard({
   const badge = getPromptBadge(prompt, isGuestMode);
   const showMenu = openMenuId === prompt.id;
 
-  // ✅ FIXED: Auto-close menu on outside click
+  // Auto-close menu on outside click
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target) && showMenu) {
@@ -557,7 +493,6 @@ function PromptCard({
             <button 
               onClick={() => {
                 setIsTextExpanded(!isTextExpanded);
-                // Track view when expanding
                 if (!isTextExpanded && onTrackView) {
                   onTrackView(prompt.id);
                 }
@@ -618,12 +553,12 @@ function PromptCard({
               >
                 <Lock className="w-3 h-3 mr-1" />
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>{comments.length}</span>
+                <span>{commentCount}</span>
               </button>
             ) : (
               <button onClick={() => onToggleComments(prompt.id)} className="metadata-item-button">
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>{comments.length}</span>
+                <span>{commentCount}</span>
               </button>
             )}
             <div className="metadata-dot" />
@@ -631,10 +566,15 @@ function PromptCard({
           </div>
         </div>
 
-        {showCommentInput && !isDemo && (
-          <InlineCommentBox promptId={prompt.id} teamId={activeTeam}
-            commentCount={comments.length} recentComments={comments}
-            onClose={() => onToggleComments(prompt.id)} />
+        {/* ✅ UPDATED: Full Comments Section with Edit/Delete/Reply */}
+        {showCommentSection && !isDemo && !isGuestMode && (
+          <ExpandedCommentsSection 
+            promptId={prompt.id}
+            teamId={activeTeam}
+            commentCount={commentCount}
+            onClose={() => onToggleComments(prompt.id)}
+            userRole={userRole}
+          />
         )}
 
         <div className="prompt-actions">
@@ -668,7 +608,6 @@ function PromptCard({
                   <span className="hidden sm:inline">Comment</span>
                 </button>
               )}
-              {/* ✅ UPDATED: More Actions with text label */}
               <div className="relative" ref={menuRef}>
                 <button 
                   onClick={() => onMenuToggle(showMenu ? null : prompt.id)}
@@ -678,7 +617,6 @@ function PromptCard({
                 >
                   <MoreVertical className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">More Actions</span>
-              
                 </button>
                 {showMenu && (
                   <div className="kebab-menu-v2">
@@ -758,14 +696,14 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [promptOutputs, setPromptOutputs] = useState({});
   const [promptComments, setPromptComments] = useState({});
-  const [showCommentInput, setShowCommentInput] = useState({});
+  const [showCommentSection, setShowCommentSection] = useState({}); // ✅ Changed from showCommentInput
   const [selectedPromptForAttach, setSelectedPromptForAttach] = useState(null);
   const [showAIEnhancer, setShowAIEnhancer] = useState(false);
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
   const [selectedPrompts, setSelectedPrompts] = useState([]);
   const [openMenuId, setOpenMenuId] = useState(null);
-  const [viewOutputsPrompt, setViewOutputsPrompt] = useState(null); // ✅ NEW
-  const [trackedViews, setTrackedViews] = useState(new Set()); // ✅ Track which prompts user has viewed
+  const [viewOutputsPrompt, setViewOutputsPrompt] = useState(null);
+  const [trackedViews, setTrackedViews] = useState(new Set());
   
   const demos = useMemo(() => {
     if (isGuestMode && userPrompts.length === 0) return getAllDemoPrompts();
@@ -812,25 +750,19 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsubscribers.forEach((unsub) => unsub());
   }, [userPrompts, activeTeam, isGuestMode]);
 
-  // Load comments
+  // ✅ UPDATED: Load comment counts
   useEffect(() => {
     if (isGuestMode || !activeTeam) return;
     const unsubscribers = [];
     userPrompts.forEach((prompt) => {
-      const q = query(collection(db, "teams", activeTeam, "prompts", prompt.id, "comments"),
-        orderBy("createdAt", "desc"));
-      const unsub = onSnapshot(q, async (snap) => {
-        const commentData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        const enrichedComments = await Promise.all(commentData.map(async (comment) => {
-          const author = teamMembers[comment.createdBy];
-          return { ...comment, authorName: author?.name, authorEmail: author?.email, authorAvatar: author?.avatar };
-        }));
-        setPromptComments((prev) => ({ ...prev, [prompt.id]: enrichedComments }));
+      const q = query(collection(db, "teams", activeTeam, "prompts", prompt.id, "comments"));
+      const unsub = onSnapshot(q, (snap) => {
+        setPromptComments((prev) => ({ ...prev, [prompt.id]: snap.docs.length }));
       });
       unsubscribers.push(unsub);
     });
     return () => unsubscribers.forEach((unsub) => unsub());
-  }, [userPrompts, activeTeam, isGuestMode, teamMembers]);
+  }, [userPrompts, activeTeam, isGuestMode]);
 
   // Load team data
   useEffect(() => {
@@ -875,6 +807,12 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
   const displayDemos = useMemo(() => allPrompts.filter(p => isDemoPrompt(p)), [allPrompts]);
   const displayUserPrompts = useMemo(() => allPrompts.filter(p => !isDemoPrompt(p)), [allPrompts]);
+
+  // ✅ NEW: Pagination for user prompts
+  const userPromptsPagination = usePagination(displayUserPrompts, 10);
+  
+  // ✅ NEW: Pagination for demo prompts
+  const demoPromptsPagination = usePagination(displayDemos, 5);
 
   const handleSelectPrompt = (promptId, isSelected) => {
     setSelectedPrompts(prev => isSelected ? [...prev, promptId] : prev.filter(id => id !== promptId));
@@ -1004,7 +942,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       alert("Sign up to view and add comments!");
       return;
     }
-    setShowCommentInput(prev => ({ ...prev, [promptId]: !prev[promptId] }));
+    setShowCommentSection(prev => ({ ...prev, [promptId]: !prev[promptId] }));
   }
 
   function handleEnhance(prompt) {
@@ -1012,20 +950,14 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     setShowAIEnhancer(true);
   }
 
-  // ✅ NEW: Handle viewing all outputs
   function handleViewOutputs(prompt) {
     setViewOutputsPrompt(prompt);
   }
 
-  // ✅ NEW: Track view count when user expands prompt
   async function handleTrackView(promptId) {
-    // Prevent duplicate counts
     if (trackedViews.has(promptId)) return;
-    
-    // Mark as tracked immediately to prevent race conditions
     setTrackedViews(prev => new Set([...prev, promptId]));
     
-    // Update Firestore if not guest mode
     if (!isGuestMode && activeTeam) {
       try {
         const promptRef = doc(db, "teams", activeTeam, "prompts", promptId);
@@ -1041,7 +973,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         }
       } catch (error) {
         console.error("Error tracking view:", error);
-        // Remove from tracked on error so it can be retried
         setTrackedViews(prev => {
           const newSet = new Set(prev);
           newSet.delete(promptId);
@@ -1193,22 +1124,39 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </div>
       )}
 
+      {/* ✅ Demo Prompts Section with Pagination */}
       {displayDemos.length > 0 && (
         <section className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <Sparkles className="w-5 h-5" style={{ color: 'var(--primary)' }} />
             <h3 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>Try These Examples</h3>
           </div>
-          {displayDemos.map((prompt) => (
-            <PromptCard key={prompt.id} prompt={prompt} outputs={[]} comments={[]} isDemo={true}
+          
+          {demoPromptsPagination.currentItems.map((prompt) => (
+            <PromptCard key={prompt.id} prompt={prompt} outputs={[]} commentCount={0} isDemo={true}
               canEdit={false} author={null} isGuestMode={isGuestMode} activeTeam={activeTeam}
               userRole={userRole} onCopy={handleCopy} onDuplicate={handleDuplicateDemo}
-              viewedPrompts={viewedPrompts} showCommentInput={false} onToggleComments={() => {}}
+              viewedPrompts={viewedPrompts} showCommentSection={false} onToggleComments={() => {}}
               openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView} />
           ))}
+
+          {/* ✅ Demo Pagination Controls */}
+          {displayDemos.length > 5 && (
+            <div className="mt-6">
+              <PaginationControls 
+                pagination={demoPromptsPagination}
+                showSearch={false}
+                showPageSizeSelector={true}
+                showItemCount={true}
+                pageSizeOptions={[5, 10, 15]}
+                className="glass-card p-4 rounded-lg"
+              />
+            </div>
+          )}
         </section>
       )}
 
+      {/* ✅ User Prompts Section with Pagination */}
       {displayUserPrompts.length > 0 && (
         <section>
           {isGuestMode && displayDemos.length > 0 && (
@@ -1217,18 +1165,33 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               <h3 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>Your Prompts</h3>
             </div>
           )}
-          {displayUserPrompts.map((prompt) => (
+          
+          {userPromptsPagination.currentItems.map((prompt) => (
             <PromptCard key={prompt.id} prompt={prompt} outputs={promptOutputs[prompt.id] || []}
-              comments={promptComments[prompt.id] || []} isDemo={false} canEdit={canEditPrompt(prompt)}
+              commentCount={promptComments[prompt.id] || 0} isDemo={false} canEdit={canEditPrompt(prompt)}
               author={teamMembers[prompt.createdBy]} isGuestMode={isGuestMode} activeTeam={activeTeam}
               userRole={userRole} onCopy={handleCopy} onEdit={(p) => { setEditingPrompt(p); setShowEditModal(true); }}
               onDelete={handleDelete} onToggleVisibility={handleToggleVisibility} onEnhance={handleEnhance}
               onViewOutputs={handleViewOutputs} onAttachOutput={(p) => setSelectedPromptForAttach(p)}
               viewedPrompts={viewedPrompts} onMarkViewed={(id) => setViewedPrompts(prev => new Set([...prev, id]))}
-              showCommentInput={showCommentInput[prompt.id] || false} onToggleComments={handleToggleComments}
+              showCommentSection={showCommentSection[prompt.id] || false} onToggleComments={handleToggleComments}
               isSelected={selectedPrompts.includes(prompt.id)} onSelect={handleSelectPrompt}
               openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView} />
           ))}
+
+          {/* ✅ User Prompts Pagination Controls */}
+          {displayUserPrompts.length > 10 && (
+            <div className="mt-6">
+              <PaginationControls 
+                pagination={userPromptsPagination}
+                showSearch={false}
+                showPageSizeSelector={true}
+                showItemCount={true}
+                pageSizeOptions={[5, 10, 20, 50]}
+                className="glass-card p-4 rounded-lg"
+              />
+            </div>
+          )}
         </section>
       )}
 
@@ -1270,7 +1233,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           promptId={selectedPromptForAttach.id} teamId={activeTeam} userId={user?.uid} />
       )}
 
-      {/* ✅ NEW: ViewOutputsModal */}
       {viewOutputsPrompt && (
         <ViewOutputsModal 
           isOpen={!!viewOutputsPrompt}
