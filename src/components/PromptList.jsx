@@ -1,5 +1,5 @@
-// src/components/PromptList.jsx - COMPLETE FIXED VERSION with Working View Outputs
-// ✅ All 8 issues resolved + ViewOutputsModal integration
+// src/components/PromptList.jsx - COMPLETE FIXED VERSION with Working View Outputs + Guest Mode Lock Icons
+// ✅ All 8 issues resolved + ViewOutputsModal integration + Guest mode lock icons for comments/outputs
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -111,16 +111,29 @@ function CopyButton({ text, promptId, onCopy }) {
   );
 }
 
-// ✅ FIXED: Output Preview with 120px truncation
-function OutputPreviewPanel({ outputs, onViewAll }) {
+// ✅ FIXED: Output Preview with 120px truncation + Guest Mode Lock Icons
+function OutputPreviewPanel({ outputs, onViewAll, isGuestMode = false }) {
   if (!outputs || outputs.length === 0) {
     return (
       <div className="output-preview-panel-empty">
         <FileText className="w-5 h-5 text-muted-foreground opacity-50" />
-        <p className="text-sm text-muted-foreground">No outputs yet</p>
-        <button onClick={onViewAll} className="text-xs text-primary hover:underline mt-1">
-          Attach first output
-        </button>
+        <p className="text-sm text-muted-foreground">
+          {isGuestMode ? "Outputs locked in guest mode" : "No outputs yet"}
+        </p>
+        {isGuestMode ? (
+          <button 
+            onClick={() => alert("Sign up to attach outputs and track prompt performance!")} 
+            className="text-xs text-muted-foreground hover:text-primary mt-1 flex items-center gap-1 opacity-60 cursor-not-allowed"
+            title="Sign up to attach outputs"
+          >
+            <Lock className="w-3 h-3" />
+            Sign up to attach outputs
+          </button>
+        ) : (
+          <button onClick={onViewAll} className="text-xs text-primary hover:underline mt-1">
+            Attach first output
+          </button>
+        )}
       </div>
     );
   }
@@ -557,17 +570,27 @@ function PromptCard({
           </div>
         )}
 
-       {!isDemo && (
-  <AIAnalysisSection 
-    text={prompt.text} 
-    isExpanded={showAIAnalysis}
-    onToggle={() => setShowAIAnalysis(!showAIAnalysis)} 
-    onEnhance={() => onEnhance && onEnhance(prompt)}
-  />
-)}
+        {!isDemo && (
+          <AIAnalysisSection 
+            text={prompt.text} 
+            isExpanded={showAIAnalysis}
+            onToggle={() => setShowAIAnalysis(!showAIAnalysis)} 
+            onEnhance={() => onEnhance && onEnhance(prompt)}
+          />
+        )}
 
         {!isDemo && (
-          <OutputPreviewPanel outputs={outputs} onViewAll={() => onViewOutputs && onViewOutputs(prompt)} />
+          <OutputPreviewPanel 
+            outputs={outputs} 
+            onViewAll={() => {
+              if (isGuestMode) {
+                alert("Sign up to view and attach outputs!");
+              } else {
+                onViewOutputs && onViewOutputs(prompt);
+              }
+            }}
+            isGuestMode={isGuestMode}
+          />
         )}
 
         <div className="prompt-metadata-row">
@@ -578,10 +601,22 @@ function PromptCard({
                 <div className="metadata-dot" />
               </>
             )}
-            <button onClick={() => onToggleComments(prompt.id)} className="metadata-item-button">
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span>{comments.length}</span>
-            </button>
+            {isGuestMode ? (
+              <button 
+                onClick={() => alert("Sign up to view and add comments!")} 
+                className="metadata-item-button opacity-60 cursor-not-allowed"
+                title="Sign up to comment"
+              >
+                <Lock className="w-3 h-3 mr-1" />
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>{comments.length}</span>
+              </button>
+            ) : (
+              <button onClick={() => onToggleComments(prompt.id)} className="metadata-item-button">
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>{comments.length}</span>
+              </button>
+            )}
             <div className="metadata-dot" />
             <div className="metadata-item"><Eye className="w-3.5 h-3.5" /><span>{prompt.stats?.views || 0}</span></div>
           </div>
@@ -608,13 +643,23 @@ function PromptCard({
                 <Sparkles className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Enhance</span>
               </button>
-              {!isGuestMode && (
+              {isGuestMode ? (
+                <button 
+                  onClick={() => alert("Sign up to add comments and collaborate with your team!")} 
+                  className="btn-action-secondary opacity-60 cursor-not-allowed"
+                  title="Sign up to comment"
+                >
+                  <Lock className="w-3 h-3 mr-1" />
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Comment</span>
+                </button>
+              ) : (
                 <button onClick={() => onToggleComments(prompt.id)} className="btn-action-secondary">
                   <MessageSquare className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Comment</span>
                 </button>
               )}
-              {/* ✅ FIXED: Kebab menu with z-index fix and auto-close */}
+              {/* ✅ FIXED: Kebab menu with z-index fix and auto-close + Guest mode lock icons */}
               <div className="relative" ref={menuRef}>
                 <button onClick={() => onMenuToggle(showMenu ? null : prompt.id)}
                   className="btn-action-secondary" aria-expanded={showMenu}>
@@ -622,7 +667,7 @@ function PromptCard({
                 </button>
                 {showMenu && (
                   <div className="kebab-menu-v2">
-                    {outputs.length > 0 && (
+                    {outputs.length > 0 && !isGuestMode && (
                       <>
                         <button onClick={() => { onViewOutputs(prompt); onMenuToggle(null); }} className="menu-item">
                           <FileText className="w-4 h-4" />
@@ -631,9 +676,24 @@ function PromptCard({
                         <div className="menu-divider" />
                       </>
                     )}
-                    <button onClick={() => { onAttachOutput(prompt); onMenuToggle(null); }} className="menu-item">
-                      <Plus className="w-4 h-4" /><span>Attach New Output</span>
-                    </button>
+                    {isGuestMode ? (
+                      <button 
+                        onClick={() => { 
+                          alert("Sign up to attach outputs and track prompt performance!"); 
+                          onMenuToggle(null); 
+                        }} 
+                        className="menu-item opacity-60 cursor-not-allowed"
+                        title="Sign up to attach outputs"
+                      >
+                        <Lock className="w-3 h-3 mr-1" />
+                        <Plus className="w-4 h-4" />
+                        <span>Attach New Output</span>
+                      </button>
+                    ) : (
+                      <button onClick={() => { onAttachOutput(prompt); onMenuToggle(null); }} className="menu-item">
+                        <Plus className="w-4 h-4" /><span>Attach New Output</span>
+                      </button>
+                    )}
                     <div className="menu-divider" />
                     {!isGuestMode && (
                       <button onClick={() => { onToggleVisibility(prompt.id); onMenuToggle(null); }} className="menu-item">
@@ -924,6 +984,10 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   }
 
   function handleToggleComments(promptId) {
+    if (isGuestMode) {
+      alert("Sign up to view and add comments!");
+      return;
+    }
     setShowCommentInput(prev => ({ ...prev, [promptId]: !prev[promptId] }));
   }
 
