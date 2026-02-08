@@ -1027,7 +1027,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           </button>
         </div>
 
-        {allPrompts.length > 0 && (
+        {/* ✅ FIXED: Show search controls when there are ANY prompts (demos or user), not just filtered results */}
+        {(userPrompts.length > 0 || demos.length > 0) && (
           <div className="flex gap-3 mt-4 flex-wrap">
             <div className="flex-1 min-w-0 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
@@ -1045,8 +1046,9 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                 <Filter className="w-4 h-4" /><span>Filter</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${showFilterMenu ? 'rotate-180' : ''}`} />
               </button>
+              {/* ✅ FIXED: Increased z-index to z-[100] to appear above glass-card */}
               {showFilterMenu && (
-                <div className="absolute top-full mt-2 right-0 min-w-[200px] bg-popover border border-border rounded-lg shadow-lg z-50 p-2">
+                <div className="absolute top-full mt-2 right-0 min-w-[200px] bg-popover border border-border rounded-lg shadow-lg z-[100] p-2">
                   <button onClick={() => { setFilterCategory('all'); setShowFilterMenu(false); }}
                     className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent ${filterCategory === 'all' ? 'bg-primary text-white' : ''}`}>
                     All Prompts
