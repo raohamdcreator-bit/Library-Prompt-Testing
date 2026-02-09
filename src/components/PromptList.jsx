@@ -712,17 +712,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return [];
   }, [isGuestMode, userPrompts.length]);
 
-  // ✅ NEW: Calculate filter menu position when it opens
-  useEffect(() => {
-    if (showFilterMenu && filterButtonRef.current) {
-      const rect = filterButtonRef.current.getBoundingClientRect();
-      setFilterMenuPosition({
-        top: rect.bottom + 8, // 8px gap below button
-        right: window.innerWidth - rect.right, // Align right edge
-      });
-    }
-  }, [showFilterMenu]);
-
   // Load prompts
   useEffect(() => {
     if (isGuestMode) {
@@ -1057,14 +1046,24 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             <div className="relative">
               <button 
                 ref={filterButtonRef}
-                onClick={() => setShowFilterMenu(!showFilterMenu)} 
+                onClick={() => {
+                  // Calculate position before opening
+                  if (!showFilterMenu && filterButtonRef.current) {
+                    const rect = filterButtonRef.current.getBoundingClientRect();
+                    setFilterMenuPosition({
+                      top: rect.bottom + 8,
+                      right: window.innerWidth - rect.right,
+                    });
+                  }
+                  setShowFilterMenu(!showFilterMenu);
+                }} 
                 className="btn-secondary px-4 py-3 flex items-center gap-2"
               >
                 <Filter className="w-4 h-4" /><span>Filter</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${showFilterMenu ? 'rotate-180' : ''}`} />
               </button>
               {/* ✅ FIXED: Using fixed positioning to escape overflow:hidden container */}
-              {showFilterMenu && (
+              {showFilterMenu && filterMenuPosition.top > 0 && (
                 <>
                   {/* Backdrop to close menu */}
                   <div 
@@ -1072,30 +1071,45 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                     onClick={() => setShowFilterMenu(false)}
                   />
                   <div 
-                    className="fixed min-w-[200px] bg-popover border border-border rounded-lg shadow-lg z-[100] p-2"
+                    className="fixed p-2 rounded-lg shadow-lg z-[100]"
                     style={{
                       top: `${filterMenuPosition.top}px`,
                       right: `${filterMenuPosition.right}px`,
+                      minWidth: '200px',
+                      backgroundColor: 'var(--popover)',
+                      border: '1px solid var(--border)',
                     }}
                   >
-                  <button onClick={() => { setFilterCategory('all'); setShowFilterMenu(false); }}
-                    className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent ${filterCategory === 'all' ? 'bg-primary text-white' : ''}`}>
+                  <button 
+                    onClick={() => { setFilterCategory('all'); setShowFilterMenu(false); }}
+                    className="menu-item"
+                    style={filterCategory === 'all' ? { backgroundColor: 'var(--primary)', color: 'white' } : {}}
+                  >
                     All Prompts
                   </button>
                   {displayDemos.length > 0 && (
-                    <button onClick={() => { setFilterCategory('demos'); setShowFilterMenu(false); }}
-                      className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent ${filterCategory === 'demos' ? 'bg-primary text-white' : ''}`}>
+                    <button 
+                      onClick={() => { setFilterCategory('demos'); setShowFilterMenu(false); }}
+                      className="menu-item"
+                      style={filterCategory === 'demos' ? { backgroundColor: 'var(--primary)', color: 'white' } : {}}
+                    >
                       Demo Prompts
                     </button>
                   )}
                   {displayUserPrompts.length > 0 && (
-                    <button onClick={() => { setFilterCategory('mine'); setShowFilterMenu(false); }}
-                      className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent ${filterCategory === 'mine' ? 'bg-primary text-white' : ''}`}>
+                    <button 
+                      onClick={() => { setFilterCategory('mine'); setShowFilterMenu(false); }}
+                      className="menu-item"
+                      style={filterCategory === 'mine' ? { backgroundColor: 'var(--primary)', color: 'white' } : {}}
+                    >
                       My Prompts
                     </button>
                   )}
-                  <button onClick={() => { setFilterCategory('enhanced'); setShowFilterMenu(false); }}
-                    className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent ${filterCategory === 'enhanced' ? 'bg-primary text-white' : ''}`}>
+                  <button 
+                    onClick={() => { setFilterCategory('enhanced'); setShowFilterMenu(false); }}
+                    className="menu-item"
+                    style={filterCategory === 'enhanced' ? { backgroundColor: 'var(--primary)', color: 'white' } : {}}
+                  >
                     AI Enhanced
                   </button>
                 </div>
