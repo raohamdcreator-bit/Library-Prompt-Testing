@@ -704,11 +704,24 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [openMenuId, setOpenMenuId] = useState(null);
   const [viewOutputsPrompt, setViewOutputsPrompt] = useState(null);
   const [trackedViews, setTrackedViews] = useState(new Set());
+  const filterButtonRef = useRef(null); // ✅ NEW: Ref for filter button
+  const [filterMenuPosition, setFilterMenuPosition] = useState({ top: 0, right: 0 }); // ✅ NEW: Menu position
   
   const demos = useMemo(() => {
     if (isGuestMode && userPrompts.length === 0) return getAllDemoPrompts();
     return [];
   }, [isGuestMode, userPrompts.length]);
+
+  // ✅ NEW: Calculate filter menu position when it opens
+  useEffect(() => {
+    if (showFilterMenu && filterButtonRef.current) {
+      const rect = filterButtonRef.current.getBoundingClientRect();
+      setFilterMenuPosition({
+        top: rect.bottom + 8, // 8px gap below button
+        right: window.innerWidth - rect.right, // Align right edge
+      });
+    }
+  }, [showFilterMenu]);
 
   // Load prompts
   useEffect(() => {
@@ -1042,13 +1055,29 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               )}
             </div>
             <div className="relative">
-              <button onClick={() => setShowFilterMenu(!showFilterMenu)} className="btn-secondary px-4 py-3 flex items-center gap-2">
+              <button 
+                ref={filterButtonRef}
+                onClick={() => setShowFilterMenu(!showFilterMenu)} 
+                className="btn-secondary px-4 py-3 flex items-center gap-2"
+              >
                 <Filter className="w-4 h-4" /><span>Filter</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${showFilterMenu ? 'rotate-180' : ''}`} />
               </button>
-              {/* ✅ FIXED: Increased z-index to z-[100] to appear above glass-card */}
+              {/* ✅ FIXED: Using fixed positioning to escape overflow:hidden container */}
               {showFilterMenu && (
-                <div className="absolute top-full mt-2 right-0 min-w-[200px] bg-popover border border-border rounded-lg shadow-lg z-[10000] p-2">
+                <>
+                  {/* Backdrop to close menu */}
+                  <div 
+                    className="fixed inset-0 z-[90]" 
+                    onClick={() => setShowFilterMenu(false)}
+                  />
+                  <div 
+                    className="fixed min-w-[200px] bg-popover border border-border rounded-lg shadow-lg z-[100] p-2"
+                    style={{
+                      top: `${filterMenuPosition.top}px`,
+                      right: `${filterMenuPosition.right}px`,
+                    }}
+                  >
                   <button onClick={() => { setFilterCategory('all'); setShowFilterMenu(false); }}
                     className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-accent ${filterCategory === 'all' ? 'bg-primary text-white' : ''}`}>
                     All Prompts
@@ -1070,6 +1099,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                     AI Enhanced
                   </button>
                 </div>
+                </>
               )}
             </div>
           </div>
