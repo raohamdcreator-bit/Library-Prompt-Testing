@@ -1,5 +1,5 @@
-// src/components/PromptList.jsx - COMPLETE with Comments Integration + Pagination
-// ✅ Full comment edit/delete/reply functionality + Per-page prompt configuration
+// src/components/PromptList.jsx - REFACTORED with dedicated filter card section
+// ✅ Filter button navigates to filter card • All filters integrated • Search + Create + Filter on single row
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -25,7 +25,8 @@ import {
   MoreVertical, Lock, Unlock, Eye, Star, FileText, Search,
   Check, Clock, Filter, MessageSquare, Activity, Code,
   Image as ImageIcon, Send, Loader2, Cpu, DollarSign,
-  Target, TrendingUp,
+  Target, TrendingUp, User, Calendar, Tag, Ruler, BarChart2,
+  Lightbulb, SlidersHorizontal,
 } from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
 import EnhancedBadge from './EnhancedBadge';
@@ -33,13 +34,13 @@ import { ExportUtils } from "./ExportImport";
 import AIPromptEnhancer from "./AIPromptEnhancer";
 import AddResultModal from "./AddResultModal";
 import ViewOutputsModal from "./ViewOutputsModal";
-import Comments from "./Comments"; // ✅ Import full Comments component
+import Comments from "./Comments";
 import { usePromptRating } from "./PromptAnalytics";
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { TokenEstimator, AI_MODELS } from "./AIModelTools";
 import BulkOperations, { PromptSelector } from "./BulkOperations";
 import { useNotification } from "../context/NotificationContext";
-import usePagination, { PaginationControls } from "../hooks/usePagination"; // ✅ Import pagination
+import usePagination, { PaginationControls } from "../hooks/usePagination";
 
 // Utility functions
 function getRelativeTime(timestamp) {
@@ -248,7 +249,7 @@ function InlineRating({ teamId, promptId, isGuestMode }) {
   );
 }
 
-// ✅ NEW: Full Comments Section with Edit/Delete/Reply
+// Full Comments Section with Edit/Delete/Reply
 function ExpandedCommentsSection({ promptId, teamId, commentCount, onClose, userRole }) {
   return (
     <div className="expanded-comments-section" style={{
@@ -566,7 +567,6 @@ function PromptCard({
           </div>
         </div>
 
-        {/* ✅ UPDATED: Full Comments Section with Edit/Delete/Reply */}
         {showCommentSection && !isDemo && !isGuestMode && (
           <ExpandedCommentsSection 
             promptId={prompt.id}
@@ -676,6 +676,224 @@ function PromptCard({
   );
 }
 
+// ✅ NEW: Dedicated Filter Card Component
+function FilterCard({ 
+  filters, 
+  onFilterChange, 
+  onClearFilters, 
+  hasActiveFilters, 
+  filteredCount,
+  teamMembers = {},
+  isExpanded,
+  onToggleExpanded 
+}) {
+  const authors = Object.entries(teamMembers).map(([uid, member]) => ({
+    uid,
+    name: member.name || member.email,
+  }));
+
+  const activeFilterCount = Object.values(filters).filter((value, index) => {
+    const keys = Object.keys(filters);
+    const key = keys[index];
+    return (
+      key !== "sortBy" && value !== "" && value !== "all"
+    );
+  }).length;
+
+  return (
+    <div className="glass-card p-6 mb-6" id="filter-card">
+      {/* Header with collapse toggle */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <SlidersHorizontal className="w-5 h-5" style={{ color: "var(--primary)" }} />
+          <div>
+            <h3 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
+              Advanced Filters
+            </h3>
+            {activeFilterCount > 0 && (
+              <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
+                {activeFilterCount} active {activeFilterCount === 1 ? 'filter' : 'filters'} • {filteredCount} results
+              </p>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={onToggleExpanded}
+          className="btn-secondary px-4 py-2 flex items-center gap-2"
+        >
+          <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+          <span>{isExpanded ? 'Collapse' : 'Expand'}</span>
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className="space-y-6">
+          {/* Sort By - Always visible */}
+          <div>
+            <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
+              <BarChart2 className="w-4 h-4" />
+              Sort By
+            </label>
+            <select
+              value={filters.sortBy}
+              onChange={(e) => onFilterChange("sortBy", e.target.value)}
+              className="form-input w-full"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="title">Title A-Z</option>
+              <option value="author">Author A-Z</option>
+              <option value="length-desc">Longest First</option>
+              <option value="length-asc">Shortest First</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Author Filter */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
+                <User className="w-4 h-4" />
+                Author
+              </label>
+              <select
+                value={filters.author}
+                onChange={(e) => onFilterChange("author", e.target.value)}
+                className="form-input w-full"
+              >
+                <option value="all">All Authors</option>
+                {authors.map((author) => (
+                  <option key={author.uid} value={author.uid}>
+                    {author.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Visibility Filter */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
+                <Lock className="w-4 h-4" />
+                Visibility
+              </label>
+              <select
+                value={filters.visibility}
+                onChange={(e) => onFilterChange("visibility", e.target.value)}
+                className="form-input w-full"
+              >
+                <option value="all">All Prompts</option>
+                <option value="public">Public Only</option>
+                <option value="private">Private Only</option>
+              </select>
+            </div>
+
+            {/* Date Range */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
+                <Calendar className="w-4 h-4" />
+                Created
+              </label>
+              <select
+                value={filters.dateRange}
+                onChange={(e) => onFilterChange("dateRange", e.target.value)}
+                className="form-input w-full"
+              >
+                <option value="all">Any Time</option>
+                <option value="today">Today</option>
+                <option value="week">Past Week</option>
+                <option value="month">Past Month</option>
+                <option value="quarter">Past 3 Months</option>
+              </select>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
+                <Tag className="w-4 h-4" />
+                Tags
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. writing, creative"
+                value={filters.tags}
+                onChange={(e) => onFilterChange("tags", e.target.value)}
+                className="form-input w-full"
+              />
+              <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+                Comma separated
+              </p>
+            </div>
+
+            {/* Length Range */}
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
+                <Ruler className="w-4 h-4" />
+                Min Characters
+              </label>
+              <input
+                type="number"
+                placeholder="0"
+                value={filters.minLength}
+                onChange={(e) => onFilterChange("minLength", e.target.value)}
+                className="form-input w-full"
+                min="0"
+              />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
+                <Ruler className="w-4 h-4" />
+                Max Characters
+              </label>
+              <input
+                type="number"
+                placeholder="No limit"
+                value={filters.maxLength}
+                onChange={(e) => onFilterChange("maxLength", e.target.value)}
+                className="form-input w-full"
+                min="0"
+              />
+            </div>
+          </div>
+
+          {/* Clear Filters */}
+          {hasActiveFilters && (
+            <div className="flex justify-between items-center pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+              <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                {activeFilterCount} active {activeFilterCount === 1 ? "filter" : "filters"}
+              </p>
+              <button
+                onClick={onClearFilters}
+                className="btn-secondary text-sm px-4 py-2 flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Clear All Filters
+              </button>
+            </div>
+          )}
+
+          {/* Search Tips */}
+          <div className="p-3 rounded-lg border" style={{
+            backgroundColor: "var(--muted)",
+            borderColor: "var(--border)",
+          }}>
+            <div className="flex items-start gap-2">
+              <Lightbulb className="w-4 h-4 mt-0.5" style={{ color: "var(--primary)" }} />
+              <div>
+                <p className="text-xs font-medium mb-1" style={{ color: "var(--foreground)" }}>
+                  Filter Tips
+                </p>
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  Combine multiple filters for precise results. Use tag search with commas to find prompts matching multiple tags.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Main Component
 export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId }) {
   const { user } = useAuth();
@@ -692,11 +910,9 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [teamName, setTeamName] = useState("");
   const [viewedPrompts, setViewedPrompts] = useState(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [promptOutputs, setPromptOutputs] = useState({});
   const [promptComments, setPromptComments] = useState({});
-  const [showCommentSection, setShowCommentSection] = useState({}); // ✅ Changed from showCommentInput
+  const [showCommentSection, setShowCommentSection] = useState({});
   const [selectedPromptForAttach, setSelectedPromptForAttach] = useState(null);
   const [showAIEnhancer, setShowAIEnhancer] = useState(false);
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
@@ -704,8 +920,19 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [openMenuId, setOpenMenuId] = useState(null);
   const [viewOutputsPrompt, setViewOutputsPrompt] = useState(null);
   const [trackedViews, setTrackedViews] = useState(new Set());
-  const filterButtonRef = useRef(null); // ✅ NEW: Ref for filter button
-  const [filterMenuPosition, setFilterMenuPosition] = useState({ top: 0, right: 0 }); // ✅ NEW: Menu position
+  const [showFilters, setShowFilters] = useState(false);
+  const filterCardRef = useRef(null);
+  
+  // ✅ NEW: Filter state
+  const [filters, setFilters] = useState({
+    author: "all",
+    tags: "",
+    dateRange: "all",
+    sortBy: "newest",
+    minLength: "",
+    maxLength: "",
+    visibility: "all",
+  });
   
   const demos = useMemo(() => {
     if (isGuestMode && userPrompts.length === 0) return getAllDemoPrompts();
@@ -752,7 +979,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsubscribers.forEach((unsub) => unsub());
   }, [userPrompts, activeTeam, isGuestMode]);
 
-  // ✅ UPDATED: Load comment counts
+  // Load comment counts
   useEffect(() => {
     if (isGuestMode || !activeTeam) return;
     const unsubscribers = [];
@@ -789,31 +1016,181 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     loadTeamData();
   }, [activeTeam, isGuestMode]);
 
-  const allPrompts = useMemo(() => {
-    let combined = [...demos, ...userPrompts];
+  // ✅ NEW: Apply filters function
+  function applyFilters(promptsList) {
+    let filtered = [...promptsList];
+
+    // Text search
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      combined = combined.filter(p => 
-        p.title.toLowerCase().includes(query) ||
-        p.text.toLowerCase().includes(query) ||
-        (p.tags && p.tags.some(tag => tag.toLowerCase().includes(query)))
+      const searchTerm = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(
+        (prompt) =>
+          prompt.title?.toLowerCase().includes(searchTerm) ||
+          prompt.text?.toLowerCase().includes(searchTerm) ||
+          (Array.isArray(prompt.tags) &&
+            prompt.tags.some((tag) => tag.toLowerCase().includes(searchTerm)))
       );
     }
-    if (filterCategory !== 'all') {
-      if (filterCategory === 'demos') combined = combined.filter(p => isDemoPrompt(p));
-      else if (filterCategory === 'mine') combined = combined.filter(p => !isDemoPrompt(p));
-      else if (filterCategory === 'enhanced') combined = combined.filter(p => p.enhanced === true);
+
+    // Author filter
+    if (filters.author !== "all") {
+      filtered = filtered.filter(
+        (prompt) => prompt.createdBy === filters.author
+      );
     }
-    return combined;
-  }, [demos, userPrompts, searchQuery, filterCategory]);
+
+    // Visibility filter
+    if (filters.visibility !== "all") {
+      filtered = filtered.filter(
+        (prompt) => (prompt.visibility || "public") === filters.visibility
+      );
+    }
+
+    // Tag filter
+    if (filters.tags.trim()) {
+      const searchTags = filters.tags
+        .toLowerCase()
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      filtered = filtered.filter(
+        (prompt) =>
+          Array.isArray(prompt.tags) &&
+          searchTags.some((searchTag) =>
+            prompt.tags.some((tag) => tag.toLowerCase().includes(searchTag))
+          )
+      );
+    }
+
+    // Date range filter
+    if (filters.dateRange !== "all") {
+      const now = new Date();
+      const cutoffDate = new Date();
+
+      switch (filters.dateRange) {
+        case "today":
+          cutoffDate.setHours(0, 0, 0, 0);
+          break;
+        case "week":
+          cutoffDate.setDate(now.getDate() - 7);
+          break;
+        case "month":
+          cutoffDate.setMonth(now.getMonth() - 1);
+          break;
+        case "quarter":
+          cutoffDate.setMonth(now.getMonth() - 3);
+          break;
+      }
+
+      filtered = filtered.filter((prompt) => {
+        if (!prompt.createdAt) return false;
+        try {
+          return prompt.createdAt.toDate() >= cutoffDate;
+        } catch {
+          return false;
+        }
+      });
+    }
+
+    // Length filters
+    if (filters.minLength && !isNaN(filters.minLength)) {
+      filtered = filtered.filter(
+        (prompt) => (prompt.text?.length || 0) >= parseInt(filters.minLength)
+      );
+    }
+
+    if (filters.maxLength && !isNaN(filters.maxLength)) {
+      filtered = filtered.filter(
+        (prompt) => (prompt.text?.length || 0) <= parseInt(filters.maxLength)
+      );
+    }
+
+    // Sorting
+    filtered.sort((a, b) => {
+      switch (filters.sortBy) {
+        case "newest":
+          return (
+            (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)
+          );
+        case "oldest":
+          return (
+            (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0)
+          );
+        case "title":
+          return (a.title || "").localeCompare(b.title || "");
+        case "author":
+          const authorA =
+            teamMembers[a.createdBy]?.name ||
+            teamMembers[a.createdBy]?.email ||
+            "";
+          const authorB =
+            teamMembers[b.createdBy]?.name ||
+            teamMembers[b.createdBy]?.email ||
+            "";
+          return authorA.localeCompare(authorB);
+        case "length-asc":
+          return (a.text?.length || 0) - (b.text?.length || 0);
+        case "length-desc":
+          return (b.text?.length || 0) - (a.text?.length || 0);
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }
+
+  // ✅ NEW: Filter helper functions
+  function handleFilterChange(key, value) {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function clearFilters() {
+    setFilters({
+      author: "all",
+      tags: "",
+      dateRange: "all",
+      sortBy: "newest",
+      minLength: "",
+      maxLength: "",
+      visibility: "all",
+    });
+  }
+
+  function hasActiveFilters() {
+    return (
+      filters.author !== "all" ||
+      filters.tags !== "" ||
+      filters.dateRange !== "all" ||
+      filters.minLength !== "" ||
+      filters.maxLength !== "" ||
+      filters.visibility !== "all"
+    );
+  }
+
+  // ✅ NEW: Smooth scroll to filter card
+  function scrollToFilters() {
+    setShowFilters(true);
+    setTimeout(() => {
+      filterCardRef.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }, 100);
+  }
+
+  const allPrompts = useMemo(() => {
+    let combined = [...demos, ...userPrompts];
+    return applyFilters(combined);
+  }, [demos, userPrompts, searchQuery, filters, teamMembers]);
 
   const displayDemos = useMemo(() => allPrompts.filter(p => isDemoPrompt(p)), [allPrompts]);
   const displayUserPrompts = useMemo(() => allPrompts.filter(p => !isDemoPrompt(p)), [allPrompts]);
 
-  // ✅ NEW: Pagination for user prompts
+  // Pagination for user prompts
   const userPromptsPagination = usePagination(displayUserPrompts, 10);
   
-  // ✅ NEW: Pagination for demo prompts
+  // Pagination for demo prompts
   const demoPromptsPagination = usePagination(displayDemos, 5);
 
   const handleSelectPrompt = (promptId, isSelected) => {
@@ -1011,6 +1388,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
   return (
     <div className="prompt-list-container">
+      {/* ✅ REFACTORED: Header Card with Create, Search, and Filter on single row */}
       <div className="glass-card p-6 mb-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
           <div className="flex-1 min-w-0">
@@ -1023,108 +1401,66 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                 : `${displayUserPrompts.length} ${displayUserPrompts.length === 1 ? "prompt" : "prompts"}`}
             </p>
           </div>
-          <button onClick={() => setShowCreateForm(!showCreateForm)} className="btn-primary px-6 py-3 flex items-center gap-2">
-            {showCreateForm ? <X className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-            <span>{showCreateForm ? "Cancel" : "New Prompt"}</span>
-          </button>
         </div>
 
-        {/* ✅ FIXED: Show search controls when there are ANY prompts (demos or user), not just filtered results */}
-        {(userPrompts.length > 0 || demos.length > 0) && (
-          <div className="flex gap-3 mt-4 flex-wrap">
-            <div className="flex-1 min-w-0 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--muted-foreground)' }} />
-              <input type="text" placeholder="Search prompts..." value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)} className="search-input pl-10" />
-              {searchQuery && (
-                <button onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-            <div className="relative">
-              <button 
-                ref={filterButtonRef}
-                onClick={() => {
-                  // Calculate position before opening
-                  if (!showFilterMenu && filterButtonRef.current) {
-                    const rect = filterButtonRef.current.getBoundingClientRect();
-                    setFilterMenuPosition({
-                      top: rect.bottom + 8,
-                      right: window.innerWidth - rect.right,
-                    });
-                  }
-                  setShowFilterMenu(!showFilterMenu);
-                }} 
-                className="btn-secondary px-4 py-3 flex items-center gap-2"
-              >
-                <Filter className="w-4 h-4" /><span>Filter</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${showFilterMenu ? 'rotate-180' : ''}`} />
-              </button>
-              {/* ✅ FIXED: Using fixed positioning to escape overflow:hidden container */}
-              {showFilterMenu && filterMenuPosition.top > 0 && (
-                <>
-                  {/* Backdrop to close menu */}
-                  <div 
-                    className="fixed inset-0 z-[90]" 
-                    onClick={() => setShowFilterMenu(false)}
-                  />
-                  <div 
-                    className="fixed p-2 rounded-lg shadow-lg z-[100]"
-                    style={{
-                      top: `${filterMenuPosition.top}px`,
-                      right: `${filterMenuPosition.right}px`,
-                      minWidth: '200px',
-                      backgroundColor: 'var(--popover)',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                  <button 
-                    onClick={() => { setFilterCategory('all'); setShowFilterMenu(false); }}
-                    className="menu-item"
-                    style={filterCategory === 'all' ? { backgroundColor: 'var(--primary)', color: 'white' } : {}}
-                  >
-                    All Prompts
-                  </button>
-                  {displayDemos.length > 0 && (
-                    <button 
-                      onClick={() => { setFilterCategory('demos'); setShowFilterMenu(false); }}
-                      className="menu-item"
-                      style={filterCategory === 'demos' ? { backgroundColor: 'var(--primary)', color: 'white' } : {}}
-                    >
-                      Demo Prompts
-                    </button>
-                  )}
-                  {displayUserPrompts.length > 0 && (
-                    <button 
-                      onClick={() => { setFilterCategory('mine'); setShowFilterMenu(false); }}
-                      className="menu-item"
-                      style={filterCategory === 'mine' ? { backgroundColor: 'var(--primary)', color: 'white' } : {}}
-                    >
-                      My Prompts
-                    </button>
-                  )}
-                  <button 
-                    onClick={() => { setFilterCategory('enhanced'); setShowFilterMenu(false); }}
-                    className="menu-item"
-                    style={filterCategory === 'enhanced' ? { backgroundColor: 'var(--primary)', color: 'white' } : {}}
-                  >
-                    AI Enhanced
-                  </button>
-                </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+        {/* ✅ NEW: Single row with Create + Search + Filter */}
+        <div className="flex gap-3 flex-wrap items-stretch">
+          {/* Create Prompt Button */}
+          <button 
+            onClick={() => setShowCreateForm(!showCreateForm)} 
+            className="btn-primary px-4 py-3 flex items-center gap-2 whitespace-nowrap"
+          >
+            {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+            <span>{showCreateForm ? "Cancel" : "Create Prompt"}</span>
+          </button>
 
-      {!isGuestMode && displayUserPrompts.length > 0 && (
-        <BulkOperations prompts={displayUserPrompts} selectedPrompts={selectedPrompts}
-          onSelectionChange={setSelectedPrompts} onBulkDelete={handleBulkDelete}
-          onBulkExport={handleBulkExport} userRole={userRole} userId={userId} />
-      )}
+          {/* Search Input */}
+          <div className="flex-1 min-w-[200px] relative">
+            <Search 
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" 
+              style={{ color: 'var(--muted-foreground)', pointerEvents: 'none' }} 
+            />
+            <input 
+              type="text" 
+              placeholder="Search prompts..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)} 
+              className="search-input pl-10 h-full" 
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Filter Button - Scrolls to filter card */}
+          <button 
+            onClick={scrollToFilters}
+            className={`px-4 py-3 flex items-center gap-2 whitespace-nowrap transition-all ${
+              hasActiveFilters() ? 'btn-primary' : 'btn-secondary'
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            <span>Filters</span>
+            {hasActiveFilters() && (
+              <span className="text-xs rounded-full px-2 py-0.5 min-w-[1.25rem] text-center font-bold"
+                style={{
+                  backgroundColor: "var(--primary-foreground)",
+                  color: "var(--primary)",
+                }}>
+                {Object.values(filters).filter((v, i) => {
+                  const keys = Object.keys(filters);
+                  return keys[i] !== "sortBy" && v !== "" && v !== "all";
+                }).length}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
 
       {showCreateForm && (
         <div className="glass-card p-6 mb-6">
@@ -1170,7 +1506,33 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </div>
       )}
 
-      {/* ✅ Demo Prompts Section with Pagination */}
+      {/* ✅ NEW: Dedicated Filter Card Section */}
+      <div ref={filterCardRef}>
+        <FilterCard 
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onClearFilters={clearFilters}
+          hasActiveFilters={hasActiveFilters()}
+          filteredCount={allPrompts.length}
+          teamMembers={teamMembers}
+          isExpanded={showFilters}
+          onToggleExpanded={() => setShowFilters(!showFilters)}
+        />
+      </div>
+
+      {!isGuestMode && displayUserPrompts.length > 0 && (
+        <BulkOperations 
+          prompts={displayUserPrompts} 
+          selectedPrompts={selectedPrompts}
+          onSelectionChange={setSelectedPrompts} 
+          onBulkDelete={handleBulkDelete}
+          onBulkExport={handleBulkExport} 
+          userRole={userRole} 
+          userId={userId} 
+        />
+      )}
+
+      {/* Demo Prompts Section with Pagination */}
       {displayDemos.length > 0 && (
         <section className="mb-8">
           <div className="flex items-center gap-3 mb-4">
@@ -1186,7 +1548,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView} />
           ))}
 
-          {/* ✅ Demo Pagination Controls */}
           {displayDemos.length > 5 && (
             <div className="mt-6">
               <PaginationControls 
@@ -1202,7 +1563,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </section>
       )}
 
-      {/* ✅ User Prompts Section with Pagination */}
+      {/* User Prompts Section with Pagination */}
       {displayUserPrompts.length > 0 && (
         <section>
           {isGuestMode && displayDemos.length > 0 && (
@@ -1225,7 +1586,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView} />
           ))}
 
-          {/* ✅ User Prompts Pagination Controls */}
           {displayUserPrompts.length > 10 && (
             <div className="mt-6">
               <PaginationControls 
@@ -1245,21 +1605,29 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         <div className="glass-card p-12 text-center">
           <Sparkles size={48} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
           <h3 className="text-lg font-semibold mb-2">
-            {searchQuery ? `No prompts match "${searchQuery}"` : "No prompts yet"}
+            {searchQuery || hasActiveFilters() 
+              ? "No prompts match your search or filters" 
+              : "No prompts yet"}
           </h3>
           <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
-            {searchQuery ? (
+            {searchQuery || hasActiveFilters() ? (
               <>
                 Try adjusting your search or{' '}
-                <button onClick={() => setSearchQuery('')} className="text-primary hover:underline">
-                  clear the search
+                <button 
+                  onClick={() => {
+                    setSearchQuery('');
+                    clearFilters();
+                  }} 
+                  className="text-primary hover:underline"
+                >
+                  clear all filters
                 </button>
               </>
             ) : (
               "Create your first prompt to get started"
             )}
           </p>
-          {!searchQuery && (
+          {!searchQuery && !hasActiveFilters() && (
             <button onClick={() => setShowCreateForm(true)} className="btn-primary">
               <Plus className="w-4 h-4" />Create First Prompt
             </button>
