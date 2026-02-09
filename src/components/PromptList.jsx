@@ -1,5 +1,5 @@
-// src/components/PromptList.jsx - REFACTORED with dedicated filter card section
-// ✅ Filter button navigates to filter card • All filters integrated • Search + Create + Filter on single row
+// src/components/PromptList.jsx - REFACTORED with filter card at end before invitation
+// ✅ Filter button navigates to filter card at bottom • All filters integrated • Search + Create + Filter on single row
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -676,7 +676,7 @@ function PromptCard({
   );
 }
 
-// ✅ NEW: Dedicated Filter Card Component
+// ✅ Dedicated Filter Card Component
 function FilterCard({ 
   filters, 
   onFilterChange, 
@@ -923,7 +923,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [showFilters, setShowFilters] = useState(false);
   const filterCardRef = useRef(null);
   
-  // ✅ NEW: Filter state
+  // Filter state
   const [filters, setFilters] = useState({
     author: "all",
     tags: "",
@@ -1016,7 +1016,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     loadTeamData();
   }, [activeTeam, isGuestMode]);
 
-  // ✅ NEW: Apply filters function
+  // Apply filters function
   function applyFilters(promptsList) {
     let filtered = [...promptsList];
 
@@ -1140,7 +1140,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return filtered;
   }
 
-  // ✅ NEW: Filter helper functions
+  // Filter helper functions
   function handleFilterChange(key, value) {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }
@@ -1168,7 +1168,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     );
   }
 
-  // ✅ NEW: Smooth scroll to filter card
+  // Smooth scroll to filter card
   function scrollToFilters() {
     setShowFilters(true);
     setTimeout(() => {
@@ -1388,7 +1388,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
   return (
     <div className="prompt-list-container">
-      {/* ✅ REFACTORED: Header Card with Create, Search, and Filter on single row */}
+      {/* Header Card with Create, Search, and Filter on single row */}
       <div className="glass-card p-6 mb-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
           <div className="flex-1 min-w-0">
@@ -1403,7 +1403,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           </div>
         </div>
 
-        {/* ✅ NEW: Single row with Create + Search + Filter */}
+        {/* Single row with Create + Search + Filter */}
         <div className="flex gap-3 flex-wrap items-stretch">
           {/* Create Prompt Button */}
           <button 
@@ -1506,20 +1506,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </div>
       )}
 
-      {/* ✅ NEW: Dedicated Filter Card Section */}
-      <div ref={filterCardRef}>
-        <FilterCard 
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onClearFilters={clearFilters}
-          hasActiveFilters={hasActiveFilters()}
-          filteredCount={allPrompts.length}
-          teamMembers={teamMembers}
-          isExpanded={showFilters}
-          onToggleExpanded={() => setShowFilters(!showFilters)}
-        />
-      </div>
-
       {!isGuestMode && displayUserPrompts.length > 0 && (
         <BulkOperations 
           prompts={displayUserPrompts} 
@@ -1600,6 +1586,20 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           )}
         </section>
       )}
+
+      {/* ✅ FILTER CARD POSITIONED AT END - Before invitation card */}
+      <div ref={filterCardRef}>
+        <FilterCard 
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onClearFilters={clearFilters}
+          hasActiveFilters={hasActiveFilters()}
+          filteredCount={allPrompts.length}
+          teamMembers={teamMembers}
+          isExpanded={showFilters}
+          onToggleExpanded={() => setShowFilters(!showFilters)}
+        />
+      </div>
 
       {allPrompts.length === 0 && (
         <div className="glass-card p-12 text-center">
