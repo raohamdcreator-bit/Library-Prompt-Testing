@@ -4185,27 +4185,47 @@ select option {
     max-width: calc(100vw - 2rem);
   }
 }
-
 /* ==========================================
    SEARCH BAR & FILTER MENU FIXES
    Add these rules to src/App.css
 ========================================== */
 
-/* ✅ FIX: Ensure filter dropdown appears above all cards */
-.glass-card {
-  /* Remove or reduce z-index to allow dropdowns to appear above */
-  z-index: auto;
-  position: relative;
+/* ✅ FIX: Allow glass-card to show overflow when needed */
+.glass-card:has(.filter-menu-container) {
+  overflow: visible !important;
 }
 
-/* ✅ FIX: Dropdown menu stacking context */
-.relative:has(.absolute.z-\[100\]) {
-  z-index: 101; /* Higher than glass-card */
+/* ✅ FIX: Filter menu backdrop */
+.filter-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: 90;
+  cursor: default;
 }
 
-/* ✅ FIX: Filter menu proper stacking */
-.absolute.z-\[100\] {
-  z-index: 100 !important;
+/* ✅ FIX: Filter dropdown with fixed positioning */
+.filter-dropdown-fixed {
+  position: fixed;
+  min-width: 200px;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  padding: 0.5rem;
+  animation: dropdownSlideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes dropdownSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ✅ FIX: Ensure proper input padding for icon */
@@ -4238,6 +4258,7 @@ select option {
 .prompt-card-v2,
 .glass-card {
   z-index: 1;
+  position: relative;
 }
 
 /* Interactive elements */
@@ -4245,9 +4266,15 @@ select option {
   z-index: 1000;
 }
 
-/* Dropdowns and menus */
-[class*="absolute"][class*="z-"] {
-  z-index: 100;
+/* Dropdowns and menus - Fixed positioning */
+.fixed.z-\[100\],
+.filter-dropdown-fixed {
+  z-index: 100 !important;
+}
+
+/* Backdrop layer */
+.fixed.z-\[90\] {
+  z-index: 90 !important;
 }
 
 /* Modals */
@@ -4281,3 +4308,15 @@ select option {
   color: var(--destructive);
 }
 
+/* ==========================================
+   MOBILE RESPONSIVE
+========================================== */
+
+@media (max-width: 769px) {
+  .filter-dropdown-fixed {
+    left: 1rem !important;
+    right: 1rem !important;
+    min-width: auto !important;
+    max-width: calc(100vw - 2rem);
+  }
+}
