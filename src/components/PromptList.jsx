@@ -1654,28 +1654,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         />
       </div>
 
-      {/* ✅ INVITATION CARD PLACEHOLDER - Add ref for smooth scrolling */}
-      {!isGuestMode && (userRole === "owner" || userRole === "admin") && (
-        <div ref={inviteCardRef} className="glass-card p-6 mb-6">
-          <div className="flex items-center gap-3 mb-4">
-            <UserPlus className="w-6 h-6 text-cyan-400" />
-            <h3 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
-              Team Invitations
-            </h3>
-          </div>
-          <p className="text-sm mb-4" style={{ color: "var(--muted-foreground)" }}>
-            Invite team members to collaborate on prompts and share outputs.
-          </p>
-          {/* Placeholder for actual invitation component */}
-          <div className="p-8 rounded-lg border-2 border-dashed text-center" 
-            style={{ borderColor: "var(--border)", backgroundColor: "var(--muted)" }}>
-            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-              Team invitation functionality will be rendered here
-            </p>
-          </div>
-        </div>
-      )}
-
       {allPrompts.length === 0 && (
         <div className="glass-card p-12 text-center">
           <Sparkles size={48} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
