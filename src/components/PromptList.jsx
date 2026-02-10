@@ -1,5 +1,6 @@
 // src/components/PromptList.jsx - REFACTORED with filter card at end before invitation
 // ✅ Filter button navigates to filter card at bottom • All filters integrated • Search + Create + Filter on single row
+// ✅ Import Card added at end • Invite Member button navigates to invitation card • Pagination without background cards
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -26,11 +27,12 @@ import {
   Check, Clock, Filter, MessageSquare, Activity, Code,
   Image as ImageIcon, Send, Loader2, Cpu, DollarSign,
   Target, TrendingUp, User, Calendar, Tag, Ruler, BarChart2,
-  Lightbulb, SlidersHorizontal,
+  Lightbulb, SlidersHorizontal, UserPlus,
 } from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
 import EnhancedBadge from './EnhancedBadge';
 import { ExportUtils } from "./ExportImport";
+import ExportImport from "./ExportImport";
 import AIPromptEnhancer from "./AIPromptEnhancer";
 import AddResultModal from "./AddResultModal";
 import ViewOutputsModal from "./ViewOutputsModal";
@@ -922,6 +924,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [trackedViews, setTrackedViews] = useState(new Set());
   const [showFilters, setShowFilters] = useState(false);
   const filterCardRef = useRef(null);
+  const inviteCardRef = useRef(null);
+  const importCardRef = useRef(null);
   
   // Filter state
   const [filters, setFilters] = useState({
@@ -1179,6 +1183,16 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     }, 100);
   }
 
+  // Smooth scroll to invite card
+  function scrollToInvite() {
+    setTimeout(() => {
+      inviteCardRef.current?.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
+    }, 100);
+  }
+
   const allPrompts = useMemo(() => {
     let combined = [...demos, ...userPrompts];
     return applyFilters(combined);
@@ -1361,6 +1375,26 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     }
   }
 
+  // Handle import
+  async function handleImportPrompts(validPrompts) {
+    if (isGuestMode) {
+      validPrompts.forEach(prompt => {
+        guestState.addPrompt(prompt);
+      });
+      setUserPrompts(guestState.getPrompts());
+      return;
+    }
+
+    try {
+      for (const prompt of validPrompts) {
+        await savePrompt(user.uid, prompt, activeTeam);
+      }
+    } catch (error) {
+      console.error("Import error:", error);
+      throw error;
+    }
+  }
+
   function showSuccessToast(message) {
     playNotification();
     success(message, 3000);
@@ -1388,7 +1422,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
   return (
     <div className="prompt-list-container">
-      {/* Header Card with Create, Search, and Filter on single row */}
+      {/* Header Card with Create, Search, Filter, and Invite Member on single row */}
       <div className="glass-card p-6 mb-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
           <div className="flex-1 min-w-0">
@@ -1403,7 +1437,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           </div>
         </div>
 
-        {/* Single row with Create + Search + Filter */}
+        {/* Single row with Create + Search + Filter + Invite */}
         <div className="flex gap-3 flex-wrap items-stretch">
           {/* Create Prompt Button */}
           <button 
@@ -1459,6 +1493,17 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               </span>
             )}
           </button>
+
+          {/* Invite Member Button - Scrolls to invitation card */}
+          {!isGuestMode && (userRole === "owner" || userRole === "admin") && (
+            <button 
+              onClick={scrollToInvite}
+              className="btn-secondary px-4 py-3 flex items-center gap-2 whitespace-nowrap"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Invite Member</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1542,7 +1587,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                 showPageSizeSelector={true}
                 showItemCount={true}
                 pageSizeOptions={[5, 10, 15]}
-                className="glass-card p-4 rounded-lg"
               />
             </div>
           )}
@@ -1580,14 +1624,13 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
                 showPageSizeSelector={true}
                 showItemCount={true}
                 pageSizeOptions={[5, 10, 20, 50]}
-                className="glass-card p-4 rounded-lg"
               />
             </div>
           )}
         </section>
       )}
 
-      {/* ✅ FILTER CARD POSITIONED AT END - Before invitation card */}
+      {/* ✅ FILTER CARD POSITIONED AT END - Before import and invitation cards */}
       <div ref={filterCardRef}>
         <FilterCard 
           filters={filters}
@@ -1600,6 +1643,38 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           onToggleExpanded={() => setShowFilters(!showFilters)}
         />
       </div>
+
+      {/* ✅ IMPORT CARD - Positioned after filter card */}
+      <div ref={importCardRef}>
+        <ExportImport 
+          onImport={handleImportPrompts}
+          teamId={activeTeam}
+          teamName={teamName}
+          userRole={userRole}
+        />
+      </div>
+
+      {/* ✅ INVITATION CARD PLACEHOLDER - Add ref for smooth scrolling */}
+      {!isGuestMode && (userRole === "owner" || userRole === "admin") && (
+        <div ref={inviteCardRef} className="glass-card p-6 mb-6">
+          <div className="flex items-center gap-3 mb-4">
+            <UserPlus className="w-6 h-6 text-cyan-400" />
+            <h3 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
+              Team Invitations
+            </h3>
+          </div>
+          <p className="text-sm mb-4" style={{ color: "var(--muted-foreground)" }}>
+            Invite team members to collaborate on prompts and share outputs.
+          </p>
+          {/* Placeholder for actual invitation component */}
+          <div className="p-8 rounded-lg border-2 border-dashed text-center" 
+            style={{ borderColor: "var(--border)", backgroundColor: "var(--muted)" }}>
+            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+              Team invitation functionality will be rendered here
+            </p>
+          </div>
+        </div>
+      )}
 
       {allPrompts.length === 0 && (
         <div className="glass-card p-12 text-center">
