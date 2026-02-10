@@ -1,6 +1,7 @@
 // src/components/PromptList.jsx - REFACTORED with filter card at end before invitation
 // ✅ Filter button navigates to filter card at bottom • All filters integrated • Search + Create + Filter on single row
 // ✅ Import Card added at end • Invite Member button navigates to invitation card • Pagination without background cards
+// ✅ FIXED: Removed duplicate invitation card - scrolls to App.jsx's TeamInviteForm instead
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -897,7 +898,7 @@ function FilterCard({
 }
 
 // Main Component
-export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId }) {
+export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId, onScrollToInvite }) {
   const { user } = useAuth();
   const { playNotification } = useSoundEffects();
   const { checkSaveRequired, canEditPrompt: canEditGuestPrompt } = useGuestMode();
@@ -924,7 +925,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [trackedViews, setTrackedViews] = useState(new Set());
   const [showFilters, setShowFilters] = useState(false);
   const filterCardRef = useRef(null);
-  const inviteCardRef = useRef(null);
   const importCardRef = useRef(null);
   
   // Filter state
@@ -1177,16 +1177,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     setShowFilters(true);
     setTimeout(() => {
       filterCardRef.current?.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-      });
-    }, 100);
-  }
-
-  // Smooth scroll to invite card
-  function scrollToInvite() {
-    setTimeout(() => {
-      inviteCardRef.current?.scrollIntoView({ 
         behavior: 'smooth', 
         block: 'start' 
       });
@@ -1494,10 +1484,10 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             )}
           </button>
 
-          {/* Invite Member Button - Scrolls to invitation card */}
-          {!isGuestMode && (userRole === "owner" || userRole === "admin") && (
+          {/* Invite Member Button - Calls parent's scroll function */}
+          {!isGuestMode && (userRole === "owner" || userRole === "admin") && onScrollToInvite && (
             <button 
-              onClick={scrollToInvite}
+              onClick={onScrollToInvite}
               className="btn-secondary px-4 py-3 flex items-center gap-2 whitespace-nowrap"
             >
               <UserPlus className="w-4 h-4" />
@@ -1630,7 +1620,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </section>
       )}
 
-      {/* ✅ FILTER CARD POSITIONED AT END - Before import and invitation cards */}
+      {/* ✅ FILTER CARD POSITIONED AT END - Before import card */}
       <div ref={filterCardRef}>
         <FilterCard 
           filters={filters}
@@ -1653,6 +1643,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           userRole={userRole}
         />
       </div>
+
+      {/* ✅ NO INVITATION CARD HERE - It's rendered in App.jsx and we just scroll to it */}
 
       {allPrompts.length === 0 && (
         <div className="glass-card p-12 text-center">
