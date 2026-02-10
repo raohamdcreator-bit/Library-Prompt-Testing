@@ -1,14 +1,16 @@
-// src/components/TeamInviteForm.jsx - Updated with Link Invite Support
-import { useState } from "react";
+// src/components/TeamInviteForm.jsx - Updated with Link Invite Support + NotificationContext
+import { useState, forwardRef } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useNotification } from "../context/NotificationContext";
 import { 
   Users, Mail, Send, UserPlus, Shield, Info, CheckCircle, X, Loader2,
   Link as LinkIcon, Copy, Check, Sparkles
 } from "lucide-react";
 import { sendTeamInvitation, generateTeamInviteLink } from "../lib/inviteUtils";
 
-export default function TeamInviteForm({ teamId, teamName, role }) {
+const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
   const { user } = useAuth();
+  const { success, error: showError, info } = useNotification();
   const [inviteType, setInviteType] = useState("link"); // Default to link (more prominent)
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
@@ -20,13 +22,13 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
     e.preventDefault();
 
     if (!email.trim()) {
-      alert("Please enter an email address");
+      showError("Please enter an email address");
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) {
-      alert("Please enter a valid email address");
+      showError("Please enter a valid email address");
       return;
     }
 
@@ -60,9 +62,9 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
       setEmail("");
       setInviteRole("member");
 
-      showNotification(
+      success(
         `Invite sent to ${email.trim()}! ${result.emailSent ? 'Email delivered.' : 'Saved to database.'}`,
-        "success"
+        4000
       );
     } catch (err) {
       console.error("Error sending invite:", err);
@@ -76,7 +78,7 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
         errorMessage += err.message || "Unknown error";
       }
 
-      alert(errorMessage);
+      showError(errorMessage, 5000);
     } finally {
       setLoading(false);
     }
@@ -118,7 +120,7 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
         expiresAt: result.expiresAt,
       });
 
-      showNotification("Invite link generated successfully!", "success");
+      success("Invite link generated successfully!", 3000);
     } catch (err) {
       console.error("Error generating invite link:", err);
 
@@ -129,7 +131,7 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
         errorMessage += err.message || "Unknown error";
       }
 
-      alert(errorMessage);
+      showError(errorMessage, 5000);
     } finally {
       setLoading(false);
     }
@@ -141,7 +143,7 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
     try {
       await navigator.clipboard.writeText(generatedLink.url);
       setCopied(true);
-      showNotification("Link copied to clipboard!", "success");
+      success("Link copied to clipboard!", 2000);
       
       // Track in GA4
       if (window.gtag) {
@@ -153,45 +155,8 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Failed to copy:", err);
-      alert("Failed to copy link. Please copy it manually.");
+      showError("Failed to copy link. Please copy it manually.", 3000);
     }
-  }
-
-  function showNotification(message, type = "info") {
-    const notification = document.createElement("div");
-
-    const icons = {
-      success: "✓",
-      error: "✗",
-      info: "ℹ",
-    };
-
-    notification.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <span>${icons[type]}</span>
-        <span>${message}</span>
-      </div>
-    `;
-
-    notification.className =
-      "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-50 text-sm transition-opacity duration-300";
-    notification.style.cssText = `
-      background-color: var(--card);
-      color: var(--foreground);
-      border: 1px solid var(--${type === "error" ? "destructive" : "primary"});
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    `;
-
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-      notification.style.opacity = "0";
-      setTimeout(() => {
-        if (notification.parentNode) {
-          document.body.removeChild(notification);
-        }
-      }, 300);
-    }, 4000);
   }
 
   if (role !== "owner" && role !== "admin") {
@@ -215,6 +180,7 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
 
   return (
     <div
+      ref={ref}
       className="glass-card p-6 mt-8"
       style={{ border: "1px solid var(--border)" }}
     >
@@ -589,4 +555,8 @@ export default function TeamInviteForm({ teamId, teamName, role }) {
       </div>
     </div>
   );
-}
+});
+
+TeamInviteForm.displayName = 'TeamInviteForm';
+
+export default TeamInviteForm;
