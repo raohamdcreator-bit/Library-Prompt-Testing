@@ -721,6 +721,7 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
   const { activeTeam, setActiveTeam } = useActiveTeam();
+  const inviteCardRef = useRef(null);
  const {
   isGuest,
   showSaveModal,
@@ -1125,7 +1126,15 @@ useEffect(() => {
     }
     setShowOnboarding(false);
   }
-
+// Scroll to invitation card from PromptList
+function scrollToInviteCard() {
+  if (inviteCardRef.current) {
+    inviteCardRef.current.scrollIntoView({ 
+      behavior: 'smooth', 
+      block: 'start' 
+    });
+  }
+}
   // Handle "Explore App" from landing page
  function handleExploreApp() {
   setIsExploringAsGuest(true);
@@ -1679,7 +1688,7 @@ useEffect(() => {
   userId={user?.uid}
 />
               {canManageMembers() && (
-                <TeamInviteForm teamId={activeTeamObj.id} teamName={activeTeamObj.name} role={role} />
+                <TeamInviteForm teamId={activeTeamObj.id} ref={inviteCardRef} teamName={activeTeamObj.name} role={role} />
               )}
             </>
           )}
