@@ -1,7 +1,8 @@
-// src/components/TeamInviteForm.jsx - Updated with Link Invite Support + NotificationContext
+// src/components/TeamInviteForm.jsx - Updated with Link Invite Support + NotificationContext + Sound Effects
 import { useState, forwardRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
+import { useSoundEffects } from "../hooks/useSoundEffects";
 import { 
   Users, Mail, Send, UserPlus, Shield, Info, CheckCircle, X, Loader2,
   Link as LinkIcon, Copy, Check, Sparkles
@@ -11,6 +12,7 @@ import { sendTeamInvitation, generateTeamInviteLink } from "../lib/inviteUtils";
 const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
   const { user } = useAuth();
   const { success, error: showError, info } = useNotification();
+  const { playNotification } = useSoundEffects();
   const [inviteType, setInviteType] = useState("link"); // Default to link (more prominent)
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
@@ -62,6 +64,9 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
       setEmail("");
       setInviteRole("member");
 
+      // Play success sound
+      playNotification();
+      
       success(
         `Invite sent to ${email.trim()}! ${result.emailSent ? 'Email delivered.' : 'Saved to database.'}`,
         4000
@@ -120,6 +125,9 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
         expiresAt: result.expiresAt,
       });
 
+      // Play success sound
+      playNotification();
+      
       success("Invite link generated successfully!", 3000);
     } catch (err) {
       console.error("Error generating invite link:", err);
@@ -143,6 +151,10 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
     try {
       await navigator.clipboard.writeText(generatedLink.url);
       setCopied(true);
+      
+      // Play notification sound
+      playNotification();
+      
       success("Link copied to clipboard!", 2000);
       
       // Track in GA4
