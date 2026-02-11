@@ -1,4 +1,4 @@
-// src/lib/inviteUtils.js - Centralized invite management utilities (UPDATED)
+// src/lib/inviteUtils.js - FIXED: Proper invite link generation for email invites
 import { db } from "./firebase";
 import {
   collection,
@@ -619,7 +619,8 @@ export async function sendInviteEmail({
 }
 
 /**
- * Complete EMAIL invite flow (create + send email)
+ * ✅ FIXED: Complete EMAIL invite flow (create + send email)
+ * Now generates proper invite link with inviteId parameter
  */
 export async function sendTeamInvitation({
   teamId,
@@ -644,8 +645,10 @@ export async function sendTeamInvitation({
       throw new Error(createResult.error);
     }
 
-    // Generate invite link
-    const inviteLink = `${window.location.origin}/join?teamId=${teamId}`;
+    // ✅ FIXED: Generate invite link with BOTH inviteId AND teamId
+    const inviteLink = `${window.location.origin}/join?inviteId=${createResult.inviteId}&teamId=${teamId}`;
+
+    console.log("✅ Generated email invite link:", inviteLink);
 
     // Try to send email (non-blocking)
     const emailResult = await sendInviteEmail({
@@ -665,6 +668,7 @@ export async function sendTeamInvitation({
       expiresAt: createResult.expiresAt,
     };
   } catch (error) {
+    console.error("❌ Error in sendTeamInvitation:", error);
     return {
       success: false,
       error: error.message,
@@ -720,6 +724,8 @@ export async function generateTeamInviteLink({
       throw new Error(createResult.error);
     }
 
+    console.log("✅ Generated link invite:", inviteLink);
+
     return {
       success: true,
       inviteId: createResult.inviteId,
@@ -728,6 +734,7 @@ export async function generateTeamInviteLink({
       expiresAt: new Date(expiresAt),
     };
   } catch (error) {
+    console.error("❌ Error in generateTeamInviteLink:", error);
     return {
       success: false,
       error: error.message,
