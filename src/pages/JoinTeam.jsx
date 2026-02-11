@@ -1,715 +1,416 @@
-// src/pages/JoinTeam.jsx - Hybrid approach with clear value propositions
-import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { db } from '../lib/firebase';
-import { doc, getDoc, collection, query, getDocs, limit } from 'firebase/firestore';
-import {
-  getInviteByToken,
-  acceptLinkInvite,
-  validateInvite,
-  acceptTeamInvite,
-} from '../lib/inviteUtils';
-import InviteGuestMode from '../components/InviteGuestMode';
-import { 
-  Shield, 
-  Loader, 
-  AlertTriangle, 
-  Eye, 
-  Lock,
-  Users,
-  MessageSquare,
-  BarChart3,
-  FileText,
-  CheckCircle,
-  XCircle,
-  Zap,
-  Crown,
-  ArrowRight,
-  Sparkles
-} from 'lucide-react';
+// src/pages/JoinTeam.jsx - FIXED: Proper invite handling for both email and link invites
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Clock, CheckCircle2, XCircle, Info, LogIn, Loader2, Users, Shield } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { acceptTeamInvite, acceptLinkInvite, validateInvite, getInviteByToken } from "../lib/inviteUtils";
 
 export default function JoinTeam({ onNavigate }) {
   const { user, signInWithGoogle } = useAuth();
-  const [loading, setLoading] = useState(true);
+  
+  const [status, setStatus] = useState("loading");
+  const [message, setMessage] = useState("Loading invitation...");
   const [inviteData, setInviteData] = useState(null);
-  const [error, setError] = useState(null);
-  const [processing, setProcessing] = useState(false);
-  const [showGuestPreview, setShowGuestPreview] = useState(false);
-  const [teamPreview, setTeamPreview] = useState(null);
-  const [showChoiceScreen, setShowChoiceScreen] = useState(false);
+  const [acceptedTeamId, setAcceptedTeamId] = useState(null);
+  const [attemptingAutoAccept, setAttemptingAutoAccept] = useState(false);
 
-  // Parse URL parameters and load invite
+  // Parse URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const inviteId = urlParams.get("inviteId");
+  const teamId = urlParams.get("teamId");
+  const token = urlParams.get("token");
+
+  // Step 1: Load and validate invite
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get('token');
-    const teamId = params.get('teamId');
-
-    async function loadInvite() {
-      try {
-        if (token) {
-          // LINK-BASED INVITE - Show choice screen
-          const result = await getInviteByToken(token);
-          
-          if (!result.valid) {
-            setError(result.error || 'Invalid or expired invite');
-            setLoading(false);
-            return;
-          }
-
-          setInviteData(result.invite);
-          
-          // Load team preview data
-          await loadTeamPreview(result.invite.teamId);
-
-          // Show choice screen for guest users
-          if (!user) {
-            setShowChoiceScreen(true);
-          }
-        } else if (teamId) {
-          // EMAIL-BASED INVITE - Require auth immediately
-          if (!user) {
-            setLoading(false);
-            // Auto-trigger sign-in for email invites
-            await handleSignupAndJoin();
-            return;
-          }
-
-          const teamRef = doc(db, 'teams', teamId);
-          const teamSnap = await getDoc(teamRef);
-          
-          if (!teamSnap.exists()) {
-            setError('Team not found');
-            setLoading(false);
-            return;
-          }
-
-          const teamData = teamSnap.data();
-          setInviteData({
-            teamId,
-            teamName: teamData.name,
-            type: 'email',
-          });
-        } else {
-          setError('No invite information found');
-        }
-      } catch (err) {
-        console.error('Error loading invite:', err);
-        setError('Failed to load invite');
-      } finally {
-        setLoading(false);
-      }
-    }
-
     loadInvite();
-  }, [user]);
+  }, [inviteId, teamId, token]);
 
-  // Load team preview data
-  async function loadTeamPreview(teamId) {
-    try {
-      const teamRef = doc(db, 'teams', teamId);
-      const teamSnap = await getDoc(teamRef);
-
-      if (!teamSnap.exists()) return;
-
-      const teamData = teamSnap.data();
-
-      // Get sample prompts (first 5 for preview)
-      const promptsRef = collection(db, 'teams', teamId, 'prompts');
-      const promptsQuery = query(promptsRef, limit(5));
-      const promptsSnap = await getDocs(promptsQuery);
-      const samplePrompts = promptsSnap.docs.map(doc => ({
-        id: doc.id,
-        title: doc.data().title || 'Untitled',
-      }));
-
-      setTeamPreview({
-        name: teamData.name,
-        memberCount: Object.keys(teamData.members || {}).length,
-        promptCount: promptsSnap.size,
-        samplePrompts,
-      });
-    } catch (error) {
-      console.error('Error loading team preview:', error);
-    }
-  }
-
-  // Auto-accept invite if user is already authenticated
+  // Step 2: Auto-accept invite if user is already signed in
   useEffect(() => {
-    if (user && inviteData && !processing && !showChoiceScreen && !showGuestPreview) {
-      handleAcceptInvite();
+    if (user && inviteData && status === "ready" && !attemptingAutoAccept) {
+      setAttemptingAutoAccept(true);
+      acceptInviteHandler();
     }
-  }, [user, inviteData, processing, showChoiceScreen, showGuestPreview]);
+  }, [user, inviteData, status]);
 
-  // Handle signup and join
-  async function handleSignupAndJoin() {
-    if (!user) {
-      try {
-        setProcessing(true);
-        await signInWithGoogle();
-        // After sign-in, useEffect will auto-accept
-      } catch (error) {
-        console.error('Sign-in failed:', error);
-        setError('Sign-in failed. Please try again.');
-        setProcessing(false);
-      }
-      return;
-    }
-
-    await handleAcceptInvite();
-  }
-
-  // Handle guest preview choice
-  function handleViewAsGuest() {
-    setShowChoiceScreen(false);
-    setShowGuestPreview(true);
-  }
-
-  // Accept invite
-  async function handleAcceptInvite() {
-    if (!user) {
-      await handleSignupAndJoin();
-      return;
-    }
-
-    setProcessing(true);
-    setError(null);
-
+  async function loadInvite() {
     try {
+      setStatus("loading");
+      setMessage("Validating invitation...");
+
+      let validation;
+      let inviteType;
+      let inviteDetails = {};
+
+      // Determine invite type and validate
+      if (token) {
+        // Link-based invite (has token parameter)
+        console.log("📧 Processing link-based invite with token:", token);
+        inviteType = "link";
+        validation = await getInviteByToken(token);
+        
+        if (!validation.valid) {
+          throw new Error(validation.error || "Invalid invite link");
+        }
+
+        inviteDetails = {
+          type: "link",
+          token,
+          teamId: validation.invite.teamId,
+          teamName: validation.invite.teamName,
+          role: validation.invite.role,
+          inviterName: validation.invite.inviterName,
+        };
+      } else if (inviteId && teamId) {
+        // Email-based invite (has inviteId + teamId)
+        console.log("📧 Processing email-based invite with inviteId:", inviteId, "teamId:", teamId);
+        inviteType = "email";
+        validation = await validateInvite(inviteId);
+        
+        if (!validation.valid) {
+          throw new Error(validation.error || "Invalid invitation");
+        }
+
+        inviteDetails = {
+          type: "email",
+          inviteId,
+          teamId,
+          teamName: validation.invite.teamName,
+          role: validation.invite.role,
+          email: validation.invite.email,
+          inviterName: validation.invite.inviterName,
+        };
+      } else if (teamId && !inviteId && !token) {
+        // Legacy format: only teamId (missing inviteId)
+        // This is the bug - we need both teamId AND inviteId for email invites
+        console.error("❌ Invalid invite format: teamId without inviteId or token");
+        throw new Error("Invalid invite format. This link appears to be incomplete. Please request a new invitation.");
+      } else {
+        throw new Error("Missing invitation parameters. Please check your invitation link.");
+      }
+
+      console.log("✅ Invite validated successfully:", inviteDetails);
+      setInviteData(inviteDetails);
+
+      // If user is already signed in, proceed to accept
+      // Otherwise, show sign-in prompt
+      if (user) {
+        setStatus("ready");
+        setMessage("Processing invitation...");
+      } else {
+        setStatus("signin_required");
+        setMessage(`You've been invited to join "${inviteDetails.teamName}"`);
+      }
+    } catch (err) {
+      console.error("❌ Error loading invite:", err);
+      setStatus("error");
+
+      if (err.message.includes("expired")) {
+        setMessage("This invitation has expired. Please request a new one from your team admin.");
+      } else if (err.message.includes("not found")) {
+        setMessage("This invitation is no longer valid or has already been used.");
+      } else if (err.message.includes("Invalid invite format")) {
+        setMessage(err.message);
+      } else {
+        setMessage(err.message || "Failed to load invitation. Please try again or contact your team admin.");
+      }
+    }
+  }
+
+  async function acceptInviteHandler() {
+    try {
+      setStatus("processing");
+      setMessage("Accepting invitation...");
+
       let result;
 
-      if (inviteData.type === 'link' && inviteData.token) {
+      if (inviteData.type === "link") {
+        // Accept link-based invite
+        console.log("📧 Accepting link invite with token:", inviteData.token);
         result = await acceptLinkInvite(inviteData.token, user.uid);
       } else {
-        if (inviteData.id) {
-          result = await acceptTeamInvite(inviteData.id, inviteData.teamId, user.uid);
-        } else {
-          result = { success: false, error: 'Invalid invite format' };
-        }
+        // Accept email-based invite
+        console.log("📧 Accepting email invite with inviteId:", inviteData.inviteId);
+        result = await acceptTeamInvite(inviteData.inviteId, inviteData.teamId, user.uid);
       }
 
-      if (result.success) {
-        console.log('✅ Successfully joined team');
-        
-        // Track conversion
-        if (window.gtag) {
-          window.gtag('event', 'team_joined', {
-            team_id: inviteData.teamId,
-            role: inviteData.role,
-            invite_type: inviteData.type,
-          });
+      if (!result.success) {
+        // Handle specific error cases
+        if (result.error === "ALREADY_MEMBER") {
+          setStatus("success");
+          setMessage(`You're already a member of "${inviteData.teamName}"!`);
+          setAcceptedTeamId(inviteData.teamId);
+          setTimeout(() => {
+            onNavigate ? onNavigate("/") : window.location.href = "/";
+          }, 2000);
+          return;
         }
-        
-        onNavigate('/');
-        
-        setTimeout(() => {
-          alert(`✅ Welcome to ${result.teamName || inviteData.teamName}!`);
-        }, 500);
-      } else {
-        if (result.error === 'ALREADY_MEMBER') {
-          setError('You are already a member of this team');
-          setTimeout(() => onNavigate('/'), 2000);
-        } else if (result.error === 'INVITE_EXPIRED') {
-          setError('This invite has expired');
-        } else if (result.error === 'TEAM_NOT_FOUND') {
-          setError('Team not found');
-        } else {
-          setError(result.error || 'Failed to join team');
-        }
+
+        throw new Error(result.error || "Failed to accept invitation");
       }
-    } catch (error) {
-      console.error('Error accepting invite:', error);
-      setError('An unexpected error occurred');
-    } finally {
-      setProcessing(false);
+
+      console.log("✅ Invitation accepted successfully");
+      setStatus("success");
+      setMessage(`Successfully joined "${result.teamName || inviteData.teamName}" as ${result.role}!`);
+      setAcceptedTeamId(inviteData.teamId);
+
+      // Track acceptance in GA4
+      if (window.gtag) {
+        window.gtag('event', 'team_invite_accepted', {
+          team_id: inviteData.teamId,
+          team_name: inviteData.teamName,
+          role: result.role,
+          invite_type: inviteData.type,
+        });
+      }
+
+      // Redirect to home after short delay (team will be visible in sidebar)
+      setTimeout(() => {
+        onNavigate ? onNavigate("/") : window.location.href = "/";
+      }, 2000);
+    } catch (err) {
+      console.error("❌ Error accepting invite:", err);
+      setStatus("error");
+      setAttemptingAutoAccept(false);
+
+      if (err.message === "TEAM_NOT_FOUND") {
+        setMessage("This team no longer exists.");
+      } else if (err.message === "INVITE_EXPIRED") {
+        setMessage("This invitation has expired. Please request a new one.");
+      } else if (err.message === "INVITE_NOT_FOUND") {
+        setMessage("This invitation is no longer valid.");
+      } else {
+        setMessage(err.message || "Failed to accept invitation. Please try again.");
+      }
     }
   }
 
-  function handleDecline() {
-    onNavigate('/');
+  async function handleSignIn() {
+    try {
+      setStatus("signing_in");
+      setMessage("Opening Google sign-in...");
+      
+      // Store invite data in sessionStorage so we don't lose it during sign-in
+      if (inviteData) {
+        sessionStorage.setItem('pendingInvite', JSON.stringify(inviteData));
+      }
+      
+      await signInWithGoogle();
+      
+      // After sign-in, the useEffect will trigger acceptance
+      console.log("✅ Sign-in successful, proceeding to accept invite");
+    } catch (err) {
+      console.error("❌ Sign-in error:", err);
+      setStatus("signin_required");
+      
+      if (err.message?.includes("popup") || err.code === "auth/popup-blocked") {
+        setMessage("Pop-up blocked! Please allow pop-ups for this site and try again.");
+      } else if (err.message?.includes("cancelled") || err.code === "auth/popup-closed-by-user") {
+        setMessage("Sign-in was cancelled. Please try again when you're ready to join the team.");
+      } else {
+        setMessage("Sign-in failed. Please try again or contact support if the issue persists.");
+      }
+    }
   }
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
-        <div className="glass-card p-8 text-center max-w-md">
-          <Loader className="animate-spin mx-auto mb-4" size={48} style={{ color: 'var(--primary)' }} />
-          <p style={{ color: 'var(--foreground)' }}>Loading invite...</p>
-        </div>
-      </div>
-    );
-  }
+  const getStatusColor = () => {
+    switch (status) {
+      case "loading":
+      case "processing":
+      case "signing_in":
+      case "ready":
+        return "text-blue-600 dark:text-blue-400";
+      case "success":
+        return "text-green-600 dark:text-green-400";
+      case "error":
+        return "text-red-600 dark:text-red-400";
+      case "signin_required":
+        return "text-purple-600 dark:text-purple-400";
+      default:
+        return "text-gray-600 dark:text-gray-400";
+    }
+  };
 
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
-        <div className="glass-card p-8 text-center max-w-md">
-          <AlertTriangle className="mx-auto mb-4" size={48} style={{ color: 'var(--destructive)' }} />
-          <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>
-            Invite Error
+  const getStatusIcon = () => {
+    switch (status) {
+      case "loading":
+      case "processing":
+      case "ready":
+      case "signing_in":
+        return <Loader2 className="w-12 h-12 animate-spin" />;
+      case "success":
+        return <CheckCircle2 className="w-12 h-12" />;
+      case "error":
+        return <XCircle className="w-12 h-12" />;
+      case "signin_required":
+        return <LogIn className="w-12 h-12" />;
+      default:
+        return <Info className="w-12 h-12" />;
+    }
+  };
+
+  const getTitle = () => {
+    switch (status) {
+      case "loading":
+        return "Loading Invitation";
+      case "processing":
+      case "ready":
+        return "Processing Invitation";
+      case "success":
+        return "Welcome to the Team!";
+      case "error":
+        return "Invitation Error";
+      case "signin_required":
+        return "Sign In to Join";
+      case "signing_in":
+        return "Signing In...";
+      default:
+        return "Team Invitation";
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4" 
+         style={{ backgroundColor: "var(--background)" }}>
+      <div className="glass-card p-8 rounded-xl shadow-2xl max-w-md w-full">
+        <div className="text-center">
+          {/* Status Icon */}
+          <div className={`flex justify-center mb-4 ${getStatusColor()}`}>
+            {getStatusIcon()}
+          </div>
+
+          {/* Title */}
+          <h2 className="text-2xl font-bold mb-3" style={{ color: "var(--foreground)" }}>
+            {getTitle()}
           </h2>
-          <p className="mb-6" style={{ color: 'var(--muted-foreground)' }}>
-            {error}
+
+          {/* Message */}
+          <p className={`mb-6 ${getStatusColor()}`}>
+            {message}
           </p>
-          <button onClick={() => onNavigate('/')} className="btn-primary">
-            Return Home
-          </button>
-        </div>
-      </div>
-    );
-  }
 
-  // Processing state
-  if (processing) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
-        <div className="glass-card p-8 text-center max-w-md">
-          <Loader className="animate-spin mx-auto mb-4" size={48} style={{ color: 'var(--primary)' }} />
-          <p style={{ color: 'var(--foreground)' }}>
-            {user ? 'Joining team...' : 'Signing in...'}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // CHOICE SCREEN - Guest vs Signup
-  if (showChoiceScreen && teamPreview) {
-    return (
-      <div style={{ background: 'var(--background)', minHeight: '100vh' }}>
-        {/* Animated gradient background */}
-        <div className="gradient-orb gradient-orb-1"></div>
-        <div className="gradient-orb gradient-orb-2"></div>
-
-        <div className="container mx-auto px-4 py-12 relative z-10">
-          {/* Header */}
-          <div className="text-center mb-12 max-w-3xl mx-auto">
-            <div
-              style={{
-                width: '80px',
-                height: '80px',
-                margin: '0 auto 2rem',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(124, 58, 237, 0.2) 100%)',
-                borderRadius: '20px',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Users size={40} style={{ color: 'var(--primary)' }} />
-            </div>
-
-            <h1 className="text-3xl md:text-4xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>
-              You've been invited to join
-            </h1>
-            <div className="inline-flex items-center gap-3 px-6 py-3 rounded-full mb-4"
-              style={{
-                background: 'rgba(139, 92, 246, 0.1)',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
-              }}
-            >
-              <Crown size={24} style={{ color: 'var(--primary)' }} />
-              <span className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>
-                {teamPreview.name}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-center gap-6 text-sm" style={{ color: 'var(--muted-foreground)' }}>
-              <div className="flex items-center gap-2">
-                <Users size={16} />
-                <span>{teamPreview.memberCount} members</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <FileText size={16} />
-                <span>{teamPreview.promptCount} prompts</span>
-              </div>
-            </div>
-
-            <p className="mt-6 text-lg" style={{ color: 'var(--muted-foreground)' }}>
-              Invited by <strong>{inviteData.inviterName || 'a team member'}</strong> as a{' '}
-              <span
-                style={{
-                  padding: '0.25rem 0.75rem',
-                  background: 'rgba(139, 92, 246, 0.15)',
-                  borderRadius: '6px',
-                  color: 'var(--primary)',
-                  fontWeight: '600',
-                }}
-              >
-                {inviteData.role}
-              </span>
-            </p>
-          </div>
-
-          {/* Choice Cards */}
-          <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto mb-8">
-            {/* GUEST PREVIEW OPTION */}
-            <div
-              className="glass-card p-8 relative overflow-hidden"
-              style={{
-                border: '1px solid rgba(139, 92, 246, 0.15)',
-                transition: 'all 0.3s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
-                e.currentTarget.style.transform = 'translateY(-4px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.15)';
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              {/* Badge */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '1rem',
-                  right: '1rem',
-                  padding: '0.25rem 0.75rem',
-                  background: 'rgba(251, 191, 36, 0.15)',
-                  border: '1px solid rgba(251, 191, 36, 0.3)',
-                  borderRadius: '20px',
-                  fontSize: '0.75rem',
-                  fontWeight: '600',
-                  color: '#fbbf24',
-                }}
-              >
-                Free • No signup
-              </div>
-
-              <div className="mb-6">
-                <Eye size={48} style={{ color: 'var(--muted-foreground)', marginBottom: '1rem' }} />
-                <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
-                  View as Guest
-                </h2>
-                <p style={{ color: 'var(--muted-foreground)', fontSize: '0.938rem' }}>
-                  Preview the team before deciding to join
-                </p>
-              </div>
-
-              {/* What you CAN do */}
-              <div className="space-y-3 mb-6">
-                <div style={{ display: 'flex', alignItems: 'start', gap: '0.75rem' }}>
-                  <CheckCircle size={20} style={{ color: 'var(--success)', flexShrink: 0, marginTop: '0.125rem' }} />
-                  <div>
-                    <strong style={{ color: 'var(--foreground)', fontSize: '0.875rem' }}>Browse team prompts</strong>
-                    <p style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      See titles and descriptions
-                    </p>
-                  </div>
+          {/* Invite Details (when waiting for sign-in) */}
+          {status === "signin_required" && inviteData && (
+            <div className="mb-6 p-4 rounded-lg" 
+                 style={{ backgroundColor: "var(--muted)", border: "1px solid var(--border)" }}>
+              <div className="space-y-3">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <Users className="w-5 h-5" style={{ color: "var(--primary)" }} />
+                  <span className="text-lg font-semibold" style={{ color: "var(--foreground)" }}>
+                    {inviteData.teamName}
+                  </span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'start', gap: '0.75rem' }}>
-                  <CheckCircle size={20} style={{ color: 'var(--success)', flexShrink: 0, marginTop: '0.125rem' }} />
-                  <div>
-                    <strong style={{ color: 'var(--foreground)', fontSize: '0.875rem' }}>View team info</strong>
-                    <p style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      Member count and activity
-                    </p>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'start', gap: '0.75rem' }}>
-                  <CheckCircle size={20} style={{ color: 'var(--success)', flexShrink: 0, marginTop: '0.125rem' }} />
-                  <div>
-                    <strong style={{ color: 'var(--foreground)', fontSize: '0.875rem' }}>Explore interface</strong>
-                    <p style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      Test the platform risk-free
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* What you CANNOT do */}
-              <div className="pt-4 border-t mb-6" style={{ borderColor: 'var(--border)' }}>
-                <p style={{ fontSize: '0.813rem', fontWeight: '600', color: 'var(--muted-foreground)', marginBottom: '0.75rem' }}>
-                  Limitations:
-                </p>
-                <div className="space-y-2">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <XCircle size={16} style={{ color: 'var(--destructive)', flexShrink: 0 }} />
-                    <span style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      Cannot see full prompt content
+                
+                <div className="space-y-2 text-sm" style={{ color: "var(--muted-foreground)" }}>
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Your Role:</span>
+                    <span className="flex items-center gap-1 font-semibold capitalize" 
+                          style={{ color: "var(--foreground)" }}>
+                      <Shield className="w-4 h-4" />
+                      {inviteData.role}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <XCircle size={16} style={{ color: 'var(--destructive)', flexShrink: 0 }} />
-                    <span style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      Cannot create or edit prompts
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <XCircle size={16} style={{ color: 'var(--destructive)', flexShrink: 0 }} />
-                    <span style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      Cannot use team chat
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <XCircle size={16} style={{ color: 'var(--destructive)', flexShrink: 0 }} />
-                    <span style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      Work won't be saved
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={handleViewAsGuest}
-                className="btn-secondary w-full"
-                style={{ padding: '0.875rem', fontSize: '0.938rem' }}
-              >
-                <Eye size={18} />
-                Preview as Guest
-              </button>
-            </div>
-
-            {/* SIGNUP & JOIN OPTION */}
-            <div
-              className="glass-card p-8 relative overflow-hidden"
-              style={{
-                border: '2px solid rgba(139, 92, 246, 0.4)',
-                background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(124, 58, 237, 0.05) 100%)',
-                transition: 'all 0.3s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.6)';
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 40px rgba(139, 92, 246, 0.2)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.4)';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              {/* Badge */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '1rem',
-                  right: '1rem',
-                  padding: '0.25rem 0.75rem',
-                  background: 'var(--primary)',
-                  borderRadius: '20px',
-                  fontSize: '0.75rem',
-                  fontWeight: '600',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.375rem',
-                }}
-              >
-                <Sparkles size={12} />
-                Recommended
-              </div>
-
-              <div className="mb-6">
-                <Shield size={48} style={{ color: 'var(--primary)', marginBottom: '1rem' }} />
-                <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--foreground)' }}>
-                  Sign Up & Join
-                </h2>
-                <p style={{ color: 'var(--muted-foreground)', fontSize: '0.938rem' }}>
-                  Full access as a team {inviteData.role}
-                </p>
-              </div>
-
-              {/* Full benefits */}
-              <div className="space-y-3 mb-6">
-                <div style={{ display: 'flex', alignItems: 'start', gap: '0.75rem' }}>
-                  <CheckCircle size={20} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '0.125rem' }} />
-                  <div>
-                    <strong style={{ color: 'var(--foreground)', fontSize: '0.875rem' }}>Create & edit prompts</strong>
-                    <p style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      Build and refine AI workflows
-                    </p>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'start', gap: '0.75rem' }}>
-                  <CheckCircle size={20} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '0.125rem' }} />
-                  <div>
-                    <strong style={{ color: 'var(--foreground)', fontSize: '0.875rem' }}>Real-time collaboration</strong>
-                    <p style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      Team chat and live updates
-                    </p>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'start', gap: '0.75rem' }}>
-                  <CheckCircle size={20} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '0.125rem' }} />
-                  <div>
-                    <strong style={{ color: 'var(--foreground)', fontSize: '0.875rem' }}>Access all content</strong>
-                    <p style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      View full prompts and outputs
-                    </p>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'start', gap: '0.75rem' }}>
-                  <CheckCircle size={20} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '0.125rem' }} />
-                  <div>
-                    <strong style={{ color: 'var(--foreground)', fontSize: '0.875rem' }}>Analytics & insights</strong>
-                    <p style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      Track performance metrics
-                    </p>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'start', gap: '0.75rem' }}>
-                  <CheckCircle size={20} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '0.125rem' }} />
-                  <div>
-                    <strong style={{ color: 'var(--foreground)', fontSize: '0.875rem' }}>Work saved permanently</strong>
-                    <p style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                      Access from anywhere, anytime
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={handleSignupAndJoin}
-                className="btn-premium w-full"
-                style={{ padding: '1rem', fontSize: '1rem' }}
-              >
-                <Shield size={20} />
-                Sign Up & Join Team
-                <ArrowRight size={20} className="btn-arrow" />
-              </button>
-
-              <p className="text-center mt-4" style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                Free forever • No credit card • Takes 10 seconds
-              </p>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="text-center">
-            <button
-              onClick={handleDecline}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--muted-foreground)',
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-              }}
-            >
-              No thanks, return home
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // GUEST PREVIEW MODE
-  if (showGuestPreview && inviteData) {
-    return (
-      <div style={{ background: 'var(--background)', minHeight: '100vh', paddingTop: '120px' }}>
-        <InviteGuestMode
-          inviteData={inviteData}
-          onAcceptInvite={handleSignupAndJoin}
-          onDecline={handleDecline}
-        />
-
-        <div className="container mx-auto px-4 py-12">
-          <div className="glass-card p-8 max-w-4xl mx-auto">
-            <div className="text-center mb-8">
-              <Eye size={64} className="mx-auto mb-4" style={{ color: 'var(--primary)' }} />
-              <h1 className="text-3xl font-bold mb-4" style={{ color: 'var(--foreground)' }}>
-                Preview: {inviteData.teamName}
-              </h1>
-              <p style={{ color: 'var(--muted-foreground)' }}>
-                You're viewing this team as a guest with limited access
-              </p>
-            </div>
-
-            {/* Guest limitations notice */}
-            <div
-              className="mb-8 p-6 rounded-lg"
-              style={{
-                background: 'rgba(251, 191, 36, 0.08)',
-                border: '1px solid rgba(251, 191, 36, 0.2)',
-              }}
-            >
-              <div className="flex items-start gap-3 mb-4">
-                <Lock size={24} style={{ color: '#fbbf24', flexShrink: 0 }} />
-                <div>
-                  <h3 className="font-semibold mb-2" style={{ color: 'var(--foreground)' }}>
-                    Guest Restrictions
-                  </h3>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
-                    As a guest, you can only view limited information. Sign up to unlock full access.
-                  </p>
-                  <ul className="space-y-2">
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                      <XCircle size={16} style={{ color: '#fbbf24' }} />
-                      <span style={{ color: 'var(--muted-foreground)' }}>Cannot view full prompt content</span>
-                    </li>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                      <XCircle size={16} style={{ color: '#fbbf24' }} />
-                      <span style={{ color: 'var(--muted-foreground)' }}>Cannot create or edit</span>
-                    </li>
-                    <li style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                      <XCircle size={16} style={{ color: '#fbbf24' }} />
-                      <span style={{ color: 'var(--muted-foreground)' }}>Cannot use team chat</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            {/* Sample prompts preview */}
-            {teamPreview?.samplePrompts && teamPreview.samplePrompts.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
-                  Sample Prompts
-                </h2>
-                <div className="space-y-3">
-                  {teamPreview.samplePrompts.map((prompt, index) => (
-                    <div
-                      key={prompt.id}
-                      className="p-4 rounded-lg"
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.03)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                      }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <FileText size={18} style={{ color: 'var(--primary)' }} />
-                          <span style={{ color: 'var(--foreground)', fontWeight: '500' }}>
-                            {prompt.title}
-                          </span>
-                        </div>
-                        <Lock size={16} style={{ color: 'var(--muted-foreground)' }} />
-                      </div>
+                  
+                  {inviteData.inviterName && (
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">Invited by:</span>
+                      <span className="font-semibold" style={{ color: "var(--foreground)" }}>
+                        {inviteData.inviterName}
+                      </span>
                     </div>
-                  ))}
+                  )}
+                  
+                  {inviteData.email && (
+                    <div className="flex justify-between items-center">
+                      <span className="font-medium">Email:</span>
+                      <span className="font-semibold truncate" style={{ color: "var(--foreground)" }}>
+                        {inviteData.email}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+            </div>
+          )}
 
-            {/* CTA to join */}
-            <div className="text-center pt-6 border-t" style={{ borderColor: 'var(--border)' }}>
-              <h3 className="text-xl font-semibold mb-4" style={{ color: 'var(--foreground)' }}>
-                Ready to collaborate?
-              </h3>
+          {/* Action Buttons */}
+          {status === "signin_required" && (
+            <div className="space-y-3">
               <button
-                onClick={handleSignupAndJoin}
-                className="btn-premium"
-                style={{ padding: '1rem 2rem' }}
+                onClick={handleSignIn}
+                className="btn-primary w-full py-3 flex items-center justify-center gap-2"
               >
-                <Shield size={20} />
-                Sign Up & Join Team
-                <ArrowRight size={20} className="btn-arrow" />
+                <LogIn className="w-5 h-5" />
+                Sign In with Google to Join
               </button>
-              <p className="mt-4" style={{ fontSize: '0.813rem', color: 'var(--muted-foreground)' }}>
-                Free forever • No credit card required • Full access to all features
+              
+              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                You'll need to sign in to accept this invitation and join the team.
               </p>
             </div>
-          </div>
+          )}
+
+          {status === "success" && (
+            <div className="space-y-3">
+              <button
+                onClick={() => onNavigate ? onNavigate("/") : window.location.href = "/"}
+                className="btn-primary w-full py-3"
+              >
+                Go to Team Dashboard
+              </button>
+              
+              <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                Redirecting automatically in a moment...
+              </p>
+            </div>
+          )}
+
+          {status === "error" && (
+            <div className="space-y-3">
+              <button
+                onClick={() => onNavigate ? onNavigate("/") : window.location.href = "/"}
+                className="btn-primary w-full py-3"
+              >
+                Return Home
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="btn-secondary w-full py-3"
+              >
+                Try Again
+              </button>
+              
+              <p className="text-xs mt-4" style={{ color: "var(--muted-foreground)" }}>
+                If this problem persists, please contact your team admin for a new invitation.
+              </p>
+            </div>
+          )}
+
+          {/* Loading indicator */}
+          {(status === "loading" || status === "processing" || status === "ready" || status === "signing_in") && (
+            <div className="flex justify-center mt-6">
+              <div className="flex items-center gap-2" style={{ color: "var(--muted-foreground)" }}>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Please wait...</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Debug info in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-6 p-3 rounded text-xs text-left" 
+                 style={{ backgroundColor: "var(--muted)", color: "var(--muted-foreground)" }}>
+              <div className="font-semibold mb-1">Debug Info:</div>
+              <div>Status: {status}</div>
+              <div>Type: {inviteData?.type || 'N/A'}</div>
+              <div>Token: {token ? 'Present' : 'None'}</div>
+              <div>InviteId: {inviteId || 'None'}</div>
+              <div>TeamId: {teamId || 'None'}</div>
+              <div>User: {user ? 'Signed in' : 'Not signed in'}</div>
+            </div>
+          )}
         </div>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }
