@@ -1,4 +1,4 @@
-// src/components/OnboardingExperience.jsx - FIXED: Works without teams for guests
+// src/components/OnboardingExperience.jsx - FIXED: Z-index issue with team header
 import React, { useState } from 'react';
 import { 
   Sparkles, 
@@ -18,6 +18,7 @@ import { DEMO_PROMPTS } from '../lib/guestDemoContent';
  * - Works for both guests and authenticated users
  * - For guests: Educational experience
  * - For auth users: Adds prompts to their team
+ * - FIXED: Z-index now 10000 to be above all other elements including team header
  */
 export default function OnboardingExperience({ 
   onComplete, 
@@ -90,11 +91,12 @@ export default function OnboardingExperience({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 flex items-center justify-center p-4"
       style={{
         background: 'rgba(10, 13, 20, 0.95)',
         backdropFilter: 'blur(12px)',
         animation: 'fadeIn 0.3s ease-out',
+        zIndex: 10000, // ✅ FIXED: Increased from 50 to 10000 to be above team header (z-100)
       }}
     >
       <div 
@@ -417,9 +419,10 @@ export default function OnboardingExperience({
       {/* Preview Modal */}
       {showPreview !== null && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 flex items-center justify-center p-4"
           style={{
             background: 'rgba(0, 0, 0, 0.8)',
+            zIndex: 10001, // ✅ FIXED: Preview modal above main onboarding modal
           }}
           onClick={() => setShowPreview(null)}
         >
