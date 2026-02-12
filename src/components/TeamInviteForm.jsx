@@ -338,7 +338,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
                       color: "rgb(34, 197, 94)",
                     }}
                   >
-                    ⚡ Instant Access
+                     Instant Access
                   </span>
                   <span
                     className="text-xs px-2 py-0.5 rounded-full"
@@ -347,7 +347,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
                       color: "var(--primary)",
                     }}
                   >
-                    👁️ No Sign-up
+                     No Sign-up
                   </span>
                 </div>
                 <p
@@ -469,6 +469,15 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
                     style={{ color: "var(--foreground)" }}
                   >
                     Email Invite
+                  </span>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: "rgba(139, 92, 246, 0.15)",
+                      color: "var(--primary)",
+                    }}
+                  >
+                    Sign-up Required
                   </span>
                 </div>
                 <p
