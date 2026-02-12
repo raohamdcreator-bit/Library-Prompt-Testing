@@ -25,11 +25,31 @@ export default function JoinTeam({ onNavigate }) {
     loadInvite();
   }, [inviteId, teamId, token]);
 
-  // Step 2: Auto-accept invite if user is already signed in
+  // Step 1.5: Handle race condition - user already authenticated but loaded after invite
   useEffect(() => {
-    if (user && inviteData && status === "ready" && !attemptingAutoAccept) {
-      setAttemptingAutoAccept(true);
-      acceptInviteHandler();
+    if (user && inviteData && status === "signin_required") {
+      console.log("✅ User already authenticated, updating status to ready");
+      setStatus("ready");
+      setMessage("Processing invitation...");
+    }
+  }, [user, inviteData, status]);
+
+  // Step 2: Auto-accept invite when user is authenticated
+  useEffect(() => {
+    // Trigger auto-acceptance when:
+    // 1. User is authenticated
+    // 2. We have invite data loaded  
+    // 3. Status is "ready" (or user just became authenticated while signing in)
+    // 4. We haven't already attempted auto-accept
+    if (user && inviteData && !attemptingAutoAccept) {
+      const shouldAutoAccept = status === "ready" || 
+                               (status === "signing_in" && inviteData);
+      
+      if (shouldAutoAccept) {
+        console.log("🚀 Auto-accepting invite for authenticated user...");
+        setAttemptingAutoAccept(true);
+        acceptInviteHandler();
+      }
     }
   }, [user, inviteData, status]);
 
@@ -197,8 +217,10 @@ export default function JoinTeam({ onNavigate }) {
       
       await signInWithGoogle();
       
-      // After sign-in, the useEffect will trigger acceptance
-      console.log("✅ Sign-in successful, proceeding to accept invite");
+      // ✅ FIXED: Set status to "ready" so the auto-acceptance useEffect triggers
+      setStatus("ready");
+      setMessage("Sign-in successful, accepting invitation...");
+      console.log("✅ Sign-in successful, status set to ready for auto-acceptance");
     } catch (err) {
       console.error("❌ Sign-in error:", err);
       setStatus("signin_required");
