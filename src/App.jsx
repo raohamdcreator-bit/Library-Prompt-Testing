@@ -1,4 +1,4 @@
-// src/App.jsx - FIXED: Guest mode desktop layout (sidebar overlap issue resolved)
+// src/App.jsx - COMPLETE WITH GUEST TEAM ACCESS SUPPORT
 import { useEffect, useState, useRef } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -16,6 +16,7 @@ import {
 import { useAuth } from "./context/AuthContext";
 import { useActiveTeam } from "./context/AppStateContext";
 import { useGuestMode } from "./context/GuestModeContext";
+import { hasGuestAccess } from "./lib/guestTeamAccess"; // ✅ NEW: Guest team access
 import SaveLockModal from "./components/SaveLockModal";
 import PromptList from "./components/PromptList";
 import TeamInviteForm from "./components/TeamInviteForm";
@@ -70,16 +71,17 @@ import {
   Bot,
   EyeOff,
   Database,
-  RotateCcw
+  RotateCcw,
+  Eye
 } from "lucide-react";
 
 // Import Legal/Info Pages
 import Contact from "./pages/Contact";
-import GuestTeamView from "./pages/GuestTeamView";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import About from "./pages/About";
 import JoinTeam from "./pages/JoinTeam";
+import GuestTeamView from "./pages/GuestTeamView"; // ✅ NEW: Guest team view
 import Waitlist from "./pages/Waitlist";
 import AdminDashboard from "./pages/AdminDashboard";
 import { NavigationProvider } from "./components/LegalLayout";
@@ -173,7 +175,7 @@ function Logo({ size = "normal", onClick }) {
 }
 
 // ===================================
-// NAVIGATION COMPONENT (UPDATED)
+// NAVIGATION COMPONENT
 // ===================================
 function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onExitGuestMode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -183,20 +185,20 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onEx
   return (
     <nav className={`modern-navbar ${scrolled ? 'scrolled' : ''}`}>
       <div className="navbar-content">
-      <div 
-  className="navbar-logo" 
-  onClick={() => {
-    if (isGuest) {
-      onExitGuestMode(); // ✅ FIXED: Use prop instead of undefined function
-    } else {
-      onNavigate("/");
-    }
-  }}
-  style={{ cursor: 'pointer' }}
->
-  <Logo />
-  <span className="navbar-logo-text">Prism</span>
-</div>
+        <div 
+          className="navbar-logo" 
+          onClick={() => {
+            if (isGuest) {
+              onExitGuestMode();
+            } else {
+              onNavigate("/");
+            }
+          }}
+          style={{ cursor: 'pointer' }}
+        >
+          <Logo />
+          <span className="navbar-logo-text">Prism</span>
+        </div>
 
         {/* Desktop Navigation */}
         <div className="navbar-links hidden md:flex">
@@ -222,7 +224,6 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onEx
             </button>
           )}
 
-          {/* Show sign-up button for guest users */}
           {isGuest && (
             <button
               onClick={onSignIn}
@@ -405,7 +406,7 @@ function Footer({ onNavigate }) {
 }
 
 // ===================================
-// LANDING PAGE (UPDATED CTA)
+// LANDING PAGE
 // ===================================
 function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
   useScrollReveal();
@@ -418,14 +419,14 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
       <div className="grid-overlay"></div>
 
       <div className="relative z-10">
-       <Navigation
-  onSignIn={onSignIn}
-  isAuthenticated={false}
-  onNavigate={onNavigate}
-  user={null}
-  isGuest={true}
-  onExitGuestMode={() => onNavigate('/')}
-/>
+        <Navigation
+          onSignIn={onSignIn}
+          isAuthenticated={false}
+          onNavigate={onNavigate}
+          user={null}
+          isGuest={true}
+          onExitGuestMode={() => onNavigate('/')}
+        />
 
         {/* Hero Section */}
         <section className="container mx-auto px-4 py-10 md:py-12">
@@ -452,7 +453,7 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
                 Where teams build, test, and manage AI workflows
               </p>
 
-              {/* CTA Buttons - UPDATED */}
+              {/* CTA Buttons */}
               <div className="hero-cta flex flex-row gap-4 justify-center items-center mb-8 px-4 whitespace-nowrap">
                 <button
                   onClick={onExploreApp}
@@ -717,23 +718,23 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
 }
 
 // ===================================
-// MAIN APP COMPONENT (FIXED: Guest mode desktop layout)
+// MAIN APP COMPONENT - WITH GUEST TEAM ACCESS
 // ===================================
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
   const { activeTeam, setActiveTeam } = useActiveTeam();
   const inviteCardRef = useRef(null);
- const {
-  isGuest,
-  showSaveModal,
-  isMigrating,
-  triggerSaveModal,  
-  handleSignupFromModal,
-  handleContinueWithout,
-  closeSaveModal,
-  modalContext,
-  getWorkSummary,
-} = useGuestMode();
+  const {
+    isGuest,
+    showSaveModal,
+    isMigrating,
+    triggerSaveModal,  
+    handleSignupFromModal,
+    handleContinueWithout,
+    closeSaveModal,
+    modalContext,
+    getWorkSummary,
+  } = useGuestMode();
   
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [teams, setTeams] = useState([]);
@@ -748,6 +749,31 @@ export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [isExploringAsGuest, setIsExploringAsGuest] = useState(false);
   const [guestDemosInitialized, setGuestDemosInitialized] = useState(false);
+  
+  // ✅ NEW: Guest team access state
+  const [guestTeamId, setGuestTeamId] = useState(null);
+  const [guestTeamPermissions, setGuestTeamPermissions] = useState(null);
+
+  // ✅ NEW: Check for guest team access on mount
+  useEffect(() => {
+    const guestAccess = hasGuestAccess();
+    
+    if (guestAccess.hasAccess) {
+      console.log('👁️ Guest team access detected:', guestAccess);
+      setGuestTeamId(guestAccess.teamId);
+      setGuestTeamPermissions(guestAccess.permissions);
+      
+      // Set as active team
+      setActiveTeam(guestAccess.teamId);
+      
+      // Track analytics
+      if (window.gtag) {
+        window.gtag('event', 'guest_team_mode_active', {
+          team_id: guestAccess.teamId,
+        });
+      }
+    }
+  }, []); // Run once on mount
 
   // Initialize demo prompts for guest users
   useEffect(() => {
@@ -839,33 +865,30 @@ export default function App() {
     return () => unsub();
   }, [user, setActiveTeam]);
   
-// Handle page exit/refresh for guests with unsaved work
-useEffect(() => {
-  function handleBeforeUnload(e) {
-    if (isGuest && guestState.hasUnsavedWork()) {
-      // Browser's built-in dialog
-      e.preventDefault();
-      e.returnValue = 'You have unsaved work. Are you sure you want to leave?';
-      
-      // Note: Custom modals don't work in beforeunload
-      // The browser shows its own dialog
-      return e.returnValue;
+  // Handle page exit/refresh for guests with unsaved work
+  useEffect(() => {
+    function handleBeforeUnload(e) {
+      if (isGuest && guestState.hasUnsavedWork()) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved work. Are you sure you want to leave?';
+        return e.returnValue;
+      }
     }
-  }
-  
-  if (isGuest) {
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }
-}, [isGuest]);
+    
+    if (isGuest) {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+  }, [isGuest]);
+
   // Set first team if no active team (only for authenticated users)
   useEffect(() => {
-    if (!user || loading || isGuest) return;
+    if (!user || loading || isGuest || guestTeamId) return;
 
     if (teams.length > 0 && !activeTeam && activeView !== "favorites") {
       setActiveTeam(teams[0].id);
     }
-  }, [teams.length, activeTeam, activeView, user, loading, setActiveTeam, isGuest]);
+  }, [teams.length, activeTeam, activeView, user, loading, setActiveTeam, isGuest, guestTeamId]);
 
   // Validate active team still exists
   useEffect(() => {
@@ -980,11 +1003,11 @@ useEffect(() => {
     };
   }, [teams]);
 
-  // ✅ FIXED: Check if user needs onboarding (guests + authenticated)
+  // Check if user needs onboarding (guests + authenticated)
   useEffect(() => {
     if (loading) return;
     
-    // ✅ Guest onboarding - show after demos are initialized
+    // Guest onboarding
     if (isGuest && guestDemosInitialized && !hasCompletedOnboarding) {
       const guestOnboardingKey = 'guest_onboarding_completed';
       const completed = localStorage.getItem(guestOnboardingKey);
@@ -999,7 +1022,7 @@ useEffect(() => {
       return;
     }
     
-    // ✅ Authenticated user onboarding
+    // Authenticated user onboarding
     if (!user || !teams.length) return;
     
     const onboardingKey = `onboarding_completed_${user.uid}`;
@@ -1108,7 +1131,7 @@ useEffect(() => {
     }
   }
 
-  // ✅ FIXED: Handle onboarding completion for both guests and auth users
+  // Handle onboarding completion
   function handleOnboardingComplete() {
     if (isGuest) {
       localStorage.setItem('guest_onboarding_completed', 'true');
@@ -1127,62 +1150,73 @@ useEffect(() => {
     }
     setShowOnboarding(false);
   }
-// Scroll to invitation card from PromptList
-function scrollToInviteCard() {
-  if (inviteCardRef.current) {
-    inviteCardRef.current.scrollIntoView({ 
-      behavior: 'smooth', 
-      block: 'start' 
-    });
-  }
-}
-  // Handle "Explore App" from landing page
- function handleExploreApp() {
-  setIsExploringAsGuest(true);
-  // Update browser history without navigation
-  window.history.pushState({ guestMode: true }, '', window.location.pathname);
-  
-  // Track analytics
-  if (window.gtag) {
-    window.gtag('event', 'guest_mode_entered', {
-      source: 'landing_page_cta',
-    });
-  }
-}
-  function handleExitGuestMode() {
-  // Check if guest has unsaved work
-  if (guestState.hasUnsavedWork()) {
-    // Warn user with native confirm
-    const confirmExit = window.confirm(
-      'You have unsaved work. Sign up to save it permanently, or continue without saving?'
-    );
-    
-    if (!confirmExit) {
-      // User cancelled, stay in guest mode
-      return;
+
+  // Scroll to invitation card from PromptList
+  function scrollToInviteCard() {
+    if (inviteCardRef.current) {
+      inviteCardRef.current.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+      });
     }
   }
-  
-  // Clear guest work if exiting
-  guestState.clearGuestWork();
-  
-  // Exit guest mode
-  setIsExploringAsGuest(false);
-  
-  // Track analytics
-  if (window.gtag) {
-    window.gtag('event', 'guest_mode_exited', {
-      had_work: guestState.hasUnsavedWork(),
-    });
-  }
-  
-  // Navigate to home and reload
-  navigate('/');
-  setTimeout(() => {
-    window.location.reload();
-  }, 100);
-}
 
+  // Handle "Explore App" from landing page
+  function handleExploreApp() {
+    setIsExploringAsGuest(true);
+    window.history.pushState({ guestMode: true }, '', window.location.pathname);
+    
+    if (window.gtag) {
+      window.gtag('event', 'guest_mode_entered', {
+        source: 'landing_page_cta',
+      });
+    }
+  }
+
+  function handleExitGuestMode() {
+    if (guestState.hasUnsavedWork()) {
+      const confirmExit = window.confirm(
+        'You have unsaved work. Sign up to save it permanently, or continue without saving?'
+      );
+      
+      if (!confirmExit) {
+        return;
+      }
+    }
+    
+    guestState.clearGuestWork();
+    setIsExploringAsGuest(false);
+    
+    if (window.gtag) {
+      window.gtag('event', 'guest_mode_exited', {
+        had_work: guestState.hasUnsavedWork(),
+      });
+    }
+    
+    navigate('/');
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
+  }
+
+  // ✅ NEW: Handle guest team exit
+  function handleExitGuestTeam() {
+    // Clear guest team access
+    sessionStorage.removeItem('guest_team_token');
+    sessionStorage.removeItem('guest_team_id');
+    sessionStorage.removeItem('guest_team_permissions');
+    sessionStorage.removeItem('is_guest_mode');
+    
+    setGuestTeamId(null);
+    setGuestTeamPermissions(null);
+    setActiveTeam(null);
+    
+    if (window.gtag) {
+      window.gtag('event', 'guest_team_exited');
+    }
+    
+    navigate('/');
+  }
 
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
 
@@ -1238,13 +1272,13 @@ function scrollToInviteCard() {
   }
 
   // Render special routes
- const isSpecialRoute = [
+  const isSpecialRoute = [
     "/contact",
     "/privacy",
     "/terms",
     "/about",
     "/join",
-    "/guest-team",
+    "/guest-team", // ✅ NEW
     "/waitlist",
     "/admin",
   ].some((route) => currentPath === route || currentPath.startsWith(route + "?"));
@@ -1254,14 +1288,14 @@ function scrollToInviteCard() {
       <NavigationProvider navigate={navigate}>
         <div style={{ background: "var(--background)", minHeight: "100vh" }}>
           {currentPath !== "/waitlist" && (
-           <Navigation
-            onSignIn={signInWithGoogle}
-            isAuthenticated={!!user}
-            onNavigate={navigate}
-            user={user}
-            isGuest={isGuest}
-            onExitGuestMode={handleExitGuestMode}
-           />
+            <Navigation
+              onSignIn={signInWithGoogle}
+              isAuthenticated={!!user}
+              onNavigate={navigate}
+              user={user}
+              isGuest={isGuest}
+              onExitGuestMode={handleExitGuestMode}
+            />
           )}
           <Router currentPath={currentPath.split("?")[0]}>
             <Route path="/contact"><Contact /></Route>
@@ -1279,8 +1313,8 @@ function scrollToInviteCard() {
     );
   }
 
-  // Loading state
-  if (loading && !isGuest) {
+  // ✅ UPDATED: Loading state - but NOT for guest team users
+  if (loading && !isGuest && !guestTeamId) {
     return (
       <div className="app-container">
         <div className="min-h-screen flex items-center justify-center">
@@ -1293,19 +1327,19 @@ function scrollToInviteCard() {
     );
   }
 
-  // Show landing page only if not exploring as guest
- if (!user && !isExploringAsGuest) {
-  return (
-    <LandingPage
-      onSignIn={signInWithGoogle}
-      onNavigate={navigate}
-      onExploreApp={handleExploreApp}
-      onExitGuestMode={handleExitGuestMode}
-    />
-  );
-}
+  // ✅ UPDATED: Show landing page only if not in any guest mode
+  if (!user && !isExploringAsGuest && !guestTeamId) {
+    return (
+      <LandingPage
+        onSignIn={signInWithGoogle}
+        onNavigate={navigate}
+        onExploreApp={handleExploreApp}
+        onExitGuestMode={handleExitGuestMode}
+      />
+    );
+  }
 
-  // ✅ FIXED: Main application UI - proper desktop layout for both guest and authenticated modes
+  // Main application UI
   return (
     <div className="app-container flex min-h-screen relative">
       {/* Save Lock Modal */}
@@ -1318,7 +1352,7 @@ function scrollToInviteCard() {
         modalContext={modalContext}
       />
 
-      {/* ✅ FIXED: Onboarding for authenticated users with team */}
+      {/* Onboarding for authenticated users with team */}
       {showOnboarding && activeTeam && user && (
         <OnboardingExperience
           onComplete={handleOnboardingComplete}
@@ -1330,7 +1364,7 @@ function scrollToInviteCard() {
         />
       )}
 
-      {/* ✅ FIXED: Onboarding for guest users */}
+      {/* Onboarding for guest users */}
       {showOnboarding && isGuest && !user && (
         <OnboardingExperience
           onComplete={handleOnboardingComplete}
@@ -1348,7 +1382,7 @@ function scrollToInviteCard() {
         onClick={() => setSidebarOpen(false)}
       ></div>
 
-      {/* Static Sidebar (show for both guest and authenticated) */}
+      {/* Static Sidebar */}
       <div className={`team-sidebar ${sidebarOpen ? "mobile-visible" : ""}`}>
         {/* Mobile Close Button */}
         <div className="sidebar-mobile-header">
@@ -1360,7 +1394,7 @@ function scrollToInviteCard() {
 
         {/* Fixed Header Section */}
         <div className="sidebar-header-fixed">
-          {/* User Profile Section (show for authenticated users) */}
+          {/* User Profile Section (authenticated users) */}
           {user && (
             <>
               <div className="sidebar-user-section">
@@ -1389,52 +1423,55 @@ function scrollToInviteCard() {
             </>
           )}
 
-{/* Guest Mode Indicator */}
-{isGuest && (
-  <>
-    <div className="sidebar-user-section">
-      <div
-        style={{
-          background: 'rgba(139, 92, 246, 0.08)',
-          border: '1px solid rgba(139, 92, 246, 0.15)',
-          borderRadius: '8px',
-          padding: '0.75rem',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <Sparkles size={16} style={{ color: 'var(--primary)' }} />
-          <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--foreground)' }}>
-            Guest Mode • Changes are temporary
-          </span>
-        </div>
-        <p style={{ fontSize: '0.75rem', color: 'rgba(228, 228, 231, 0.6)', marginBottom: '0.75rem' }}>
-          Sign up to save your work and collaborate with teams.
-        </p>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={signInWithGoogle}
-            className="btn-premium"
-            style={{ flex: 1, padding: '0.5rem', fontSize: '0.813rem' }}
-          >
-            <Shield size={14} />
-            Sign up free
-          </button>
-          <button
-            onClick={handleExitGuestMode}
-            className="btn-secondary"
-            style={{ flex: 1, padding: '0.5rem', fontSize: '0.813rem' }}
-          >
-            Exit Demo
-          </button>
-        </div>
-      </div>
-    </div>
+          {/* ✅ UPDATED: Guest Mode Indicator (both types) */}
+          {(isGuest || guestTeamId) && (
+            <>
+              <div className="sidebar-user-section">
+                <div
+                  style={{
+                    background: 'rgba(139, 92, 246, 0.08)',
+                    border: '1px solid rgba(139, 92, 246, 0.15)',
+                    borderRadius: '8px',
+                    padding: '0.75rem',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    {guestTeamId ? <Eye size={16} style={{ color: 'var(--primary)' }} /> : <Sparkles size={16} style={{ color: 'var(--primary)' }} />}
+                    <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--foreground)' }}>
+                      {guestTeamId ? 'Guest Team View • Read-Only' : 'Guest Mode • Changes are temporary'}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'rgba(228, 228, 231, 0.6)', marginBottom: '0.75rem' }}>
+                    {guestTeamId 
+                      ? 'You can view, copy, comment, and rate prompts. Sign up to create your own.'
+                      : 'Sign up to save your work and collaborate with teams.'
+                    }
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      onClick={signInWithGoogle}
+                      className="btn-premium"
+                      style={{ flex: 1, padding: '0.5rem', fontSize: '0.813rem' }}
+                    >
+                      <Shield size={14} />
+                      Sign up free
+                    </button>
+                    <button
+                      onClick={guestTeamId ? handleExitGuestTeam : handleExitGuestMode}
+                      className="btn-secondary"
+                      style={{ flex: 1, padding: '0.5rem', fontSize: '0.813rem' }}
+                    >
+                      Exit
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-    <div className="sidebar-divider"></div>
-  </>
-)}
+              <div className="sidebar-divider"></div>
+            </>
+          )}
 
-          {/* Quick Actions - Fixed at Top */}
+          {/* Quick Actions */}
           {user && (
             <>
               <button
@@ -1540,7 +1577,6 @@ function scrollToInviteCard() {
                       </div>
                     </button>
 
-                    {/* Expanded details when active */}
                     {isActive && (
                       <div className="team-details-expanded">
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.688rem' }}>
@@ -1569,7 +1605,6 @@ function scrollToInviteCard() {
                 );
               })}
 
-              {/* Empty State */}
               {teams.length === 0 && (
                 <div className="sidebar-empty-state">
                   <p>No teams yet</p>
@@ -1580,11 +1615,21 @@ function scrollToInviteCard() {
           )}
 
           {/* Guest Mode Placeholder */}
-          {isGuest && (
+          {(isGuest || guestTeamId) && !user && (
             <div className="sidebar-empty-state">
-              <Sparkles size={32} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
-              <p>Exploring as guest</p>
-              <p className="text-xs"> You’re in Guest Mode - Create a free account to unlock everything </p>
+              {guestTeamId ? (
+                <>
+                  <Eye size={32} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
+                  <p>Viewing team as guest</p>
+                  <p className="text-xs">Sign up to unlock all features</p>
+                </>
+              ) : (
+                <>
+                  <Sparkles size={32} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
+                  <p>Exploring as guest</p>
+                  <p className="text-xs">Create a free account to unlock everything</p>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -1625,39 +1670,45 @@ function scrollToInviteCard() {
         </div>
       </div>
 
-      {/* ✅ FIXED: Main Content Area - consistent margin for both guest and authenticated */}
+      {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0" style={{ marginLeft: '260px' }}>
-        {/* Mobile Header */}
+        {/* ✅ UPDATED: Mobile Header */}
         <div className="mobile-header">
-  <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn">
-    <Menu size={24} />
-  </button>
-  <div className="flex-1 min-w-0">
-    {activeTeamObj ? (
-      <h1 className="text-lg font-bold truncate" style={{ color: "var(--foreground)" }}>
-        {activeTeamObj.name}
-      </h1>
-    ) : activeView === "favorites" && user ? (
-      <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>My Favorites</h1>
-    ) : isGuest ? (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>Prism</h1>
-        <span style={{ fontSize: '0.688rem', color: 'var(--muted-foreground)' }}>• Guest Mode</span>
-      </div>
-    ) : null}
-  </div>
-  {isGuest && (
-    <button
-      onClick={handleExitGuestMode}
-      className="btn-secondary"
-      style={{ padding: '0.5rem 0.75rem', fontSize: '0.813rem' }}
-    >
-      <X size={16} />
-      Exit
-    </button>
-  )}
-</div>
-
+          <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn">
+            <Menu size={24} />
+          </button>
+          <div className="flex-1 min-w-0">
+            {activeTeamObj ? (
+              <h1 className="text-lg font-bold truncate" style={{ color: "var(--foreground)" }}>
+                {activeTeamObj.name}
+              </h1>
+            ) : activeView === "favorites" && user ? (
+              <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>My Favorites</h1>
+            ) : isGuest ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>Prism</h1>
+                <span style={{ fontSize: '0.688rem', color: 'var(--muted-foreground)' }}>• Guest Mode</span>
+              </div>
+            ) : guestTeamId ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h1 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
+                  {activeTeamObj?.name || 'Team'}
+                </h1>
+                <span style={{ fontSize: '0.688rem', color: 'var(--muted-foreground)' }}>• Guest View</span>
+              </div>
+            ) : null}
+          </div>
+          {(isGuest || guestTeamId) && (
+            <button
+              onClick={guestTeamId ? handleExitGuestTeam : handleExitGuestMode}
+              className="btn-secondary"
+              style={{ padding: '0.5rem 0.75rem', fontSize: '0.813rem' }}
+            >
+              <X size={16} />
+              Exit
+            </button>
+          )}
+        </div>
 
         {/* Desktop Header */}
         {activeTeamObj ? (
@@ -1681,15 +1732,15 @@ function scrollToInviteCard() {
 
         {/* Main Content */}
         <div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
-          {/* Authenticated user with team - show team content */}
+          {/* Authenticated user with team */}
           {activeTeamObj && activeView === "prompts" && (
             <>
-             <PromptList 
-  activeTeam={activeTeamObj ? activeTeamObj.id : null}
-  userRole={role} 
-  isGuestMode={isGuest}
-  userId={user?.uid}
-/>
+              <PromptList 
+                activeTeam={activeTeamObj ? activeTeamObj.id : null}
+                userRole={role} 
+                isGuestMode={isGuest || !!guestTeamId} // ✅ UPDATED
+                userId={user?.uid}
+              />
               {canManageMembers() && (
                 <TeamInviteForm teamId={activeTeamObj.id} ref={inviteCardRef} teamName={activeTeamObj.name} role={role} />
               )}
@@ -1712,21 +1763,21 @@ function scrollToInviteCard() {
             <PlagiarismChecker teamId={activeTeamObj.id} userRole={role} />
           )}
 
-          {/* Favorites view for authenticated users */}
+          {/* Favorites view */}
           {activeView === "favorites" && !activeTeam && user && <FavoritesList />}
 
-          {/* ✅ FIXED: Guest Mode - Show demo prompts */}
+          {/* Guest Mode - Show demo prompts */}
           {isGuest && !activeTeamObj && activeView !== "favorites" && (
-           <PromptList 
-    activeTeam={null}
-    userRole={null}
-    isGuestMode={true}
-    userId={null}
-  />
+            <PromptList 
+              activeTeam={null}
+              userRole={null}
+              isGuestMode={true}
+              userId={null}
+            />
           )}
 
-          {/* ✅ FIXED: Authenticated user without team - show empty state */}
-          {!isGuest && !activeTeamObj && activeView !== "favorites" && (
+          {/* Authenticated user without team */}
+          {!isGuest && !guestTeamId && !activeTeamObj && activeView !== "favorites" && (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center py-12">
                 <div className="glass-card p-6 md:p-8 max-w-md mx-auto">
@@ -1751,8 +1802,8 @@ function scrollToInviteCard() {
         {user && <MyInvites />}
       </div>
 
-      {/* Team Chat Component (only for authenticated users with active team) */}
-      {activeTeamObj && user && (
+      {/* ✅ UPDATED: Team Chat (hide for guest team users) */}
+      {activeTeamObj && user && !guestTeamId && (
         <TeamChat
           teamId={activeTeamObj.id}
           teamName={activeTeamObj.name}
