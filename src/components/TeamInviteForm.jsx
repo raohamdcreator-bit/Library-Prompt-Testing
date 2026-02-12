@@ -1,19 +1,25 @@
-// src/components/TeamInviteForm.jsx - Updated with Link Invite Support + NotificationContext + Sound Effects
+// src/components/TeamInviteForm.jsx - UPDATED: Added Guest Link Generation
 import { useState, forwardRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
 import { useSoundEffects } from "../hooks/useSoundEffects";
 import { 
   Users, Mail, Send, UserPlus, Shield, Info, CheckCircle, X, Loader2,
-  Link as LinkIcon, Copy, Check, Sparkles
+  Link as LinkIcon, Copy, Check, Sparkles, Eye, Lock, Star, MessageSquare
 } from "lucide-react";
 import { sendTeamInvitation, generateTeamInviteLink } from "../lib/inviteUtils";
+import { generateGuestAccessLink } from "../lib/guestTeamAccess";
 
 const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
   const { user } = useAuth();
   const { success, error: showError, info } = useNotification();
   const { playNotification } = useSoundEffects();
-  const [inviteType, setInviteType] = useState("link"); // Default to link (more prominent)
+  
+  // "guest-link" = read-only guest access (NEW)
+  // "auth-link" = full member via link (requires auth)
+  // "email" = email-based invite (requires auth)
+  const [inviteType, setInviteType] = useState("guest-link");
+  
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [loading, setLoading] = useState(false);
@@ -50,7 +56,6 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
         throw new Error(result.error);
       }
 
-      // Track in GA4
       if (window.gtag) {
         window.gtag('event', 'team_invited_email', {
           team_id: teamId,
@@ -63,8 +68,6 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
 
       setEmail("");
       setInviteRole("member");
-
-      // Play success sound
       playNotification();
       
       success(
@@ -89,7 +92,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
     }
   }
 
-  async function handleGenerateLink(e) {
+  async function handleGenerateAuthLink(e) {
     e.preventDefault();
     setLoading(true);
 
@@ -107,9 +110,8 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
         throw new Error(result.error);
       }
 
-      // Track in GA4
       if (window.gtag) {
-        window.gtag('event', 'invite_link_generated', {
+        window.gtag('event', 'auth_invite_link_generated', {
           team_id: teamId,
           team_name: teamName,
           role: inviteRole,
@@ -123,14 +125,13 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
         token: result.token,
         inviteId: result.inviteId,
         expiresAt: result.expiresAt,
+        type: "auth",
       });
 
-      // Play success sound
       playNotification();
-      
-      success("Invite link generated successfully!", 3000);
+      success("Full access invite link generated successfully!", 3000);
     } catch (err) {
-      console.error("Error generating invite link:", err);
+      console.error("Error generating auth invite link:", err);
 
       let errorMessage = "Failed to generate invite link: ";
       if (err.message.includes("maximum")) {
@@ -145,22 +146,66 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
     }
   }
 
+  async function handleGenerateGuestLink(e) {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const result = await generateGuestAccessLink({
+        teamId,
+        teamName,
+        createdBy: user.uid,
+        creatorName: user.displayName || user.email,
+        expiresInDays: 30,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      if (window.gtag) {
+        window.gtag('event', 'guest_access_link_generated', {
+          team_id: teamId,
+          team_name: teamName,
+          created_by: user.uid,
+          expires_in_days: 30,
+        });
+      }
+
+      setGeneratedLink({
+        url: result.accessLink,
+        token: result.accessToken,
+        expiresAt: result.expiresAt,
+        type: "guest",
+      });
+
+      playNotification();
+      success("Guest access link generated successfully!", 3000);
+    } catch (err) {
+      console.error("Error generating guest access link:", err);
+
+      let errorMessage = "Failed to generate guest link: ";
+      errorMessage += err.message || "Unknown error";
+
+      showError(errorMessage, 5000);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function copyToClipboard() {
     if (!generatedLink) return;
 
     try {
       await navigator.clipboard.writeText(generatedLink.url);
       setCopied(true);
-      
-      // Play notification sound
       playNotification();
-      
       success("Link copied to clipboard!", 2000);
       
-      // Track in GA4
       if (window.gtag) {
         window.gtag('event', 'invite_link_copied', {
           team_id: teamId,
+          link_type: generatedLink.type,
         });
       }
 
@@ -209,10 +254,10 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
             className="text-lg font-semibold"
             style={{ color: "var(--foreground)" }}
           >
-            Invite Team Member
+            Invite to Team
           </h3>
           <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-            Add a new member to <strong>{teamName}</strong>
+            Share <strong>{teamName}</strong> with others
           </p>
         </div>
       </div>
@@ -229,28 +274,109 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
           </label>
           
           <div className="grid gap-3">
-            {/* Link Invite Option (Prominent) */}
+            {/* Guest Link Option (NEW - Most Prominent) */}
             <label
               className={`relative flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
-                inviteType === "link"
-                  ? "border-primary"
+                inviteType === "guest-link"
+                  ? "border-primary ring-2 ring-primary/20"
                   : "border-border hover:border-primary/50"
               }`}
               style={{
                 borderColor:
-                  inviteType === "link"
+                  inviteType === "guest-link"
                     ? "var(--primary)"
                     : "var(--border)",
                 backgroundColor:
-                  inviteType === "link"
+                  inviteType === "guest-link"
                     ? "rgba(139, 92, 246, 0.08)"
                     : "transparent",
               }}
             >
               <input
                 type="radio"
-                value="link"
-                checked={inviteType === "link"}
+                value="guest-link"
+                checked={inviteType === "guest-link"}
+                onChange={(e) => {
+                  setInviteType(e.target.value);
+                  setGeneratedLink(null);
+                }}
+                className="mt-1 w-4 h-4"
+                style={{ accentColor: "var(--primary)" }}
+                disabled={loading}
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <Eye className="w-4 h-4 text-cyan-400" />
+                  <span
+                    className="font-medium"
+                    style={{ color: "var(--foreground)" }}
+                  >
+                    Guest Link (Read-Only)
+                  </span>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: "rgba(34, 197, 94, 0.15)",
+                      color: "rgb(34, 197, 94)",
+                    }}
+                  >
+                    ⚡ Instant Access
+                  </span>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: "rgba(139, 92, 246, 0.15)",
+                      color: "var(--primary)",
+                    }}
+                  >
+                    👁️ No Sign-up
+                  </span>
+                </div>
+                <p
+                  className="text-sm mb-2"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Perfect for sharing with anyone! No account required. Users can view, copy, comment, and rate prompts instantly.
+                </p>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="flex items-center gap-1 text-green-600">
+                    <Check className="w-3 h-3" /> View & Copy
+                  </span>
+                  <span className="flex items-center gap-1 text-green-600">
+                    <MessageSquare className="w-3 h-3" /> Comment
+                  </span>
+                  <span className="flex items-center gap-1 text-green-600">
+                    <Star className="w-3 h-3" /> Rate
+                  </span>
+                  <span className="flex items-center gap-1 text-red-600">
+                    <Lock className="w-3 h-3" /> Can't Edit
+                  </span>
+                </div>
+              </div>
+            </label>
+
+            {/* Full Access Link Option */}
+            <label
+              className={`relative flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
+                inviteType === "auth-link"
+                  ? "border-primary"
+                  : "border-border hover:border-primary/50"
+              }`}
+              style={{
+                borderColor:
+                  inviteType === "auth-link"
+                    ? "var(--primary)"
+                    : "var(--border)",
+                backgroundColor:
+                  inviteType === "auth-link"
+                    ? "rgba(139, 92, 246, 0.08)"
+                    : "transparent",
+              }}
+            >
+              <input
+                type="radio"
+                value="auth-link"
+                checked={inviteType === "auth-link"}
                 onChange={(e) => {
                   setInviteType(e.target.value);
                   setGeneratedLink(null);
@@ -266,7 +392,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
                     className="font-medium"
                     style={{ color: "var(--foreground)" }}
                   >
-                    Invite via Link (Recommended)
+                    Full Access Link
                   </span>
                   <span
                     className="text-xs px-2 py-0.5 rounded-full"
@@ -275,14 +401,14 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
                       color: "var(--primary)",
                     }}
                   >
-                    ✨ Easy Share
+                    Sign-up Required
                   </span>
                 </div>
                 <p
                   className="text-sm"
                   style={{ color: "var(--muted-foreground)" }}
                 >
-                  Generate a shareable link that anyone can use to join. Perfect for Slack, Discord, or quick sharing.
+                  Share with people who need full access. They'll sign in with Google and become team members with the role you select.
                 </p>
               </div>
             </label>
@@ -324,7 +450,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
                     className="font-medium"
                     style={{ color: "var(--foreground)" }}
                   >
-                    Invite via Email
+                    Email Invite
                   </span>
                 </div>
                 <p
@@ -366,71 +492,73 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
           </div>
         )}
 
-        {/* Role Selection */}
-        <div className="space-y-3">
-          <label
-            className="block text-sm font-medium flex items-center gap-2"
-            style={{ color: "var(--foreground)" }}
-          >
-            <Shield className="w-4 h-4" />
-            Role & Permissions
-          </label>
-          <div className="grid gap-3">
-            {roleOptions.map((option) => {
-              const Icon = option.icon;
-              return (
-                <label
-                  key={option.value}
-                  className={`relative flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
-                    inviteRole === option.value
-                      ? "border-primary"
-                      : "border-border hover:border-primary/50"
-                  }`}
-                  style={{
-                    borderColor:
+        {/* Role Selection (only for auth-link and email) */}
+        {(inviteType === "auth-link" || inviteType === "email") && (
+          <div className="space-y-3">
+            <label
+              className="block text-sm font-medium flex items-center gap-2"
+              style={{ color: "var(--foreground)" }}
+            >
+              <Shield className="w-4 h-4" />
+              Role & Permissions
+            </label>
+            <div className="grid gap-3">
+              {roleOptions.map((option) => {
+                const Icon = option.icon;
+                return (
+                  <label
+                    key={option.value}
+                    className={`relative flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
                       inviteRole === option.value
-                        ? "var(--primary)"
-                        : "var(--border)",
-                    backgroundColor:
-                      inviteRole === option.value
-                        ? "var(--secondary)"
-                        : "transparent",
-                  }}
-                >
-                  <input
-                    type="radio"
-                    value={option.value}
-                    checked={inviteRole === option.value}
-                    onChange={(e) => setInviteRole(e.target.value)}
-                    className="mt-1 w-4 h-4"
-                    style={{ accentColor: "var(--primary)" }}
-                    disabled={loading}
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Icon className="w-4 h-4 text-cyan-400" />
-                      <span
-                        className="font-medium"
-                        style={{ color: "var(--foreground)" }}
+                        ? "border-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                    style={{
+                      borderColor:
+                        inviteRole === option.value
+                          ? "var(--primary)"
+                          : "var(--border)",
+                      backgroundColor:
+                        inviteRole === option.value
+                          ? "var(--secondary)"
+                          : "transparent",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      value={option.value}
+                      checked={inviteRole === option.value}
+                      onChange={(e) => setInviteRole(e.target.value)}
+                      className="mt-1 w-4 h-4"
+                      style={{ accentColor: "var(--primary)" }}
+                      disabled={loading}
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Icon className="w-4 h-4 text-cyan-400" />
+                        <span
+                          className="font-medium"
+                          style={{ color: "var(--foreground)" }}
+                        >
+                          {option.label}
+                        </span>
+                      </div>
+                      <p
+                        className="text-sm"
+                        style={{ color: "var(--muted-foreground)" }}
                       >
-                        {option.label}
-                      </span>
+                        {option.description}
+                      </p>
                     </div>
-                    <p
-                      className="text-sm"
-                      style={{ color: "var(--muted-foreground)" }}
-                    >
-                      {option.description}
-                    </p>
-                  </div>
-                </label>
-              );
-            })}
+                  </label>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Generated Link Display */}
-        {generatedLink && inviteType === "link" && (
+        {generatedLink && (
           <div
             className="p-4 rounded-lg border"
             style={{
@@ -441,9 +569,18 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="w-5 h-5 text-green-500" />
               <span className="font-medium" style={{ color: "var(--foreground)" }}>
-                Invite Link Generated!
+                {generatedLink.type === "guest" 
+                  ? "Guest Access Link Generated!" 
+                  : "Invite Link Generated!"}
               </span>
             </div>
+            
+            {generatedLink.type === "guest" && (
+              <p className="text-xs mb-3" style={{ color: "var(--muted-foreground)" }}>
+                Anyone with this link can view your team's prompts in read-only mode. No sign-up required!
+              </p>
+            )}
+            
             <div
               className="p-3 rounded-lg mb-3 flex items-center gap-2"
               style={{
@@ -483,7 +620,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Sending Invite...</span>
+                    <span>Sending...</span>
                   </>
                 ) : (
                   <>
@@ -504,16 +641,39 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
                 </button>
               )}
             </>
-          ) : (
+          ) : inviteType === "guest-link" ? (
             <button
-              onClick={handleGenerateLink}
+              onClick={handleGenerateGuestLink}
               disabled={loading || generatedLink}
               className="btn-primary px-6 py-2.5 flex items-center gap-2"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Generating Link...</span>
+                  <span>Generating...</span>
+                </>
+              ) : generatedLink ? (
+                <>
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Link Generated</span>
+                </>
+              ) : (
+                <>
+                  <Eye className="w-4 h-4" />
+                  <span>Generate Guest Link</span>
+                </>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={handleGenerateAuthLink}
+              disabled={loading || generatedLink}
+              className="btn-primary px-6 py-2.5 flex items-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Generating...</span>
                 </>
               ) : generatedLink ? (
                 <>
@@ -523,7 +683,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
               ) : (
                 <>
                   <LinkIcon className="w-4 h-4" />
-                  <span>Generate Invite Link</span>
+                  <span>Generate Full Access Link</span>
                 </>
               )}
             </button>
@@ -541,27 +701,27 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
       >
         <h4 className="font-medium mb-3 flex items-center gap-2" style={{ color: "var(--foreground)" }}>
           <Info className="w-5 h-5 text-cyan-400" />
-          How Invites Work:
+          How It Works:
         </h4>
         <div
           className="space-y-2 text-sm"
           style={{ color: "var(--muted-foreground)" }}
         >
           <div className="flex items-start gap-2">
-            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-            <span><strong>Link invites:</strong> Anyone with the link can join (no email required)</span>
+            <Eye className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
+            <span><strong>Guest Link:</strong> Instant read-only access. Perfect for clients, stakeholders, or anyone who needs to view prompts without signing up.</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <LinkIcon className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+            <span><strong>Full Access Link:</strong> Requires Google sign-in. New users become team members with the role you select.</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <Mail className="w-4 h-4 text-purple-500 mt-0.5 flex-shrink-0" />
+            <span><strong>Email Invite:</strong> Personalized invite sent to a specific email address. Also requires sign-in.</span>
           </div>
           <div className="flex items-start gap-2">
             <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-            <span><strong>Email invites:</strong> Sent to specific email addresses only</span>
-          </div>
-          <div className="flex items-start gap-2">
-            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-            <span>All invites expire after 7 days and can be revoked at any time</span>
-          </div>
-          <div className="flex items-start gap-2">
-            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-            <span>Users must sign in with Google to accept invitations</span>
+            <span>All links expire automatically (7-30 days) and can be revoked anytime</span>
           </div>
         </div>
       </div>
