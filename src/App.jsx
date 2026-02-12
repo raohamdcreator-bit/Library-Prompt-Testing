@@ -750,30 +750,37 @@ export default function App() {
   const [isExploringAsGuest, setIsExploringAsGuest] = useState(false);
   const [guestDemosInitialized, setGuestDemosInitialized] = useState(false);
   
-  // ✅ NEW: Guest team access state
-  const [guestTeamId, setGuestTeamId] = useState(null);
-  const [guestTeamPermissions, setGuestTeamPermissions] = useState(null);
-
-  // ✅ NEW: Check for guest team access on mount
-  useEffect(() => {
+ // ✅ FIXED: Guest team access state - initialize from sessionStorage immediately
+  const [guestTeamId, setGuestTeamId] = useState(() => {
     const guestAccess = hasGuestAccess();
-    
     if (guestAccess.hasAccess) {
-      console.log('👁️ Guest team access detected:', guestAccess);
-      setGuestTeamId(guestAccess.teamId);
-      setGuestTeamPermissions(guestAccess.permissions);
-      
-      // Set as active team
-      setActiveTeam(guestAccess.teamId);
-      
-      // Track analytics
-      if (window.gtag) {
-        window.gtag('event', 'guest_team_mode_active', {
-          team_id: guestAccess.teamId,
-        });
-      }
+      console.log('👁️ Guest team access detected on init:', guestAccess);
+      return guestAccess.teamId;
     }
-  }, []); // Run once on mount
+    return null;
+  });
+  
+  const [guestTeamPermissions, setGuestTeamPermissions] = useState(() => {
+    const guestAccess = hasGuestAccess();
+    return guestAccess.hasAccess ? guestAccess.permissions : null;
+  });
+
+  // ✅ Set active team when guest mode is detected
+  useEffect(() => {
+    if (guestTeamId && !activeTeam) {
+      console.log('👁️ Setting active team for guest:', guestTeamId);
+      setActiveTeam(guestTeamId);
+    }
+  }, [guestTeamId, activeTeam, setActiveTeam]);
+
+  // ✅ Track analytics when guest mode is active
+  useEffect(() => {
+    if (guestTeamId && window.gtag) {
+      window.gtag('event', 'guest_team_mode_active', {
+        team_id: guestTeamId,
+      });
+    }
+  }, [guestTeamId]);
 
   // Initialize demo prompts for guest users
   useEffect(() => {
