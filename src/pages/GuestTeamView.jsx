@@ -1,12 +1,8 @@
-// src/pages/GuestTeamView.jsx - Read-only team view for unauthenticated users
+// src/pages/GuestTeamView.jsx - FIXED: Proper redirect to team workspace
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   validateGuestAccessToken,
   setGuestAccess,
-  clearGuestAccess,
-  canGuestPerform,
-  hasGuestAccess,
 } from "../lib/guestTeamAccess";
 import {
   Loader2,
@@ -29,27 +25,32 @@ export default function GuestTeamView({ onNavigate }) {
   const [status, setStatus] = useState("loading");
   const [message, setMessage] = useState("Validating access link...");
   const [teamData, setTeamData] = useState(null);
-  const [redirecting, setRedirecting] = useState(false);
 
   // Parse URL parameters
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get("token");
 
   useEffect(() => {
-    validateAndLoadTeam();
+    if (!token) {
+      setStatus("error");
+      setMessage("No access token provided in URL");
+      return;
+    }
+
+    validateAndRedirect();
   }, [token]);
 
-  async function validateAndLoadTeam() {
+  async function validateAndRedirect() {
     try {
-      if (!token) {
-        throw new Error("No access token provided in URL");
-      }
-
       setStatus("loading");
       setMessage("Validating your access link...");
 
+      console.log("🔍 Validating guest token:", token);
+
       // Validate the token
       const validation = await validateGuestAccessToken(token);
+
+      console.log("✅ Validation result:", validation);
 
       if (!validation.valid) {
         throw new Error(validation.error || "Invalid access link");
@@ -62,7 +63,12 @@ export default function GuestTeamView({ onNavigate }) {
         validation.token
       );
 
-      // Store team data
+      console.log("💾 Guest access stored in session:", {
+        teamId: validation.teamId,
+        permissions: validation.permissions,
+      });
+
+      // Store team data for display
       setTeamData({
         teamId: validation.teamId,
         teamName: validation.teamName,
@@ -82,16 +88,21 @@ export default function GuestTeamView({ onNavigate }) {
         });
       }
 
-      // Auto-redirect after 2 seconds
+      // ✅ CRITICAL FIX: Redirect after showing success message
+      console.log("⏰ Starting redirect countdown...");
+      
       setTimeout(() => {
-        setRedirecting(true);
-        setMessage("Redirecting to team workspace...");
+        console.log("🚀 Redirecting to home with guest mode active...");
+        
+        // Use onNavigate if available, otherwise use window.location
+        if (onNavigate) {
+          onNavigate("/");
+        } else {
+          // Force navigation to home
+          window.location.href = "/";
+        }
+      }, 2500); // 2.5 seconds to show success message
 
-        setTimeout(() => {
-          // Redirect to main app with guest mode active
-          onNavigate ? onNavigate("/") : (window.location.href = "/");
-        }, 1000);
-      }, 2000);
     } catch (err) {
       console.error("❌ Error validating guest access:", err);
       setStatus("error");
@@ -117,9 +128,14 @@ export default function GuestTeamView({ onNavigate }) {
   }
 
   function handleSignUp() {
-    // Clear guest access and redirect to sign up
-    clearGuestAccess();
-    onNavigate ? onNavigate("/") : (window.location.href = "/");
+    // For signup, we need to trigger the auth flow
+    // This would be handled by your main app's auth system
+    console.log("📝 Redirecting to signup...");
+    if (onNavigate) {
+      onNavigate("/");
+    } else {
+      window.location.href = "/";
+    }
   }
 
   const getStatusColor = () => {
@@ -153,7 +169,7 @@ export default function GuestTeamView({ onNavigate }) {
       case "loading":
         return "Validating Access";
       case "success":
-        return redirecting ? "Redirecting..." : "Access Granted!";
+        return "Access Granted!";
       case "error":
         return "Access Denied";
       default:
@@ -185,136 +201,146 @@ export default function GuestTeamView({ onNavigate }) {
           <p className={`mb-6 ${getStatusColor()}`}>{message}</p>
 
           {/* Success State - Show Access Details */}
-          {status === "success" && teamData && !redirecting && (
-            <div
-              className="mb-6 p-4 rounded-lg"
-              style={{
-                backgroundColor: "var(--muted)",
-                border: "1px solid var(--border)",
-              }}
-            >
-              <div className="space-y-3">
-                {/* Team Name */}
-                <div className="flex items-center justify-center gap-2 mb-3">
-                  <Users
-                    className="w-5 h-5"
-                    style={{ color: "var(--primary)" }}
-                  />
-                  <span
-                    className="text-lg font-semibold"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    {teamData.teamName}
-                  </span>
-                </div>
-
-                {/* Guest Mode Badge */}
-                <div
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg"
-                  style={{
-                    backgroundColor: "rgba(139, 92, 246, 0.1)",
-                    border: "1px solid rgba(139, 92, 246, 0.3)",
-                  }}
-                >
-                  <Eye className="w-4 h-4" style={{ color: "var(--primary)" }} />
-                  <span
-                    className="text-sm font-medium"
-                    style={{ color: "var(--primary)" }}
-                  >
-                    Guest Access • Read-Only Mode
-                  </span>
-                </div>
-
-                {/* Permissions */}
-                <div className="mt-4 space-y-2">
-                  <p
-                    className="text-sm font-medium mb-2"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    Your Permissions:
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div
-                      className="flex items-center gap-2 p-2 rounded"
-                      style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
+          {status === "success" && teamData && (
+            <>
+              <div
+                className="mb-6 p-4 rounded-lg"
+                style={{
+                  backgroundColor: "var(--muted)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                <div className="space-y-3">
+                  {/* Team Name */}
+                  <div className="flex items-center justify-center gap-2 mb-3">
+                    <Users
+                      className="w-5 h-5"
+                      style={{ color: "var(--primary)" }}
+                    />
+                    <span
+                      className="text-lg font-semibold"
+                      style={{ color: "var(--foreground)" }}
                     >
-                      <CheckCircle2 className="w-3 h-3 text-green-500" />
-                      <span style={{ color: "var(--foreground)" }}>
-                        View prompts
-                      </span>
-                    </div>
-
-                    <div
-                      className="flex items-center gap-2 p-2 rounded"
-                      style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
-                    >
-                      <Copy className="w-3 h-3 text-green-500" />
-                      <span style={{ color: "var(--foreground)" }}>
-                        Copy prompts
-                      </span>
-                    </div>
-
-                    <div
-                      className="flex items-center gap-2 p-2 rounded"
-                      style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
-                    >
-                      <MessageSquare className="w-3 h-3 text-green-500" />
-                      <span style={{ color: "var(--foreground)" }}>Comment</span>
-                    </div>
-
-                    <div
-                      className="flex items-center gap-2 p-2 rounded"
-                      style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
-                    >
-                      <Star className="w-3 h-3 text-green-500" />
-                      <span style={{ color: "var(--foreground)" }}>
-                        Rate prompts
-                      </span>
-                    </div>
-
-                    <div
-                      className="flex items-center gap-2 p-2 rounded col-span-2"
-                      style={{ backgroundColor: "rgba(239, 68, 68, 0.1)" }}
-                    >
-                      <Lock className="w-3 h-3 text-red-500" />
-                      <span style={{ color: "var(--muted-foreground)" }}>
-                        Cannot create, edit, or delete prompts
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expiration Notice */}
-                {teamData.expiresAt && (
-                  <div
-                    className="flex items-center gap-2 p-2 rounded text-xs mt-3"
-                    style={{
-                      backgroundColor: "rgba(251, 191, 36, 0.1)",
-                      color: "var(--muted-foreground)",
-                    }}
-                  >
-                    <Clock className="w-3 h-3" />
-                    <span>
-                      Access expires on{" "}
-                      {teamData.expiresAt.toLocaleDateString()}
+                      {teamData.teamName}
                     </span>
                   </div>
-                )}
+
+                  {/* Guest Mode Badge */}
+                  <div
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg"
+                    style={{
+                      backgroundColor: "rgba(139, 92, 246, 0.1)",
+                      border: "1px solid rgba(139, 92, 246, 0.3)",
+                    }}
+                  >
+                    <Eye className="w-4 h-4" style={{ color: "var(--primary)" }} />
+                    <span
+                      className="text-sm font-medium"
+                      style={{ color: "var(--primary)" }}
+                    >
+                      Guest Access • Read-Only Mode
+                    </span>
+                  </div>
+
+                  {/* Permissions */}
+                  <div className="mt-4 space-y-2">
+                    <p
+                      className="text-sm font-medium mb-2"
+                      style={{ color: "var(--foreground)" }}
+                    >
+                      Your Permissions:
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div
+                        className="flex items-center gap-2 p-2 rounded"
+                        style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
+                      >
+                        <CheckCircle2 className="w-3 h-3 text-green-500" />
+                        <span style={{ color: "var(--foreground)" }}>
+                          View prompts
+                        </span>
+                      </div>
+
+                      <div
+                        className="flex items-center gap-2 p-2 rounded"
+                        style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
+                      >
+                        <Copy className="w-3 h-3 text-green-500" />
+                        <span style={{ color: "var(--foreground)" }}>
+                          Copy prompts
+                        </span>
+                      </div>
+
+                      <div
+                        className="flex items-center gap-2 p-2 rounded"
+                        style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
+                      >
+                        <MessageSquare className="w-3 h-3 text-green-500" />
+                        <span style={{ color: "var(--foreground)" }}>Comment</span>
+                      </div>
+
+                      <div
+                        className="flex items-center gap-2 p-2 rounded"
+                        style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
+                      >
+                        <Star className="w-3 h-3 text-green-500" />
+                        <span style={{ color: "var(--foreground)" }}>
+                          Rate prompts
+                        </span>
+                      </div>
+
+                      <div
+                        className="flex items-center gap-2 p-2 rounded col-span-2"
+                        style={{ backgroundColor: "rgba(239, 68, 68, 0.1)" }}
+                      >
+                        <Lock className="w-3 h-3 text-red-500" />
+                        <span style={{ color: "var(--muted-foreground)" }}>
+                          Cannot create, edit, or delete prompts
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expiration Notice */}
+                  {teamData.expiresAt && (
+                    <div
+                      className="flex items-center gap-2 p-2 rounded text-xs mt-3"
+                      style={{
+                        backgroundColor: "rgba(251, 191, 36, 0.1)",
+                        color: "var(--muted-foreground)",
+                      }}
+                    >
+                      <Clock className="w-3 h-3" />
+                      <span>
+                        Access expires on{" "}
+                        {teamData.expiresAt.toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+
+              {/* Redirecting indicator */}
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--primary)" }} />
+                <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                  Redirecting to team workspace...
+                </span>
+              </div>
+            </>
           )}
 
           {/* Success State - Upgrade CTA */}
-          {status === "success" && !redirecting && (
+          {status === "success" && (
             <div
-              className="p-4 rounded-lg mb-4"
+              className="p-4 rounded-lg"
               style={{
                 backgroundColor: "rgba(139, 92, 246, 0.05)",
                 border: "1px solid rgba(139, 92, 246, 0.2)",
               }}
             >
-              <div className="flex items-start gap-2 mb-2">
+              <div className="flex items-start gap-2">
                 <Sparkles
                   className="w-4 h-4 mt-0.5"
                   style={{ color: "var(--primary)" }}
@@ -366,9 +392,13 @@ export default function GuestTeamView({ onNavigate }) {
               </div>
 
               <button
-                onClick={() =>
-                  onNavigate ? onNavigate("/") : (window.location.href = "/")
-                }
+                onClick={() => {
+                  if (onNavigate) {
+                    onNavigate("/");
+                  } else {
+                    window.location.href = "/";
+                  }
+                }}
                 className="btn-primary w-full py-3"
               >
                 Return Home
@@ -383,17 +413,15 @@ export default function GuestTeamView({ onNavigate }) {
             </div>
           )}
 
-          {/* Loading/Redirecting indicator */}
-          {(status === "loading" || redirecting) && (
+          {/* Loading indicator */}
+          {status === "loading" && (
             <div className="flex justify-center mt-6">
               <div
                 className="flex items-center gap-2"
                 style={{ color: "var(--muted-foreground)" }}
               >
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">
-                  {redirecting ? "Loading team workspace..." : "Please wait..."}
-                </span>
+                <span className="text-sm">Please wait...</span>
               </div>
             </div>
           )}
@@ -414,6 +442,7 @@ export default function GuestTeamView({ onNavigate }) {
                 <>
                   <div>Team: {teamData.teamName}</div>
                   <div>Team ID: {teamData.teamId}</div>
+                  <div>Session Storage: {sessionStorage.getItem('guest_team_token') ? '✅ Set' : '❌ Not Set'}</div>
                 </>
               )}
             </div>
