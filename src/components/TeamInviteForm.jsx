@@ -1,5 +1,5 @@
-// src/components/TeamInviteForm.jsx - UPDATED: Added Guest Link Generation
-import { useState, forwardRef } from "react";
+// src/components/TeamInviteForm.jsx - FIXED: Proper team ID tracking and reset
+import { useState, forwardRef, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNotification } from "../context/NotificationContext";
 import { useSoundEffects } from "../hooks/useSoundEffects";
@@ -15,16 +15,25 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
   const { success, error: showError, info } = useNotification();
   const { playNotification } = useSoundEffects();
   
-  // "guest-link" = read-only guest access (NEW)
-  // "auth-link" = full member via link (requires auth)
-  // "email" = email-based invite (requires auth)
   const [inviteType, setInviteType] = useState("guest-link");
-  
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [loading, setLoading] = useState(false);
   const [generatedLink, setGeneratedLink] = useState(null);
   const [copied, setCopied] = useState(false);
+
+  // ✅ CRITICAL FIX: Reset form state when team changes
+  useEffect(() => {
+    console.log('🔄 Team changed, resetting form:', { teamId, teamName });
+    
+    // Reset all form state
+    setInviteType("guest-link");
+    setEmail("");
+    setInviteRole("member");
+    setLoading(false);
+    setGeneratedLink(null);
+    setCopied(false);
+  }, [teamId]); // Reset whenever teamId changes
 
   async function handleEmailInvite(e) {
     e.preventDefault();
@@ -43,6 +52,8 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
     setLoading(true);
 
     try {
+      console.log('📧 Sending email invite:', { teamId, teamName, email, inviteRole });
+      
       const result = await sendTeamInvitation({
         teamId,
         teamName,
@@ -75,7 +86,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
         4000
       );
     } catch (err) {
-      console.error("Error sending invite:", err);
+      console.error("❌ Error sending invite:", err);
 
       let errorMessage = "Failed to send invite: ";
       if (err.message.includes("already exists")) {
@@ -97,6 +108,8 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
     setLoading(true);
 
     try {
+      console.log('🔗 Generating auth invite link:', { teamId, teamName, inviteRole });
+      
       const result = await generateTeamInviteLink({
         teamId,
         teamName,
@@ -131,7 +144,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
       playNotification();
       success("Full access invite link generated successfully!", 3000);
     } catch (err) {
-      console.error("Error generating auth invite link:", err);
+      console.error("❌ Error generating auth invite link:", err);
 
       let errorMessage = "Failed to generate invite link: ";
       if (err.message.includes("maximum")) {
@@ -151,6 +164,8 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
     setLoading(true);
 
     try {
+      console.log('👁️ Generating guest access link:', { teamId, teamName });
+      
       const result = await generateGuestAccessLink({
         teamId,
         teamName,
@@ -162,6 +177,8 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
       if (!result.success) {
         throw new Error(result.error);
       }
+
+      console.log('✅ Guest access link generated:', result.accessLink);
 
       if (window.gtag) {
         window.gtag('event', 'guest_access_link_generated', {
@@ -182,7 +199,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
       playNotification();
       success("Guest access link generated successfully!", 3000);
     } catch (err) {
-      console.error("Error generating guest access link:", err);
+      console.error("❌ Error generating guest access link:", err);
 
       let errorMessage = "Failed to generate guest link: ";
       errorMessage += err.message || "Unknown error";
@@ -240,6 +257,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
       ref={ref}
       className="glass-card p-6 mt-8"
       style={{ border: "1px solid var(--border)" }}
+      key={`invite-form-${teamId}`} // ✅ CRITICAL: Force re-render on team change
     >
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
@@ -274,7 +292,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
           </label>
           
           <div className="grid gap-3">
-            {/* Guest Link Option (NEW - Most Prominent) */}
+            {/* Guest Link Option */}
             <label
               className={`relative flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
                 inviteType === "guest-link"
@@ -464,7 +482,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
           </div>
         </div>
 
-        {/* Email Input (only for email invites) */}
+        {/* Email Input */}
         {inviteType === "email" && (
           <div className="space-y-2">
             <label
@@ -492,7 +510,7 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
           </div>
         )}
 
-        {/* Role Selection (only for auth-link and email) */}
+        {/* Role Selection */}
         {(inviteType === "auth-link" || inviteType === "email") && (
           <div className="space-y-3">
             <label
