@@ -75,6 +75,7 @@ import {
 
 // Import Legal/Info Pages
 import Contact from "./pages/Contact";
+import GuestTeamView from "./pages/GuestTeamView";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import About from "./pages/About";
@@ -1237,12 +1238,13 @@ function scrollToInviteCard() {
   }
 
   // Render special routes
-  const isSpecialRoute = [
+ const isSpecialRoute = [
     "/contact",
     "/privacy",
     "/terms",
     "/about",
     "/join",
+    "/guest-team",
     "/waitlist",
     "/admin",
   ].some((route) => currentPath === route || currentPath.startsWith(route + "?"));
@@ -1267,6 +1269,7 @@ function scrollToInviteCard() {
             <Route path="/terms"><TermsOfUse /></Route>
             <Route path="/about"><About /></Route>
             <Route path="/join"><JoinTeam onNavigate={navigate} /></Route>
+            <Route path="/guest-team"><GuestTeamView onNavigate={navigate} /></Route>
             <Route path="/waitlist"><Waitlist onNavigate={navigate} /></Route>
             <Route path="/admin"><AdminDashboard onNavigate={navigate} /></Route>
           </Router>
