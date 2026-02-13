@@ -774,11 +774,15 @@ export default function App() {
   });
 
   // ✅ CRITICAL FIX: Set active team IMMEDIATELY when guest team is detected
+  // Use ref to prevent infinite loop
+  const hasSetGuestTeam = useRef(false);
+  
   useEffect(() => {
-    if (guestTeamId && !activeTeam) {
+    if (guestTeamId && !activeTeam && !hasSetGuestTeam.current) {
       console.log('👁️ [ACTIVE TEAM] Setting active team for guest:', guestTeamId);
       setActiveTeam(guestTeamId);
       setActiveView('prompts'); // Ensure we show prompts view
+      hasSetGuestTeam.current = true;
     }
   }, [guestTeamId, activeTeam, setActiveTeam]);
 
@@ -1003,7 +1007,10 @@ export default function App() {
                 };
               }
             } catch (error) {
-              console.error("Error loading avatar for", uid, error);
+              // ✅ Don't log errors for guest users - they don't have permission to read user docs
+              if (!guestTeamId) {
+                console.error("Error loading avatar for", uid, error);
+              }
             }
           }
         }
@@ -1281,6 +1288,19 @@ export default function App() {
   }
 
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
+  
+  // ✅ DEBUG: Log activeTeamObj state for guest users
+  useEffect(() => {
+    if (guestTeamId) {
+      console.log('🔍 [DEBUG] Guest team state:', {
+        guestTeamId,
+        activeTeam,
+        teamsLength: teams.length,
+        activeTeamObj: activeTeamObj ? activeTeamObj.name : 'undefined',
+        activeView,
+      });
+    }
+  }, [guestTeamId, activeTeam, teams, activeTeamObj, activeView]);
 
   function getRoleBadge(role) {
     const baseStyle = {
