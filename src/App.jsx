@@ -856,11 +856,42 @@ export default function App() {
     );
   }
 
-  // Load teams from Firestore (only if authenticated)
+  // Load teams from Firestore
   useEffect(() => {
+    // ✅ CRITICAL FIX: Load guest team data for guest users
+    if (!user && guestTeamId) {
+      console.log('👁️ [TEAMS] Loading guest team data:', guestTeamId);
+      
+      // Fetch the single guest team
+      const fetchGuestTeam = async () => {
+        try {
+          const teamRef = doc(db, "teams", guestTeamId);
+          const teamSnap = await getDoc(teamRef);
+          
+          if (teamSnap.exists()) {
+            const teamData = { id: teamSnap.id, ...teamSnap.data() };
+            console.log('✅ [TEAMS] Guest team loaded:', teamData.name);
+            setTeams([teamData]); // Set as single-item array
+            setLoading(false);
+          } else {
+            console.error('❌ [TEAMS] Guest team not found');
+            setTeams([]);
+            setLoading(false);
+          }
+        } catch (error) {
+          console.error('❌ [TEAMS] Error loading guest team:', error);
+          setTeams([]);
+          setLoading(false);
+        }
+      };
+      
+      fetchGuestTeam();
+      return;
+    }
+    
+    // Regular user without guest access
     if (!user) {
       setTeams([]);
-      // Don't reset activeTeam here - it might be a guest team
       if (!guestTeamId) {
         setActiveTeam(null);
       }
@@ -868,6 +899,7 @@ export default function App() {
       return;
     }
 
+    // Authenticated user - load their teams
     const q = query(collection(db, "teams"), where(`members.${user.uid}`, "!=", null));
 
     const unsub = onSnapshot(
