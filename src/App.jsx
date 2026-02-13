@@ -890,42 +890,46 @@ export default function App() {
     
     // ✅ CRITICAL FIX: Load guest team data for guest users
     // Use teams.length check instead of ref to avoid getting stuck
-    if (!user && guestTeamId && teams.length === 0) {
-      console.log('👁️ [TEAMS] Loading guest team data:', guestTeamId);
-      
-      // Fetch the single guest team
-      const fetchGuestTeam = async () => {
-        try {
-          const teamRef = doc(db, "teams", guestTeamId);
-          const teamSnap = await getDoc(teamRef);
-          
-          if (teamSnap.exists()) {
-            const teamData = { id: teamSnap.id, ...teamSnap.data() };
-            console.log('✅ [TEAMS] Guest team loaded:', teamData.name);
-            setTeams([teamData]); // Set as single-item array
-            setLoading(false);
-          } else {
-            console.error('❌ [TEAMS] Guest team not found');
+    if (!user && guestTeamId) {
+      // Guest team user - either load or keep existing team
+      if (teams.length === 0) {
+        console.log('👁️ [TEAMS] Loading guest team data:', guestTeamId);
+        
+        // Fetch the single guest team
+        const fetchGuestTeam = async () => {
+          try {
+            const teamRef = doc(db, "teams", guestTeamId);
+            const teamSnap = await getDoc(teamRef);
+            
+            if (teamSnap.exists()) {
+              const teamData = { id: teamSnap.id, ...teamSnap.data() };
+              console.log('✅ [TEAMS] Guest team loaded:', teamData.name);
+              setTeams([teamData]); // Set as single-item array
+              setLoading(false);
+            } else {
+              console.error('❌ [TEAMS] Guest team not found');
+              setTeams([]);
+              setLoading(false);
+            }
+          } catch (error) {
+            console.error('❌ [TEAMS] Error loading guest team:', error);
             setTeams([]);
             setLoading(false);
           }
-        } catch (error) {
-          console.error('❌ [TEAMS] Error loading guest team:', error);
-          setTeams([]);
-          setLoading(false);
-        }
-      };
-      
-      fetchGuestTeam();
-      return;
+        };
+        
+        fetchGuestTeam();
+      } else {
+        console.log('👁️ [TEAMS] Guest team already loaded, keeping it');
+      }
+      return; // ✅ CRITICAL: Return here to prevent clearing below
     }
     
     // Regular user without guest access
     if (!user) {
+      console.log('📝 [TEAMS] No user and no guest team, clearing');
       setTeams([]);
-      if (!guestTeamId) {
-        setActiveTeam(null);
-      }
+      setActiveTeam(null);
       setLoading(false);
       return;
     }
