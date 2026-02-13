@@ -943,59 +943,100 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return [];
   }, [isGuestMode, userPrompts.length]);
 
-  // Load prompts
+ // Load prompts - ✅ FIXED: Guest team users now query Firestore
   useEffect(() => {
-    if (isGuestMode) {
+    // Case 1: Guest mode WITHOUT a team - show local guest prompts only
+    if (isGuestMode && !activeTeam) {
+      console.log('📝 [PROMPTS] Loading local guest prompts');
       setUserPrompts(guestState.getPrompts());
       setLoading(false);
       return;
     }
-    if (!activeTeam || !user) {
+    
+    // Case 2: No team selected
+    if (!activeTeam) {
+      console.log('📝 [PROMPTS] No active team');
       setUserPrompts([]);
       setLoading(false);
       return;
     }
+    
+    // Case 3: Has team (guest team OR authenticated) - query Firestore
+    console.log('📝 [PROMPTS] Loading prompts from Firestore:', activeTeam);
     setLoading(true);
-    const q = query(collection(db, "teams", activeTeam, "prompts"), orderBy("createdAt", "desc"));
+    
+    const q = query(
+      collection(db, "teams", activeTeam, "prompts"), 
+      orderBy("createdAt", "desc")
+    );
+    
     const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map((d) => ({ id: d.id, teamId: activeTeam, ...d.data() }));
-      const uniqueData = Array.from(new Map(data.map((item) => [item.id, item])).values());
-      const visiblePrompts = filterVisiblePrompts(uniqueData, user.uid, userRole);
+      console.log('📝 [PROMPTS] Received', snap.docs.length, 'prompts from Firestore');
+      
+      const data = snap.docs.map((d) => ({ 
+        id: d.id, 
+        teamId: activeTeam, 
+        ...d.data() 
+      }));
+      
+      const uniqueData = Array.from(
+        new Map(data.map((item) => [item.id, item])).values()
+      );
+      
+      // ✅ FIXED: Guests see all prompts (read-only), authenticated users see filtered
+      const visiblePrompts = user 
+        ? filterVisiblePrompts(uniqueData, user.uid, userRole)
+        : uniqueData; // Guests see all (Firestore rules enforce read-only)
+      
+      console.log('📝 [PROMPTS] Setting', visiblePrompts.length, 'visible prompts');
       setUserPrompts(visiblePrompts);
       setLoading(false);
     }, (error) => {
-      console.error("Error loading prompts:", error);
+      console.error("❌ [PROMPTS] Error loading prompts:", error);
       setLoading(false);
     });
+    
     return () => unsub();
   }, [activeTeam, user, userRole, isGuestMode]);
 
-  // Load outputs
+ // Load outputs - ✅ FIXED: Guest team users can now see outputs
   useEffect(() => {
-    if (isGuestMode || !activeTeam) return;
+    // ✅ FIXED: Only skip if no team (guest mode without team link)
+    if (!activeTeam) return;
+    
+    console.log('📊 [OUTPUTS] Loading outputs for', userPrompts.length, 'prompts');
     const unsubscribers = [];
+    
     userPrompts.forEach((prompt) => {
       const unsub = subscribeToResults(activeTeam, prompt.id, (results) => {
         setPromptOutputs((prev) => ({ ...prev, [prompt.id]: results }));
       });
       unsubscribers.push(unsub);
     });
+    
     return () => unsubscribers.forEach((unsub) => unsub());
-  }, [userPrompts, activeTeam, isGuestMode]);
+  }, [userPrompts, activeTeam]);
 
-  // Load comment counts
+  // Load comment counts - ✅ FIXED: Guest team users can see comment counts
   useEffect(() => {
-    if (isGuestMode || !activeTeam) return;
+    // ✅ FIXED: Only skip if no team
+    if (!activeTeam) return;
+    
+    console.log('💬 [COMMENTS] Loading comment counts');
     const unsubscribers = [];
+    
     userPrompts.forEach((prompt) => {
-      const q = query(collection(db, "teams", activeTeam, "prompts", prompt.id, "comments"));
+      const q = query(
+        collection(db, "teams", activeTeam, "prompts", prompt.id, "comments")
+      );
       const unsub = onSnapshot(q, (snap) => {
         setPromptComments((prev) => ({ ...prev, [prompt.id]: snap.docs.length }));
       });
       unsubscribers.push(unsub);
     });
+    
     return () => unsubscribers.forEach((unsub) => unsub());
-  }, [userPrompts, activeTeam, isGuestMode]);
+  }, [userPrompts, activeTeam]);
 
   // Load team data
   useEffect(() => {
