@@ -880,10 +880,13 @@ export default function App() {
   }
 
   // Load teams from Firestore
+  const guestTeamLoadedRef = useRef(false);
+  
   useEffect(() => {
-    // ✅ CRITICAL FIX: Load guest team data for guest users
-    if (!user && guestTeamId) {
+    // ✅ CRITICAL FIX: Load guest team data for guest users (only once)
+    if (!user && guestTeamId && !guestTeamLoadedRef.current) {
       console.log('👁️ [TEAMS] Loading guest team data:', guestTeamId);
+      guestTeamLoadedRef.current = true; // Mark as loading/loaded
       
       // Fetch the single guest team
       const fetchGuestTeam = async () => {
@@ -900,11 +903,13 @@ export default function App() {
             console.error('❌ [TEAMS] Guest team not found');
             setTeams([]);
             setLoading(false);
+            guestTeamLoadedRef.current = false; // Allow retry
           }
         } catch (error) {
           console.error('❌ [TEAMS] Error loading guest team:', error);
           setTeams([]);
           setLoading(false);
+          guestTeamLoadedRef.current = false; // Allow retry
         }
       };
       
