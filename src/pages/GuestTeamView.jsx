@@ -91,17 +91,13 @@ export default function GuestTeamView({ onNavigate }) {
       // ✅ CRITICAL FIX: Redirect after showing success message
       console.log("⏰ Starting redirect countdown...");
       
-      setTimeout(() => {
-        console.log("🚀 Redirecting to home with guest mode active...");
-        
-        // Use onNavigate if available, otherwise use window.location
-        if (onNavigate) {
-          onNavigate("/");
-        } else {
-          // Force navigation to home
-          window.location.href = "/";
-        }
-      }, 2500); // 2.5 seconds to show success message
+     setTimeout(() => {
+  console.log("🚀 Redirecting to home with guest mode active...");
+  
+  // ✅ FIXED: Always force full page reload to trigger state initialization
+  // onNavigate won't work because it doesn't remount the App component
+  window.location.href = "/";
+}, 2500);
 
     } catch (err) {
       console.error("❌ Error validating guest access:", err);
