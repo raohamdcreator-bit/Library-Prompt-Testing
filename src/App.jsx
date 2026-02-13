@@ -1,4 +1,4 @@
-// src/App.jsx - COMPLETE WITH GUEST TEAM ACCESS SUPPORT
+// src/App.jsx - FIXED: Proper guest team access initialization and redirect
 import { useEffect, useState, useRef } from "react";
 import { db } from "./lib/firebase";
 import {
@@ -16,7 +16,7 @@ import {
 import { useAuth } from "./context/AuthContext";
 import { useActiveTeam } from "./context/AppStateContext";
 import { useGuestMode } from "./context/GuestModeContext";
-import { hasGuestAccess } from "./lib/guestTeamAccess"; // ✅ NEW: Guest team access
+import { hasGuestAccess } from "./lib/guestTeamAccess"; // ✅ Import guest access checker
 import SaveLockModal from "./components/SaveLockModal";
 import PromptList from "./components/PromptList";
 import TeamInviteForm from "./components/TeamInviteForm";
@@ -81,7 +81,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfUse from "./pages/TermsOfUse";
 import About from "./pages/About";
 import JoinTeam from "./pages/JoinTeam";
-import GuestTeamView from "./pages/GuestTeamView"; // ✅ NEW: Guest team view
+import GuestTeamView from "./pages/GuestTeamView";
 import Waitlist from "./pages/Waitlist";
 import AdminDashboard from "./pages/AdminDashboard";
 import { NavigationProvider } from "./components/LegalLayout";
@@ -718,7 +718,7 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
 }
 
 // ===================================
-// MAIN APP COMPONENT - WITH GUEST TEAM ACCESS
+// MAIN APP COMPONENT - FIXED GUEST TEAM ACCESS
 // ===================================
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
@@ -750,45 +750,56 @@ export default function App() {
   const [isExploringAsGuest, setIsExploringAsGuest] = useState(false);
   const [guestDemosInitialized, setGuestDemosInitialized] = useState(false);
   
- // ✅ FIXED: Guest team access state - initialize from sessionStorage immediately
+  // ✅ CRITICAL FIX: Initialize guest team access IMMEDIATELY on mount
   const [guestTeamId, setGuestTeamId] = useState(() => {
     const guestAccess = hasGuestAccess();
     if (guestAccess.hasAccess) {
-      console.log('👁️ Guest team access detected on init:', guestAccess);
+      console.log('👁️ [APP INIT] Guest team access detected:', {
+        teamId: guestAccess.teamId,
+        hasAccess: true,
+      });
       return guestAccess.teamId;
     }
+    console.log('👁️ [APP INIT] No guest team access found');
     return null;
   });
   
   const [guestTeamPermissions, setGuestTeamPermissions] = useState(() => {
     const guestAccess = hasGuestAccess();
-    return guestAccess.hasAccess ? guestAccess.permissions : null;
+    if (guestAccess.hasAccess) {
+      console.log('👁️ [APP INIT] Guest permissions loaded:', guestAccess.permissions);
+      return guestAccess.permissions;
+    }
+    return null;
   });
 
-  // ✅ Set active team when guest mode is detected
+  // ✅ CRITICAL FIX: Set active team IMMEDIATELY when guest team is detected
   useEffect(() => {
     if (guestTeamId && !activeTeam) {
-      console.log('👁️ Setting active team for guest:', guestTeamId);
+      console.log('👁️ [ACTIVE TEAM] Setting active team for guest:', guestTeamId);
       setActiveTeam(guestTeamId);
+      setActiveView('prompts'); // Ensure we show prompts view
     }
   }, [guestTeamId, activeTeam, setActiveTeam]);
 
   // ✅ Track analytics when guest mode is active
   useEffect(() => {
     if (guestTeamId && window.gtag) {
+      console.log('📊 [ANALYTICS] Tracking guest team mode active');
       window.gtag('event', 'guest_team_mode_active', {
         team_id: guestTeamId,
       });
     }
   }, [guestTeamId]);
 
-  // Initialize demo prompts for guest users
+  // Initialize demo prompts for guest users (non-team guests)
   useEffect(() => {
-    if (isGuest && !guestDemosInitialized) {
+    if (isGuest && !guestTeamId && !guestDemosInitialized) {
+      console.log('📝 [DEMOS] Initializing demo prompts for non-team guest');
       initializeDemoPrompts();
       setGuestDemosInitialized(true);
     }
-  }, [isGuest, guestDemosInitialized]);
+  }, [isGuest, guestTeamId, guestDemosInitialized]);
 
   // Navigation handler
   const navigate = (path) => {
@@ -849,7 +860,10 @@ export default function App() {
   useEffect(() => {
     if (!user) {
       setTeams([]);
-      setActiveTeam(null);
+      // Don't reset activeTeam here - it might be a guest team
+      if (!guestTeamId) {
+        setActiveTeam(null);
+      }
       setLoading(false);
       return;
     }
@@ -870,7 +884,7 @@ export default function App() {
     );
 
     return () => unsub();
-  }, [user, setActiveTeam]);
+  }, [user, guestTeamId, setActiveTeam]);
   
   // Handle page exit/refresh for guests with unsaved work
   useEffect(() => {
@@ -888,11 +902,12 @@ export default function App() {
     }
   }, [isGuest]);
 
-  // Set first team if no active team (only for authenticated users)
+  // Set first team if no active team (only for authenticated users without guest team)
   useEffect(() => {
     if (!user || loading || isGuest || guestTeamId) return;
 
     if (teams.length > 0 && !activeTeam && activeView !== "favorites") {
+      console.log('👥 [TEAMS] Setting first team as active:', teams[0].id);
       setActiveTeam(teams[0].id);
     }
   }, [teams.length, activeTeam, activeView, user, loading, setActiveTeam, isGuest, guestTeamId]);
@@ -903,6 +918,7 @@ export default function App() {
 
     const teamExists = teams.find((t) => t.id === activeTeam);
     if (!teamExists) {
+      console.log('⚠️ [TEAMS] Active team no longer exists, clearing');
       setActiveTeam(null);
       if (activeView !== "favorites") {
         setActiveView("prompts");
@@ -1206,8 +1222,10 @@ export default function App() {
     }, 100);
   }
 
-  // ✅ NEW: Handle guest team exit
+  // ✅ FIXED: Handle guest team exit
   function handleExitGuestTeam() {
+    console.log('🚪 [EXIT] Exiting guest team mode');
+    
     // Clear guest team access
     sessionStorage.removeItem('guest_team_token');
     sessionStorage.removeItem('guest_team_id');
@@ -1223,6 +1241,11 @@ export default function App() {
     }
     
     navigate('/');
+    
+    // Force reload to clear all state
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   }
 
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
@@ -1285,7 +1308,7 @@ export default function App() {
     "/terms",
     "/about",
     "/join",
-    "/guest-team", // ✅ NEW
+    "/guest-team",
     "/waitlist",
     "/admin",
   ].some((route) => currentPath === route || currentPath.startsWith(route + "?"));
@@ -1320,7 +1343,7 @@ export default function App() {
     );
   }
 
-  // ✅ UPDATED: Loading state - but NOT for guest team users
+  // ✅ CRITICAL FIX: Don't show loading for guest team users
   if (loading && !isGuest && !guestTeamId) {
     return (
       <div className="app-container">
@@ -1334,7 +1357,7 @@ export default function App() {
     );
   }
 
-  // ✅ UPDATED: Show landing page only if not in any guest mode
+  // ✅ CRITICAL FIX: Show landing page only if NOT in guest team mode
   if (!user && !isExploringAsGuest && !guestTeamId) {
     return (
       <LandingPage
@@ -1739,16 +1762,17 @@ export default function App() {
 
         {/* Main Content */}
         <div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
-          {/* Authenticated user with team */}
+          {/* ✅ CRITICAL: Guest team users should see prompts */}
           {activeTeamObj && activeView === "prompts" && (
             <>
               <PromptList 
                 activeTeam={activeTeamObj ? activeTeamObj.id : null}
                 userRole={role} 
-                isGuestMode={isGuest || !!guestTeamId} // ✅ UPDATED
+                isGuestMode={isGuest || !!guestTeamId}
                 userId={user?.uid}
+                onScrollToInvite={scrollToInviteCard}
               />
-              {canManageMembers() && (
+              {canManageMembers() && !guestTeamId && (
                 <TeamInviteForm teamId={activeTeamObj.id} ref={inviteCardRef} teamName={activeTeamObj.name} role={role} />
               )}
             </>
@@ -1773,8 +1797,8 @@ export default function App() {
           {/* Favorites view */}
           {activeView === "favorites" && !activeTeam && user && <FavoritesList />}
 
-          {/* Guest Mode - Show demo prompts */}
-          {isGuest && !activeTeamObj && activeView !== "favorites" && (
+          {/* Guest Mode - Show demo prompts (only for non-team guests) */}
+          {isGuest && !activeTeamObj && !guestTeamId && activeView !== "favorites" && (
             <PromptList 
               activeTeam={null}
               userRole={null}
