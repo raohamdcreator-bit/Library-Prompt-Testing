@@ -773,18 +773,18 @@ export default function App() {
     return null;
   });
 
-  // ✅ CRITICAL FIX: Set active team IMMEDIATELY when guest team is detected
-  // Use ref to prevent infinite loop
-  const hasSetGuestTeam = useRef(false);
-  
+  // ✅ CRITICAL FIX: Set active team when guest team data is ready
   useEffect(() => {
-    if (guestTeamId && !activeTeam && !hasSetGuestTeam.current) {
-      console.log('👁️ [ACTIVE TEAM] Setting active team for guest:', guestTeamId);
-      setActiveTeam(guestTeamId);
-      setActiveView('prompts'); // Ensure we show prompts view
-      hasSetGuestTeam.current = true;
+    // If we have a guest team ID, teams are loaded, but no active team set
+    if (guestTeamId && teams.length > 0 && !activeTeam) {
+      const guestTeam = teams.find(t => t.id === guestTeamId);
+      if (guestTeam) {
+        console.log('👁️ [ACTIVE TEAM] Setting active team for guest:', guestTeamId);
+        setActiveTeam(guestTeamId);
+        setActiveView('prompts');
+      }
     }
-  }, [guestTeamId, activeTeam, setActiveTeam]);
+  }, [guestTeamId, teams, activeTeam, setActiveTeam]);
 
   // ✅ Track analytics when guest mode is active
   useEffect(() => {
@@ -948,8 +948,11 @@ export default function App() {
     }
   }, [teams.length, activeTeam, activeView, user, loading, setActiveTeam, isGuest, guestTeamId]);
 
-  // Validate active team still exists
+  // Validate active team still exists (skip for guest users)
   useEffect(() => {
+    // ✅ Skip validation for guest users - they don't have teams in the normal way
+    if (guestTeamId) return;
+    
     if (!user || loading || !activeTeam || teams.length === 0) return;
 
     const teamExists = teams.find((t) => t.id === activeTeam);
@@ -960,7 +963,7 @@ export default function App() {
         setActiveView("prompts");
       }
     }
-  }, [teams, activeTeam, user, loading, setActiveTeam, activeView]);
+  }, [teams, activeTeam, user, loading, setActiveTeam, activeView, guestTeamId]);
 
   // Load current user's role
   useEffect(() => {
