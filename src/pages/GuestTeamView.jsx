@@ -1,4 +1,4 @@
-// src/pages/GuestTeamView.jsx - FIXED: Proper redirect to team workspace
+// src/pages/GuestTeamView.jsx - FIXED: Ensure sessionStorage write completes before redirect
 import { useEffect, useState } from "react";
 import {
   validateGuestAccessToken,
@@ -45,27 +45,35 @@ export default function GuestTeamView({ onNavigate }) {
       setStatus("loading");
       setMessage("Validating your access link...");
 
-      console.log("🔍 Validating guest token:", token);
+      console.log("🔍 [GUEST TEAM VIEW] Validating token:", token);
 
       // Validate the token
       const validation = await validateGuestAccessToken(token);
 
-      console.log("✅ Validation result:", validation);
+      console.log("✅ [GUEST TEAM VIEW] Validation result:", validation);
 
       if (!validation.valid) {
         throw new Error(validation.error || "Invalid access link");
       }
 
-      // Store guest access in session
-      setGuestAccess(
-        validation.teamId,
-        validation.permissions,
-        validation.token
-      );
-
-      console.log("💾 Guest access stored in session:", {
-        teamId: validation.teamId,
-        permissions: validation.permissions,
+      // ✅ CRITICAL FIX: Store guest access in session with EXPLICIT write
+      console.log("💾 [GUEST TEAM VIEW] Storing guest access in sessionStorage");
+      
+      // Store each item individually with verification
+      sessionStorage.setItem("guest_team_token", validation.token);
+      sessionStorage.setItem("guest_team_id", validation.teamId);
+      sessionStorage.setItem("guest_team_permissions", JSON.stringify(validation.permissions));
+      sessionStorage.setItem("is_guest_mode", "true");
+      
+      // ✅ VERIFY WRITE COMPLETED
+      const storedToken = sessionStorage.getItem("guest_team_token");
+      const storedTeamId = sessionStorage.getItem("guest_team_id");
+      const storedPermissions = sessionStorage.getItem("guest_team_permissions");
+      
+      console.log("✅ [GUEST TEAM VIEW] Verification - Data stored:", {
+        token: storedToken ? "✓" : "✗",
+        teamId: storedTeamId ? "✓" : "✗",
+        permissions: storedPermissions ? "✓" : "✗",
       });
 
       // Store team data for display
@@ -88,19 +96,18 @@ export default function GuestTeamView({ onNavigate }) {
         });
       }
 
-      // ✅ CRITICAL FIX: Redirect after showing success message
-      console.log("⏰ Starting redirect countdown...");
+      // ✅ CRITICAL FIX: Use longer delay to ensure storage write completes
+      console.log("⏰ [GUEST TEAM VIEW] Starting redirect countdown (3 seconds)...");
       
-     setTimeout(() => {
-  console.log("🚀 Redirecting to home with guest mode active...");
-  
-  // ✅ FIXED: Always force full page reload to trigger state initialization
-  // onNavigate won't work because it doesn't remount the App component
-  window.location.href = "/";
-}, 2500);
+      setTimeout(() => {
+        console.log("🚀 [GUEST TEAM VIEW] Redirecting to home...");
+        
+        // ✅ FIXED: Always use full page reload to ensure App.jsx reinitializes
+        window.location.href = "/";
+      }, 3000);
 
     } catch (err) {
-      console.error("❌ Error validating guest access:", err);
+      console.error("❌ [GUEST TEAM VIEW] Error validating access:", err);
       setStatus("error");
 
       if (err.message.includes("expired")) {
@@ -124,9 +131,7 @@ export default function GuestTeamView({ onNavigate }) {
   }
 
   function handleSignUp() {
-    // For signup, we need to trigger the auth flow
-    // This would be handled by your main app's auth system
-    console.log("📝 Redirecting to signup...");
+    console.log("📝 [GUEST TEAM VIEW] Redirecting to signup...");
     if (onNavigate) {
       onNavigate("/");
     } else {
