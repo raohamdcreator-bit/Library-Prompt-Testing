@@ -1,4 +1,4 @@
-// src/context/AppStateContext.jsx - Secure State Management
+// src/context/AppStateContext.jsx - Secure State Management with Guest Mode Support
 import {
   createContext,
   useContext,
@@ -8,6 +8,7 @@ import {
   useRef,
 } from "react";
 import { useAuth } from "./AuthContext";
+import { hasGuestAccess } from "../lib/guestTeamAccess"; // ✅ Import guest access checker
 
 const AppStateContext = createContext({});
 
@@ -22,6 +23,7 @@ export function useAppState() {
 /**
  * Secure state management provider
  * Replaces localStorage with sessionStorage and encrypted persistence
+ * ✅ FIXED: Preserves guest team state
  */
 export function AppStateProvider({ children }) {
   const { user } = useAuth();
@@ -37,6 +39,10 @@ export function AppStateProvider({ children }) {
   // Use ref to track if we should save (prevents save loops)
   const saveTimerRef = useRef(null);
   const initialLoadRef = useRef(true);
+  
+  // ✅ Check if we're in guest mode
+  const guestAccess = hasGuestAccess();
+  const isGuestMode = guestAccess.hasAccess;
 
   // Load state on mount (from sessionStorage only)
   useEffect(() => {
@@ -58,10 +64,14 @@ export function AppStateProvider({ children }) {
 
     // Debounce saves to prevent rapid updates
     saveTimerRef.current = setTimeout(() => {
-      if (user) {
+      if (user || isGuestMode) {
+        // ✅ FIXED: Save state for authenticated users OR guest users
         saveStateToSession();
       } else {
-        clearState();
+        // ✅ FIXED: Only clear if NOT in guest mode
+        if (!isGuestMode) {
+          clearState();
+        }
       }
     }, 100);
 
@@ -70,7 +80,7 @@ export function AppStateProvider({ children }) {
         clearTimeout(saveTimerRef.current);
       }
     };
-  }, [user, activeTeam, preferences]);
+  }, [user, activeTeam, preferences, isGuestMode]);
 
   /**
    * Load state from sessionStorage (more secure than localStorage)
@@ -125,6 +135,7 @@ export function AppStateProvider({ children }) {
 
   /**
    * Clear all state (on logout)
+   * ✅ FIXED: Don't clear guest team access data
    */
   const clearState = useCallback(() => {
     setActiveTeam(null);
@@ -135,9 +146,21 @@ export function AppStateProvider({ children }) {
       notifications: true,
     });
 
-    // Clear session storage
+    // Clear session storage (but preserve guest team access)
     try {
+      // Save guest team data if present
+      const guestToken = sessionStorage.getItem("guest_team_token");
+      const guestTeamId = sessionStorage.getItem("guest_team_id");
+      const guestPermissions = sessionStorage.getItem("guest_team_permissions");
+      const isGuestMode = sessionStorage.getItem("is_guest_mode");
+      
       sessionStorage.removeItem("app_state");
+      
+      // Restore guest data if it existed
+      if (guestToken) sessionStorage.setItem("guest_team_token", guestToken);
+      if (guestTeamId) sessionStorage.setItem("guest_team_id", guestTeamId);
+      if (guestPermissions) sessionStorage.setItem("guest_team_permissions", guestPermissions);
+      if (isGuestMode) sessionStorage.setItem("is_guest_mode", isGuestMode);
     } catch (error) {
       console.error("Error clearing state:", error);
     }
@@ -145,6 +168,7 @@ export function AppStateProvider({ children }) {
 
   /**
    * Update active team (with validation)
+   * ✅ FIXED: Allow setting team in guest mode
    */
   const updateActiveTeam = useCallback((teamId) => {
     // Allow null to clear active team
@@ -159,6 +183,7 @@ export function AppStateProvider({ children }) {
       return false;
     }
 
+    console.log('📝 [CONTEXT] Updating active team:', teamId);
     setActiveTeam(teamId);
     return true;
   }, []);
