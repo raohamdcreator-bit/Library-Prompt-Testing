@@ -722,7 +722,35 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
 // ===================================
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
-  const { activeTeam, setActiveTeam } = useActiveTeam();
+  
+  // ✅ CRITICAL FIX: Initialize guest team access FIRST before anything else
+  const [guestTeamId, setGuestTeamId] = useState(() => {
+    const guestAccess = hasGuestAccess();
+    if (guestAccess.hasAccess) {
+      console.log('👁️ [APP INIT] Guest team access detected:', {
+        teamId: guestAccess.teamId,
+        hasAccess: guestAccess.hasAccess,
+      });
+      console.log('👁️ [APP INIT] Guest permissions loaded:', guestAccess.permissions);
+      return guestAccess.teamId;
+    }
+    return null;
+  });
+  
+  const contextActiveTeam = useActiveTeam();
+  
+  // ✅ CRITICAL FIX: For guest users, manage activeTeam locally to prevent context resets
+  const [guestActiveTeam, setGuestActiveTeam] = useState(guestTeamId);
+  
+  // Use guest activeTeam if in guest mode, otherwise use context
+  const activeTeam = guestTeamId ? guestActiveTeam : contextActiveTeam.activeTeam;
+  const setActiveTeam = guestTeamId 
+    ? (teamId) => {
+        console.log('👁️ [GUEST] Setting guest active team:', teamId);
+        setGuestActiveTeam(teamId);
+      }
+    : contextActiveTeam.setActiveTeam;
+  
   const inviteCardRef = useRef(null);
   const {
     isGuest,
@@ -750,33 +778,23 @@ export default function App() {
   const [isExploringAsGuest, setIsExploringAsGuest] = useState(false);
   const [guestDemosInitialized, setGuestDemosInitialized] = useState(false);
   
-  // ✅ CRITICAL FIX: Initialize guest team access IMMEDIATELY on mount
-  const [guestTeamId, setGuestTeamId] = useState(() => {
-    const guestAccess = hasGuestAccess();
-    if (guestAccess.hasAccess) {
-      console.log('👁️ [APP INIT] Guest team access detected:', {
-        teamId: guestAccess.teamId,
-        hasAccess: true,
-      });
-      return guestAccess.teamId;
-    }
-    console.log('👁️ [APP INIT] No guest team access found');
-    return null;
-  });
-  
   const [guestTeamPermissions, setGuestTeamPermissions] = useState(() => {
     const guestAccess = hasGuestAccess();
     if (guestAccess.hasAccess) {
-      console.log('👁️ [APP INIT] Guest permissions loaded:', guestAccess.permissions);
       return guestAccess.permissions;
     }
     return null;
   });
 
+
   // ✅ CRITICAL FIX: Set active team when guest team data is ready
+  // Use a stable reference to prevent context resets from interfering
+  const activeTeamRef = useRef(activeTeam);
+  activeTeamRef.current = activeTeam;
+  
   useEffect(() => {
     // If we have a guest team ID, teams are loaded, but no active team set
-    if (guestTeamId && teams.length > 0 && !activeTeam) {
+    if (guestTeamId && teams.length > 0 && !activeTeamRef.current) {
       const guestTeam = teams.find(t => t.id === guestTeamId);
       if (guestTeam) {
         console.log('👁️ [ACTIVE TEAM] Setting active team for guest:', guestTeamId);
@@ -784,7 +802,8 @@ export default function App() {
         setActiveView('prompts');
       }
     }
-  }, [guestTeamId, teams, activeTeam, setActiveTeam]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guestTeamId, teams.length]);
 
   // ✅ Track analytics when guest mode is active
   useEffect(() => {
