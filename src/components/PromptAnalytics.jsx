@@ -1,4 +1,4 @@
-// src/components/PromptAnalytics.jsx - Complete Updated Version
+// src/components/PromptAnalytics.jsx - Complete Updated Version with Guest Analytics
 import { useState, useEffect, useMemo } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -14,11 +14,13 @@ import {
   query,
   orderBy,
   limit,
+  getDocs,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { 
   Star, BarChart3, FileText, Copy, MessageSquare, 
-  TrendingUp, Award, Users, Eye, Activity
+  TrendingUp, Award, Users, Eye, Activity, UserCheck,
+  UserX, TrendingDown, Clock, Zap
 } from 'lucide-react';
 
 // Hook for prompt ratings
@@ -52,15 +54,15 @@ export function usePromptRating(teamId, promptId) {
           setRatings(ratingsData);
 
           // ✅ Support both authenticated users and team guests
-const userId = user?.uid || 
-  (sessionStorage.getItem('guest_team_token') 
-    ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
-    : null);
+          const userId = user?.uid || 
+            (sessionStorage.getItem('guest_team_token') 
+              ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
+              : null);
 
-const userRatingData = ratingsData.find(
-  (r) => r.userId === userId
-);
-setUserRating(userRatingData?.rating || null);
+          const userRatingData = ratingsData.find(
+            (r) => r.userId === userId
+          );
+          setUserRating(userRatingData?.rating || null);
           setLoading(false);
         },
         (error) => {
@@ -85,38 +87,38 @@ setUserRating(userRatingData?.rating || null);
   }, [ratings]);
 
   async function ratePrompt(rating) {
-  if (!teamId || !promptId || rating < 1 || rating > 5) return;
+    if (!teamId || !promptId || rating < 1 || rating > 5) return;
 
-  try {
-    // ✅ Support both authenticated users and team guests
-    const isGuest = !user;
-    const userId = user?.uid || 
-      (sessionStorage.getItem('guest_team_token') 
-        ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
-        : `guest_${Date.now()}`);
+    try {
+      // ✅ Support both authenticated users and team guests
+      const isGuest = !user;
+      const userId = user?.uid || 
+        (sessionStorage.getItem('guest_team_token') 
+          ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
+          : `guest_${Date.now()}`);
 
-    const ratingRef = doc(
-      db,
-      "teams",
-      teamId,
-      "prompts",
-      promptId,
-      "ratings",
-      userId
-    );
-    
-    const ratingData = {
-      userId: userId,
-      rating: rating,
-      createdAt: serverTimestamp(),
-    };
-    
-    // ✅ Add isGuest flag for guest ratings (required by Firestore rules)
-    if (isGuest) {
-      ratingData.isGuest = true;
-    }
-    
-    await setDoc(ratingRef, ratingData);
+      const ratingRef = doc(
+        db,
+        "teams",
+        teamId,
+        "prompts",
+        promptId,
+        "ratings",
+        userId
+      );
+      
+      const ratingData = {
+        userId: userId,
+        rating: rating,
+        createdAt: serverTimestamp(),
+      };
+      
+      // ✅ Add isGuest flag for guest ratings (required by Firestore rules)
+      if (isGuest) {
+        ratingData.isGuest = true;
+      }
+      
+      await setDoc(ratingRef, ratingData);
 
       const promptRef = doc(db, "teams", teamId, "prompts", promptId);
       const promptSnap = await getDoc(promptRef);
@@ -163,28 +165,28 @@ setUserRating(userRatingData?.rating || null);
     }
   }
 
- async function removeRating() {
-  if (!teamId || !promptId || !userRating) return;
-  
-  // ✅ Get user ID (authenticated or guest)
-  const userId = user?.uid || 
-    (sessionStorage.getItem('guest_team_token') 
-      ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
-      : null);
-  
-  if (!userId) return;
+  async function removeRating() {
+    if (!teamId || !promptId || !userRating) return;
+    
+    // ✅ Get user ID (authenticated or guest)
+    const userId = user?.uid || 
+      (sessionStorage.getItem('guest_team_token') 
+        ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
+        : null);
+    
+    if (!userId) return;
 
-  try {
-    const ratingRef = doc(
-      db,
-      "teams",
-      teamId,
-      "prompts",
-      promptId,
-      "ratings",
-      userId
-    );
-    await deleteDoc(ratingRef);
+    try {
+      const ratingRef = doc(
+        db,
+        "teams",
+        teamId,
+        "prompts",
+        promptId,
+        "ratings",
+        userId
+      );
+      await deleteDoc(ratingRef);
 
       const promptRef = doc(db, "teams", teamId, "prompts", promptId);
       const promptSnap = await getDoc(promptRef);
@@ -279,7 +281,182 @@ export function StarRating({
   );
 }
 
-// Team analytics dashboard
+// ✅ NEW: Guest Analytics Card Component
+function GuestAnalyticsCard({ teamId }) {
+  const [guestStats, setGuestStats] = useState({
+    guestRatings: 0,
+    guestComments: 0,
+    guestCopies: 0,
+    guestViews: 0,
+    loading: true,
+  });
+
+  useEffect(() => {
+    if (!teamId) {
+      setGuestStats(prev => ({ ...prev, loading: false }));
+      return;
+    }
+
+    const loadGuestStats = async () => {
+      try {
+        const promptsRef = collection(db, 'teams', teamId, 'prompts');
+        const promptsSnap = await getDocs(promptsRef);
+
+        let totalGuestRatings = 0;
+        let totalGuestComments = 0;
+        let totalGuestCopies = 0;
+
+        for (const promptDoc of promptsSnap.docs) {
+          const promptData = promptDoc.data();
+          const promptId = promptDoc.id;
+
+          // Count guest ratings
+          const ratingsRef = collection(db, 'teams', teamId, 'prompts', promptId, 'ratings');
+          const ratingsSnap = await getDocs(ratingsRef);
+          const guestRatingsCount = ratingsSnap.docs.filter(d => d.data().isGuest === true).length;
+          totalGuestRatings += guestRatingsCount;
+
+          // Count guest comments
+          const commentsRef = collection(db, 'teams', teamId, 'prompts', promptId, 'comments');
+          const commentsSnap = await getDocs(commentsRef);
+          const guestCommentsCount = commentsSnap.docs.filter(d => d.data().isGuest === true).length;
+          totalGuestComments += guestCommentsCount;
+
+          // Guest copies from stats
+          totalGuestCopies += promptData.stats?.guestCopies || 0;
+        }
+
+        setGuestStats({
+          guestRatings: totalGuestRatings,
+          guestComments: totalGuestComments,
+          guestCopies: totalGuestCopies,
+          guestViews: 0, // Can be calculated if tracked
+          loading: false,
+        });
+      } catch (error) {
+        console.error('Error loading guest stats:', error);
+        setGuestStats(prev => ({ ...prev, loading: false }));
+      }
+    };
+
+    loadGuestStats();
+
+    // Set up real-time listener for updates
+    const promptsRef = collection(db, 'teams', teamId, 'prompts');
+    const unsub = onSnapshot(promptsRef, () => {
+      loadGuestStats();
+    });
+
+    return () => unsub();
+  }, [teamId]);
+
+  if (guestStats.loading) {
+    return (
+      <div className="glass-card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Eye size={20} color="var(--primary)" />
+          <h4 className="font-semibold" style={{ color: "var(--foreground)" }}>
+            Guest Activity
+          </h4>
+        </div>
+        <div className="text-center py-8">
+          <div className="neo-spinner mx-auto mb-2"></div>
+          <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            Loading guest analytics...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const hasGuestActivity = guestStats.guestRatings > 0 || guestStats.guestComments > 0 || guestStats.guestCopies > 0;
+
+  return (
+    <div className="glass-card p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Eye size={20} color="var(--primary)" />
+        <h4 className="font-semibold" style={{ color: "var(--foreground)" }}>
+          Guest Activity
+        </h4>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
+          Read-Only Users
+        </span>
+      </div>
+
+      {!hasGuestActivity ? (
+        <div className="text-center py-8">
+          <UserX size={32} className="mx-auto mb-2 opacity-50" style={{ color: "var(--muted-foreground)" }} />
+          <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            No guest activity yet
+          </p>
+          <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+            Share guest access links to track external engagement
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <div className="text-center p-3 rounded-lg" style={{ backgroundColor: "var(--secondary)" }}>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Star size={16} className="text-yellow-400 fill-yellow-400" />
+                <div className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>
+                  {guestStats.guestRatings}
+                </div>
+              </div>
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                Guest Ratings
+              </div>
+            </div>
+
+            <div className="text-center p-3 rounded-lg" style={{ backgroundColor: "var(--secondary)" }}>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <MessageSquare size={16} style={{ color: "var(--accent)" }} />
+                <div className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>
+                  {guestStats.guestComments}
+                </div>
+              </div>
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                Guest Comments
+              </div>
+            </div>
+
+            <div className="text-center p-3 rounded-lg" style={{ backgroundColor: "var(--secondary)" }}>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Copy size={16} style={{ color: "var(--primary)" }} />
+                <div className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>
+                  {guestStats.guestCopies}
+                </div>
+              </div>
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                Guest Copies
+              </div>
+            </div>
+          </div>
+
+          {/* Engagement Indicator */}
+          <div className="p-3 rounded-lg border" style={{
+            backgroundColor: "var(--muted)",
+            borderColor: "var(--border)",
+          }}>
+            <div className="flex items-start gap-2">
+              <TrendingUp className="w-4 h-4 mt-0.5" style={{ color: "var(--primary)" }} />
+              <div className="flex-1">
+                <p className="text-xs font-medium mb-1" style={{ color: "var(--foreground)" }}>
+                  Guest Engagement
+                </p>
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  {guestStats.guestRatings + guestStats.guestComments} total interactions from guest users
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ✅ UPDATED: Team analytics dashboard with guest tracking
 export function TeamAnalytics({ teamId }) {
   const [analytics, setAnalytics] = useState({
     totalPrompts: 0,
@@ -292,6 +469,14 @@ export function TeamAnalytics({ teamId }) {
     recentActivity: [],
   });
   const [loading, setLoading] = useState(true);
+
+  // ✅ NEW: Separate tracking for authenticated vs guest metrics
+  const [userTypeStats, setUserTypeStats] = useState({
+    authenticatedRatings: 0,
+    guestRatings: 0,
+    authenticatedComments: 0,
+    guestComments: 0,
+  });
 
   useEffect(() => {
     if (!teamId) {
@@ -330,6 +515,43 @@ export function TeamAnalytics({ teamId }) {
               ratingSum: 0,
             }
           );
+
+          // ✅ NEW: Calculate user type breakdown
+          let authRatings = 0;
+          let guestRatingsCount = 0;
+          let authComments = 0;
+          let guestCommentsCount = 0;
+
+          for (const prompt of allPrompts) {
+            // Count ratings by type
+            const ratingsRef = collection(db, 'teams', teamId, 'prompts', prompt.id, 'ratings');
+            const ratingsSnap = await getDocs(ratingsRef);
+            ratingsSnap.docs.forEach(doc => {
+              if (doc.data().isGuest === true) {
+                guestRatingsCount++;
+              } else {
+                authRatings++;
+              }
+            });
+
+            // Count comments by type
+            const commentsRef = collection(db, 'teams', teamId, 'prompts', prompt.id, 'comments');
+            const commentsSnap = await getDocs(commentsRef);
+            commentsSnap.docs.forEach(doc => {
+              if (doc.data().isGuest === true) {
+                guestCommentsCount++;
+              } else {
+                authComments++;
+              }
+            });
+          }
+
+          setUserTypeStats({
+            authenticatedRatings: authRatings,
+            guestRatings: guestRatingsCount,
+            authenticatedComments: authComments,
+            guestComments: guestCommentsCount,
+          });
 
           // Get top prompts (only those with ratings)
           const topPrompts = allPrompts
@@ -496,6 +718,70 @@ export function TeamAnalytics({ teamId }) {
           </div>
           <div className="text-sm" style={{ color: "var(--muted-foreground)" }}>
             Avg Rating
+          </div>
+        </div>
+      </div>
+
+      {/* ✅ NEW: Guest Analytics Card */}
+      <GuestAnalyticsCard teamId={teamId} />
+
+      {/* ✅ NEW: User Type Breakdown */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <UserCheck size={20} color="var(--primary)" />
+            <h4 className="font-semibold" style={{ color: "var(--foreground)" }}>
+              Authenticated Users
+            </h4>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 rounded-lg" style={{ backgroundColor: "var(--secondary)" }}>
+              <div className="flex items-center gap-2">
+                <Star size={16} className="text-yellow-400 fill-yellow-400" />
+                <span className="text-sm" style={{ color: "var(--foreground)" }}>Ratings</span>
+              </div>
+              <span className="font-bold" style={{ color: "var(--foreground)" }}>
+                {userTypeStats.authenticatedRatings}
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg" style={{ backgroundColor: "var(--secondary)" }}>
+              <div className="flex items-center gap-2">
+                <MessageSquare size={16} style={{ color: "var(--accent)" }} />
+                <span className="text-sm" style={{ color: "var(--foreground)" }}>Comments</span>
+              </div>
+              <span className="font-bold" style={{ color: "var(--foreground)" }}>
+                {userTypeStats.authenticatedComments}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="glass-card p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Eye size={20} color="var(--primary)" />
+            <h4 className="font-semibold" style={{ color: "var(--foreground)" }}>
+              Guest Users
+            </h4>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center p-3 rounded-lg" style={{ backgroundColor: "var(--secondary)" }}>
+              <div className="flex items-center gap-2">
+                <Star size={16} className="text-yellow-400 fill-yellow-400" />
+                <span className="text-sm" style={{ color: "var(--foreground)" }}>Ratings</span>
+              </div>
+              <span className="font-bold" style={{ color: "var(--foreground)" }}>
+                {userTypeStats.guestRatings}
+              </span>
+            </div>
+            <div className="flex justify-between items-center p-3 rounded-lg" style={{ backgroundColor: "var(--secondary)" }}>
+              <div className="flex items-center gap-2">
+                <MessageSquare size={16} style={{ color: "var(--accent)" }} />
+                <span className="text-sm" style={{ color: "var(--foreground)" }}>Comments</span>
+              </div>
+              <span className="font-bold" style={{ color: "var(--foreground)" }}>
+                {userTypeStats.guestComments}
+              </span>
+            </div>
           </div>
         </div>
       </div>
