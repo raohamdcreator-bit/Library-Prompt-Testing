@@ -157,7 +157,7 @@ function OutputPreviewPanel({ outputs, onViewAll, isGuestMode = false }) {
   };
 
   return (
-    <div className="output-preview-panel" onClick={onViewAll} role="button" tabIndex={0}>
+    <div className="output-preview-panel" onClick={isGuestMode ? () => alert("Sign up to add or delete outputs! You can view them in read-only mode.") && onViewAll() : onViewAll} role="button" tabIndex={0}>
       <div className="output-preview-header">
         <div className="flex items-center gap-2">
           <Activity className="w-3.5 h-3.5 text-muted-foreground" />
@@ -533,11 +533,8 @@ function PromptCard({
           <OutputPreviewPanel 
             outputs={outputs} 
             onViewAll={() => {
-              if (isGuestMode) {
-                alert("Sign up to view and attach outputs!");
-              } else {
-                onViewOutputs && onViewOutputs(prompt);
-              }
+              // ✅ FIX: Guests can VIEW outputs (read-only), just can't add/delete
+              onViewOutputs && onViewOutputs(prompt);
             }}
             isGuestMode={isGuestMode}
           />
@@ -1785,10 +1782,15 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           prompt={viewOutputsPrompt}
           teamId={activeTeam}
           userRole={userRole}
-          onAttachNew={() => {
-            setViewOutputsPrompt(null);
-            setSelectedPromptForAttach(viewOutputsPrompt);
-          }}
+          isGuestMode={isGuestMode}
+          onAttachNew={
+            isGuestMode 
+              ? null  // Hide "Add Output" button for guests
+              : () => {
+                  setViewOutputsPrompt(null);
+                  setSelectedPromptForAttach(viewOutputsPrompt);
+                }
+          }
         />
       )}
 
