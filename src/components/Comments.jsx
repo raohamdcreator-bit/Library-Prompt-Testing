@@ -168,25 +168,56 @@ export function Comment({
         borderColor: "var(--border)",
       }}
     >
-      <div className="flex gap-3 md:gap-4">
-        <UserAvatar
-          src={profile?.avatar}
-          name={profile?.name}
-          email={profile?.email}
-          size="small"
-          className="flex-shrink-0"
-        />
+     <div className="flex gap-3 md:gap-4">
+  {/* ✅ Show badge for guest comments */}
+  {comment.isGuest ? (
+    <div 
+      className="w-8 h-8 md:w-9 md:h-9 flex-shrink-0 rounded-full flex items-center justify-center"
+      style={{ backgroundColor: "var(--muted)" }}
+    >
+      <span 
+        className="text-xs font-semibold"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        G
+      </span>
+    </div>
+  ) : (
+    <UserAvatar
+      src={profile?.avatar}
+      name={profile?.name}
+      email={profile?.email}
+      size="small"
+      className="flex-shrink-0"
+    />
+  )}
 
-        <div className="flex-1 min-w-0">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="flex flex-col gap-1">
-              <span
-                className="text-sm md:text-base font-semibold"
-                style={{ color: "var(--foreground)" }}
-              >
-                {profile?.name || profile?.email || "Unknown user"}
-              </span>
+  <div className="flex-1 min-w-0">
+    {/* Header */}
+    <div className="flex items-start justify-between gap-2 mb-2">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <span
+            className="text-sm md:text-base font-semibold"
+            style={{ color: "var(--foreground)" }}
+          >
+            {comment.isGuest 
+              ? "Guest User" 
+              : (profile?.name || profile?.email || "Unknown user")
+            }
+          </span>
+          {comment.isGuest && (
+            <span 
+              className="text-xs px-2 py-0.5 rounded"
+              style={{ 
+                backgroundColor: "var(--muted)", 
+                color: "var(--muted-foreground)" 
+              }}
+            >
+              Guest
+            </span>
+          )}
+        </div>
               <div
                 className="flex items-center gap-2 text-xs"
                 style={{ color: "var(--muted-foreground)" }}
