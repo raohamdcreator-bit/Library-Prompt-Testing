@@ -1,7 +1,9 @@
-// src/components/PromptList.jsx - REFACTORED with filter card at end before invitation
+// src/components/PromptList.jsx - COMPLETE FIXED VERSION
 // ✅ Filter button navigates to filter card at bottom • All filters integrated • Search + Create + Filter on single row
 // ✅ Import Card added at end • Invite Member button navigates to invitation card • Pagination without background cards
 // ✅ FIXED: Removed duplicate invitation card - scrolls to App.jsx's TeamInviteForm instead
+// ✅ FIXED: Demo guest mode - safe date handling for both Firestore and regular dates
+// ✅ FIXED: loadTeamData proper conditional order
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -1038,14 +1040,20 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsubscribers.forEach((unsub) => unsub());
   }, [userPrompts, activeTeam]);
 
-  // Load team data
+  // Load team data - ✅ FIXED: Proper order of conditionals
   useEffect(() => {
     async function loadTeamData() {
+      // ✅ FIX: Check conditions in correct order
+      if (!activeTeam || isGuestMode) {
+        console.log('📝 [TEAM DATA] No team or guest mode, skipping');
+        return;
+      }
+      
       if (!user) {
-  console.log('📝 [TEAM DATA] No user: skipping member profile loading');
-  return;
-}
-      else if (!activeTeam || isGuestMode) return;
+        console.log('📝 [TEAM DATA] No user: skipping member profile loading');
+        return;
+      }
+      
       try {
         const teamDoc = await getDoc(doc(db, "teams", activeTeam));
         if (!teamDoc.exists()) return;
@@ -1057,17 +1065,38 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           try {
             const userDoc = await getDoc(doc(db, "users", memberId));
             if (userDoc.exists()) profiles[memberId] = userDoc.data();
-          } catch (error) { console.error("Error loading member:", error); }
+          } catch (error) { 
+            // ✅ FIX: Silently skip - expected for permission issues
+          }
         }
         setTeamMembers(profiles);
-        
-      } catch (error) { console.error("Error loading team data:", error); }
+      } catch (error) { 
+        console.error("Error loading team data:", error); 
+      }
     }
     loadTeamData();
-  }, [activeTeam, isGuestMode]);
+  }, [activeTeam, isGuestMode, user]); // ✅ ADD user to dependencies
 
-  // Apply filters function
+  // Apply filters function - ✅ FIXED: Handles both Firestore and regular dates
   function applyFilters(promptsList) {
+    // ✅ HELPER: Safely get timestamp from either Firestore or regular Date
+    function getTimestamp(prompt) {
+      if (!prompt.createdAt) return 0;
+      // Firestore timestamp
+      if (typeof prompt.createdAt.toMillis === 'function') {
+        return prompt.createdAt.toMillis();
+      }
+      // Regular Date object
+      if (prompt.createdAt instanceof Date) {
+        return prompt.createdAt.getTime();
+      }
+      // Unix timestamp number
+      if (typeof prompt.createdAt === 'number') {
+        return prompt.createdAt;
+      }
+      return 0;
+    }
+    
     let filtered = [...promptsList];
 
     // Text search
@@ -1112,7 +1141,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       );
     }
 
-    // Date range filter
+    // Date range filter - ✅ FIXED: Handle different date types
     if (filters.dateRange !== "all") {
       const now = new Date();
       const cutoffDate = new Date();
@@ -1135,7 +1164,22 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       filtered = filtered.filter((prompt) => {
         if (!prompt.createdAt) return false;
         try {
-          return prompt.createdAt.toDate() >= cutoffDate;
+          let promptDate;
+          // ✅ Handle Firestore timestamp
+          if (typeof prompt.createdAt.toDate === 'function') {
+            promptDate = prompt.createdAt.toDate();
+          } 
+          // ✅ Handle Date object
+          else if (prompt.createdAt instanceof Date) {
+            promptDate = prompt.createdAt;
+          }
+          // ✅ Handle Unix timestamp
+          else if (typeof prompt.createdAt === 'number') {
+            promptDate = new Date(prompt.createdAt);
+          } else {
+            return false;
+          }
+          return promptDate >= cutoffDate;
         } catch {
           return false;
         }
@@ -1155,17 +1199,13 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       );
     }
 
-    // Sorting
+    // Sorting - ✅ FIXED: Handle both Firestore timestamps and regular dates
     filtered.sort((a, b) => {
       switch (filters.sortBy) {
         case "newest":
-          return (
-            (b.createdAt?.toMillis() || 0) - (a.createdAt?.toMillis() || 0)
-          );
+          return getTimestamp(b) - getTimestamp(a);
         case "oldest":
-          return (
-            (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0)
-          );
+          return getTimestamp(a) - getTimestamp(b);
         case "title":
           return (a.title || "").localeCompare(b.title || "");
         case "author":
