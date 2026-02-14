@@ -951,7 +951,7 @@ export default function App() {
     );
 
     return () => unsub();
-  }, [user, guestTeamId, teams.length, setActiveTeam]);
+  }, [user, guestTeamId, teams.length]); // ✅ Removed setActiveTeam to prevent loop
   
   // Handle page exit/refresh for guests with unsaved work
   useEffect(() => {
@@ -1833,6 +1833,8 @@ export default function App() {
             userRole={role}
             activeTab={activeView}
             onTabChange={setActiveView}
+            isGuestMode={isGuest}
+            user={user}
           />
         ) : activeView === "favorites" && user ? (
           <div className="hidden md:block p-6 border-b"
