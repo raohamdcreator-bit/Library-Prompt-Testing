@@ -1,4 +1,4 @@
-// src/components/ActivityFeed.jsx - Modernized with Professional Icons
+// src/components/ActivityFeed.jsx - ✅ UPDATED: Tracks guest comments and ratings
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -8,6 +8,7 @@ import {
   limit,
   onSnapshot,
   getDoc,
+  getDocs,
   doc,
   serverTimestamp,
   addDoc,
@@ -16,10 +17,11 @@ import { useAuth } from "../context/AuthContext";
 import { 
   Plus, Edit2, Trash2, Star, UserPlus, UserMinus, 
   RefreshCw, Activity, Filter, Download, FileText,
-  MessageSquare, Copy, TrendingUp, Users
+  MessageSquare, Copy, TrendingUp, Users, Eye
 } from 'lucide-react';
 import { getTimestampMillis } from '../lib/dateUtils';
-// Activity Logger utility for creating activity records
+
+// Activity Logger utility
 export const ActivityLogger = {
   async logPromptCreated(teamId, userId, promptId, promptTitle) {
     try {
@@ -168,6 +170,66 @@ export default function ActivityFeed({ teamId }) {
             }
           });
 
+          // ✅ NEW: Load comments to track guest activity
+          for (const prompt of promptData) {
+            try {
+              const commentsRef = collection(db, "teams", teamId, "prompts", prompt.id, "comments");
+              const commentsQuery = query(commentsRef, orderBy("createdAt", "desc"), limit(10));
+              const commentsSnapshot = await getDocs(commentsQuery);
+              
+              commentsSnapshot.docs.forEach((commentDoc) => {
+                const comment = commentDoc.data();
+                activityItems.push({
+                  id: `comment-${prompt.id}-${commentDoc.id}`,
+                  type: "comment_added",
+                  userId: comment.userId || null,
+                  isGuest: comment.isGuest || false,
+                  guestToken: comment.guestToken || null,
+                  promptId: prompt.id,
+                  promptTitle: prompt.title,
+                  timestamp: comment.createdAt,
+                  metadata: {
+                    commentText: comment.text?.substring(0, 50) || "",
+                    userName: comment.userName || "Guest User",
+                  },
+                });
+              });
+            } catch (error) {
+              console.error("Error loading comments for prompt:", prompt.id, error);
+            }
+          }
+
+          // ✅ NEW: Load detailed ratings to track guest ratings
+          for (const prompt of promptData) {
+            try {
+              const ratingsRef = collection(db, "teams", teamId, "prompts", prompt.id, "ratings");
+              const ratingsSnapshot = await getDocs(ratingsRef);
+              
+              ratingsSnapshot.docs.forEach((ratingDoc) => {
+                const rating = ratingDoc.data();
+                // Only add if this is a recent rating (avoid duplicates with aggregated stats)
+                if (rating.createdAt) {
+                  activityItems.push({
+                    id: `rating-${prompt.id}-${ratingDoc.id}`,
+                    type: "prompt_rated_individual",
+                    userId: rating.userId || null,
+                    isGuest: rating.isGuest || false,
+                    guestToken: rating.guestToken || null,
+                    promptId: prompt.id,
+                    promptTitle: prompt.title,
+                    timestamp: rating.createdAt,
+                    metadata: {
+                      rating: rating.rating,
+                      userName: rating.isGuest ? "Guest User" : null,
+                    },
+                  });
+                }
+              });
+            } catch (error) {
+              console.error("Error loading ratings for prompt:", prompt.id, error);
+            }
+          }
+
           const profiles = {};
           for (const userId of userIds) {
             try {
@@ -232,7 +294,9 @@ export default function ActivityFeed({ teamId }) {
             "prompt_deleted",
           ].includes(activity.type);
         case "ratings":
-          return activity.type === "prompt_rated";
+          return activity.type === "prompt_rated" || activity.type === "prompt_rated_individual";
+        case "comments":
+          return activity.type === "comment_added";
         case "members":
           return ["member_joined", "member_left", "role_changed"].includes(
             activity.type
@@ -275,7 +339,10 @@ export default function ActivityFeed({ teamId }) {
       case "prompt_deleted":
         return Trash2;
       case "prompt_rated":
+      case "prompt_rated_individual":
         return Star;
+      case "comment_added":
+        return MessageSquare;
       case "member_joined":
         return UserPlus;
       case "member_left":
@@ -296,7 +363,10 @@ export default function ActivityFeed({ teamId }) {
       case "prompt_deleted":
         return "var(--destructive)";
       case "prompt_rated":
+      case "prompt_rated_individual":
         return "#fbbf24";
+      case "comment_added":
+        return "#3b82f6";
       case "member_joined":
         return "var(--primary)";
       case "member_left":
@@ -310,26 +380,19 @@ export default function ActivityFeed({ teamId }) {
 
   function formatActivityMessage(activity) {
     const user = userProfiles[activity.userId];
-    const userName = user?.name || user?.email || "Unknown user";
+    const userName = activity.isGuest 
+      ? (activity.metadata?.userName || "Guest User")
+      : (user?.name || user?.email || "Unknown user");
 
     switch (activity.type) {
       case "prompt_created":
         return (
           <span>
-            <span
-              className="font-medium"
-              style={{ color: "var(--foreground)" }}
-            >
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
               {userName}
             </span>
-            <span style={{ color: "var(--muted-foreground)" }}>
-              {" "}
-              created prompt{" "}
-            </span>
-            <span
-              className="font-medium"
-              style={{ color: "var(--foreground)" }}
-            >
+            <span style={{ color: "var(--muted-foreground)" }}> created prompt </span>
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
               "{activity.promptTitle}"
             </span>
           </span>
@@ -337,20 +400,11 @@ export default function ActivityFeed({ teamId }) {
       case "prompt_updated":
         return (
           <span>
-            <span
-              className="font-medium"
-              style={{ color: "var(--foreground)" }}
-            >
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
               {userName}
             </span>
-            <span style={{ color: "var(--muted-foreground)" }}>
-              {" "}
-              updated prompt{" "}
-            </span>
-            <span
-              className="font-medium"
-              style={{ color: "var(--foreground)" }}
-            >
+            <span style={{ color: "var(--muted-foreground)" }}> updated prompt </span>
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
               "{activity.promptTitle}"
             </span>
           </span>
@@ -358,71 +412,88 @@ export default function ActivityFeed({ teamId }) {
       case "prompt_rated":
         return (
           <span>
-            <span
-              className="font-medium"
-              style={{ color: "var(--foreground)" }}
-            >
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
               {userName}
             </span>
-            <span style={{ color: "var(--muted-foreground)" }}>
-              {" "}
-              rated prompt{" "}
-            </span>
-            <span
-              className="font-medium"
-              style={{ color: "var(--foreground)" }}
-            >
+            <span style={{ color: "var(--muted-foreground)" }}> rated prompt </span>
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
               "{activity.promptTitle}"
             </span>
             <span style={{ color: "var(--muted-foreground)" }}>
-              {" "}
-              ({activity.metadata?.rating?.toFixed(1)} stars)
+              {" "}({activity.metadata?.rating?.toFixed(1)} stars)
             </span>
+          </span>
+        );
+      case "prompt_rated_individual":
+        return (
+          <span>
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
+              {userName}
+            </span>
+            <span style={{ color: "var(--muted-foreground)" }}> rated prompt </span>
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
+              "{activity.promptTitle}"
+            </span>
+            <span style={{ color: "var(--muted-foreground)" }}>
+              {" "}({activity.metadata?.rating} {activity.metadata?.rating === 1 ? 'star' : 'stars'})
+            </span>
+            {activity.isGuest && (
+              <span className="text-xs ml-2 px-2 py-0.5 rounded-full" style={{
+                backgroundColor: "rgba(139, 92, 246, 0.1)",
+                color: "var(--primary)",
+                border: "1px solid rgba(139, 92, 246, 0.2)"
+              }}>
+                Guest
+              </span>
+            )}
+          </span>
+        );
+      case "comment_added":
+        return (
+          <span>
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
+              {userName}
+            </span>
+            <span style={{ color: "var(--muted-foreground)" }}> commented on </span>
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
+              "{activity.promptTitle}"
+            </span>
+            {activity.isGuest && (
+              <span className="text-xs ml-2 px-2 py-0.5 rounded-full" style={{
+                backgroundColor: "rgba(139, 92, 246, 0.1)",
+                color: "var(--primary)",
+                border: "1px solid rgba(139, 92, 246, 0.2)"
+              }}>
+                Guest
+              </span>
+            )}
           </span>
         );
       case "member_joined":
         return (
           <span>
-            <span
-              className="font-medium"
-              style={{ color: "var(--foreground)" }}
-            >
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
               {userName}
             </span>
-            <span style={{ color: "var(--muted-foreground)" }}>
-              {" "}
-              joined the team
-            </span>
+            <span style={{ color: "var(--muted-foreground)" }}> joined the team</span>
           </span>
         );
       case "member_left":
         return (
           <span>
-            <span
-              className="font-medium"
-              style={{ color: "var(--foreground)" }}
-            >
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
               {userName}
             </span>
-            <span style={{ color: "var(--muted-foreground)" }}>
-              {" "}
-              left the team
-            </span>
+            <span style={{ color: "var(--muted-foreground)" }}> left the team</span>
           </span>
         );
       default:
         return (
           <span>
-            <span
-              className="font-medium"
-              style={{ color: "var(--foreground)" }}
-            >
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
               {userName}
             </span>
-            <span style={{ color: "var(--muted-foreground)" }}>
-              {" "}
-              performed an action
-            </span>
+            <span style={{ color: "var(--muted-foreground)" }}> performed an action</span>
           </span>
         );
     }
@@ -502,11 +573,12 @@ export default function ActivityFeed({ teamId }) {
   }
 
   const activityStats = {
-    promptsCreated: activities.filter((a) => a.type === "prompt_created")
-      .length,
+    promptsCreated: activities.filter((a) => a.type === "prompt_created").length,
     updatesCount: activities.filter((a) => a.type === "prompt_updated").length,
-    ratingsCount: activities.filter((a) => a.type === "prompt_rated").length,
-    activeMembers: new Set(activities.map((a) => a.userId)).size,
+    ratingsCount: activities.filter((a) => a.type === "prompt_rated" || a.type === "prompt_rated_individual").length,
+    commentsCount: activities.filter((a) => a.type === "comment_added").length,
+    guestActivity: activities.filter((a) => a.isGuest).length,
+    activeMembers: new Set(activities.map((a) => a.userId || a.guestToken).filter(Boolean)).size,
   };
 
   return (
@@ -543,9 +615,11 @@ export default function ActivityFeed({ teamId }) {
                 Time: formatRelativeTime(activity.timestamp),
                 Type: activity.type,
                 User:
-                  userProfiles[activity.userId]?.name ||
-                  userProfiles[activity.userId]?.email ||
-                  "Unknown",
+                  activity.isGuest
+                    ? "Guest User"
+                    : userProfiles[activity.userId]?.name ||
+                      userProfiles[activity.userId]?.email ||
+                      "Unknown",
                 Action:
                   activity.promptTitle ||
                   activity.metadata?.memberName ||
@@ -601,6 +675,7 @@ export default function ActivityFeed({ teamId }) {
                 { key: "all", label: "All", icon: FileText },
                 { key: "prompts", label: "Prompts", icon: FileText },
                 { key: "ratings", label: "Ratings", icon: Star },
+                { key: "comments", label: "Comments", icon: MessageSquare },
                 { key: "members", label: "Members", icon: Users },
               ].map((filterOption) => {
                 const Icon = filterOption.icon;
@@ -714,7 +789,13 @@ export default function ActivityFeed({ teamId }) {
                     <Icon size={16} />
                   </div>
 
-                  <UserAvatar userId={activity.userId} />
+                  {!activity.isGuest && activity.userId && <UserAvatar userId={activity.userId} />}
+                  {activity.isGuest && (
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-semibold text-xs"
+                      style={{ backgroundColor: "rgba(139, 92, 246, 0.7)" }}>
+                      G
+                    </div>
+                  )}
 
                   <div className="flex-1 min-w-0">
                     <div className="text-sm mb-1">
@@ -760,6 +841,15 @@ export default function ActivityFeed({ teamId }) {
                           <span>•</span>
                           <span>
                             {activity.metadata.totalRatings} total ratings
+                          </span>
+                        </>
+                      )}
+                      
+                      {activity.metadata?.commentText && (
+                        <>
+                          <span>•</span>
+                          <span className="truncate max-w-xs">
+                            "{activity.metadata.commentText}..."
                           </span>
                         </>
                       )}
@@ -863,13 +953,33 @@ export default function ActivityFeed({ teamId }) {
               className="text-lg font-bold mb-1"
               style={{ color: "var(--foreground)" }}
             >
-              {activityStats.activeMembers}
+              {activityStats.commentsCount}
             </div>
             <div
               className="text-xs"
               style={{ color: "var(--muted-foreground)" }}
             >
-              Active Members
+              Comments Added
+            </div>
+          </div>
+          <div
+            className="text-center p-3 rounded-lg col-span-2 md:col-span-4"
+            style={{ 
+              backgroundColor: "rgba(139, 92, 246, 0.1)",
+              border: "1px solid rgba(139, 92, 246, 0.2)"
+            }}
+          >
+            <div
+              className="text-lg font-bold mb-1"
+              style={{ color: "var(--primary)" }}
+            >
+              {activityStats.guestActivity}
+            </div>
+            <div
+              className="text-xs"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              Guest User Activities (Comments & Ratings)
             </div>
           </div>
         </div>
