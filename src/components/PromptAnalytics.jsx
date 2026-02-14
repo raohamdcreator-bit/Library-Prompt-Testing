@@ -51,10 +51,16 @@ export function usePromptRating(teamId, promptId) {
           const ratingsData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
           setRatings(ratingsData);
 
-          const userRatingData = ratingsData.find(
-            (r) => r.userId === user?.uid
-          );
-          setUserRating(userRatingData?.rating || null);
+          // ✅ Support both authenticated users and team guests
+const userId = user?.uid || 
+  (sessionStorage.getItem('guest_team_token') 
+    ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
+    : null);
+
+const userRatingData = ratingsData.find(
+  (r) => r.userId === userId
+);
+setUserRating(userRatingData?.rating || null);
           setLoading(false);
         },
         (error) => {
@@ -79,23 +85,38 @@ export function usePromptRating(teamId, promptId) {
   }, [ratings]);
 
   async function ratePrompt(rating) {
-    if (!user || !teamId || !promptId || rating < 1 || rating > 5) return;
+  if (!teamId || !promptId || rating < 1 || rating > 5) return;
 
-    try {
-      const ratingRef = doc(
-        db,
-        "teams",
-        teamId,
-        "prompts",
-        promptId,
-        "ratings",
-        user.uid
-      );
-      await setDoc(ratingRef, {
-        userId: user.uid,
-        rating: rating,
-        createdAt: serverTimestamp(),
-      });
+  try {
+    // ✅ Support both authenticated users and team guests
+    const isGuest = !user;
+    const userId = user?.uid || 
+      (sessionStorage.getItem('guest_team_token') 
+        ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
+        : `guest_${Date.now()}`);
+
+    const ratingRef = doc(
+      db,
+      "teams",
+      teamId,
+      "prompts",
+      promptId,
+      "ratings",
+      userId
+    );
+    
+    const ratingData = {
+      userId: userId,
+      rating: rating,
+      createdAt: serverTimestamp(),
+    };
+    
+    // ✅ Add isGuest flag for guest ratings (required by Firestore rules)
+    if (isGuest) {
+      ratingData.isGuest = true;
+    }
+    
+    await setDoc(ratingRef, ratingData);
 
       const promptRef = doc(db, "teams", teamId, "prompts", promptId);
       const promptSnap = await getDoc(promptRef);
@@ -142,20 +163,28 @@ export function usePromptRating(teamId, promptId) {
     }
   }
 
-  async function removeRating() {
-    if (!user || !teamId || !promptId || !userRating) return;
+ async function removeRating() {
+  if (!teamId || !promptId || !userRating) return;
+  
+  // ✅ Get user ID (authenticated or guest)
+  const userId = user?.uid || 
+    (sessionStorage.getItem('guest_team_token') 
+      ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
+      : null);
+  
+  if (!userId) return;
 
-    try {
-      const ratingRef = doc(
-        db,
-        "teams",
-        teamId,
-        "prompts",
-        promptId,
-        "ratings",
-        user.uid
-      );
-      await deleteDoc(ratingRef);
+  try {
+    const ratingRef = doc(
+      db,
+      "teams",
+      teamId,
+      "prompts",
+      promptId,
+      "ratings",
+      userId
+    );
+    await deleteDoc(ratingRef);
 
       const promptRef = doc(db, "teams", teamId, "prompts", promptId);
       const promptSnap = await getDoc(promptRef);
