@@ -1,4 +1,5 @@
 // src/components/ViewOutputsModal.jsx - Modal to view all outputs for a prompt
+// ✅ FIXED: Guest users can now view outputs in read-only mode
 import { useState, useEffect } from "react";
 import { X, FileText, Code, Image as ImageIcon, Loader2, Plus } from "lucide-react";
 import { subscribeToResults, deleteResult } from "../lib/results";
@@ -87,7 +88,8 @@ function OutputCard({ output, onDelete, canDelete }) {
               </svg>
             </button>
           )}
-          {canDelete && (
+          {/* ✅ FIX: Check both canDelete AND onDelete exists (onDelete is null for guests) */}
+          {canDelete && onDelete && (
             <button onClick={() => onDelete(output)} className="output-action-btn danger" title="Delete">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -153,6 +155,7 @@ export default function ViewOutputsModal({
   prompt, 
   teamId, 
   userRole,
+  isGuestMode = false,  // ✅ NEW: Guest mode flag
   onAttachNew 
 }) {
   const { user } = useAuth();
@@ -188,6 +191,9 @@ export default function ViewOutputsModal({
   }
 
   function canDeleteOutput(output) {
+    // ✅ FIX: Guests can never delete outputs
+    if (isGuestMode) return false;
+    
     return (
       output.createdBy === user?.uid ||
       userRole === "owner" ||
@@ -241,7 +247,7 @@ export default function ViewOutputsModal({
         {/* Header */}
         <div className="modal-header">
           <div>
-            <h2 className="modal-title">AI Outputs</h2>
+            <h2 className="modal-title">AI Outputs {isGuestMode && <span className="text-sm font-normal text-muted-foreground">(Read-Only)</span>}</h2>
             {prompt && (
               <p className="modal-subtitle">
                 {prompt.title} • {outputs.length} {outputs.length === 1 ? 'output' : 'outputs'}
@@ -264,8 +270,14 @@ export default function ViewOutputsModal({
             <div className="empty-state-outputs">
               <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
               <h3>No outputs yet</h3>
-              <p>Attach your first AI-generated output to this prompt</p>
-              {onAttachNew && (
+              <p>
+                {isGuestMode 
+                  ? "This prompt doesn't have any AI outputs attached yet"
+                  : "Attach your first AI-generated output to this prompt"
+                }
+              </p>
+              {/* ✅ FIX: Only show "Add Output" button if not guest mode */}
+              {onAttachNew && !isGuestMode && (
                 <button 
                   onClick={() => {
                     onClose();
@@ -285,13 +297,14 @@ export default function ViewOutputsModal({
                   <OutputCard
                     key={output.id}
                     output={output}
-                    onDelete={handleDelete}
+                    onDelete={isGuestMode ? null : handleDelete}  // ✅ FIX: No delete for guests
                     canDelete={canDeleteOutput(output)}
                   />
                 ))}
               </div>
 
-              {onAttachNew && (
+              {/* ✅ FIX: Only show "Add Another Output" button if not guest mode */}
+              {onAttachNew && !isGuestMode && (
                 <button 
                   onClick={() => {
                     onClose();
