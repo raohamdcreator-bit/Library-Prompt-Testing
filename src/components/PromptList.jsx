@@ -1,9 +1,7 @@
-// src/components/PromptList.jsx - COMPLETE FIXED VERSION
-// ✅ Filter button navigates to filter card at bottom • All filters integrated • Search + Create + Filter on single row
-// ✅ Import Card added at end • Invite Member button navigates to invitation card • Pagination without background cards
-// ✅ FIXED: Removed duplicate invitation card - scrolls to App.jsx's TeamInviteForm instead
-// ✅ FIXED: Demo guest mode - safe date handling for both Firestore and regular dates
-// ✅ FIXED: loadTeamData proper conditional order
+// src/components/PromptList.jsx - COMPLETE VERSION WITH RATING STATS
+// ✅ Added rating stats bar display on prompt cards
+// ✅ Guest users can view ratings statistics
+// ✅ All existing features maintained
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -30,7 +28,7 @@ import {
   Check, Clock, Filter, MessageSquare, Activity, Code,
   Image as ImageIcon, Send, Loader2, Cpu, DollarSign,
   Target, TrendingUp, User, Calendar, Tag, Ruler, BarChart2,
-  Lightbulb, SlidersHorizontal, UserPlus,
+  Lightbulb, SlidersHorizontal, UserPlus, TrendingUp as TrendIcon,
 } from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
 import EnhancedBadge from './EnhancedBadge';
@@ -119,6 +117,109 @@ function CopyButton({ text, promptId, onCopy }) {
   );
 }
 
+// ✅ NEW: Rating Stats Bar Component
+function RatingStatsBar({ ratings = {}, totalRatings = 0, averageRating = 0, isExpanded, onToggle }) {
+  const ratingCounts = {
+    5: ratings[5] || 0,
+    4: ratings[4] || 0,
+    3: ratings[3] || 0,
+    2: ratings[2] || 0,
+    1: ratings[1] || 0,
+  };
+
+  const maxCount = Math.max(...Object.values(ratingCounts), 1);
+
+  if (totalRatings === 0) {
+    return (
+      <div className="rating-stats-container">
+        <button
+          onClick={onToggle}
+          className="rating-stats-header"
+          disabled
+        >
+          <div className="flex items-center gap-2">
+            <TrendIcon className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">No ratings yet</span>
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rating-stats-container">
+      <button
+        onClick={onToggle}
+        className="rating-stats-header"
+      >
+        <div className="flex items-center gap-2">
+          <TrendIcon className="w-4 h-4" style={{ color: "var(--primary)" }} />
+          <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+            Rating Distribution
+          </span>
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{
+            backgroundColor: "var(--muted)",
+            color: "var(--muted-foreground)"
+          }}>
+            {totalRatings} {totalRatings === 1 ? 'rating' : 'ratings'}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+            <span className="text-sm font-bold" style={{ color: "var(--foreground)" }}>
+              {averageRating.toFixed(1)}
+            </span>
+          </div>
+          <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="rating-stats-content" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+          {[5, 4, 3, 2, 1].map((stars) => {
+            const count = ratingCounts[stars];
+            const percentage = totalRatings > 0 ? (count / totalRatings) * 100 : 0;
+            const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
+
+            return (
+              <div key={stars} className="rating-stat-row">
+                <div className="flex items-center gap-2 min-w-[60px]">
+                  <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                    {stars}
+                  </span>
+                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                </div>
+
+                <div className="flex-1 rating-bar-container">
+                  <div
+                    className="rating-bar-fill"
+                    style={{
+                      width: `${barWidth}%`,
+                      backgroundColor: stars >= 4 ? 'rgba(34, 197, 94, 0.6)' : 
+                                       stars === 3 ? 'rgba(251, 191, 36, 0.6)' : 
+                                       'rgba(239, 68, 68, 0.6)',
+                    }}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 min-w-[80px] justify-end">
+                  <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                    {count}
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                    ({percentage.toFixed(0)}%)
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Output Preview with 120px truncation + Guest Mode Lock Icons
 function OutputPreviewPanel({ outputs, onViewAll, isGuestMode = false }) {
   if (!outputs || outputs.length === 0) {
@@ -157,7 +258,7 @@ function OutputPreviewPanel({ outputs, onViewAll, isGuestMode = false }) {
   };
 
   return (
-    <div className="output-preview-panel" onClick={isGuestMode ? () => alert("Sign up to add or delete outputs! You can view them in read-only mode.") && onViewAll() : onViewAll} role="button" tabIndex={0}>
+    <div className="output-preview-panel" onClick={onViewAll} role="button" tabIndex={0}>
       <div className="output-preview-header">
         <div className="flex items-center gap-2">
           <Activity className="w-3.5 h-3.5 text-muted-foreground" />
@@ -216,15 +317,12 @@ function InlineRating({ teamId, promptId, isGuestMode }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleRate = async (rating) => {
-    // ✅ ALLOW: Team guests can rate (ratings work without user auth)
-    // Demo guests (no team) cannot rate
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
       await ratePrompt(rating);
     } catch (error) {
       console.error("Error rating:", error);
-      // Show alert only for demo guests (no team)
       if (isGuestMode && !teamId) {
         alert("Sign up to rate prompts");
       }
@@ -423,7 +521,7 @@ function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
   );
 }
 
-// Main Prompt Card Component
+// Main Prompt Card Component - ✅ UPDATED with rating stats
 function PromptCard({ 
   prompt, outputs = [], commentCount = 0, isDemo = false, canEdit = false,
   author, isGuestMode = false, activeTeam, userRole,
@@ -434,6 +532,7 @@ function PromptCard({
 }) {
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
+  const [showRatingStats, setShowRatingStats] = useState(false); // ✅ NEW: Rating stats toggle
   const menuRef = useRef(null);
   const isPrivate = prompt.visibility === "private";
   const isViewed = viewedPrompts.has(prompt.id);
@@ -441,6 +540,18 @@ function PromptCard({
   const displayText = isTextExpanded ? prompt.text : prompt.text.slice(0, 200);
   const badge = getPromptBadge(prompt, isGuestMode);
   const showMenu = openMenuId === prompt.id;
+
+  // ✅ NEW: Get rating data
+  const { ratings, averageRating, totalRatings } = usePromptRating(activeTeam, prompt.id);
+  const ratingDistribution = useMemo(() => {
+    const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    ratings.forEach(r => {
+      if (r.rating >= 1 && r.rating <= 5) {
+        dist[r.rating]++;
+      }
+    });
+    return dist;
+  }, [ratings]);
 
   // Auto-close menu on outside click
   useEffect(() => {
@@ -534,27 +645,33 @@ function PromptCard({
           />
         )}
 
+        {/* ✅ NEW: Rating Stats Bar (visible to all users including guests) */}
+        {!isDemo && activeTeam && (
+          <RatingStatsBar 
+            ratings={ratingDistribution}
+            totalRatings={totalRatings}
+            averageRating={averageRating}
+            isExpanded={showRatingStats}
+            onToggle={() => setShowRatingStats(!showRatingStats)}
+          />
+        )}
+
         {!isDemo && (
           <OutputPreviewPanel 
             outputs={outputs} 
-            onViewAll={() => {
-              // ✅ FIX: Guests can VIEW outputs (read-only), just can't add/delete
-              onViewOutputs && onViewOutputs(prompt);
-            }}
+            onViewAll={() => onViewOutputs && onViewOutputs(prompt)}
             isGuestMode={isGuestMode}
           />
         )}
 
         <div className="prompt-metadata-row">
           <div className="flex items-center gap-3 flex-wrap">
-            {/* ✅ FIX #4: Show ratings to team guests (they can VIEW but not RATE) */}
             {!isDemo && activeTeam && (
               <>
                 <InlineRating teamId={activeTeam} promptId={prompt.id} isGuestMode={isGuestMode} />
                 <div className="metadata-dot" />
               </>
             )}
-            {/* ✅ ALLOW: Team guests can comment, demo guests cannot */}
             {isGuestMode && !activeTeam ? (
               <button 
                 onClick={() => alert("Sign up to view and add comments!")} 
@@ -576,7 +693,6 @@ function PromptCard({
           </div>
         </div>
 
-        {/* ✅ ALLOW: Team guests can see expanded comments, demo guests cannot */}
         {showCommentSection && !isDemo && activeTeam && (
           <ExpandedCommentsSection 
             promptId={prompt.id}
@@ -598,7 +714,6 @@ function PromptCard({
           ) : (
             <>
               <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} />
-              {/* ✅ FIX #2: Block enhance for team guests, allow for demo guests */}
               {isGuestMode && activeTeam ? (
                 <button 
                   onClick={() => alert("Sign up to enhance prompts and unlock all features!")} 
@@ -615,7 +730,6 @@ function PromptCard({
                   <span className="hidden sm:inline">Enhance</span>
                 </button>
               )}
-              {/* ✅ ALLOW: Team guests can comment, demo guests cannot */}
               {isGuestMode && !activeTeam ? (
                 <button 
                   onClick={() => alert("Sign up to add comments and collaborate with your team!")} 
@@ -644,7 +758,6 @@ function PromptCard({
                 </button>
                 {showMenu && (
                   <div className="kebab-menu-v2">
-                    {/* ✅ FIX #1: Team guests CAN view outputs (read-only) */}
                     {outputs.length > 0 && (
                       <>
                         <button onClick={() => { onViewOutputs(prompt); onMenuToggle(null); }} className="menu-item">
@@ -701,7 +814,7 @@ function PromptCard({
   );
 }
 
-// ✅ Dedicated Filter Card Component
+// Filter Card Component (unchanged)
 function FilterCard({ 
   filters, 
   onFilterChange, 
@@ -727,7 +840,6 @@ function FilterCard({
 
   return (
     <div className="glass-card p-6 mb-6" id="filter-card">
-      {/* Header with collapse toggle */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <SlidersHorizontal className="w-5 h-5" style={{ color: "var(--primary)" }} />
@@ -753,7 +865,6 @@ function FilterCard({
 
       {isExpanded && (
         <div className="space-y-6">
-          {/* Sort By - Always visible */}
           <div>
             <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
               <BarChart2 className="w-4 h-4" />
@@ -774,7 +885,6 @@ function FilterCard({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Author Filter */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                 <User className="w-4 h-4" />
@@ -794,7 +904,6 @@ function FilterCard({
               </select>
             </div>
 
-            {/* Visibility Filter */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                 <Lock className="w-4 h-4" />
@@ -811,7 +920,6 @@ function FilterCard({
               </select>
             </div>
 
-            {/* Date Range */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                 <Calendar className="w-4 h-4" />
@@ -830,7 +938,6 @@ function FilterCard({
               </select>
             </div>
 
-            {/* Tags */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                 <Tag className="w-4 h-4" />
@@ -848,7 +955,6 @@ function FilterCard({
               </p>
             </div>
 
-            {/* Length Range */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                 <Ruler className="w-4 h-4" />
@@ -880,7 +986,6 @@ function FilterCard({
             </div>
           </div>
 
-          {/* Clear Filters */}
           {hasActiveFilters && (
             <div className="flex justify-between items-center pt-4 border-t" style={{ borderColor: "var(--border)" }}>
               <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
@@ -896,7 +1001,6 @@ function FilterCard({
             </div>
           )}
 
-          {/* Search Tips */}
           <div className="p-3 rounded-lg border" style={{
             backgroundColor: "var(--muted)",
             borderColor: "var(--border)",
@@ -919,7 +1023,7 @@ function FilterCard({
   );
 }
 
-// Main Component
+// Main Component - ✅ Includes all existing logic + rating stats
 export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId, onScrollToInvite }) {
   const { user } = useAuth();
   const { playNotification } = useSoundEffects();
@@ -938,6 +1042,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [promptOutputs, setPromptOutputs] = useState({});
   const [promptComments, setPromptComments] = useState({});
   const [showCommentSection, setShowCommentSection] = useState({});
+  const [showRatingsSection, setShowRatingsSection] = useState({}); // ✅ NEW STATE
   const [selectedPromptForAttach, setSelectedPromptForAttach] = useState(null);
   const [showAIEnhancer, setShowAIEnhancer] = useState(false);
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
@@ -949,7 +1054,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const filterCardRef = useRef(null);
   const importCardRef = useRef(null);
   
-  // Filter state
   const [filters, setFilters] = useState({
     author: "all",
     tags: "",
@@ -965,9 +1069,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return [];
   }, [isGuestMode, userPrompts.length]);
 
- // Load prompts - ✅ FIXED: Guest team users now query Firestore
   useEffect(() => {
-    // Case 1: Guest mode WITHOUT a team - show local guest prompts only
     if (isGuestMode && !activeTeam) {
       console.log('📝 [PROMPTS] Loading local guest prompts');
       setUserPrompts(guestState.getPrompts());
@@ -975,7 +1077,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       return;
     }
     
-    // Case 2: No team selected
     if (!activeTeam) {
       console.log('📝 [PROMPTS] No active team');
       setUserPrompts([]);
@@ -983,7 +1084,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       return;
     }
     
-    // Case 3: Has team (guest team OR authenticated) - query Firestore
     console.log('📝 [PROMPTS] Loading prompts from Firestore:', activeTeam);
     setLoading(true);
     
@@ -1005,10 +1105,9 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         new Map(data.map((item) => [item.id, item])).values()
       );
       
-      // ✅ FIX #5: Team guests only see PUBLIC prompts, authenticated users see filtered
       const visiblePrompts = user 
         ? filterVisiblePrompts(uniqueData, user.uid, userRole)
-        : uniqueData.filter(p => p.visibility === 'public' || !p.visibility); // Guests only see public
+        : uniqueData.filter(p => p.visibility === 'public' || !p.visibility);
       
       console.log('📝 [PROMPTS] Setting', visiblePrompts.length, 'visible prompts');
       setUserPrompts(visiblePrompts);
@@ -1021,9 +1120,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsub();
   }, [activeTeam, user, userRole, isGuestMode]);
 
- // Load outputs - ✅ FIXED: Guest team users can now see outputs
   useEffect(() => {
-    // ✅ FIXED: Only skip if no team (guest mode without team link)
     if (!activeTeam) return;
     
     console.log('📊 [OUTPUTS] Loading outputs for', userPrompts.length, 'prompts');
@@ -1039,9 +1136,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsubscribers.forEach((unsub) => unsub());
   }, [userPrompts, activeTeam]);
 
-  // Load comment counts - ✅ FIXED: Guest team users can see comment counts
   useEffect(() => {
-    // ✅ FIXED: Only skip if no team
     if (!activeTeam) return;
     
     console.log('💬 [COMMENTS] Loading comment counts');
@@ -1060,10 +1155,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsubscribers.forEach((unsub) => unsub());
   }, [userPrompts, activeTeam]);
 
-  // Load team data - ✅ FIXED: Proper order of conditionals
   useEffect(() => {
     async function loadTeamData() {
-      // ✅ FIX: Check conditions in correct order
       if (!activeTeam || isGuestMode) {
         console.log('📝 [TEAM DATA] No team or guest mode, skipping');
         return;
@@ -1085,9 +1178,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           try {
             const userDoc = await getDoc(doc(db, "users", memberId));
             if (userDoc.exists()) profiles[memberId] = userDoc.data();
-          } catch (error) { 
-            // ✅ FIX: Silently skip - expected for permission issues
-          }
+          } catch (error) { }
         }
         setTeamMembers(profiles);
       } catch (error) { 
@@ -1095,22 +1186,17 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       }
     }
     loadTeamData();
-  }, [activeTeam, isGuestMode, user]); // ✅ ADD user to dependencies
+  }, [activeTeam, isGuestMode, user]);
 
-  // Apply filters function - ✅ FIXED: Handles both Firestore and regular dates
   function applyFilters(promptsList) {
-    // ✅ HELPER: Safely get timestamp from either Firestore or regular Date
     function getTimestamp(prompt) {
       if (!prompt.createdAt) return 0;
-      // Firestore timestamp
       if (typeof prompt.createdAt.toMillis === 'function') {
         return prompt.createdAt.toMillis();
       }
-      // Regular Date object
       if (prompt.createdAt instanceof Date) {
         return prompt.createdAt.getTime();
       }
-      // Unix timestamp number
       if (typeof prompt.createdAt === 'number') {
         return prompt.createdAt;
       }
@@ -1119,7 +1205,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     
     let filtered = [...promptsList];
 
-    // Text search
     if (searchQuery.trim()) {
       const searchTerm = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(
@@ -1131,21 +1216,18 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       );
     }
 
-    // Author filter
     if (filters.author !== "all") {
       filtered = filtered.filter(
         (prompt) => prompt.createdBy === filters.author
       );
     }
 
-    // Visibility filter
     if (filters.visibility !== "all") {
       filtered = filtered.filter(
         (prompt) => (prompt.visibility || "public") === filters.visibility
       );
     }
 
-    // Tag filter
     if (filters.tags.trim()) {
       const searchTags = filters.tags
         .toLowerCase()
@@ -1161,7 +1243,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       );
     }
 
-    // Date range filter - ✅ FIXED: Handle different date types
     if (filters.dateRange !== "all") {
       const now = new Date();
       const cutoffDate = new Date();
@@ -1185,15 +1266,12 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         if (!prompt.createdAt) return false;
         try {
           let promptDate;
-          // ✅ Handle Firestore timestamp
           if (typeof prompt.createdAt.toDate === 'function') {
             promptDate = prompt.createdAt.toDate();
           } 
-          // ✅ Handle Date object
           else if (prompt.createdAt instanceof Date) {
             promptDate = prompt.createdAt;
           }
-          // ✅ Handle Unix timestamp
           else if (typeof prompt.createdAt === 'number') {
             promptDate = new Date(prompt.createdAt);
           } else {
@@ -1206,7 +1284,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       });
     }
 
-    // Length filters
     if (filters.minLength && !isNaN(filters.minLength)) {
       filtered = filtered.filter(
         (prompt) => (prompt.text?.length || 0) >= parseInt(filters.minLength)
@@ -1219,7 +1296,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       );
     }
 
-    // Sorting - ✅ FIXED: Handle both Firestore timestamps and regular dates
     filtered.sort((a, b) => {
       switch (filters.sortBy) {
         case "newest":
@@ -1250,7 +1326,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return filtered;
   }
 
-  // Filter helper functions
   function handleFilterChange(key, value) {
     setFilters((prev) => ({ ...prev, [key]: value }));
   }
@@ -1278,7 +1353,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     );
   }
 
-  // Smooth scroll to filter card
   function scrollToFilters() {
     setShowFilters(true);
     setTimeout(() => {
@@ -1297,10 +1371,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const displayDemos = useMemo(() => allPrompts.filter(p => isDemoPrompt(p)), [allPrompts]);
   const displayUserPrompts = useMemo(() => allPrompts.filter(p => !isDemoPrompt(p)), [allPrompts]);
 
-  // Pagination for user prompts
   const userPromptsPagination = usePagination(displayUserPrompts, 10);
-  
-  // Pagination for demo prompts
   const demoPromptsPagination = usePagination(displayDemos, 5);
 
   const handleSelectPrompt = (promptId, isSelected) => {
@@ -1427,7 +1498,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   }
 
   function handleToggleComments(promptId) {
-    // ✅ ALLOW: Team guests can comment, demo guests cannot
     if (isGuestMode && !activeTeam) {
       alert("Sign up to view and add comments!");
       return;
@@ -1472,7 +1542,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     }
   }
 
-  // Handle import
   async function handleImportPrompts(validPrompts) {
     if (isGuestMode) {
       validPrompts.forEach(prompt => {
@@ -1519,7 +1588,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
   return (
     <div className="prompt-list-container">
-      {/* Header Card with Create, Search, Filter, and Invite Member on single row */}
       <div className="glass-card p-6 mb-6">
         <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
           <div className="flex-1 min-w-0">
@@ -1534,9 +1602,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           </div>
         </div>
 
-        {/* Single row with Create + Search + Filter + Invite */}
         <div className="flex gap-3 flex-wrap items-stretch">
-          {/* Create Prompt Button */}
           <button 
             onClick={() => setShowCreateForm(!showCreateForm)} 
             className="btn-primary px-4 py-3 flex items-center gap-2 whitespace-nowrap"
@@ -1545,7 +1611,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             <span>{showCreateForm ? "Cancel" : "Create Prompt"}</span>
           </button>
 
-          {/* Search Input */}
           <div className="flex-1 min-w-[200px] relative">
             <Search 
               className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" 
@@ -1568,7 +1633,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             )}
           </div>
 
-          {/* Filter Button - Scrolls to filter card */}
           <button 
             onClick={scrollToFilters}
             className={`px-4 py-3 flex items-center gap-2 whitespace-nowrap transition-all ${
@@ -1591,7 +1655,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             )}
           </button>
 
-          {/* Invite Member Button - Calls parent's scroll function */}
           {!isGuestMode && (userRole === "owner" || userRole === "admin") && onScrollToInvite && (
             <button 
               onClick={onScrollToInvite}
@@ -1660,7 +1723,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         />
       )}
 
-      {/* Demo Prompts Section with Pagination */}
       {displayDemos.length > 0 && (
         <section className="mb-8">
           <div className="flex items-center gap-3 mb-4">
@@ -1690,7 +1752,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </section>
       )}
 
-      {/* User Prompts Section with Pagination */}
       {displayUserPrompts.length > 0 && (
         <section>
           {isGuestMode && displayDemos.length > 0 && (
@@ -1727,7 +1788,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </section>
       )}
 
-      {/* ✅ FILTER CARD POSITIONED AT END - Before import card */}
       <div ref={filterCardRef}>
         <FilterCard 
           filters={filters}
@@ -1741,7 +1801,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         />
       </div>
 
-      {/* ✅ IMPORT CARD - Positioned after filter card */}
       <div ref={importCardRef}>
         <ExportImport 
           onImport={handleImportPrompts}
@@ -1750,8 +1809,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           userRole={userRole}
         />
       </div>
-
-      {/* ✅ NO INVITATION CARD HERE - It's rendered in App.jsx and we just scroll to it */}
 
       {allPrompts.length === 0 && (
         <div className="glass-card p-12 text-center">
@@ -1809,7 +1866,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           isGuestMode={isGuestMode}
           onAttachNew={
             isGuestMode 
-              ? null  // Hide "Add Output" button for guests
+              ? null
               : () => {
                   setViewOutputsPrompt(null);
                   setSelectedPromptForAttach(viewOutputsPrompt);
