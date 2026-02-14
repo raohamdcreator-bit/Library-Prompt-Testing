@@ -1041,7 +1041,11 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   // Load team data
   useEffect(() => {
     async function loadTeamData() {
-      if (!activeTeam || isGuestMode) return;
+      if (!user) {
+  console.log('📝 [TEAM DATA] No user: skipping member profile loading');
+  return;
+}
+      else if (!activeTeam || isGuestMode) return;
       try {
         const teamDoc = await getDoc(doc(db, "teams", activeTeam));
         if (!teamDoc.exists()) return;
@@ -1056,6 +1060,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           } catch (error) { console.error("Error loading member:", error); }
         }
         setTeamMembers(profiles);
+        
       } catch (error) { console.error("Error loading team data:", error); }
     }
     loadTeamData();
