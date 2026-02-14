@@ -216,13 +216,18 @@ function InlineRating({ teamId, promptId, isGuestMode }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleRate = async (rating) => {
-    if (isGuestMode) { alert("Sign up to rate prompts"); return; }
-    if (!user || isSubmitting) return;
+    // ✅ ALLOW: Team guests can rate (ratings work without user auth)
+    // Demo guests (no team) cannot rate
+    if (isSubmitting) return;
     setIsSubmitting(true);
     try {
       await ratePrompt(rating);
     } catch (error) {
       console.error("Error rating:", error);
+      // Show alert only for demo guests (no team)
+      if (isGuestMode && !teamId) {
+        alert("Sign up to rate prompts");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -237,7 +242,7 @@ function InlineRating({ teamId, promptId, isGuestMode }) {
           <button key={star} onClick={() => handleRate(star)}
             onMouseEnter={() => setHoverRating(star)}
             onMouseLeave={() => setHoverRating(0)}
-            className="star-button" disabled={isSubmitting || isGuestMode}>
+            className="star-button" disabled={isSubmitting}>
             <Star className={`w-4 h-4 transition-all ${
               star <= displayRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'
             }`} />
@@ -525,7 +530,7 @@ function PromptCard({
             text={prompt.text} 
             isExpanded={showAIAnalysis}
             onToggle={() => setShowAIAnalysis(!showAIAnalysis)} 
-            onEnhance={() => onEnhance && onEnhance(prompt)}
+            onEnhance={isGuestMode && activeTeam ? null : () => onEnhance && onEnhance(prompt)}
           />
         )}
 
@@ -542,13 +547,15 @@ function PromptCard({
 
         <div className="prompt-metadata-row">
           <div className="flex items-center gap-3 flex-wrap">
-            {!isGuestMode && !isDemo && (
+            {/* ✅ FIX #4: Show ratings to team guests (they can VIEW but not RATE) */}
+            {!isDemo && activeTeam && (
               <>
                 <InlineRating teamId={activeTeam} promptId={prompt.id} isGuestMode={isGuestMode} />
                 <div className="metadata-dot" />
               </>
             )}
-            {isGuestMode ? (
+            {/* ✅ ALLOW: Team guests can comment, demo guests cannot */}
+            {isGuestMode && !activeTeam ? (
               <button 
                 onClick={() => alert("Sign up to view and add comments!")} 
                 className="metadata-item-button opacity-60 cursor-not-allowed"
@@ -569,7 +576,8 @@ function PromptCard({
           </div>
         </div>
 
-        {showCommentSection && !isDemo && !isGuestMode && (
+        {/* ✅ ALLOW: Team guests can see expanded comments, demo guests cannot */}
+        {showCommentSection && !isDemo && activeTeam && (
           <ExpandedCommentsSection 
             promptId={prompt.id}
             teamId={activeTeam}
@@ -590,11 +598,25 @@ function PromptCard({
           ) : (
             <>
               <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} />
-              <button onClick={() => onEnhance(prompt)} className="btn-action-secondary" title="AI Enhance">
-                <Sparkles className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Enhance</span>
-              </button>
-              {isGuestMode ? (
+              {/* ✅ FIX #2: Block enhance for team guests, allow for demo guests */}
+              {isGuestMode && activeTeam ? (
+                <button 
+                  onClick={() => alert("Sign up to enhance prompts and unlock all features!")} 
+                  className="btn-action-secondary opacity-60 cursor-not-allowed"
+                  title="Sign up to enhance prompts"
+                >
+                  <Lock className="w-3 h-3 mr-1" />
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Enhance</span>
+                </button>
+              ) : (
+                <button onClick={() => onEnhance(prompt)} className="btn-action-secondary" title="AI Enhance">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Enhance</span>
+                </button>
+              )}
+              {/* ✅ ALLOW: Team guests can comment, demo guests cannot */}
+              {isGuestMode && !activeTeam ? (
                 <button 
                   onClick={() => alert("Sign up to add comments and collaborate with your team!")} 
                   className="btn-action-secondary opacity-60 cursor-not-allowed"
@@ -622,7 +644,8 @@ function PromptCard({
                 </button>
                 {showMenu && (
                   <div className="kebab-menu-v2">
-                    {outputs.length > 0 && !isGuestMode && (
+                    {/* ✅ FIX #1: Team guests CAN view outputs (read-only) */}
+                    {outputs.length > 0 && (
                       <>
                         <button onClick={() => { onViewOutputs(prompt); onMenuToggle(null); }} className="menu-item">
                           <FileText className="w-4 h-4" />
@@ -982,10 +1005,10 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         new Map(data.map((item) => [item.id, item])).values()
       );
       
-      // ✅ FIXED: Guests see all prompts (read-only), authenticated users see filtered
+      // ✅ FIX #5: Team guests only see PUBLIC prompts, authenticated users see filtered
       const visiblePrompts = user 
         ? filterVisiblePrompts(uniqueData, user.uid, userRole)
-        : uniqueData; // Guests see all (Firestore rules enforce read-only)
+        : uniqueData.filter(p => p.visibility === 'public' || !p.visibility); // Guests only see public
       
       console.log('📝 [PROMPTS] Setting', visiblePrompts.length, 'visible prompts');
       setUserPrompts(visiblePrompts);
@@ -1404,7 +1427,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   }
 
   function handleToggleComments(promptId) {
-    if (isGuestMode) {
+    // ✅ ALLOW: Team guests can comment, demo guests cannot
+    if (isGuestMode && !activeTeam) {
       alert("Sign up to view and add comments!");
       return;
     }
