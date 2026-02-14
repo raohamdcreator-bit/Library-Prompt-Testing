@@ -1,4 +1,4 @@
-// src/components/TeamHeader.jsx - Compact Team Header with Horizontal Tabs
+// src/components/TeamHeader.jsx - FIXED: Complete guest mode support
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
@@ -7,10 +7,18 @@ import {
   Users, 
   BarChart3, 
   Activity, 
-  Shield 
+  Shield,
+  Lock
 } from "lucide-react";
 
-export default function TeamHeader({ teamId, userRole, activeTab = "prompts", onTabChange }) {
+export default function TeamHeader({ 
+  teamId, 
+  userRole, 
+  activeTab = "prompts", 
+  onTabChange,
+  user,  // ✅ ADDED: user object to check authentication
+  isGuestMode = false  // ✅ ADDED: guest mode flag
+}) {
   const [teamData, setTeamData] = useState(null);
   const [memberCount, setMemberCount] = useState(0);
 
@@ -26,12 +34,15 @@ export default function TeamHeader({ teamId, userRole, activeTab = "prompts", on
           setMemberCount(Object.keys(data.members || {}).length);
         }
       } catch (error) {
-        console.error("Error loading team data:", error);
+        // ✅ FIX: Don't log errors for guests (expected permission issues)
+        if (!isGuestMode) {
+          console.error("Error loading team data:", error);
+        }
       }
     }
 
     loadTeamData();
-  }, [teamId]);
+  }, [teamId, user, isGuestMode]); // ✅ ADDED: user to dependencies
 
   const tabs = [
     { id: "prompts", label: "Prompts", icon: FileText },
@@ -70,15 +81,30 @@ export default function TeamHeader({ teamId, userRole, activeTab = "prompts", on
       <div className="team-header-info">
         <div className="team-header-main">
           <h1 className="team-name-title">{teamData.name}</h1>
-          <span 
-            className="team-role-badge" 
-            style={{ 
-              borderColor: getRoleBadgeColor(userRole),
-              backgroundColor: `${getRoleBadgeColor(userRole)}15`
-            }}
-          >
-            {userRole}
-          </span>
+          
+          {/* ✅ FIXED: Show guest badge or role badge */}
+          {isGuestMode ? (
+            <span 
+              className="team-role-badge" 
+              style={{ 
+                borderColor: "rgba(139, 92, 246, 0.5)",
+                backgroundColor: "rgba(139, 92, 246, 0.15)",
+                color: "rgba(139, 92, 246, 0.95)"
+              }}
+            >
+              guest
+            </span>
+          ) : userRole && (
+            <span 
+              className="team-role-badge" 
+              style={{ 
+                borderColor: getRoleBadgeColor(userRole),
+                backgroundColor: `${getRoleBadgeColor(userRole)}15`
+              }}
+            >
+              {userRole}
+            </span>
+          )}
         </div>
         <div className="team-members-count">
           <Users className="w-4 h-4 inline mr-1" />
@@ -91,14 +117,29 @@ export default function TeamHeader({ teamId, userRole, activeTab = "prompts", on
         <nav className="tab-navigation">
           {tabs.map((tab) => {
             const Icon = tab.icon;
+            
+            // ✅ FIXED: Disable tabs for guests except prompts
+            const isDisabled = isGuestMode && tab.id !== 'prompts';
+            
             return (
               <button
                 key={tab.id}
-                onClick={() => onTabChange && onTabChange(tab.id)}
-                className={`tab-item ${activeTab === tab.id ? "active" : ""}`}
+                onClick={() => {
+                  if (isDisabled) {
+                    alert("Sign up to access " + tab.label + "!");
+                    return;
+                  }
+                  onTabChange && onTabChange(tab.id);
+                }}
+                className={`tab-item ${activeTab === tab.id ? "active" : ""} ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={isDisabled}
+                title={isDisabled ? "Sign up to access" : tab.label}
               >
                 <Icon className="w-4 h-4" />
                 <span>{tab.label}</span>
+                {isDisabled && (
+                  <Lock className="w-3 h-3 ml-1 opacity-60" />
+                )}
               </button>
             );
           })}
