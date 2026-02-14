@@ -1833,7 +1833,7 @@ export default function App() {
             userRole={role}
             activeTab={activeView}
             onTabChange={setActiveView}
-            isGuestMode={isGuest}
+            isGuestMode={!!guestTeamId && !user}
             user={user}
           />
         ) : activeView === "favorites" && user ? (
