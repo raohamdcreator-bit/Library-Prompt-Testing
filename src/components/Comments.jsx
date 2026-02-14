@@ -99,6 +99,7 @@ export function Comment({
   const [showReplyForm, setShowReplyForm] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const { formatRelative } = useTimestamp();
+  const { user } = useAuth();
   function getUserInitials(name, email) {
     if (name) {
       return name
@@ -336,20 +337,43 @@ export function CommentForm({
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!text.trim()) return;
-
-    setIsSubmitting(true);
-    try {
-      await onSubmit(text.trim());
-      setText("");
-    } catch (error) {
-      alert("Failed to post comment. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+ async function handleSubmit(e) {
+  e.preventDefault();
+  if (!newComment.trim()) return;
+  
+  try {
+    const commentData = {
+      text: newComment.trim(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    
+    // ✅ Support both authenticated users and team guests
+    if (user) {
+      // Authenticated user
+      commentData.createdBy = user.uid;
+      commentData.authorName = user.displayName || user.email;
+      commentData.authorEmail = user.email;
+      commentData.authorAvatar = user.photoURL || null;
+    } else {
+      // Team guest - use session-based identifier
+      const guestToken = sessionStorage.getItem('guest_team_token');
+      const guestId = guestToken ? `guest_${guestToken.substring(0, 16)}` : `guest_${Date.now()}`;
+      
+      commentData.createdBy = guestId;
+      commentData.authorName = "Guest User";
+      commentData.isGuest = true;  // ✅ Required by Firestore rules
     }
-  };
+    
+    await addDoc(collection(db, 'teams', teamId, 'prompts', promptId, 'comments'), commentData);
+    
+    setNewComment('');
+  } catch (error) {
+    console.error("Error adding comment:", error);
+    // Optional: Show user-friendly error message
+    alert("Failed to add comment. Please try again.");
+  }
+}
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -451,6 +475,14 @@ export default function Comments({ teamId, promptId, userRole }) {
       throw error;
     }
   }
+
+  function canDeleteComment(comment) {
+  // ✅ Guests cannot delete (user is null)
+  if (!user) return false;
+  
+  // ✅ Users can delete own comments or admins can delete any
+  return comment.createdBy === user.uid || userRole === 'admin' || userRole === 'owner';
+}
 
   // ✅ FIXED: Now counts and deletes all replies
   async function handleDeleteComment(commentId) {
