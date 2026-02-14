@@ -337,41 +337,19 @@ export function CommentForm({
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
- async function handleSubmit(e) {
+async function handleSubmit(e) {
   e.preventDefault();
-  if (!newComment.trim()) return;
+  if (!text.trim()) return;
   
+  setIsSubmitting(true);
   try {
-    const commentData = {
-      text: newComment.trim(),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    
-    // ✅ Support both authenticated users and team guests
-    if (user) {
-      // Authenticated user
-      commentData.createdBy = user.uid;
-      commentData.authorName = user.displayName || user.email;
-      commentData.authorEmail = user.email;
-      commentData.authorAvatar = user.photoURL || null;
-    } else {
-      // Team guest - use session-based identifier
-      const guestToken = sessionStorage.getItem('guest_team_token');
-      const guestId = guestToken ? `guest_${guestToken.substring(0, 16)}` : `guest_${Date.now()}`;
-      
-      commentData.createdBy = guestId;
-      commentData.authorName = "Guest User";
-      commentData.isGuest = true;  // ✅ Required by Firestore rules
-    }
-    
-    await addDoc(collection(db, 'teams', teamId, 'prompts', promptId, 'comments'), commentData);
-    
-    setNewComment('');
+    await onSubmit(text);
+    setText('');
   } catch (error) {
-    console.error("Error adding comment:", error);
-    // Optional: Show user-friendly error message
-    alert("Failed to add comment. Please try again.");
+    console.error("Error submitting comment:", error);
+    alert("Failed to submit comment. Please try again.");
+  } finally {
+    setIsSubmitting(false);
   }
 }
 
@@ -437,27 +415,44 @@ export default function Comments({ teamId, promptId, userRole }) {
   const { comments, loading, profiles } = useComments(teamId, promptId);
   const [showCommentForm, setShowCommentForm] = useState(false);
 
-  async function handleAddComment(text, parentId = null) {
-    if (!teamId || !promptId || !user) return;
+ async function handleAddComment(text, parentId = null) {
+  if (!teamId || !promptId) return;
 
-    try {
-      await addDoc(
-        collection(db, "teams", teamId, "prompts", promptId, "comments"),
-        {
-          text,
-          createdBy: user.uid,
-          createdAt: serverTimestamp(),
-          parentId: parentId || null,
-        }
-      );
+  try {
+    const commentData = {
+      text,
+      createdAt: serverTimestamp(),
+      parentId: parentId || null,
+    };
+    
+    // ✅ Support both authenticated users and team guests
+    if (user) {
+      // Authenticated user
+      commentData.createdBy = user.uid;
+    } else {
+      // Team guest - use session-based identifier
+      const guestToken = sessionStorage.getItem('guest_team_token');
+      const guestId = guestToken 
+        ? `guest_${guestToken.substring(0, 16)}` 
+        : `guest_${Date.now()}`;
       
-      // ✅ Update stats
-      await updateCommentCount(teamId, promptId, 1);
-    } catch (error) {
-      console.error("Error adding comment:", error);
-      throw error;
+      commentData.createdBy = guestId;
+      commentData.authorName = "Guest User";
+      commentData.isGuest = true;  // ✅ Required by Firestore rules
     }
+    
+    await addDoc(
+      collection(db, "teams", teamId, "prompts", promptId, "comments"),
+      commentData
+    );
+    
+    // ✅ Update stats
+    await updateCommentCount(teamId, promptId, 1);
+  } catch (error) {
+    console.error("Error adding comment:", error);
+    throw error;
   }
+}
 
   async function handleEditComment(commentId, newText) {
     if (!teamId || !promptId) return;
