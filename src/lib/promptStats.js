@@ -9,14 +9,15 @@ import { db } from "./firebase";
  * ✅ FIXED: Now properly tracks guest copies separately
  */
 export async function trackPromptCopy(teamId, promptId, isGuest = false) {
-  if (!teamId || !promptId) return;
+  if (!teamId || !promptId) {
+    console.warn('⚠️ [TRACK COPY] Missing teamId or promptId');
+    return;
+  }
+
+  console.log('📊 [TRACK COPY] Starting:', { teamId, promptId, isGuest });
 
   try {
     const promptRef = doc(db, "teams", teamId, "prompts", promptId);
-    
-    // Get current stats to ensure we don't lose data
-    const promptSnap = await getDoc(promptRef);
-    const currentStats = promptSnap.exists() ? promptSnap.data().stats || {} : {};
     
     // ✅ FIXED: Increment both total copies and guest copies if applicable
     const updates = {
@@ -25,13 +26,16 @@ export async function trackPromptCopy(teamId, promptId, isGuest = false) {
     
     if (isGuest) {
       updates["stats.guestCopies"] = increment(1);
+      console.log('📊 [TRACK COPY] Incrementing guestCopies');
     }
     
+    console.log('📊 [TRACK COPY] Applying updates:', updates);
     await updateDoc(promptRef, updates);
     
-    console.log(`✅ Tracked copy for prompt ${promptId}${isGuest ? ' (guest)' : ''}`);
+    console.log(`✅ [TRACK COPY] Successfully tracked copy for prompt ${promptId}${isGuest ? ' (guest)' : ' (authenticated)'}`);
   } catch (error) {
-    console.error("Error tracking prompt copy:", error);
+    console.error("❌ [TRACK COPY] Error tracking prompt copy:", error);
+    console.error("❌ [TRACK COPY] Error details:", error.message, error.code);
     // Don't throw - tracking shouldn't break the copy functionality
   }
 }
