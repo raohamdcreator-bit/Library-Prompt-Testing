@@ -1,4 +1,5 @@
 // src/components/PromptAnalytics.jsx - Complete Updated Version with Guest Analytics
+// ✅ FIXED: Guest team user ratings now functional
 // ✅ FIXED: Real-time guest copy tracking
 // ✅ FIXED: Prevent duplicate guest ratings
 // ✅ FIXED: Top 10 performing prompts display
@@ -37,11 +38,14 @@ export function usePromptRating(teamId, promptId) {
 
   useEffect(() => {
     if (!teamId || !promptId) {
+      console.log('⭐ [RATING] Missing teamId or promptId');
       setRatings([]);
       setUserRating(null);
       setLoading(false);
       return;
     }
+
+    console.log('⭐ [RATING] Setting up listener for:', { teamId, promptId });
 
     try {
       const ratingsRef = collection(
@@ -56,20 +60,26 @@ export function usePromptRating(teamId, promptId) {
         ratingsRef,
         (snap) => {
           const ratingsData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+          console.log('⭐ [RATING] Loaded ratings:', ratingsData.length);
           setRatings(ratingsData);
 
           // ✅ FIXED: Better guest user identification using guestToken
           const guestToken = sessionStorage.getItem('guest_team_token');
+          console.log('⭐ [RATING] Guest token:', guestToken?.substring(0, 8));
+          
           const userId = user?.uid || (guestToken ? `guest_${guestToken}` : null);
+          console.log('⭐ [RATING] Looking for userId:', userId?.substring(0, 20));
 
           const userRatingData = ratingsData.find(
             (r) => r.userId === userId || (guestToken && r.guestToken === guestToken)
           );
+          
+          console.log('⭐ [RATING] Found user rating:', userRatingData?.rating);
           setUserRating(userRatingData?.rating || null);
           setLoading(false);
         },
         (error) => {
-          console.error("Error loading ratings:", error);
+          console.error("❌ [RATING] Error loading ratings:", error);
           setRatings([]);
           setUserRating(null);
           setLoading(false);
@@ -78,7 +88,7 @@ export function usePromptRating(teamId, promptId) {
 
       return () => unsub();
     } catch (error) {
-      console.error("Error setting up ratings listener:", error);
+      console.error("❌ [RATING] Error setting up ratings listener:", error);
       setLoading(false);
     }
   }, [teamId, promptId, user?.uid]);
@@ -90,18 +100,28 @@ export function usePromptRating(teamId, promptId) {
   }, [ratings]);
 
   async function ratePrompt(rating) {
-    if (!teamId || !promptId || rating < 1 || rating > 5) return;
+    if (!teamId || !promptId || rating < 1 || rating > 5) {
+      console.error('❌ [RATING] Invalid parameters:', { teamId, promptId, rating });
+      return;
+    }
+
+    console.log('⭐ [RATING] Starting rating submission:', rating);
 
     try {
       // ✅ FIXED: Prevent duplicate guest ratings using guestToken
       const isGuest = !user;
       const guestToken = sessionStorage.getItem('guest_team_token');
       
+      console.log('⭐ [RATING] User type:', isGuest ? 'guest' : 'authenticated');
+      console.log('⭐ [RATING] Guest token:', guestToken?.substring(0, 8));
+      
       if (isGuest && !guestToken) {
+        console.error('❌ [RATING] Guest token not found in sessionStorage');
         throw new Error("Guest token not found");
       }
 
       const userId = user?.uid || `guest_${guestToken}`;
+      console.log('⭐ [RATING] Using userId:', userId.substring(0, 20));
 
       const ratingRef = doc(
         db,
@@ -125,7 +145,9 @@ export function usePromptRating(teamId, promptId) {
         ratingData.guestToken = guestToken;
       }
       
+      console.log('⭐ [RATING] Saving rating document:', { userId: userId.substring(0, 20), rating });
       await setDoc(ratingRef, ratingData);
+      console.log('✅ [RATING] Rating document saved successfully');
 
       const promptRef = doc(db, "teams", teamId, "prompts", promptId);
       const promptSnap = await getDoc(promptRef);
@@ -140,6 +162,10 @@ export function usePromptRating(teamId, promptId) {
           5: 0,
         };
 
+        console.log('⭐ [RATING] Current ratings:', currentRatings);
+        console.log('⭐ [RATING] Previous user rating:', userRating);
+
+        // Remove old rating if it exists
         if (userRating) {
           currentRatings[userRating] = Math.max(
             0,
@@ -147,6 +173,7 @@ export function usePromptRating(teamId, promptId) {
           );
         }
 
+        // Add new rating
         currentRatings[rating] = (currentRatings[rating] || 0) + 1;
 
         const totalRatings = Object.values(currentRatings).reduce(
@@ -159,15 +186,26 @@ export function usePromptRating(teamId, promptId) {
         );
         const newAverage = totalRatings > 0 ? weightedSum / totalRatings : 0;
 
+        console.log('⭐ [RATING] New stats:', { 
+          totalRatings, 
+          averageRating: newAverage.toFixed(2),
+          distribution: currentRatings 
+        });
+
         await updateDoc(promptRef, {
           "stats.ratings": currentRatings,
           "stats.totalRatings": totalRatings,
           "stats.averageRating": newAverage,
           "stats.lastRated": serverTimestamp(),
         });
+        
+        console.log('✅ [RATING] Prompt stats updated successfully');
+      } else {
+        console.error('❌ [RATING] Prompt document not found');
       }
     } catch (error) {
-      console.error("Error rating prompt:", error);
+      console.error("❌ [RATING] Error rating prompt:", error);
+      console.error("❌ [RATING] Error details:", error.message, error.code);
       throw error;
     }
   }
@@ -302,10 +340,14 @@ function GuestAnalyticsCard({ teamId }) {
       return;
     }
 
+    console.log('📊 [GUEST STATS] Setting up listener for teamId:', teamId);
+
     // ✅ FIXED: Real-time listener for guest activity
     const promptsRef = collection(db, 'teams', teamId, 'prompts');
     
     const unsub = onSnapshot(promptsRef, async (promptsSnap) => {
+      console.log('📊 [GUEST STATS] Prompts snapshot received:', promptsSnap.docs.length);
+      
       try {
         let totalGuestRatings = 0;
         let totalGuestComments = 0;
@@ -328,8 +370,19 @@ function GuestAnalyticsCard({ teamId }) {
           totalGuestComments += guestCommentsCount;
 
           // ✅ FIXED: Get guest copies from stats (updates in real-time)
-          totalGuestCopies += promptData.stats?.guestCopies || 0;
+          const guestCopiesCount = promptData.stats?.guestCopies || 0;
+          totalGuestCopies += guestCopiesCount;
+          
+          if (guestCopiesCount > 0) {
+            console.log('📊 [GUEST STATS] Prompt', promptId, 'has', guestCopiesCount, 'guest copies');
+          }
         }
+
+        console.log('📊 [GUEST STATS] Totals:', {
+          ratings: totalGuestRatings,
+          comments: totalGuestComments,
+          copies: totalGuestCopies
+        });
 
         setGuestStats({
           guestRatings: totalGuestRatings,
@@ -339,7 +392,7 @@ function GuestAnalyticsCard({ teamId }) {
           loading: false,
         });
       } catch (error) {
-        console.error('Error loading guest stats:', error);
+        console.error('❌ [GUEST STATS] Error loading guest stats:', error);
         setGuestStats(prev => ({ ...prev, loading: false }));
       }
     });
@@ -972,7 +1025,7 @@ export function TeamAnalytics({ teamId }) {
         </div>
       </div>
 
-      {/* ✅ FIXED: Top 5) */}
+      {/* ✅ FIXED: Top 10 Performing Prompts (was 5) */}
       {analytics.topPrompts.length > 0 && (
         <div className="glass-card p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -981,7 +1034,7 @@ export function TeamAnalytics({ teamId }) {
               className="font-semibold"
               style={{ color: "var(--foreground)" }}
             >
-              Top 5 Performing Prompts
+              Top 10 Performing Prompts
             </h4>
             <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
               Ranked by Rating Score
@@ -1058,7 +1111,7 @@ export function TeamAnalytics({ teamId }) {
             })}
           </div>
           
-          {analytics.topPrompts.length === 5 && (
+          {analytics.topPrompts.length === 10 && (
             <div className="mt-4 p-3 rounded-lg border" style={{
               backgroundColor: "var(--muted)",
               borderColor: "var(--border)",
@@ -1067,7 +1120,7 @@ export function TeamAnalytics({ teamId }) {
                 <AlertCircle className="w-4 h-4 mt-0.5" style={{ color: "var(--primary)" }} />
                 <div>
                   <p className="text-xs font-medium mb-1" style={{ color: "var(--foreground)" }}>
-                    Showing Top 5
+                    Showing Top 10
                   </p>
                   <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
                     Rating Score = Average Rating × Total Ratings. Higher engagement and quality yield better rankings.
