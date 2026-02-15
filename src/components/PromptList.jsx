@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
 import { trackPromptCopy } from "../lib/promptStats";
 import { updateCommentCount } from "../lib/promptStats";
+import { increment } from "firebase/firestore";
 import {
   collection, onSnapshot, query, orderBy, getDoc, doc,
   addDoc, serverTimestamp, deleteDoc, updateDoc,
@@ -1482,27 +1483,37 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     } catch (error) { showNotification("Failed to change visibility", "error"); }
   }
 
-  // ✅ FIXED: handleCopy now tracks guest copies properly
-  async function handleCopy(text, promptId, isGuestUser = false) {
-    try {
-      await navigator.clipboard.writeText(text);
-      showSuccessToast("Copied to clipboard!");
+  / ✅ FIXED: handleCopy now properly tracks guest copies with logging
+async function handleCopy(text, promptId, isGuestUser = false) {
+  try {
+    await navigator.clipboard.writeText(text);
+    showSuccessToast("Copied to clipboard!");
+    
+    console.log('📋 [COPY] Copy initiated:', { promptId, isGuestMode, activeTeam });
+    
+    // ✅ FIXED: Track copy for both guest-team users and authenticated users
+    if (activeTeam) {
+      // For guest-team users accessing a real team
+      const guestToken = sessionStorage.getItem('guest_team_token');
+      const isGuest = !!guestToken;
       
-      // ✅ Track copy with guest flag
-      if (!isGuestMode && activeTeam) {
-        // For guest-team users accessing a real team
-        const guestToken = sessionStorage.getItem('guest_team_token');
-        const isGuest = !!guestToken;
-        await trackPromptCopy(activeTeam, promptId, isGuest);
-      } else if (!isGuestMode && !activeTeam) {
-        // For authenticated users with no active team (shouldn't happen, but safe)
-        await trackPromptCopy(activeTeam, promptId, false);
-      }
+      console.log('📋 [COPY] Tracking copy:', { 
+        isGuest, 
+        guestToken: guestToken?.substring(0, 8),
+        activeTeam 
+      });
+      
+      await trackPromptCopy(activeTeam, promptId, isGuest);
+      console.log('✅ [COPY] Copy tracked successfully');
+    } else if (isGuestMode) {
       // For isGuestMode (local mode), no tracking needed
-    } catch (error) { 
-      showNotification("Failed to copy", "error"); 
+      console.log('📋 [COPY] Local guest mode, no tracking');
     }
+  } catch (error) { 
+    console.error('❌ [COPY] Failed to copy:', error);
+    showNotification("Failed to copy", "error"); 
   }
+}
 
   function canEditPrompt(prompt) {
     if (isGuestMode) return canEditGuestPrompt(prompt);
@@ -1526,34 +1537,53 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     setViewOutputsPrompt(prompt);
   }
 
-  async function handleTrackView(promptId) {
-    if (trackedViews.has(promptId)) return;
-    setTrackedViews(prev => new Set([...prev, promptId]));
-    
-    if (!isGuestMode && activeTeam) {
-      try {
-        const promptRef = doc(db, "teams", activeTeam, "prompts", promptId);
-        const promptDoc = await getDoc(promptRef);
-        
-        if (promptDoc.exists()) {
-          const currentStats = promptDoc.data().stats || {};
-          const currentViews = currentStats.views || 0;
-          
-          await updateDoc(promptRef, {
-            'stats.views': currentViews + 1
-          });
-        }
-      } catch (error) {
-        console.error("Error tracking view:", error);
-        setTrackedViews(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(promptId);
-          return newSet;
-        });
-      }
-    }
+ / ✅ FIXED: handleTrackView now properly tracks views for guest-team users
+async function handleTrackView(promptId) {
+  console.log('👁️ [VIEW] View tracking requested:', { 
+    promptId, 
+    alreadyTracked: trackedViews.has(promptId),
+    isGuestMode,
+    activeTeam 
+  });
+  
+  if (trackedViews.has(promptId)) {
+    console.log('👁️ [VIEW] Already tracked for this user, skipping');
+    return;
   }
-
+  
+  setTrackedViews(prev => new Set([...prev, promptId]));
+  
+  // ✅ FIXED: Track views for both authenticated users and guest-team users
+  if (activeTeam) {
+    const guestToken = sessionStorage.getItem('guest_team_token');
+    console.log('👁️ [VIEW] Tracking view:', { 
+      activeTeam,
+      isGuest: !!guestToken,
+      guestToken: guestToken?.substring(0, 8)
+    });
+    
+    try {
+      const promptRef = doc(db, "teams", activeTeam, "prompts", promptId);
+      
+      // Use increment to avoid race conditions
+      await updateDoc(promptRef, {
+        'stats.views': increment(1)
+      });
+      
+      console.log('✅ [VIEW] View tracked successfully');
+    } catch (error) {
+      console.error("❌ [VIEW] Error tracking view:", error);
+      // Remove from tracked views so it can be retried
+      setTrackedViews(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(promptId);
+        return newSet;
+      });
+    }
+  } else if (isGuestMode) {
+    console.log('👁️ [VIEW] Local guest mode, no tracking');
+  }
+}
   async function handleImportPrompts(validPrompts) {
     if (isGuestMode) {
       validPrompts.forEach(prompt => {
