@@ -1483,7 +1483,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     } catch (error) { showNotification("Failed to change visibility", "error"); }
   }
 
-  / ✅ FIXED: handleCopy now properly tracks guest copies with logging
+  // ✅ FIXED: handleCopy now properly tracks guest copies with logging
 async function handleCopy(text, promptId, isGuestUser = false) {
   try {
     await navigator.clipboard.writeText(text);
