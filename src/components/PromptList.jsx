@@ -1773,23 +1773,11 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               isSelected={selectedPrompts.includes(prompt.id)} onSelect={handleSelectPrompt}
               openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView} />
           ))}
-
-          {displayUserPrompts.length > 5 && (
-            <div className="mt-6">
-              <PaginationControls 
-                pagination={userPromptsPagination}
-                showSearch={false}
-                showPageSizeSelector={true}
-                showItemCount={true}
-                pageSizeOptions={[5, 10, 20, 50]}
-              />
-            </div>
-          )}
         </section>
       )}
 
         {allPrompts.length === 0 && (
-        <div className="glass-card p-12 text-center">
+        <div className="glass-card p-12 text-center mb-12">
           <Sparkles size={48} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
           <h3 className="text-lg font-semibold mb-2">
             {searchQuery || hasActiveFilters() 
@@ -1822,6 +1810,18 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </div>
       )}
 
+       {displayUserPrompts.length > 5 && (
+            <div className="mt-6">
+              <PaginationControls 
+                pagination={userPromptsPagination}
+                showSearch={false}
+                showPageSizeSelector={true}
+                showItemCount={true}
+                pageSizeOptions={[5, 10, 20, 50]}
+              />
+            </div>
+          )}
+      
       <div ref={filterCardRef}>
         <FilterCard 
           filters={filters}
