@@ -1537,7 +1537,7 @@ async function handleCopy(text, promptId, isGuestUser = false) {
     setViewOutputsPrompt(prompt);
   }
 
- / ✅ FIXED: handleTrackView now properly tracks views for guest-team users
+ // ✅ FIXED: handleTrackView now properly tracks views for guest-team users
 async function handleTrackView(promptId) {
   console.log('👁️ [VIEW] View tracking requested:', { 
     promptId, 
