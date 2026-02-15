@@ -1774,7 +1774,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView} />
           ))}
 
-          {displayUserPrompts.length > 10 && (
+          {displayUserPrompts.length > 5 && (
             <div className="mt-6">
               <PaginationControls 
                 pagination={userPromptsPagination}
@@ -1788,29 +1788,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         </section>
       )}
 
-      <div ref={filterCardRef}>
-        <FilterCard 
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onClearFilters={clearFilters}
-          hasActiveFilters={hasActiveFilters()}
-          filteredCount={allPrompts.length}
-          teamMembers={teamMembers}
-          isExpanded={showFilters}
-          onToggleExpanded={() => setShowFilters(!showFilters)}
-        />
-      </div>
-
-      <div ref={importCardRef}>
-        <ExportImport 
-          onImport={handleImportPrompts}
-          teamId={activeTeam}
-          teamName={teamName}
-          userRole={userRole}
-        />
-      </div>
-
-      {allPrompts.length === 0 && (
+        {allPrompts.length === 0 && (
         <div className="glass-card p-12 text-center">
           <Sparkles size={48} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
           <h3 className="text-lg font-semibold mb-2">
@@ -1843,6 +1821,28 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           )}
         </div>
       )}
+
+      <div ref={filterCardRef}>
+        <FilterCard 
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onClearFilters={clearFilters}
+          hasActiveFilters={hasActiveFilters()}
+          filteredCount={allPrompts.length}
+          teamMembers={teamMembers}
+          isExpanded={showFilters}
+          onToggleExpanded={() => setShowFilters(!showFilters)}
+        />
+      </div>
+
+      <div ref={importCardRef}>
+        <ExportImport 
+          onImport={handleImportPrompts}
+          teamId={activeTeam}
+          teamName={teamName}
+          userRole={userRole}
+        />
+      </div>
 
       {showEditModal && editingPrompt && (
         <EditPromptModal open={showEditModal} prompt={editingPrompt}
