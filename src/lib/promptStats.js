@@ -90,6 +90,11 @@ export function initializePromptStats() {
 }
 
 /**
+ * Alias for backward compatibility
+ */
+export const getInitialStats = initializePromptStats;
+
+/**
  * Get formatted stats for display
  */
 export function getFormattedStats(stats) {
