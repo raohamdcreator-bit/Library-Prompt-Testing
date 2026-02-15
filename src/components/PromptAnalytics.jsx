@@ -1,4 +1,9 @@
 // src/components/PromptAnalytics.jsx - Complete Updated Version with Guest Analytics
+// ✅ FIXED: Real-time guest copy tracking
+// ✅ FIXED: Prevent duplicate guest ratings
+// ✅ FIXED: Top 10 performing prompts display
+// ✅ FIXED: Separate authenticated user section
+
 import { useState, useEffect, useMemo } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -20,10 +25,10 @@ import { useAuth } from "../context/AuthContext";
 import { 
   Star, BarChart3, FileText, Copy, MessageSquare, 
   TrendingUp, Award, Users, Eye, Activity, UserCheck,
-  UserX, TrendingDown, Clock, Zap
+  UserX, TrendingDown, Clock, Zap, AlertCircle
 } from 'lucide-react';
 
-// Hook for prompt ratings
+// Hook for prompt ratings with duplicate prevention for guests
 export function usePromptRating(teamId, promptId) {
   const { user } = useAuth();
   const [ratings, setRatings] = useState([]);
@@ -53,14 +58,12 @@ export function usePromptRating(teamId, promptId) {
           const ratingsData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
           setRatings(ratingsData);
 
-          // ✅ Support both authenticated users and team guests
-          const userId = user?.uid || 
-            (sessionStorage.getItem('guest_team_token') 
-              ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
-              : null);
+          // ✅ FIXED: Better guest user identification using guestToken
+          const guestToken = sessionStorage.getItem('guest_team_token');
+          const userId = user?.uid || (guestToken ? `guest_${guestToken}` : null);
 
           const userRatingData = ratingsData.find(
-            (r) => r.userId === userId
+            (r) => r.userId === userId || (guestToken && r.guestToken === guestToken)
           );
           setUserRating(userRatingData?.rating || null);
           setLoading(false);
@@ -90,12 +93,15 @@ export function usePromptRating(teamId, promptId) {
     if (!teamId || !promptId || rating < 1 || rating > 5) return;
 
     try {
-      // ✅ Support both authenticated users and team guests
+      // ✅ FIXED: Prevent duplicate guest ratings using guestToken
       const isGuest = !user;
-      const userId = user?.uid || 
-        (sessionStorage.getItem('guest_team_token') 
-          ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
-          : `guest_${Date.now()}`);
+      const guestToken = sessionStorage.getItem('guest_team_token');
+      
+      if (isGuest && !guestToken) {
+        throw new Error("Guest token not found");
+      }
+
+      const userId = user?.uid || `guest_${guestToken}`;
 
       const ratingRef = doc(
         db,
@@ -113,9 +119,10 @@ export function usePromptRating(teamId, promptId) {
         createdAt: serverTimestamp(),
       };
       
-      // ✅ Add isGuest flag for guest ratings (required by Firestore rules)
+      // ✅ Add guest metadata for tracking
       if (isGuest) {
         ratingData.isGuest = true;
+        ratingData.guestToken = guestToken;
       }
       
       await setDoc(ratingRef, ratingData);
@@ -169,10 +176,8 @@ export function usePromptRating(teamId, promptId) {
     if (!teamId || !promptId || !userRating) return;
     
     // ✅ Get user ID (authenticated or guest)
-    const userId = user?.uid || 
-      (sessionStorage.getItem('guest_team_token') 
-        ? `guest_${sessionStorage.getItem('guest_team_token').substring(0, 16)}`
-        : null);
+    const guestToken = sessionStorage.getItem('guest_team_token');
+    const userId = user?.uid || (guestToken ? `guest_${guestToken}` : null);
     
     if (!userId) return;
 
@@ -281,7 +286,7 @@ export function StarRating({
   );
 }
 
-// ✅ NEW: Guest Analytics Card Component
+// ✅ UPDATED: Guest Analytics Card with real-time copy tracking
 function GuestAnalyticsCard({ teamId }) {
   const [guestStats, setGuestStats] = useState({
     guestRatings: 0,
@@ -297,11 +302,11 @@ function GuestAnalyticsCard({ teamId }) {
       return;
     }
 
-    const loadGuestStats = async () => {
+    // ✅ FIXED: Real-time listener for guest activity
+    const promptsRef = collection(db, 'teams', teamId, 'prompts');
+    
+    const unsub = onSnapshot(promptsRef, async (promptsSnap) => {
       try {
-        const promptsRef = collection(db, 'teams', teamId, 'prompts');
-        const promptsSnap = await getDocs(promptsRef);
-
         let totalGuestRatings = 0;
         let totalGuestComments = 0;
         let totalGuestCopies = 0;
@@ -310,19 +315,19 @@ function GuestAnalyticsCard({ teamId }) {
           const promptData = promptDoc.data();
           const promptId = promptDoc.id;
 
-          // Count guest ratings
+          // Count guest ratings (real-time)
           const ratingsRef = collection(db, 'teams', teamId, 'prompts', promptId, 'ratings');
           const ratingsSnap = await getDocs(ratingsRef);
           const guestRatingsCount = ratingsSnap.docs.filter(d => d.data().isGuest === true).length;
           totalGuestRatings += guestRatingsCount;
 
-          // Count guest comments
+          // Count guest comments (real-time)
           const commentsRef = collection(db, 'teams', teamId, 'prompts', promptId, 'comments');
           const commentsSnap = await getDocs(commentsRef);
           const guestCommentsCount = commentsSnap.docs.filter(d => d.data().isGuest === true).length;
           totalGuestComments += guestCommentsCount;
 
-          // Guest copies from stats
+          // ✅ FIXED: Get guest copies from stats (updates in real-time)
           totalGuestCopies += promptData.stats?.guestCopies || 0;
         }
 
@@ -337,14 +342,6 @@ function GuestAnalyticsCard({ teamId }) {
         console.error('Error loading guest stats:', error);
         setGuestStats(prev => ({ ...prev, loading: false }));
       }
-    };
-
-    loadGuestStats();
-
-    // Set up real-time listener for updates
-    const promptsRef = collection(db, 'teams', teamId, 'prompts');
-    const unsub = onSnapshot(promptsRef, () => {
-      loadGuestStats();
     });
 
     return () => unsub();
@@ -376,7 +373,7 @@ function GuestAnalyticsCard({ teamId }) {
       <div className="flex items-center gap-2 mb-4">
         <Eye size={20} color="var(--primary)" />
         <h4 className="font-semibold" style={{ color: "var(--foreground)" }}>
-          Guest Activity
+          Guest User Activity
         </h4>
         <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
           Read-Only Users
@@ -445,7 +442,7 @@ function GuestAnalyticsCard({ teamId }) {
                   Guest Engagement
                 </p>
                 <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                  {guestStats.guestRatings + guestStats.guestComments} total interactions from guest users
+                  {guestStats.guestRatings + guestStats.guestComments + guestStats.guestCopies} total interactions from guest users
                 </p>
               </div>
             </div>
@@ -456,7 +453,192 @@ function GuestAnalyticsCard({ teamId }) {
   );
 }
 
-// ✅ UPDATED: Team analytics dashboard with guest tracking
+// ✅ NEW: Authenticated User Analytics Card
+function AuthenticatedUserAnalyticsCard({ teamId }) {
+  const [authStats, setAuthStats] = useState({
+    authRatings: 0,
+    authComments: 0,
+    authCopies: 0,
+    authViews: 0,
+    loading: true,
+  });
+
+  useEffect(() => {
+    if (!teamId) {
+      setAuthStats(prev => ({ ...prev, loading: false }));
+      return;
+    }
+
+    // Real-time listener for authenticated user activity
+    const promptsRef = collection(db, 'teams', teamId, 'prompts');
+    
+    const unsub = onSnapshot(promptsRef, async (promptsSnap) => {
+      try {
+        let totalAuthRatings = 0;
+        let totalAuthComments = 0;
+        let totalAuthCopies = 0;
+        let totalAuthViews = 0;
+
+        for (const promptDoc of promptsSnap.docs) {
+          const promptData = promptDoc.data();
+          const promptId = promptDoc.id;
+
+          // Count authenticated ratings
+          const ratingsRef = collection(db, 'teams', teamId, 'prompts', promptId, 'ratings');
+          const ratingsSnap = await getDocs(ratingsRef);
+          const authRatingsCount = ratingsSnap.docs.filter(d => !d.data().isGuest).length;
+          totalAuthRatings += authRatingsCount;
+
+          // Count authenticated comments
+          const commentsRef = collection(db, 'teams', teamId, 'prompts', promptId, 'comments');
+          const commentsSnap = await getDocs(commentsRef);
+          const authCommentsCount = commentsSnap.docs.filter(d => !d.data().isGuest).length;
+          totalAuthComments += authCommentsCount;
+
+          // Get authenticated copies (total copies - guest copies)
+          const totalCopies = promptData.stats?.copies || 0;
+          const guestCopies = promptData.stats?.guestCopies || 0;
+          totalAuthCopies += (totalCopies - guestCopies);
+
+          // Get views (can be split if tracked separately)
+          totalAuthViews += promptData.stats?.views || 0;
+        }
+
+        setAuthStats({
+          authRatings: totalAuthRatings,
+          authComments: totalAuthComments,
+          authCopies: totalAuthCopies,
+          authViews: totalAuthViews,
+          loading: false,
+        });
+      } catch (error) {
+        console.error('Error loading authenticated user stats:', error);
+        setAuthStats(prev => ({ ...prev, loading: false }));
+      }
+    });
+
+    return () => unsub();
+  }, [teamId]);
+
+  if (authStats.loading) {
+    return (
+      <div className="glass-card p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <UserCheck size={20} color="var(--primary)" />
+          <h4 className="font-semibold" style={{ color: "var(--foreground)" }}>
+            Authenticated User Activity
+          </h4>
+        </div>
+        <div className="text-center py-8">
+          <div className="neo-spinner mx-auto mb-2"></div>
+          <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            Loading authenticated user analytics...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const hasAuthActivity = authStats.authRatings > 0 || authStats.authComments > 0 || authStats.authCopies > 0;
+
+  return (
+    <div className="glass-card p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <UserCheck size={20} color="var(--primary)" />
+        <h4 className="font-semibold" style={{ color: "var(--foreground)" }}>
+          Authenticated User Activity
+        </h4>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
+          Team Members
+        </span>
+      </div>
+
+      {!hasAuthActivity ? (
+        <div className="text-center py-8">
+          <Users size={32} className="mx-auto mb-2 opacity-50" style={{ color: "var(--muted-foreground)" }} />
+          <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            No team member activity yet
+          </p>
+          <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+            Activity from team members will appear here
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="text-center p-3 rounded-lg" style={{ backgroundColor: "var(--secondary)" }}>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Star size={16} className="text-yellow-400 fill-yellow-400" />
+                <div className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>
+                  {authStats.authRatings}
+                </div>
+              </div>
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                Ratings
+              </div>
+            </div>
+
+            <div className="text-center p-3 rounded-lg" style={{ backgroundColor: "var(--secondary)" }}>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <MessageSquare size={16} style={{ color: "var(--accent)" }} />
+                <div className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>
+                  {authStats.authComments}
+                </div>
+              </div>
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                Comments
+              </div>
+            </div>
+
+            <div className="text-center p-3 rounded-lg" style={{ backgroundColor: "var(--secondary)" }}>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Copy size={16} style={{ color: "var(--primary)" }} />
+                <div className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>
+                  {authStats.authCopies}
+                </div>
+              </div>
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                Copies
+              </div>
+            </div>
+
+            <div className="text-center p-3 rounded-lg" style={{ backgroundColor: "var(--secondary)" }}>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Eye size={16} style={{ color: "var(--muted-foreground)" }} />
+                <div className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>
+                  {authStats.authViews}
+                </div>
+              </div>
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                Views
+              </div>
+            </div>
+          </div>
+
+          {/* Engagement Indicator */}
+          <div className="p-3 rounded-lg border" style={{
+            backgroundColor: "var(--muted)",
+            borderColor: "var(--border)",
+          }}>
+            <div className="flex items-start gap-2">
+              <TrendingUp className="w-4 h-4 mt-0.5" style={{ color: "var(--primary)" }} />
+              <div className="flex-1">
+                <p className="text-xs font-medium mb-1" style={{ color: "var(--foreground)" }}>
+                  Team Member Engagement
+                </p>
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  {authStats.authRatings + authStats.authComments + authStats.authCopies} total interactions from team members
+                </p>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ✅ UPDATED: Team analytics dashboard with all fixes
 export function TeamAnalytics({ teamId }) {
   const [analytics, setAnalytics] = useState({
     totalPrompts: 0,
@@ -470,7 +652,7 @@ export function TeamAnalytics({ teamId }) {
   });
   const [loading, setLoading] = useState(true);
 
-  // ✅ NEW: Separate tracking for authenticated vs guest metrics
+  // ✅ Separate tracking for authenticated vs guest metrics
   const [userTypeStats, setUserTypeStats] = useState({
     authenticatedRatings: 0,
     guestRatings: 0,
@@ -516,7 +698,7 @@ export function TeamAnalytics({ teamId }) {
             }
           );
 
-          // ✅ NEW: Calculate user type breakdown
+          // Calculate user type breakdown
           let authRatings = 0;
           let guestRatingsCount = 0;
           let authComments = 0;
@@ -553,18 +735,19 @@ export function TeamAnalytics({ teamId }) {
             guestComments: guestCommentsCount,
           });
 
-          // Get top prompts (only those with ratings)
+          // ✅ FIXED: Get top 10 prompts with ratings (was limited to 5)
           const topPrompts = allPrompts
             .filter((p) => {
               const stats = p.stats || {};
               return (stats.averageRating || 0) > 0 && (stats.totalRatings || 0) > 0;
             })
-            .sort(
-              (a, b) =>
-                ((b.stats?.averageRating || 0) * (b.stats?.totalRatings || 0)) -
-                ((a.stats?.averageRating || 0) * (a.stats?.totalRatings || 0))
-            )
-            .slice(0, 5);
+            .sort((a, b) => {
+              // Sort by weighted score: average rating * total ratings
+              const scoreA = (a.stats?.averageRating || 0) * (a.stats?.totalRatings || 0);
+              const scoreB = (b.stats?.averageRating || 0) * (b.stats?.totalRatings || 0);
+              return scoreB - scoreA;
+            })
+            .slice(0, 10); // ✅ FIXED: Changed from 5 to 10
 
           setAnalytics({
             totalPrompts: totals.totalPrompts,
@@ -722,10 +905,13 @@ export function TeamAnalytics({ teamId }) {
         </div>
       </div>
 
-      {/* ✅ NEW: Guest Analytics Card */}
+      {/* ✅ NEW: Authenticated User Analytics Card (separate from guest) */}
+      <AuthenticatedUserAnalyticsCard teamId={teamId} />
+
+      {/* ✅ Guest Analytics Card (with real-time copy tracking) */}
       <GuestAnalyticsCard teamId={teamId} />
 
-      {/* ✅ NEW: User Type Breakdown */}
+      {/* ✅ User Type Breakdown - kept for backward compatibility */}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="glass-card p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -786,7 +972,7 @@ export function TeamAnalytics({ teamId }) {
         </div>
       </div>
 
-      {/* Top Rated Prompts */}
+      {/* ✅ FIXED: Top 5) */}
       {analytics.topPrompts.length > 0 && (
         <div className="glass-card p-6">
           <div className="flex items-center gap-2 mb-4">
@@ -795,67 +981,101 @@ export function TeamAnalytics({ teamId }) {
               className="font-semibold"
               style={{ color: "var(--foreground)" }}
             >
-              Top Performing Prompts
+              Top 5 Performing Prompts
             </h4>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
+              Ranked by Rating Score
+            </span>
           </div>
           <div className="space-y-3">
-            {analytics.topPrompts.map((prompt, index) => (
-              <div
-                key={prompt.id}
-                className="flex items-center justify-between p-3 rounded-lg border"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  borderColor: "var(--border)",
-                }}
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-                    style={{
-                      backgroundColor: "var(--primary)",
-                      color: "var(--primary-foreground)",
-                    }}
-                  >
-                    #{index + 1}
+            {analytics.topPrompts.map((prompt, index) => {
+              const ratingScore = ((prompt.stats?.averageRating || 0) * (prompt.stats?.totalRatings || 0)).toFixed(1);
+              
+              return (
+                <div
+                  key={prompt.id}
+                  className="flex items-center justify-between p-3 rounded-lg border transition-all hover:border-primary/50"
+                  style={{
+                    backgroundColor: "var(--secondary)",
+                    borderColor: "var(--border)",
+                  }}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                      style={{
+                        backgroundColor: index < 3 ? "var(--primary)" : "var(--muted)",
+                        color: index < 3 ? "var(--primary-foreground)" : "var(--foreground)",
+                      }}
+                    >
+                      #{index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="font-medium truncate"
+                        style={{ color: "var(--foreground)" }}
+                      >
+                        {prompt.title}
+                      </div>
+                      <div
+                        className="text-sm flex items-center gap-2 flex-wrap"
+                        style={{ color: "var(--muted-foreground)" }}
+                      >
+                        <span className="flex items-center gap-1">
+                          <Copy size={12} />
+                          {prompt.stats?.copies || 0} copies
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <MessageSquare size={12} />
+                          {prompt.stats?.comments || 0} comments
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <Star size={12} />
+                          {prompt.stats?.totalRatings || 0} ratings
+                        </span>
+                        <span>•</span>
+                        <span className="flex items-center gap-1 text-primary font-medium">
+                          <TrendingUp size={12} />
+                          Score: {ratingScore}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div
-                      className="font-medium truncate"
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      {prompt.title}
-                    </div>
-                    <div
-                      className="text-sm flex items-center gap-2"
-                      style={{ color: "var(--muted-foreground)" }}
-                    >
-                      <span className="flex items-center gap-1">
-                        <Copy size={12} />
-                        {prompt.stats?.copies || 0} copies
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <MessageSquare size={12} />
-                        {prompt.stats?.comments || 0} comments
-                      </span>
-                      <span>•</span>
-                      <span className="flex items-center gap-1">
-                        <Star size={12} />
-                        {prompt.stats?.totalRatings || 0} ratings
-                      </span>
-                    </div>
+                  <div className="ml-4 flex flex-col items-end gap-1">
+                    <StarRating
+                      rating={prompt.stats?.averageRating || 0}
+                      readonly
+                      size="small"
+                    />
+                    <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
+                      {(prompt.stats?.averageRating || 0).toFixed(1)} avg
+                    </span>
                   </div>
                 </div>
-                <div className="ml-4">
-                  <StarRating
-                    rating={prompt.stats?.averageRating || 0}
-                    readonly
-                    size="small"
-                  />
+              );
+            })}
+          </div>
+          
+          {analytics.topPrompts.length === 5 && (
+            <div className="mt-4 p-3 rounded-lg border" style={{
+              backgroundColor: "var(--muted)",
+              borderColor: "var(--border)",
+            }}>
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5" style={{ color: "var(--primary)" }} />
+                <div>
+                  <p className="text-xs font-medium mb-1" style={{ color: "var(--foreground)" }}>
+                    Showing Top 5
+                  </p>
+                  <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                    Rating Score = Average Rating × Total Ratings. Higher engagement and quality yield better rankings.
+                  </p>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
