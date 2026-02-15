@@ -1,6 +1,5 @@
 // src/components/PromptList.jsx - COMPLETE VERSION WITH RATING STATS
-// ✅ Added rating stats bar display on prompt cards
-// ✅ Guest users can view ratings statistics
+// ✅ FIXED: Guest copy tracking now properly updates in real-time
 // ✅ All existing features maintained
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -101,11 +100,11 @@ function UserAvatar({ src, name, email, size = "sm" }) {
   );
 }
 
-// Copy Button Component
-function CopyButton({ text, promptId, onCopy }) {
+// Copy Button Component - ✅ FIXED: Now tracks guest copies
+function CopyButton({ text, promptId, onCopy, isGuestMode }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = async () => {
-    await onCopy(text, promptId);
+    await onCopy(text, promptId, isGuestMode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -117,7 +116,7 @@ function CopyButton({ text, promptId, onCopy }) {
   );
 }
 
-// ✅ NEW: Rating Stats Bar Component
+// Rating Stats Bar Component
 function RatingStatsBar({ ratings = {}, totalRatings = 0, averageRating = 0, isExpanded, onToggle }) {
   const ratingCounts = {
     5: ratings[5] || 0,
@@ -521,7 +520,7 @@ function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
   );
 }
 
-// Main Prompt Card Component - ✅ UPDATED with rating stats
+// Main Prompt Card Component
 function PromptCard({ 
   prompt, outputs = [], commentCount = 0, isDemo = false, canEdit = false,
   author, isGuestMode = false, activeTeam, userRole,
@@ -532,7 +531,7 @@ function PromptCard({
 }) {
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
-  const [showRatingStats, setShowRatingStats] = useState(false); // ✅ NEW: Rating stats toggle
+  const [showRatingStats, setShowRatingStats] = useState(false);
   const menuRef = useRef(null);
   const isPrivate = prompt.visibility === "private";
   const isViewed = viewedPrompts.has(prompt.id);
@@ -541,7 +540,7 @@ function PromptCard({
   const badge = getPromptBadge(prompt, isGuestMode);
   const showMenu = openMenuId === prompt.id;
 
-  // ✅ NEW: Get rating data
+  // Get rating data
   const { ratings, averageRating, totalRatings } = usePromptRating(activeTeam, prompt.id);
   const ratingDistribution = useMemo(() => {
     const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
@@ -645,7 +644,6 @@ function PromptCard({
           />
         )}
 
-        {/* ✅ NEW: Rating Stats Bar (visible to all users including guests) */}
         {!isDemo && activeTeam && (
           <RatingStatsBar 
             ratings={ratingDistribution}
@@ -706,14 +704,14 @@ function PromptCard({
         <div className="prompt-actions">
           {isDemo ? (
             <>
-              <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} />
+              <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} isGuestMode={isGuestMode} />
               <button onClick={() => onDuplicate && onDuplicate(prompt)} className="btn-action-primary">
                 <Sparkles className="w-3.5 h-3.5" /><span>Make My Own</span>
               </button>
             </>
           ) : (
             <>
-              <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} />
+              <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} isGuestMode={isGuestMode} />
               {isGuestMode && activeTeam ? (
                 <button 
                   onClick={() => alert("Sign up to enhance prompts and unlock all features!")} 
@@ -814,7 +812,7 @@ function PromptCard({
   );
 }
 
-// Filter Card Component (unchanged)
+// Filter Card Component (unchanged from original)
 function FilterCard({ 
   filters, 
   onFilterChange, 
@@ -1023,7 +1021,7 @@ function FilterCard({
   );
 }
 
-// Main Component - ✅ Includes all existing logic + rating stats
+// Main Component - includes all existing logic with fixes
 export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId, onScrollToInvite }) {
   const { user } = useAuth();
   const { playNotification } = useSoundEffects();
@@ -1042,7 +1040,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [promptOutputs, setPromptOutputs] = useState({});
   const [promptComments, setPromptComments] = useState({});
   const [showCommentSection, setShowCommentSection] = useState({});
-  const [showRatingsSection, setShowRatingsSection] = useState({}); // ✅ NEW STATE
+  const [showRatingsSection, setShowRatingsSection] = useState({});
   const [selectedPromptForAttach, setSelectedPromptForAttach] = useState(null);
   const [showAIEnhancer, setShowAIEnhancer] = useState(false);
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
@@ -1484,12 +1482,26 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     } catch (error) { showNotification("Failed to change visibility", "error"); }
   }
 
-  async function handleCopy(text, promptId) {
+  // ✅ FIXED: handleCopy now tracks guest copies properly
+  async function handleCopy(text, promptId, isGuestUser = false) {
     try {
       await navigator.clipboard.writeText(text);
       showSuccessToast("Copied to clipboard!");
-      if (!isGuestMode && activeTeam) await trackPromptCopy(activeTeam, promptId);
-    } catch (error) { showNotification("Failed to copy", "error"); }
+      
+      // ✅ Track copy with guest flag
+      if (!isGuestMode && activeTeam) {
+        // For guest-team users accessing a real team
+        const guestToken = sessionStorage.getItem('guest_team_token');
+        const isGuest = !!guestToken;
+        await trackPromptCopy(activeTeam, promptId, isGuest);
+      } else if (!isGuestMode && !activeTeam) {
+        // For authenticated users with no active team (shouldn't happen, but safe)
+        await trackPromptCopy(activeTeam, promptId, false);
+      }
+      // For isGuestMode (local mode), no tracking needed
+    } catch (error) { 
+      showNotification("Failed to copy", "error"); 
+    }
   }
 
   function canEditPrompt(prompt) {
