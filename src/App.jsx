@@ -724,7 +724,7 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
   
-  // ✅ CRITICAL FIX: Initialize guest team access FIRST before anything else
+ // ✅ CRITICAL FIX: Initialize guest team access FIRST before anything else
 const [guestTeamId, setGuestTeamId] = useState(() => {
   const guestAccess = hasGuestAccess();
   if (guestAccess.hasAccess) {
@@ -733,6 +733,20 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
       hasAccess: guestAccess.hasAccess,
     });
     console.log('👁️ [APP INIT] Guest permissions loaded:', guestAccess.permissions);
+    
+    // ✅ NEW: Store the guest token for ratings/comments/stats
+    if (guestAccess.token) {
+      const success = setGuestToken(guestAccess.token);
+      if (success) {
+        console.log('✅ [APP INIT] Guest token stored successfully');
+        debugGuestToken(); // Debug output
+      } else {
+        console.error('❌ [APP INIT] Failed to store guest token');
+      }
+    } else {
+      console.warn('⚠️ [APP INIT] No guest token found in access data');
+    }
+    
     return guestAccess.teamId;
   }
   return null;
