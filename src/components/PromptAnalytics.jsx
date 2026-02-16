@@ -1,5 +1,5 @@
 // src/components/PromptAnalytics.jsx - Complete Updated Version with Guest Analytics
-// ✅ FIXED: Guest team user ratings now functional
+// ✅ FIXED: Guest team user ratings now functional with proper token management
 // ✅ FIXED: Real-time guest copy tracking
 // ✅ FIXED: Prevent duplicate guest ratings
 // ✅ FIXED: Top 10 performing prompts display
@@ -23,6 +23,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { getGuestToken, getGuestUserId, debugGuestToken } from "../lib/guestToken";
 import { 
   Star, BarChart3, FileText, Copy, MessageSquare, 
   TrendingUp, Award, Users, Eye, Activity, UserCheck,
@@ -46,6 +47,9 @@ export function usePromptRating(teamId, promptId) {
     }
 
     console.log('⭐ [RATING] Setting up listener for:', { teamId, promptId });
+    
+    // ✅ Debug guest token on mount
+    debugGuestToken();
 
     try {
       const ratingsRef = collection(
@@ -63,11 +67,11 @@ export function usePromptRating(teamId, promptId) {
           console.log('⭐ [RATING] Loaded ratings:', ratingsData.length);
           setRatings(ratingsData);
 
-          // ✅ FIXED: Better guest user identification using guestToken
-          const guestToken = sessionStorage.getItem('guest_team_token');
-          console.log('⭐ [RATING] Guest token:', guestToken?.substring(0, 8));
+          // ✅ FIXED: Use utility function for token management
+          const guestToken = getGuestToken();
+          const guestUserId = getGuestUserId();
           
-          const userId = user?.uid || (guestToken ? `guest_${guestToken}` : null);
+          const userId = user?.uid || guestUserId;
           console.log('⭐ [RATING] Looking for userId:', userId?.substring(0, 20));
 
           const userRatingData = ratingsData.find(
@@ -106,21 +110,31 @@ export function usePromptRating(teamId, promptId) {
     }
 
     console.log('⭐ [RATING] Starting rating submission:', rating);
+    
+    // ✅ Debug guest token before rating
+    const tokenDebug = debugGuestToken();
 
     try {
-      // ✅ FIXED: Prevent duplicate guest ratings using guestToken
+      // ✅ FIXED: Use utility functions for token management
       const isGuest = !user;
-      const guestToken = sessionStorage.getItem('guest_team_token');
+      const guestToken = getGuestToken();
       
       console.log('⭐ [RATING] User type:', isGuest ? 'guest' : 'authenticated');
-      console.log('⭐ [RATING] Guest token:', guestToken?.substring(0, 8));
+      console.log('⭐ [RATING] Has guest token:', !!guestToken);
       
       if (isGuest && !guestToken) {
         console.error('❌ [RATING] Guest token not found in sessionStorage');
-        throw new Error("Guest token not found");
+        console.error('❌ [RATING] Token debug:', tokenDebug);
+        throw new Error("Guest token not found. Please refresh the page and try again.");
       }
 
-      const userId = user?.uid || `guest_${guestToken}`;
+      const userId = user?.uid || getGuestUserId();
+      
+      if (!userId) {
+        console.error('❌ [RATING] Could not determine user ID');
+        throw new Error("Could not determine user ID");
+      }
+      
       console.log('⭐ [RATING] Using userId:', userId.substring(0, 20));
 
       const ratingRef = doc(
@@ -145,7 +159,7 @@ export function usePromptRating(teamId, promptId) {
         ratingData.guestToken = guestToken;
       }
       
-      console.log('⭐ [RATING] Saving rating document:', { userId: userId.substring(0, 20), rating });
+      console.log('⭐ [RATING] Saving rating document:', { userId: userId.substring(0, 20), rating, isGuest });
       await setDoc(ratingRef, ratingData);
       console.log('✅ [RATING] Rating document saved successfully');
 
@@ -213,9 +227,9 @@ export function usePromptRating(teamId, promptId) {
   async function removeRating() {
     if (!teamId || !promptId || !userRating) return;
     
-    // ✅ Get user ID (authenticated or guest)
-    const guestToken = sessionStorage.getItem('guest_team_token');
-    const userId = user?.uid || (guestToken ? `guest_${guestToken}` : null);
+    // ✅ Get user ID (authenticated or guest) using utility
+    const guestUserId = getGuestUserId();
+    const userId = user?.uid || guestUserId;
     
     if (!userId) return;
 
