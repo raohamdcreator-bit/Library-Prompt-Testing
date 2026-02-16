@@ -16,7 +16,8 @@ import {
 import { useAuth } from "./context/AuthContext";
 import { useActiveTeam } from "./context/AppStateContext";
 import { useGuestMode } from "./context/GuestModeContext";
-import { hasGuestAccess } from "./lib/guestTeamAccess"; // ✅ Import guest access checker
+import { hasGuestAccess } from "./lib/guestTeamAccess";
+import { setGuestToken, debugGuestToken } from "./lib/guestToken";
 import SaveLockModal from "./components/SaveLockModal";
 import PromptList from "./components/PromptList";
 import TeamInviteForm from "./components/TeamInviteForm";
@@ -724,18 +725,18 @@ export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
   
   // ✅ CRITICAL FIX: Initialize guest team access FIRST before anything else
-  const [guestTeamId, setGuestTeamId] = useState(() => {
-    const guestAccess = hasGuestAccess();
-    if (guestAccess.hasAccess) {
-      console.log('👁️ [APP INIT] Guest team access detected:', {
-        teamId: guestAccess.teamId,
-        hasAccess: guestAccess.hasAccess,
-      });
-      console.log('👁️ [APP INIT] Guest permissions loaded:', guestAccess.permissions);
-      return guestAccess.teamId;
-    }
-    return null;
-  });
+const [guestTeamId, setGuestTeamId] = useState(() => {
+  const guestAccess = hasGuestAccess();
+  if (guestAccess.hasAccess) {
+    console.log('👁️ [APP INIT] Guest team access detected:', {
+      teamId: guestAccess.teamId,
+      hasAccess: guestAccess.hasAccess,
+    });
+    console.log('👁️ [APP INIT] Guest permissions loaded:', guestAccess.permissions);
+    return guestAccess.teamId;
+  }
+  return null;
+});
   
   const contextActiveTeam = useActiveTeam();
   
