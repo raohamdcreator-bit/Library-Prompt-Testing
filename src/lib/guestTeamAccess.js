@@ -1,4 +1,5 @@
 // src/lib/guestTeamAccess.js - Guest/Read-only Team Access via Link
+// ✅ FIXED: hasGuestAccess() now returns token for proper guest identification
 import { db } from "./firebase";
 import {
   collection,
@@ -150,13 +151,37 @@ export async function validateGuestAccessToken(token) {
 
 /**
  * Check if user has guest access to a team
+ * ✅ FIXED: Now returns token for proper guest identification
  */
 export function hasGuestAccess() {
-  const token = sessionStorage.getItem("guest_team_token");
-  const teamId = sessionStorage.getItem("guest_team_id");
-  const permissions = sessionStorage.getItem("guest_team_permissions");
+  try {
+    const token = sessionStorage.getItem("guest_team_token");
+    const teamId = sessionStorage.getItem("guest_team_id");
+    const permissions = sessionStorage.getItem("guest_team_permissions");
 
-  if (!token || !teamId || !permissions) {
+    console.log('🔍 [GUEST ACCESS] Checking access:', {
+      hasToken: !!token,
+      hasTeamId: !!teamId,
+      hasPermissions: !!permissions
+    });
+
+    if (!token || !teamId || !permissions) {
+      return {
+        hasAccess: false,
+        teamId: null,
+        permissions: null,
+        token: null, // ✅ Always return token field
+      };
+    }
+
+    return {
+      hasAccess: true,
+      teamId,
+      permissions: JSON.parse(permissions),
+      token, // ✅ CRITICAL FIX: Return the token!
+    };
+  } catch (error) {
+    console.error('❌ [GUEST ACCESS] Error checking access:', error);
     return {
       hasAccess: false,
       teamId: null,
@@ -164,35 +189,50 @@ export function hasGuestAccess() {
       token: null,
     };
   }
-
-  return {
-    hasAccess: true,
-    teamId,
-    permissions: JSON.parse(permissions),
-    token,
-  };
 }
 
 /**
  * Store guest access in session storage
  */
 export function setGuestAccess(teamId, permissions, token) {
-  sessionStorage.setItem("guest_team_token", token);
-  sessionStorage.setItem("guest_team_id", teamId);
-  sessionStorage.setItem("guest_team_permissions", JSON.stringify(permissions));
-  
-  // Also store in a flag for easy checking
-  sessionStorage.setItem("is_guest_mode", "true");
+  try {
+    console.log('✅ [GUEST ACCESS] Setting guest access:', {
+      teamId: teamId.substring(0, 8),
+      token: token.substring(0, 8),
+      hasPermissions: !!permissions
+    });
+    
+    sessionStorage.setItem("guest_team_token", token);
+    sessionStorage.setItem("guest_team_id", teamId);
+    sessionStorage.setItem("guest_team_permissions", JSON.stringify(permissions));
+    
+    // Also store in a flag for easy checking
+    sessionStorage.setItem("is_guest_mode", "true");
+    
+    return true;
+  } catch (error) {
+    console.error('❌ [GUEST ACCESS] Error setting access:', error);
+    return false;
+  }
 }
 
 /**
  * Clear guest access from session storage
  */
 export function clearGuestAccess() {
-  sessionStorage.removeItem("guest_team_token");
-  sessionStorage.removeItem("guest_team_id");
-  sessionStorage.removeItem("guest_team_permissions");
-  sessionStorage.removeItem("is_guest_mode");
+  try {
+    console.log('🧹 [GUEST ACCESS] Clearing guest access');
+    
+    sessionStorage.removeItem("guest_team_token");
+    sessionStorage.removeItem("guest_team_id");
+    sessionStorage.removeItem("guest_team_permissions");
+    sessionStorage.removeItem("is_guest_mode");
+    
+    return true;
+  } catch (error) {
+    console.error('❌ [GUEST ACCESS] Error clearing access:', error);
+    return false;
+  }
 }
 
 /**
