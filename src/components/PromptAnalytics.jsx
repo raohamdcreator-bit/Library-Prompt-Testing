@@ -1,9 +1,5 @@
 // src/components/PromptAnalytics.jsx - Complete Updated Version with Guest Analytics
-// ✅ FIXED: Guest team user ratings now functional with proper token management
-// ✅ FIXED: Real-time guest copy tracking
-// ✅ FIXED: Prevent duplicate guest ratings
-// ✅ FIXED: Top 10 performing prompts display
-// ✅ FIXED: Separate authenticated user section
+
 
 import { useState, useEffect, useMemo } from "react";
 import { db } from "../lib/firebase";
