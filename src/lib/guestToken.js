@@ -96,7 +96,7 @@ export function getGuestUserId() {
 /**
  * Get debug info about current guest token state
  */
-export function debugGuestToken {
+export function debugGuestToken() {
   const token = getGuestToken();
   const guestUserId = token ? `guest_${token}` : null;
   const isValid = !!(token && token.length > 0);
