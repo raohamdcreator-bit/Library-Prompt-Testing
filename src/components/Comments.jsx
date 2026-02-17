@@ -1,5 +1,9 @@
-// src/components/Comments.jsx - FULLY FIXED VERSION WITH GUEST TOKEN & NAME
-import { useState, useEffect } from "react";
+// src/components/Comments.jsx - COMPLETE UPDATE
+// ✅ Displays "Team Owner" / "Team Admin" for admins
+// ✅ Allows guests to delete their own comments
+// ✅ Ensures only one menu opens at a time
+
+import { useState, useEffect, useRef } from "react";
 import { db } from "../lib/firebase";
 import { updateCommentCount } from "../lib/promptStats";
 import {
@@ -46,6 +50,7 @@ export function useComments(teamId, promptId) {
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [profiles, setProfiles] = useState({});
+  const [teamData, setTeamData] = useState(null);
 
   useEffect(() => {
     if (!teamId || !promptId) {
@@ -53,6 +58,20 @@ export function useComments(teamId, promptId) {
       setLoading(false);
       return;
     }
+
+    // ✅ Load team data to get member roles
+    const loadTeamData = async () => {
+      try {
+        const teamDoc = await getDoc(doc(db, "teams", teamId));
+        if (teamDoc.exists()) {
+          setTeamData(teamDoc.data());
+        }
+      } catch (error) {
+        console.error("Error loading team data:", error);
+      }
+    };
+
+    loadTeamData();
 
     const q = query(
       collection(db, "teams", teamId, "prompts", promptId, "comments"),
@@ -100,8 +119,11 @@ export function useComments(teamId, promptId) {
     return () => unsub();
   }, [teamId, promptId]);
 
-  return { comments, loading, profiles };
+  return { comments, loading, profiles, teamData };
 }
+
+// ✅ CONTEXT: Track which menu is open (single menu at a time)
+const MenuContext = { activeMenuId: null };
 
 // Individual comment component
 export function Comment({
@@ -111,14 +133,21 @@ export function Comment({
   onEdit,
   canModify,
   onReply,
+  teamData,
+  userRole,
+  userId,
+  activeMenuId,
+  onMenuToggle,
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(comment.text);
   const [showReplyForm, setShowReplyForm] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef(null);
   const { formatRelative } = useTimestamp();
   const { user } = useAuth();
   
+  const showMenu = activeMenuId === comment.id;
+
   function getUserInitials(name, email) {
     if (name) {
       return name
@@ -162,17 +191,80 @@ export function Comment({
     );
   }
 
+  // ✅ Get author display name with role badge
+  function getAuthorDisplay() {
+    if (comment.isGuest) {
+      return {
+        name: comment.guestName || "Anonymous Guest",
+        role: null,
+      };
+    }
+
+    const profile_name = profile?.name || profile?.email || "Unknown user";
+    const authorId = comment.createdBy;
+
+    // ✅ Check if author is team owner or admin
+    if (teamData && teamData.members) {
+      const authorRole = teamData.members[authorId];
+      
+      if (authorRole === 'owner') {
+        return {
+          name: profile_name,
+          role: "Team Owner",
+        };
+      } else if (authorRole === 'admin') {
+        return {
+          name: profile_name,
+          role: "Team Admin",
+        };
+      }
+    }
+
+    return {
+      name: profile_name,
+      role: null,
+    };
+  }
+
+  const authorDisplay = getAuthorDisplay();
+
+  // ✅ Auto-close menu on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target) && showMenu) {
+        onMenuToggle(null);
+      }
+    }
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showMenu, onMenuToggle]);
+
   const handleEdit = async () => {
     if (!editText.trim()) return;
 
     try {
       await onEdit(comment.id, editText.trim());
       setIsEditing(false);
-      setShowMenu(false);
+      onMenuToggle(null);
     } catch (error) {
       alert("Failed to update comment. Please try again.");
     }
   };
+
+  // ✅ Guests can delete their own comments
+  function canDeleteOwnComment() {
+    if (comment.isGuest && user === null) {
+      // Guest user deleting their own comment (guestToken matches)
+      const guestToken = sessionStorage.getItem('guest_team_token');
+      const commentGuestToken = comment.guestToken;
+      return guestToken === commentGuestToken;
+    }
+    return false;
+  }
+
+  const canDelete = canModify || canDeleteOwnComment();
 
   return (
     <div
@@ -214,17 +306,35 @@ export function Comment({
     {/* Header */}
     <div className="flex items-start justify-between gap-2 mb-2">
       <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span
             className="text-sm md:text-base font-semibold"
             style={{ color: "var(--foreground)" }}
           >
-            {/* ✅ FIXED: Use guestName if available for guests */}
-            {comment.isGuest 
-              ? (comment.guestName || "Anonymous Guest")
-              : (profile?.name || profile?.email || "Unknown user")
-            }
+            {authorDisplay.name}
           </span>
+          
+          {/* ✅ Role badges for team owners and admins */}
+          {authorDisplay.role && (
+            <span 
+              className="text-xs px-2 py-0.5 rounded font-medium"
+              style={{ 
+                backgroundColor: authorDisplay.role === "Team Owner" 
+                  ? "rgba(168, 85, 247, 0.2)" 
+                  : "rgba(59, 130, 246, 0.2)",
+                color: authorDisplay.role === "Team Owner" 
+                  ? "rgb(168, 85, 247)" 
+                  : "rgb(59, 130, 246)",
+                border: authorDisplay.role === "Team Owner"
+                  ? "1px solid rgb(168, 85, 247)"
+                  : "1px solid rgb(59, 130, 246)",
+              }}
+            >
+              {authorDisplay.role}
+            </span>
+          )}
+
+          {/* Guest badge */}
           {comment.isGuest && (
             <span 
               className="text-xs px-2 py-0.5 rounded"
@@ -237,141 +347,153 @@ export function Comment({
             </span>
           )}
         </div>
-              <div
-                className="flex items-center gap-2 text-xs"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-               <span>{formatRelative(comment.createdAt)}</span>
-                {comment.updatedAt && (
-                  <>
-                    <span>•</span>
-                    <span className="font-medium">(edited)</span>
-                  </>
-                )}
-              </div>
-            </div>
+        
+        <div
+          className="flex items-center gap-2 text-xs"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+         <span>{formatRelative(comment.createdAt)}</span>
+          {comment.updatedAt && (
+            <>
+              <span>•</span>
+              <span className="font-medium">(edited)</span>
+            </>
+          )}
+        </div>
+      </div>
 
-            {canModify && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowMenu(!showMenu)}
-                  className="p-1.5 rounded-lg hover:bg-white/10 transition-colors opacity-0 group-hover:opacity-100"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </button>
+      {/* ✅ Menu button with single menu open at a time */}
+      {(canModify || canDelete) && (
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => onMenuToggle(showMenu ? null : comment.id)}
+            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors opacity-0 group-hover:opacity-100"
+            style={{ color: "var(--muted-foreground)" }}
+            title="More options"
+          >
+            <MoreVertical className="w-4 h-4" />
+          </button>
 
-                {showMenu && (
-                  <div
-                    className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-xl z-10"
-                    style={{
-                      backgroundColor: "var(--card)",
-                      borderColor: "var(--border)",
+          {showMenu && (
+            <div
+              className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-xl z-10"
+              style={{
+                backgroundColor: "var(--card)",
+                borderColor: "var(--border)",
+              }}
+            >
+              {canModify && (
+                <>
+                  <button
+                    onClick={() => {
+                      setIsEditing(!isEditing);
+                      onMenuToggle(null);
                     }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/5 transition-colors rounded-t-lg"
+                    style={{ color: "var(--foreground)" }}
                   >
-                    <button
-                      onClick={() => {
-                        setIsEditing(!isEditing);
-                        setShowMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/5 transition-colors rounded-t-lg"
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      <Edit2 className="w-4 h-4" />
-                      <span>{isEditing ? "Cancel" : "Edit"}</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        onDelete(comment.id);
-                        setShowMenu(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/5 transition-colors rounded-b-lg"
-                      style={{ color: "var(--destructive)" }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span>Delete</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Content */}
-          {isEditing ? (
-            <div className="space-y-3">
-              <textarea
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                className="form-input resize-none text-sm md:text-base w-full"
-                rows={3}
-                placeholder="Edit your comment..."
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={handleEdit}
-                  disabled={!editText.trim()}
-                  className="btn-primary text-xs px-4 py-2 flex items-center gap-2"
-                >
-                  <Send className="w-3 h-3" />
-                  Save
-                </button>
+                    <Edit2 className="w-4 h-4" />
+                    <span>{isEditing ? "Cancel" : "Edit"}</span>
+                  </button>
+                  <div className="menu-divider" />
+                </>
+              )}
+              
+              {/* ✅ Delete button for admins or own comments */}
+              {canDelete && (
                 <button
                   onClick={() => {
-                    setIsEditing(false);
-                    setEditText(comment.text);
+                    onDelete(comment.id);
+                    onMenuToggle(null);
                   }}
-                  className="btn-secondary text-xs px-4 py-2 flex items-center gap-2"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/5 transition-colors rounded-b-lg"
+                  style={{ color: "var(--destructive)" }}
                 >
-                  <X className="w-3 h-3" />
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div>
-              <p
-                className="text-sm md:text-base whitespace-pre-wrap leading-relaxed mb-3"
-                style={{ color: "var(--foreground)" }}
-              >
-                {comment.text}
-              </p>
-
-              {!comment.parentId && (
-                <button
-                  onClick={() => setShowReplyForm(!showReplyForm)}
-                  className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
-                  style={{ color: "var(--primary)" }}
-                >
-                  <Reply className="w-3 h-3" />
-                  Reply
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete</span>
                 </button>
               )}
             </div>
           )}
+        </div>
+      )}
+    </div>
 
-          {/* Reply Form */}
-          {showReplyForm && (
-            <div
-              className="mt-4 p-3 md:p-4 rounded-lg border"
-              style={{
-                backgroundColor: "var(--muted)",
-                borderColor: "var(--border)",
-              }}
-            >
-              <CommentForm
-                onSubmit={(text) => {
-                  onReply(comment.id, text);
-                  setShowReplyForm(false);
-                }}
-                onCancel={() => setShowReplyForm(false)}
-                placeholder={`Reply to ${comment.guestName || profile?.name || "user"}...`}
-                submitText="Reply"
-              />
-            </div>
-          )}
+    {/* Content */}
+    {isEditing ? (
+      <div className="space-y-3">
+        <textarea
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          className="form-input resize-none text-sm md:text-base w-full"
+          rows={3}
+          placeholder="Edit your comment..."
+        />
+        <div className="flex gap-2">
+          <button
+            onClick={handleEdit}
+            disabled={!editText.trim()}
+            className="btn-primary text-xs px-4 py-2 flex items-center gap-2"
+          >
+            <Send className="w-3 h-3" />
+            Save
+          </button>
+          <button
+            onClick={() => {
+              setIsEditing(false);
+              setEditText(comment.text);
+            }}
+            className="btn-secondary text-xs px-4 py-2 flex items-center gap-2"
+          >
+            <X className="w-3 h-3" />
+            Cancel
+          </button>
         </div>
       </div>
+    ) : (
+      <div>
+        <p
+          className="text-sm md:text-base whitespace-pre-wrap leading-relaxed mb-3"
+          style={{ color: "var(--foreground)" }}
+        >
+          {comment.text}
+        </p>
+
+        {!comment.parentId && (
+          <button
+            onClick={() => setShowReplyForm(!showReplyForm)}
+            className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
+            style={{ color: "var(--primary)" }}
+          >
+            <Reply className="w-3 h-3" />
+            Reply
+          </button>
+        )}
+      </div>
+    )}
+
+    {/* Reply Form */}
+    {showReplyForm && (
+      <div
+        className="mt-4 p-3 md:p-4 rounded-lg border"
+        style={{
+          backgroundColor: "var(--muted)",
+          borderColor: "var(--border)",
+        }}
+      >
+        <CommentForm
+          onSubmit={(text) => {
+            onReply(comment.id, text);
+            setShowReplyForm(false);
+          }}
+          onCancel={() => setShowReplyForm(false)}
+          placeholder={`Reply to ${authorDisplay.name}...`}
+          submitText="Reply"
+        />
+      </div>
+    )}
+  </div>
+</div>
     </div>
   );
 }
@@ -462,8 +584,9 @@ export function CommentForm({
 // Main comments component
 export default function Comments({ teamId, promptId, userRole }) {
   const { user } = useAuth();
-  const { comments, loading, profiles } = useComments(teamId, promptId);
+  const { comments, loading, profiles, teamData } = useComments(teamId, promptId);
   const [showCommentForm, setShowCommentForm] = useState(false);
+  const [activeMenuId, setActiveMenuId] = useState(null);
 
   // ✅ FIXED: Complete rewrite with proper guest token & name handling
   async function handleAddComment(text, parentId = null) {
@@ -538,7 +661,7 @@ export default function Comments({ teamId, promptId, userRole }) {
   }
 
   function canDeleteComment(comment) {
-    // ✅ Guests cannot delete (user is null) - only their own if they're authenticated
+    // ✅ Guests cannot delete unless it's their own
     if (!user) return false;
     
     // ✅ Users can delete own comments or admins can delete any
@@ -720,6 +843,11 @@ export default function Comments({ teamId, promptId, userRole }) {
                   onEdit={handleEditComment}
                   onReply={handleReply}
                   canModify={canModifyComment(comment)}
+                  teamData={teamData}
+                  userRole={userRole}
+                  userId={user?.uid}
+                  activeMenuId={activeMenuId}
+                  onMenuToggle={setActiveMenuId}
                 />
 
                 {/* Replies */}
@@ -733,6 +861,11 @@ export default function Comments({ teamId, promptId, userRole }) {
                         onDelete={handleDeleteComment}
                         onEdit={handleEditComment}
                         canModify={canModifyComment(reply)}
+                        teamData={teamData}
+                        userRole={userRole}
+                        userId={user?.uid}
+                        activeMenuId={activeMenuId}
+                        onMenuToggle={setActiveMenuId}
                       />
                     ))}
                   </div>
