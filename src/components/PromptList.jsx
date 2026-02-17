@@ -1,6 +1,4 @@
-// src/components/PromptList.jsx - COMPLETE VERSION WITH RATING STATS
-
-
+// src/components/PromptList.jsx - Updated: added Mark Favourite to kebab menu
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -9,7 +7,7 @@ import { updateCommentCount } from "../lib/promptStats";
 import { increment } from "firebase/firestore";
 import {
   collection, onSnapshot, query, orderBy, getDoc, doc,
-  addDoc, serverTimestamp, deleteDoc, updateDoc,
+  addDoc, serverTimestamp, deleteDoc, updateDoc, setDoc,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useGuestMode } from "../context/GuestModeContext";
@@ -101,7 +99,7 @@ function UserAvatar({ src, name, email, size = "sm" }) {
   );
 }
 
-// Copy Button Component - ✅ FIXED: Now tracks guest copies
+// Copy Button Component
 function CopyButton({ text, promptId, onCopy, isGuestMode }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = async () => {
@@ -132,11 +130,7 @@ function RatingStatsBar({ ratings = {}, totalRatings = 0, averageRating = 0, isE
   if (totalRatings === 0) {
     return (
       <div className="rating-stats-container">
-        <button
-          onClick={onToggle}
-          className="rating-stats-header"
-          disabled
-        >
+        <button onClick={onToggle} className="rating-stats-header" disabled>
           <div className="flex items-center gap-2">
             <TrendIcon className="w-4 h-4 text-muted-foreground" />
             <span className="text-sm font-medium text-muted-foreground">No ratings yet</span>
@@ -148,10 +142,7 @@ function RatingStatsBar({ ratings = {}, totalRatings = 0, averageRating = 0, isE
 
   return (
     <div className="rating-stats-container">
-      <button
-        onClick={onToggle}
-        className="rating-stats-header"
-      >
+      <button onClick={onToggle} className="rating-stats-header">
         <div className="flex items-center gap-2">
           <TrendIcon className="w-4 h-4" style={{ color: "var(--primary)" }} />
           <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
@@ -357,7 +348,7 @@ function InlineRating({ teamId, promptId, isGuestMode }) {
   );
 }
 
-// Full Comments Section with Edit/Delete/Reply
+// Full Comments Section
 function ExpandedCommentsSection({ promptId, teamId, commentCount, onClose, userRole }) {
   return (
     <div className="expanded-comments-section" style={{
@@ -529,6 +520,8 @@ function PromptCard({
   onViewOutputs, onAttachOutput, onEnhance, viewedPrompts = new Set(),
   onMarkViewed, showCommentSection, onToggleComments,
   isSelected, onSelect, openMenuId, onMenuToggle, onTrackView,
+  // ✅ NEW: favourite props
+  onToggleFavourite, favouritePromptIds = new Set(),
 }) {
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
@@ -540,6 +533,9 @@ function PromptCard({
   const displayText = isTextExpanded ? prompt.text : prompt.text.slice(0, 200);
   const badge = getPromptBadge(prompt, isGuestMode);
   const showMenu = openMenuId === prompt.id;
+
+  // ✅ NEW: derive favourite state for this prompt
+  const isFavourited = favouritePromptIds.has(prompt.id);
 
   // Get rating data
   const { ratings, averageRating, totalRatings } = usePromptRating(activeTeam, prompt.id);
@@ -757,6 +753,22 @@ function PromptCard({
                 </button>
                 {showMenu && (
                   <div className="kebab-menu-v2">
+                    {/* ✅ NEW: Mark Favourite — shown to authenticated users only */}
+                    {!isGuestMode && onToggleFavourite && (
+                      <>
+                        <button
+                          onClick={() => { onToggleFavourite(prompt.id, prompt.teamId || activeTeam); onMenuToggle(null); }}
+                          className="menu-item"
+                        >
+                          <Star
+                            className={`w-4 h-4 ${isFavourited ? 'fill-yellow-400 text-yellow-400' : ''}`}
+                          />
+                          <span>{isFavourited ? 'Remove Favourite' : 'Mark Favourite'}</span>
+                        </button>
+                        <div className="menu-divider" />
+                      </>
+                    )}
+
                     {outputs.length > 0 && (
                       <>
                         <button onClick={() => { onViewOutputs(prompt); onMenuToggle(null); }} className="menu-item">
@@ -813,7 +825,7 @@ function PromptCard({
   );
 }
 
-// Filter Card Component (unchanged from original)
+// Filter Card Component
 function FilterCard({ 
   filters, 
   onFilterChange, 
@@ -1022,7 +1034,7 @@ function FilterCard({
   );
 }
 
-// Main Component - includes all existing logic with fixes
+// Main Component
 export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId, onScrollToInvite }) {
   const { user } = useAuth();
   const { playNotification } = useSoundEffects();
@@ -1053,6 +1065,9 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const filterCardRef = useRef(null);
   const importCardRef = useRef(null);
   
+  // ✅ NEW: Favourites state — tracks which promptIds the user has favourited
+  const [favouritePromptIds, setFavouritePromptIds] = useState(new Set());
+
   const [filters, setFilters] = useState({
     author: "all",
     tags: "",
@@ -1067,6 +1082,19 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     if (isGuestMode && userPrompts.length === 0) return getAllDemoPrompts();
     return [];
   }, [isGuestMode, userPrompts.length]);
+
+  // ✅ NEW: Load user's favourites from Firestore on mount
+  useEffect(() => {
+    if (!user || isGuestMode) return;
+
+    const favRef = collection(db, "users", user.uid, "favourites");
+    const unsub = onSnapshot(favRef, (snap) => {
+      const ids = new Set(snap.docs.map((d) => d.id));
+      setFavouritePromptIds(ids);
+    });
+
+    return () => unsub();
+  }, [user, isGuestMode]);
 
   useEffect(() => {
     if (isGuestMode && !activeTeam) {
@@ -1186,6 +1214,49 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     }
     loadTeamData();
   }, [activeTeam, isGuestMode, user]);
+
+  // ✅ NEW: Toggle favourite — writes to /users/{uid}/favourites/{promptId}
+  async function handleToggleFavourite(promptId, teamId) {
+    if (!user) {
+      showNotification("Sign up to save favourites", "info");
+      return;
+    }
+
+    const favRef = doc(db, "users", user.uid, "favourites", promptId);
+    const isCurrentlyFaved = favouritePromptIds.has(promptId);
+
+    // Optimistic update
+    setFavouritePromptIds((prev) => {
+      const next = new Set(prev);
+      if (isCurrentlyFaved) next.delete(promptId);
+      else next.add(promptId);
+      return next;
+    });
+
+    try {
+      if (isCurrentlyFaved) {
+        await deleteDoc(favRef);
+        showSuccessToast("Removed from favourites");
+      } else {
+        await setDoc(favRef, {
+          promptId,
+          teamId: teamId || activeTeam,
+          addedAt: serverTimestamp(),
+        });
+        showSuccessToast("Added to favourites ★");
+      }
+    } catch (err) {
+      console.error("Error toggling favourite:", err);
+      // Revert optimistic update
+      setFavouritePromptIds((prev) => {
+        const next = new Set(prev);
+        if (isCurrentlyFaved) next.add(promptId);
+        else next.delete(promptId);
+        return next;
+      });
+      showNotification("Failed to update favourites", "error");
+    }
+  }
 
   function applyFilters(promptsList) {
     function getTimestamp(prompt) {
@@ -1483,48 +1554,42 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     } catch (error) { showNotification("Failed to change visibility", "error"); }
   }
 
-  // ✅ FIXED: handleCopy now properly tracks guest copies with logging
-async function handleCopy(text, promptId, isGuestUser = false) {
-  try {
-    await navigator.clipboard.writeText(text);
-    showSuccessToast("Copied to clipboard!");
-    
-    console.log('📋 [COPY] Copy initiated:', { 
-      promptId, 
-      isGuestMode, 
-      activeTeam,
-      hasSessionToken: !!sessionStorage.getItem('guest_team_token')
-    });
-    
-    // ✅ FIXED: Proper guest detection and copy tracking
-    if (activeTeam) {
-      // Determine if this is a guest user by checking for guest team token
-      const guestToken = sessionStorage.getItem('guest_team_token');
-      const isGuest = !!guestToken;
+  async function handleCopy(text, promptId, isGuestUser = false) {
+    try {
+      await navigator.clipboard.writeText(text);
+      showSuccessToast("Copied to clipboard!");
       
-      console.log('📋 [COPY] Tracking copy:', { 
-        isGuest, 
-        guestToken: guestToken ? guestToken.substring(0, 8) + '...' : 'none',
-        activeTeam: activeTeam.substring(0, 8) + '...'
+      console.log('📋 [COPY] Copy initiated:', { 
+        promptId, 
+        isGuestMode, 
+        activeTeam,
+        hasSessionToken: !!sessionStorage.getItem('guest_team_token')
       });
       
-      try {
-        // ✅ Track the copy with proper guest flag
-        await trackPromptCopy(activeTeam, promptId, isGuest);
-        console.log('✅ [COPY] Copy tracked successfully');
-      } catch (trackError) {
-        console.error('❌ [COPY] Tracking failed:', trackError);
-        // Don't fail the copy operation if tracking fails
+      if (activeTeam) {
+        const guestToken = sessionStorage.getItem('guest_team_token');
+        const isGuest = !!guestToken;
+        
+        console.log('📋 [COPY] Tracking copy:', { 
+          isGuest, 
+          guestToken: guestToken ? guestToken.substring(0, 8) + '...' : 'none',
+          activeTeam: activeTeam.substring(0, 8) + '...'
+        });
+        
+        try {
+          await trackPromptCopy(activeTeam, promptId, isGuest);
+          console.log('✅ [COPY] Copy tracked successfully');
+        } catch (trackError) {
+          console.error('❌ [COPY] Tracking failed:', trackError);
+        }
+      } else if (isGuestMode) {
+        console.log('📋 [COPY] Local guest mode, no tracking');
       }
-    } else if (isGuestMode) {
-      // For isGuestMode (local/demo mode), no tracking needed
-      console.log('📋 [COPY] Local guest mode, no tracking');
+    } catch (error) { 
+      console.error('❌ [COPY] Failed to copy:', error);
+      showNotification("Failed to copy", "error"); 
     }
-  } catch (error) { 
-    console.error('❌ [COPY] Failed to copy:', error);
-    showNotification("Failed to copy", "error"); 
   }
-}
 
   function canEditPrompt(prompt) {
     if (isGuestMode) return canEditGuestPrompt(prompt);
@@ -1548,53 +1613,48 @@ async function handleCopy(text, promptId, isGuestUser = false) {
     setViewOutputsPrompt(prompt);
   }
 
- // ✅ FIXED: handleTrackView now properly tracks views for guest-team users
-async function handleTrackView(promptId) {
-  console.log('👁️ [VIEW] View tracking requested:', { 
-    promptId, 
-    alreadyTracked: trackedViews.has(promptId),
-    isGuestMode,
-    activeTeam 
-  });
-  
-  if (trackedViews.has(promptId)) {
-    console.log('👁️ [VIEW] Already tracked for this user, skipping');
-    return;
-  }
-  
-  setTrackedViews(prev => new Set([...prev, promptId]));
-  
-  // ✅ FIXED: Track views for both authenticated users and guest-team users
-  if (activeTeam) {
-    const guestToken = sessionStorage.getItem('guest_team_token');
-    console.log('👁️ [VIEW] Tracking view:', { 
-      activeTeam,
-      isGuest: !!guestToken,
-      guestToken: guestToken?.substring(0, 8)
+  async function handleTrackView(promptId) {
+    console.log('👁️ [VIEW] View tracking requested:', { 
+      promptId, 
+      alreadyTracked: trackedViews.has(promptId),
+      isGuestMode,
+      activeTeam 
     });
     
-    try {
-      const promptRef = doc(db, "teams", activeTeam, "prompts", promptId);
-      
-      // Use increment to avoid race conditions
-      await updateDoc(promptRef, {
-        'stats.views': increment(1)
-      });
-      
-      console.log('✅ [VIEW] View tracked successfully');
-    } catch (error) {
-      console.error("❌ [VIEW] Error tracking view:", error);
-      // Remove from tracked views so it can be retried
-      setTrackedViews(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(promptId);
-        return newSet;
-      });
+    if (trackedViews.has(promptId)) {
+      console.log('👁️ [VIEW] Already tracked for this user, skipping');
+      return;
     }
-  } else if (isGuestMode) {
-    console.log('👁️ [VIEW] Local guest mode, no tracking');
+    
+    setTrackedViews(prev => new Set([...prev, promptId]));
+    
+    if (activeTeam) {
+      const guestToken = sessionStorage.getItem('guest_team_token');
+      console.log('👁️ [VIEW] Tracking view:', { 
+        activeTeam,
+        isGuest: !!guestToken,
+        guestToken: guestToken?.substring(0, 8)
+      });
+      
+      try {
+        const promptRef = doc(db, "teams", activeTeam, "prompts", promptId);
+        await updateDoc(promptRef, {
+          'stats.views': increment(1)
+        });
+        console.log('✅ [VIEW] View tracked successfully');
+      } catch (error) {
+        console.error("❌ [VIEW] Error tracking view:", error);
+        setTrackedViews(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(promptId);
+          return newSet;
+        });
+      }
+    } else if (isGuestMode) {
+      console.log('👁️ [VIEW] Local guest mode, no tracking');
+    }
   }
-}
+
   async function handleImportPrompts(validPrompts) {
     if (isGuestMode) {
       validPrompts.forEach(prompt => {
@@ -1788,7 +1848,8 @@ async function handleTrackView(promptId) {
               canEdit={false} author={null} isGuestMode={isGuestMode} activeTeam={activeTeam}
               userRole={userRole} onCopy={handleCopy} onDuplicate={handleDuplicateDemo}
               viewedPrompts={viewedPrompts} showCommentSection={false} onToggleComments={() => {}}
-              openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView} />
+              openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView}
+              onToggleFavourite={null} favouritePromptIds={favouritePromptIds} />
           ))}
 
           {displayDemos.length > 5 && (
@@ -1824,12 +1885,13 @@ async function handleTrackView(promptId) {
               viewedPrompts={viewedPrompts} onMarkViewed={(id) => setViewedPrompts(prev => new Set([...prev, id]))}
               showCommentSection={showCommentSection[prompt.id] || false} onToggleComments={handleToggleComments}
               isSelected={selectedPrompts.includes(prompt.id)} onSelect={handleSelectPrompt}
-              openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView} />
+              openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView}
+              onToggleFavourite={handleToggleFavourite} favouritePromptIds={favouritePromptIds} />
           ))}
         </section>
       )}
 
-        {allPrompts.length === 0 && (
+      {allPrompts.length === 0 && (
         <div className="glass-card p-12 text-center mb-12">
           <Sparkles size={48} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
           <h3 className="text-lg font-semibold mb-2">
@@ -1863,17 +1925,17 @@ async function handleTrackView(promptId) {
         </div>
       )}
 
-       {displayUserPrompts.length > 5 && (
-            <div className="mt-6">
-              <PaginationControls 
-                pagination={userPromptsPagination}
-                showSearch={false}
-                showPageSizeSelector={true}
-                showItemCount={true}
-                pageSizeOptions={[5, 10, 20, 50]}
-              />
-            </div>
-          )}
+      {displayUserPrompts.length > 5 && (
+        <div className="mt-6">
+          <PaginationControls 
+            pagination={userPromptsPagination}
+            showSearch={false}
+            showPageSizeSelector={true}
+            showItemCount={true}
+            pageSizeOptions={[5, 10, 20, 50]}
+          />
+        </div>
+      )}
       
       <div ref={filterCardRef}>
         <FilterCard 
