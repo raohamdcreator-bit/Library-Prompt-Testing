@@ -1,4 +1,4 @@
-// src/components/Comments.jsx - FIXED VERSION
+// src/components/Comments.jsx - FULLY FIXED VERSION WITH GUEST TOKEN & NAME
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import { updateCommentCount } from "../lib/promptStats";
@@ -27,6 +27,19 @@ import {
   Loader2,
   MoreVertical
 } from "lucide-react";
+
+// ✅ HELPER: Generate or retrieve guest token
+function getOrCreateGuestToken() {
+  let guestToken = sessionStorage.getItem('guest_team_token');
+  
+  if (!guestToken) {
+    guestToken = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 10)}`;
+    sessionStorage.setItem('guest_team_token', guestToken);
+    console.log('🎫 [GUEST TOKEN] Created new token:', guestToken.substring(0, 16) + '...');
+  }
+  
+  return guestToken;
+}
 
 // Comments hook
 export function useComments(teamId, promptId) {
@@ -58,6 +71,11 @@ export function useComments(teamId, promptId) {
         const profilesData = {};
 
         for (const authorId of authorIds) {
+          // ✅ Skip guest IDs (they have guestName stored in comment)
+          if (authorId.startsWith('guest_')) {
+            continue;
+          }
+          
           if (!profilesData[authorId]) {
             try {
               const userDoc = await getDoc(doc(db, "users", authorId));
@@ -100,6 +118,7 @@ export function Comment({
   const [showMenu, setShowMenu] = useState(false);
   const { formatRelative } = useTimestamp();
   const { user } = useAuth();
+  
   function getUserInitials(name, email) {
     if (name) {
       return name
@@ -155,7 +174,6 @@ export function Comment({
     }
   };
 
-
   return (
     <div
       className={`group relative p-4 md:p-5 rounded-xl border transition-all duration-200 hover:shadow-lg ${
@@ -201,8 +219,9 @@ export function Comment({
             className="text-sm md:text-base font-semibold"
             style={{ color: "var(--foreground)" }}
           >
+            {/* ✅ FIXED: Use guestName if available for guests */}
             {comment.isGuest 
-              ? "Guest User" 
+              ? (comment.guestName || "Anonymous Guest")
               : (profile?.name || profile?.email || "Unknown user")
             }
           </span>
@@ -346,7 +365,7 @@ export function Comment({
                   setShowReplyForm(false);
                 }}
                 onCancel={() => setShowReplyForm(false)}
-                placeholder={`Reply to ${profile?.name || "user"}...`}
+                placeholder={`Reply to ${comment.guestName || profile?.name || "user"}...`}
                 submitText="Reply"
               />
             </div>
@@ -368,21 +387,21 @@ export function CommentForm({
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-async function handleSubmit(e) {
-  e.preventDefault();
-  if (!text.trim()) return;
-  
-  setIsSubmitting(true);
-  try {
-    await onSubmit(text);
-    setText('');
-  } catch (error) {
-    console.error("Error submitting comment:", error);
-    alert("Failed to submit comment. Please try again.");
-  } finally {
-    setIsSubmitting(false);
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    
+    setIsSubmitting(true);
+    try {
+      await onSubmit(text);
+      setText('');
+    } catch (error) {
+      console.error("Error submitting comment:", error);
+      alert("Failed to submit comment. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
-}
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -446,44 +465,60 @@ export default function Comments({ teamId, promptId, userRole }) {
   const { comments, loading, profiles } = useComments(teamId, promptId);
   const [showCommentForm, setShowCommentForm] = useState(false);
 
- async function handleAddComment(text, parentId = null) {
-  if (!teamId || !promptId) return;
+  // ✅ FIXED: Complete rewrite with proper guest token & name handling
+  async function handleAddComment(text, parentId = null) {
+    if (!teamId || !promptId) return;
 
-  try {
-    const commentData = {
-      text,
-      createdAt: serverTimestamp(),
-      parentId: parentId || null,
-    };
-    
-    // ✅ Support both authenticated users and team guests
-    if (user) {
-      // Authenticated user
-      commentData.createdBy = user.uid;
-    } else {
-      // Team guest - use session-based identifier
-      const guestToken = sessionStorage.getItem('guest_team_token');
-      const guestId = guestToken 
-        ? `guest_${guestToken.substring(0, 16)}` 
-        : `guest_${Date.now()}`;
+    try {
+      const commentData = {
+        text,
+        createdAt: serverTimestamp(),
+        parentId: parentId || null,
+      };
       
-      commentData.createdBy = guestId;
-      commentData.authorName = "Guest User";
-      commentData.isGuest = true;  // ✅ Required by Firestore rules
+      // ✅ Support both authenticated users and team guests
+      if (user) {
+        // Authenticated user
+        commentData.createdBy = user.uid;
+        console.log('💬 [COMMENT] Creating comment from authenticated user:', user.uid);
+      } else {
+        // Team guest - get or create guest token
+        const guestToken = getOrCreateGuestToken();
+        const guestId = `guest_${guestToken.substring(0, 16)}`;
+        
+        commentData.createdBy = guestId;
+        commentData.isGuest = true;
+        commentData.guestToken = guestToken;         // ✅ REQUIRED by Firestore rules
+        commentData.guestName = "Anonymous Guest";   // ✅ REQUIRED by Firestore rules
+        
+        console.log('💬 [COMMENT] Creating guest comment:', {
+          guestId,
+          guestToken: guestToken.substring(0, 16) + '...',
+          guestName: commentData.guestName,
+        });
+      }
+      
+      console.log('💬 [COMMENT] Comment data:', {
+        ...commentData,
+        guestToken: commentData.guestToken ? commentData.guestToken.substring(0, 16) + '...' : 'N/A'
+      });
+      
+      await addDoc(
+        collection(db, "teams", teamId, "prompts", promptId, "comments"),
+        commentData
+      );
+      
+      console.log('✅ [COMMENT] Comment added successfully');
+      
+      // ✅ Update stats
+      await updateCommentCount(teamId, promptId, 1);
+      console.log('✅ [COMMENT] Comment count updated');
+      
+    } catch (error) {
+      console.error("❌ [COMMENT] Error adding comment:", error);
+      throw error;
     }
-    
-    await addDoc(
-      collection(db, "teams", teamId, "prompts", promptId, "comments"),
-      commentData
-    );
-    
-    // ✅ Update stats
-    await updateCommentCount(teamId, promptId, 1);
-  } catch (error) {
-    console.error("Error adding comment:", error);
-    throw error;
   }
-}
 
   async function handleEditComment(commentId, newText) {
     if (!teamId || !promptId) return;
@@ -503,12 +538,12 @@ export default function Comments({ teamId, promptId, userRole }) {
   }
 
   function canDeleteComment(comment) {
-  // ✅ Guests cannot delete (user is null)
-  if (!user) return false;
-  
-  // ✅ Users can delete own comments or admins can delete any
-  return comment.createdBy === user.uid || userRole === 'admin' || userRole === 'owner';
-}
+    // ✅ Guests cannot delete (user is null) - only their own if they're authenticated
+    if (!user) return false;
+    
+    // ✅ Users can delete own comments or admins can delete any
+    return comment.createdBy === user.uid || userRole === 'admin' || userRole === 'owner';
+  }
 
   // ✅ FIXED: Now counts and deletes all replies
   async function handleDeleteComment(commentId) {
