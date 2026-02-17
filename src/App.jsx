@@ -16,7 +16,7 @@ import {
 import { useAuth } from "./context/AuthContext";
 import { useActiveTeam } from "./context/AppStateContext";
 import { useGuestMode } from "./context/GuestModeContext";
-import { hasGuestAccess } from "./lib/guestTeamAccess";
+import { hasGuestAccess,setGuestAccess,clearGuestAccessCache } from "./lib/guestTeamAccess";
 import { setGuestToken, debugGuestToken } from "./lib/guestToken";
 import SaveLockModal from "./components/SaveLockModal";
 import PromptList from "./components/PromptList";
@@ -734,18 +734,20 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
     });
     console.log('👁️ [APP INIT] Guest permissions loaded:', guestAccess.permissions);
     
-    // ✅ NEW: Store the guest token for ratings/comments/stats
     if (guestAccess.token) {
       const success = setGuestToken(guestAccess.token);
       if (success) {
         console.log('✅ [APP INIT] Guest token stored successfully');
-        debugGuestToken(); // Debug output
+        debugGuestToken();
       } else {
         console.error('❌ [APP INIT] Failed to store guest token');
       }
     } else {
       console.warn('⚠️ [APP INIT] No guest token found in access data');
     }
+    
+    // ✅ ADD THIS: Clear cache after initial read to prevent stale data
+    clearGuestAccessCache();
     
     return guestAccess.teamId;
   }
@@ -1285,57 +1287,62 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
   }
 
   function handleExitGuestMode() {
-    if (guestState.hasUnsavedWork()) {
-      const confirmExit = window.confirm(
-        'You have unsaved work. Sign up to save it permanently, or continue without saving?'
-      );
-      
-      if (!confirmExit) {
-        return;
-      }
+  if (guestState.hasUnsavedWork()) {
+    const confirmExit = window.confirm(
+      'You have unsaved work. Sign up to save it permanently, or continue without saving?'
+    );
+    
+    if (!confirmExit) {
+      return;
     }
-    
-    guestState.clearGuestWork();
-    setIsExploringAsGuest(false);
-    
-    if (window.gtag) {
-      window.gtag('event', 'guest_mode_exited', {
-        had_work: guestState.hasUnsavedWork(),
-      });
-    }
-    
-    navigate('/');
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
   }
+  
+  guestState.clearGuestWork();
+  setIsExploringAsGuest(false);
+  
+  
+  clearGuestAccessCache();
+  
+  if (window.gtag) {
+    window.gtag('event', 'guest_mode_exited', {
+      had_work: guestState.hasUnsavedWork(),
+    });
+  }
+  
+  navigate('/');
+  setTimeout(() => {
+    window.location.reload();
+  }, 100);
+}
 
   // ✅ FIXED: Handle guest team exit
-  function handleExitGuestTeam() {
-    console.log('🚪 [EXIT] Exiting guest team mode');
-    
-    // Clear guest team access
-    sessionStorage.removeItem('guest_team_token');
-    sessionStorage.removeItem('guest_team_id');
-    sessionStorage.removeItem('guest_team_permissions');
-    sessionStorage.removeItem('is_guest_mode');
-    
-    setGuestTeamId(null);
-    setGuestTeamPermissions(null);
-    setActiveTeam(null);
-    
-    if (window.gtag) {
-      window.gtag('event', 'guest_team_exited');
-    }
-    
-    navigate('/');
-    
-    // Force reload to clear all state
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
+ function handleExitGuestTeam() {
+  console.log('🚪 [EXIT] Exiting guest team mode');
+  
+  // Clear guest team access
+  sessionStorage.removeItem('guest_team_token');
+  sessionStorage.removeItem('guest_team_id');
+  sessionStorage.removeItem('guest_team_permissions');
+  sessionStorage.removeItem('is_guest_mode');
+  
+  
+  clearGuestAccessCache();
+  
+  setGuestTeamId(null);
+  setGuestTeamPermissions(null);
+  setActiveTeam(null);
+  
+  if (window.gtag) {
+    window.gtag('event', 'guest_team_exited');
   }
-
+  
+  navigate('/');
+  
+  // Force reload to clear all state
+  setTimeout(() => {
+    window.location.reload();
+  }, 100);
+}
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
   
   // ✅ DEBUG: Log activeTeamObj state for guest users
