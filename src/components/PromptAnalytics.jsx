@@ -354,45 +354,55 @@ function GuestAnalyticsCard({ teamId }) {
       return;
     }
 
-    console.log('📊 [GUEST STATS] Setting up listener for teamId:', teamId);
+    console.log('📊 [GUEST STATS] Setting up real-time listener for teamId:', teamId);
 
-    // ✅ FIXED: Real-time listener for guest activity
+    // ✅ OPTIMIZED: Real-time listener with parallel processing
     const promptsRef = collection(db, 'teams', teamId, 'prompts');
     
     const unsub = onSnapshot(promptsRef, async (promptsSnap) => {
       console.log('📊 [GUEST STATS] Prompts snapshot received:', promptsSnap.docs.length);
       
       try {
-        let totalGuestRatings = 0;
-        let totalGuestComments = 0;
-        let totalGuestCopies = 0;
-
-        for (const promptDoc of promptsSnap.docs) {
+        // ✅ Process all prompts in parallel for better performance
+        const promptPromises = promptsSnap.docs.map(async (promptDoc) => {
           const promptData = promptDoc.data();
           const promptId = promptDoc.id;
 
-          // Count guest ratings (real-time)
+          // ✅ Get guest copies from stats (already aggregated in Firestore)
+          const guestCopiesCount = promptData.stats?.guestCopies || 0;
+          
+          // Count guest ratings
           const ratingsRef = collection(db, 'teams', teamId, 'prompts', promptId, 'ratings');
           const ratingsSnap = await getDocs(ratingsRef);
           const guestRatingsCount = ratingsSnap.docs.filter(d => d.data().isGuest === true).length;
-          totalGuestRatings += guestRatingsCount;
 
-          // Count guest comments (real-time)
+          // Count guest comments
           const commentsRef = collection(db, 'teams', teamId, 'prompts', promptId, 'comments');
           const commentsSnap = await getDocs(commentsRef);
           const guestCommentsCount = commentsSnap.docs.filter(d => d.data().isGuest === true).length;
-          totalGuestComments += guestCommentsCount;
 
-          // ✅ FIXED: Get guest copies from stats (updates in real-time)
-          const guestCopiesCount = promptData.stats?.guestCopies || 0;
-          totalGuestCopies += guestCopiesCount;
-          
-          if (guestCopiesCount > 0) {
-            console.log('📊 [GUEST STATS] Prompt', promptId, 'has', guestCopiesCount, 'guest copies');
-          }
-        }
+          return {
+            copies: guestCopiesCount,
+            ratings: guestRatingsCount,
+            comments: guestCommentsCount,
+          };
+        });
 
-        console.log('📊 [GUEST STATS] Totals:', {
+        // Wait for all promises to resolve
+        const results = await Promise.all(promptPromises);
+        
+        // Aggregate all results
+        let totalGuestCopies = 0;
+        let totalGuestRatings = 0;
+        let totalGuestComments = 0;
+        
+        results.forEach(result => {
+          totalGuestCopies += result.copies;
+          totalGuestRatings += result.ratings;
+          totalGuestComments += result.comments;
+        });
+
+        console.log('📊 [GUEST STATS] Aggregated totals:', {
           ratings: totalGuestRatings,
           comments: totalGuestComments,
           copies: totalGuestCopies
@@ -402,18 +412,23 @@ function GuestAnalyticsCard({ teamId }) {
           guestRatings: totalGuestRatings,
           guestComments: totalGuestComments,
           guestCopies: totalGuestCopies,
-          guestViews: 0, // Can be calculated if tracked
+          guestViews: 0, // Can add view tracking if needed
           loading: false,
         });
       } catch (error) {
         console.error('❌ [GUEST STATS] Error loading guest stats:', error);
         setGuestStats(prev => ({ ...prev, loading: false }));
       }
+    }, (error) => {
+      // ✅ Added error handler for snapshot listener
+      console.error('❌ [GUEST STATS] Snapshot listener error:', error);
+      setGuestStats(prev => ({ ...prev, loading: false }));
     });
 
     return () => unsub();
   }, [teamId]);
 
+  // ✅ Rest of the component remains the same (rendering logic)
   if (guestStats.loading) {
     return (
       <div className="glass-card p-6">
