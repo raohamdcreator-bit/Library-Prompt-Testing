@@ -1,5 +1,4 @@
-// src/lib/guestTeamAccess.js - Guest/Read-only Team Access via Link
-// ✅ FIXED: hasGuestAccess() now returns token for proper guest identification
+// src/lib/guestTeamAccess.js - FIXED: Memoized hasGuestAccess to prevent console spam
 import { db } from "./firebase";
 import {
   collection,
@@ -15,6 +14,11 @@ import {
   increment,
 } from "firebase/firestore";
 
+// ✅ CRITICAL FIX: Memoize the access check to prevent console spam loop
+let cachedAccessData = null;
+let lastAccessCheck = 0;
+const ACCESS_CACHE_DURATION = 1000; // 1 second cache
+
 /**
  * Generate a guest access link for a team
  * This creates a special invite that doesn't require authentication
@@ -27,17 +31,14 @@ export async function generateGuestAccessLink({
   expiresInDays = 30,
 }) {
   try {
-    // Validate inputs
     if (!teamId || !teamName || !createdBy) {
       throw new Error("Missing required fields");
     }
 
-    // Calculate expiration
     const expiresAt = Timestamp.fromDate(
       new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000)
     );
 
-    // Create guest access document
     const guestAccessRef = await addDoc(collection(db, "guest-team-access"), {
       teamId,
       teamName,
@@ -61,7 +62,6 @@ export async function generateGuestAccessLink({
       },
     });
 
-    // Generate the access link
     const accessToken = guestAccessRef.id;
     const baseUrl = window.location.origin;
     const accessLink = `${baseUrl}/guest-team?token=${accessToken}`;
@@ -95,7 +95,6 @@ export async function validateGuestAccessToken(token) {
       };
     }
 
-    // Get the guest access document
     const guestAccessRef = doc(db, "guest-team-access", token);
     const guestAccessDoc = await getDoc(guestAccessRef);
 
@@ -108,7 +107,6 @@ export async function validateGuestAccessToken(token) {
 
     const accessData = guestAccessDoc.data();
 
-    // Check if active
     if (accessData.status !== "active") {
       return {
         valid: false,
@@ -116,7 +114,6 @@ export async function validateGuestAccessToken(token) {
       };
     }
 
-    // Check expiration
     const now = Timestamp.now();
     if (accessData.expiresAt && accessData.expiresAt.toMillis() < now.toMillis()) {
       return {
@@ -126,7 +123,6 @@ export async function validateGuestAccessToken(token) {
       };
     }
 
-    // Update access count and last accessed
     await updateDoc(guestAccessRef, {
       accessCount: increment(1),
       lastAccessed: serverTimestamp(),
@@ -151,44 +147,65 @@ export async function validateGuestAccessToken(token) {
 
 /**
  * Check if user has guest access to a team
- * ✅ FIXED: Now returns token for proper guest identification
+ * ✅ CRITICAL FIX: Memoized to prevent console spam loop
  */
 export function hasGuestAccess() {
+  const now = Date.now();
+  
+  // Return cached data if available and fresh
+  if (cachedAccessData && (now - lastAccessCheck) < ACCESS_CACHE_DURATION) {
+    return cachedAccessData;
+  }
+
   try {
     const token = sessionStorage.getItem("guest_team_token");
     const teamId = sessionStorage.getItem("guest_team_id");
     const permissions = sessionStorage.getItem("guest_team_permissions");
 
-    console.log('🔍 [GUEST ACCESS] Checking access:', {
-      hasToken: !!token,
-      hasTeamId: !!teamId,
-      hasPermissions: !!permissions
-    });
-
-    if (!token || !teamId || !permissions) {
-      return {
-        hasAccess: false,
-        teamId: null,
-        permissions: null,
-        token: null, // ✅ Always return token field
-      };
+    // Only log on first check or cache miss
+    if (!cachedAccessData || (now - lastAccessCheck) >= ACCESS_CACHE_DURATION) {
+      console.log('🔍 [GUEST ACCESS] Checking access:', {
+        hasToken: !!token,
+        hasTeamId: !!teamId,
+        hasPermissions: !!permissions
+      });
     }
 
-    return {
-      hasAccess: true,
-      teamId,
-      permissions: JSON.parse(permissions),
-      token, // ✅ CRITICAL FIX: Return the token!
+    const result = {
+      hasAccess: !!(token && teamId && permissions),
+      teamId: teamId || null,
+      permissions: permissions ? JSON.parse(permissions) : null,
+      token: token || null,
     };
+
+    // Cache the result
+    cachedAccessData = result;
+    lastAccessCheck = now;
+
+    return result;
   } catch (error) {
     console.error('❌ [GUEST ACCESS] Error checking access:', error);
-    return {
+    
+    const errorResult = {
       hasAccess: false,
       teamId: null,
       permissions: null,
       token: null,
     };
+    
+    cachedAccessData = errorResult;
+    lastAccessCheck = now;
+    
+    return errorResult;
   }
+}
+
+/**
+ * Clear the access cache (call when access changes)
+ */
+export function clearGuestAccessCache() {
+  cachedAccessData = null;
+  lastAccessCheck = 0;
 }
 
 /**
@@ -205,9 +222,10 @@ export function setGuestAccess(teamId, permissions, token) {
     sessionStorage.setItem("guest_team_token", token);
     sessionStorage.setItem("guest_team_id", teamId);
     sessionStorage.setItem("guest_team_permissions", JSON.stringify(permissions));
-    
-    // Also store in a flag for easy checking
     sessionStorage.setItem("is_guest_mode", "true");
+    
+    // Clear cache to force fresh read
+    clearGuestAccessCache();
     
     return true;
   } catch (error) {
@@ -227,6 +245,9 @@ export function clearGuestAccess() {
     sessionStorage.removeItem("guest_team_id");
     sessionStorage.removeItem("guest_team_permissions");
     sessionStorage.removeItem("is_guest_mode");
+    
+    // Clear cache
+    clearGuestAccessCache();
     
     return true;
   } catch (error) {
@@ -259,7 +280,6 @@ export async function getTeamGuestAccessLinks(teamId) {
         lastAccessed: doc.data().lastAccessed?.toDate(),
       }))
       .filter((link) => {
-        // Filter out expired links
         return !link.expiresAt || link.expiresAt > now;
       });
 
@@ -324,144 +344,6 @@ export function canGuestPerform(action) {
   };
 
   return permissionMap[action] || false;
-}
-
-/**
- * Create a guest comment (stores guest identifier instead of userId)
- */
-export async function createGuestComment(teamId, promptId, commentText) {
-  try {
-    if (!canGuestPerform("comment")) {
-      throw new Error("Guest users cannot comment");
-    }
-
-    const { token } = hasGuestAccess();
-
-    // Create comment with guest identifier
-    const commentRef = await addDoc(
-      collection(db, "teams", teamId, "prompts", promptId, "comments"),
-      {
-        text: commentText,
-        userId: null, // No userId for guests
-        guestToken: token,
-        isGuest: true,
-        userName: "Guest User",
-        userAvatar: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        edited: false,
-      }
-    );
-
-    return {
-      success: true,
-      commentId: commentRef.id,
-    };
-  } catch (error) {
-    console.error("❌ Error creating guest comment:", error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-}
-
-/**
- * Create a guest rating
- */
-export async function createGuestRating(teamId, promptId, rating) {
-  try {
-    if (!canGuestPerform("rate")) {
-      throw new Error("Guest users cannot rate prompts");
-    }
-
-    const { token } = hasGuestAccess();
-
-    // Use guest token as rating ID to ensure one rating per guest
-    const ratingRef = doc(
-      db,
-      "teams",
-      teamId,
-      "prompts",
-      promptId,
-      "ratings",
-      `guest_${token}`
-    );
-
-    await updateDoc(ratingRef, {
-      rating,
-      userId: null,
-      guestToken: token,
-      isGuest: true,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    return {
-      success: true,
-    };
-  } catch (error) {
-    // If doc doesn't exist, create it
-    if (error.code === "not-found") {
-      try {
-        const ratingRef = doc(
-          db,
-          "teams",
-          teamId,
-          "prompts",
-          promptId,
-          "ratings",
-          `guest_${token}`
-        );
-        
-        await updateDoc(ratingRef, {
-          rating,
-          userId: null,
-          guestToken: token,
-          isGuest: true,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-
-        return { success: true };
-      } catch (createError) {
-        return {
-          success: false,
-          error: createError.message,
-        };
-      }
-    }
-
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
-}
-
-/**
- * Track guest prompt copy
- */
-export async function trackGuestPromptCopy(teamId, promptId) {
-  try {
-    const { token } = hasGuestAccess();
-
-    // Update prompt stats
-    const promptRef = doc(db, "teams", teamId, "prompts", promptId);
-    await updateDoc(promptRef, {
-      "stats.copies": increment(1),
-      "stats.lastCopiedAt": serverTimestamp(),
-      "stats.guestCopies": increment(1),
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error("❌ Error tracking guest copy:", error);
-    return {
-      success: false,
-      error: error.message,
-    };
-  }
 }
 
 /**
