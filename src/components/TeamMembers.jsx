@@ -1,4 +1,4 @@
-// src/components/TeamMembers.jsx - Modernized with Professional Icons
+// src/components/TeamMembers.jsx - Updated: guest visitor count + leave team button
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -15,10 +15,11 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { cancelTeamInvite, deleteTeamInvite } from "../lib/inviteUtils";
+import { getGuestAccessStats } from "../lib/guestTeamAccess";
 import { 
   Users, Crown, Shield, User, Settings, Trash2, 
   Mail, Clock, Calendar, X, CheckCircle, XCircle, 
-  Info, AlertTriangle
+  Info, AlertTriangle, Eye, LogOut
 } from 'lucide-react';
 
 export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
@@ -27,6 +28,9 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
   const [pendingInvites, setPendingInvites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingActions, setProcessingActions] = useState(new Set());
+  const [guestStats, setGuestStats] = useState({ totalAccesses: 0 });
+  const [loadingGuestStats, setLoadingGuestStats] = useState(true);
+  const [isLeavingTeam, setIsLeavingTeam] = useState(false);
 
   useEffect(() => {
     if (!teamId || !teamData) {
@@ -76,6 +80,27 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
 
     loadMembers();
   }, [teamId, teamData]);
+
+  // Load guest visitor stats
+  useEffect(() => {
+    if (!teamId) return;
+
+    async function loadGuestStats() {
+      setLoadingGuestStats(true);
+      try {
+        const result = await getGuestAccessStats(teamId);
+        if (result.success) {
+          setGuestStats(result.stats);
+        }
+      } catch (error) {
+        console.error("Error loading guest stats:", error);
+      } finally {
+        setLoadingGuestStats(false);
+      }
+    }
+
+    loadGuestStats();
+  }, [teamId]);
 
   useEffect(() => {
     if (!teamId) return;
@@ -175,6 +200,35 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         newSet.delete(actionKey);
         return newSet;
       });
+    }
+  }
+
+  // Leave team handler (for non-owner members)
+  async function handleLeaveTeam() {
+    if (!user || userRole === "owner") return;
+
+    const confirmed = confirm(
+      `Leave "${teamName}"? You'll lose access to all team prompts and will need a new invite to rejoin.`
+    );
+    if (!confirmed) return;
+
+    setIsLeavingTeam(true);
+    try {
+      const teamRef = doc(db, "teams", teamId);
+      const teamDoc = await getDoc(teamRef);
+
+      if (teamDoc.exists()) {
+        const currentMembers = { ...teamDoc.data().members };
+        delete currentMembers[user.uid];
+        await updateDoc(teamRef, { members: currentMembers });
+      }
+
+      showNotification("You have left the team", "success");
+      // Page will naturally update as the team disappears from the user's list
+    } catch (error) {
+      console.error("Error leaving team:", error);
+      showNotification("Failed to leave team. Please try again.", "error");
+      setIsLeavingTeam(false);
     }
   }
 
@@ -386,28 +440,64 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     <div className="space-y-6">
       {/* Header */}
       <div className="glass-card p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: "var(--primary)" }}
-          >
-            <Users size={20} style={{ color: "var(--primary-foreground)" }} />
-          </div>
-          <div>
-            <h3
-              className="text-lg font-semibold"
-              style={{ color: "var(--foreground)" }}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{ backgroundColor: "var(--primary)" }}
             >
-              Team Members
-            </h3>
-            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-              Manage {teamName} team members and permissions
-            </p>
+              <Users size={20} style={{ color: "var(--primary-foreground)" }} />
+            </div>
+            <div>
+              <h3
+                className="text-lg font-semibold"
+                style={{ color: "var(--foreground)" }}
+              >
+                Team Members
+              </h3>
+              <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                Manage {teamName} team members and permissions
+              </p>
+            </div>
           </div>
+
+          {/* Leave Team Button — shown to non-owners only */}
+          {userRole !== "owner" && user && (
+            <button
+              onClick={handleLeaveTeam}
+              disabled={isLeavingTeam}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{
+                backgroundColor: "rgba(239, 68, 68, 0.1)",
+                color: "rgb(239, 68, 68)",
+                border: "1px solid rgba(239, 68, 68, 0.3)",
+                opacity: isLeavingTeam ? 0.6 : 1,
+                cursor: isLeavingTeam ? "not-allowed" : "pointer",
+              }}
+              onMouseEnter={(e) => {
+                if (!isLeavingTeam) {
+                  e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.2)";
+                  e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.5)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.1)";
+                e.currentTarget.style.borderColor = "rgba(239, 68, 68, 0.3)";
+              }}
+              title="Leave this team"
+            >
+              {isLeavingTeam ? (
+                <div className="neo-spinner w-4 h-4" />
+              ) : (
+                <LogOut size={16} />
+              )}
+              <span>{isLeavingTeam ? "Leaving..." : "Leave Team"}</span>
+            </button>
+          )}
         </div>
 
-        {/* Team Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        {/* Team Stats — now 4 tiles including Guest Visitors */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div
             className="text-center p-3 rounded-lg"
             style={{ backgroundColor: "var(--secondary)" }}
@@ -425,6 +515,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
               Total Members
             </div>
           </div>
+
           <div
             className="text-center p-3 rounded-lg"
             style={{ backgroundColor: "var(--secondary)" }}
@@ -442,6 +533,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
               Pending Invites
             </div>
           </div>
+
           <div
             className="text-center p-3 rounded-lg"
             style={{ backgroundColor: "var(--secondary)" }}
@@ -460,6 +552,33 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
               style={{ color: "var(--muted-foreground)" }}
             >
               Admins
+            </div>
+          </div>
+
+          {/* ✅ NEW: Guest Visitor Count */}
+          <div
+            className="text-center p-3 rounded-lg"
+            style={{
+              backgroundColor: "rgba(139, 92, 246, 0.08)",
+              border: "1px solid rgba(139, 92, 246, 0.15)",
+            }}
+          >
+            {loadingGuestStats ? (
+              <div className="neo-spinner w-4 h-4 mx-auto mb-1" />
+            ) : (
+              <div
+                className="text-lg font-bold flex items-center justify-center gap-1"
+                style={{ color: "var(--primary)" }}
+              >
+                <Eye size={14} />
+                {guestStats.totalAccesses ?? 0}
+              </div>
+            )}
+            <div
+              className="text-xs"
+              style={{ color: "var(--muted-foreground)" }}
+            >
+              Guest Visits
             </div>
           </div>
         </div>
