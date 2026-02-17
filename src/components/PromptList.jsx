@@ -1489,24 +1489,35 @@ async function handleCopy(text, promptId, isGuestUser = false) {
     await navigator.clipboard.writeText(text);
     showSuccessToast("Copied to clipboard!");
     
-    console.log('📋 [COPY] Copy initiated:', { promptId, isGuestMode, activeTeam });
+    console.log('📋 [COPY] Copy initiated:', { 
+      promptId, 
+      isGuestMode, 
+      activeTeam,
+      hasSessionToken: !!sessionStorage.getItem('guest_team_token')
+    });
     
-    // ✅ FIXED: Track copy for both guest-team users and authenticated users
+    // ✅ FIXED: Proper guest detection and copy tracking
     if (activeTeam) {
-      // For guest-team users accessing a real team
+      // Determine if this is a guest user by checking for guest team token
       const guestToken = sessionStorage.getItem('guest_team_token');
       const isGuest = !!guestToken;
       
       console.log('📋 [COPY] Tracking copy:', { 
         isGuest, 
-        guestToken: guestToken?.substring(0, 8),
-        activeTeam 
+        guestToken: guestToken ? guestToken.substring(0, 8) + '...' : 'none',
+        activeTeam: activeTeam.substring(0, 8) + '...'
       });
       
-      await trackPromptCopy(activeTeam, promptId, isGuest);
-      console.log('✅ [COPY] Copy tracked successfully');
+      try {
+        // ✅ Track the copy with proper guest flag
+        await trackPromptCopy(activeTeam, promptId, isGuest);
+        console.log('✅ [COPY] Copy tracked successfully');
+      } catch (trackError) {
+        console.error('❌ [COPY] Tracking failed:', trackError);
+        // Don't fail the copy operation if tracking fails
+      }
     } else if (isGuestMode) {
-      // For isGuestMode (local mode), no tracking needed
+      // For isGuestMode (local/demo mode), no tracking needed
       console.log('📋 [COPY] Local guest mode, no tracking');
     }
   } catch (error) { 
