@@ -1280,7 +1280,7 @@ export default function App() {
     guestState.clearGuestWork();
     setIsExploringAsGuest(false);
     
-    clearGuestAccessCache();
+    clearGuestAccess(true);   
     
     if (window.gtag) {
       window.gtag('event', 'guest_mode_exited', {
@@ -1300,8 +1300,7 @@ export default function App() {
   function handleExitGuestTeam() {
     console.log('🚪 [EXIT] Exiting guest team mode');
     
-    // ✅ Single call clears sessionStorage + in-memory backup
-    clearGuestAccess();
+    clearGuestAccess(true);
     
     setGuestTeamId(null);
     setGuestTeamPermissions(null);
