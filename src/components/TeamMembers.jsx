@@ -15,7 +15,6 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { cancelTeamInvite, deleteTeamInvite } from "../lib/inviteUtils";
-import { getGuestAccessStats } from "../lib/guestTeamAccess";
 import { 
   Users, Crown, Shield, User, Settings, Trash2, 
   Mail, Clock, Calendar, X, CheckCircle, XCircle, 
@@ -81,25 +80,37 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
     loadMembers();
   }, [teamId, teamData]);
 
-  // Load guest visitor stats
+  // ✅ FIX 2: Load guest visitor stats in real-time with onSnapshot
   useEffect(() => {
     if (!teamId) return;
 
-    async function loadGuestStats() {
-      setLoadingGuestStats(true);
-      try {
-        const result = await getGuestAccessStats(teamId);
-        if (result.success) {
-          setGuestStats(result.stats);
-        }
-      } catch (error) {
-        console.error("Error loading guest stats:", error);
-      } finally {
-        setLoadingGuestStats(false);
-      }
-    }
+    const q = query(
+      collection(db, "guest-team-access"),
+      where("teamId", "==", teamId)
+    );
 
-    loadGuestStats();
+    setLoadingGuestStats(true);
+
+    const unsub = onSnapshot(q, (snapshot) => {
+      let totalAccesses = 0;
+      const now = new Date();
+
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        // Only count active or non-expired links
+        if (data.status === "active") {
+          const expiresAt = data.expiresAt?.toDate();
+          if (!expiresAt || expiresAt > now) {
+            totalAccesses += data.accessCount || 0;
+          }
+        }
+      });
+
+      setGuestStats({ totalAccesses });
+      setLoadingGuestStats(false);
+    });
+
+    return () => unsub();
   }, [teamId]);
 
   useEffect(() => {
@@ -224,7 +235,12 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
       }
 
       showNotification("You have left the team", "success");
-      // Page will naturally update as the team disappears from the user's list
+      
+      // ✅ FIX: Navigate away immediately instead of waiting for App.jsx to detect the change
+      // Force a page reload to reset the app state cleanly
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 500);
     } catch (error) {
       console.error("Error leaving team:", error);
       showNotification("Failed to leave team. Please try again.", "error");
