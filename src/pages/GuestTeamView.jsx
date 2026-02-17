@@ -1,9 +1,12 @@
-// src/pages/GuestTeamView.jsx - FIXED: Ensure sessionStorage write completes before redirect
+// src/pages/GuestTeamView.jsx
+// FIX: Use setGuestAccess() (not raw sessionStorage calls) so the in-memory
+// backup in guestTeamAccess.js is populated at the same time.
+// When Firebase onAuthStateChanged fires with null it can clear sessionStorage;
+// the memory backup ensures getGuestToken() still returns the token.
 import { useEffect, useState } from "react";
 import {
   validateGuestAccessToken,
-  setGuestAccess,
-} from "../lib/guestTeamAccess";
+  setGuestAccess } from "../lib/guestTeamAccess";
 import {
   Loader2,
   CheckCircle2,
@@ -38,6 +41,7 @@ export default function GuestTeamView({ onNavigate }) {
     }
 
     validateAndRedirect();
+    
   }, [token]);
 
   async function validateAndRedirect() {
@@ -47,42 +51,58 @@ export default function GuestTeamView({ onNavigate }) {
 
       console.log("🔍 [GUEST TEAM VIEW] Validating token:", token);
 
-      // Validate the token
+      // Validate the token against Firestore
       const validation = await validateGuestAccessToken(token);
 
-      console.log("✅ [GUEST TEAM VIEW] Validation result:", validation);
+      console.log("✅ [GUEST TEAM VIEW] Validation result:", {
+        valid: validation.valid,
+        teamId: validation.teamId,
+        teamName: validation.teamName,
+      });
 
       if (!validation.valid) {
         throw new Error(validation.error || "Invalid access link");
       }
 
-      // ✅ CRITICAL FIX: Store guest access in session with EXPLICIT write
-      console.log("💾 [GUEST TEAM VIEW] Storing guest access in sessionStorage");
-      
-      // Store each item individually with verification
-      sessionStorage.setItem("guest_team_token", validation.token);
-      sessionStorage.setItem("guest_team_id", validation.teamId);
-      sessionStorage.setItem("guest_team_permissions", JSON.stringify(validation.permissions));
-      sessionStorage.setItem("is_guest_mode", "true");
-      
-      // ✅ VERIFY WRITE COMPLETED
-      const storedToken = sessionStorage.getItem("guest_team_token");
-      const storedTeamId = sessionStorage.getItem("guest_team_id");
-      const storedPermissions = sessionStorage.getItem("guest_team_permissions");
-      
-      console.log("✅ [GUEST TEAM VIEW] Verification - Data stored:", {
-        token: storedToken ? "✓" : "✗",
-        teamId: storedTeamId ? "✓" : "✗",
-        permissions: storedPermissions ? "✓" : "✗",
+      // ─────────────────────────────────────────────────────────────────
+      // CRITICAL FIX: call setGuestAccess() instead of writing raw
+      // sessionStorage entries.  setGuestAccess() writes BOTH
+      // sessionStorage AND the module-level memory variables
+      // (_memoryToken / _memoryTeamId / _memoryPermissions) so the token
+      // survives the Firebase auth-state-changed event that fires
+      // immediately after page load and can clear sessionStorage.
+      // ─────────────────────────────────────────────────────────────────
+      console.log("💾 [GUEST TEAM VIEW] Storing guest access via setGuestAccess()");
+
+      const stored = setGuestAccess(
+        validation.teamId,
+        validation.permissions,
+        validation.token
+      );
+
+      if (!stored) {
+        console.error("❌ [GUEST TEAM VIEW] setGuestAccess() returned false");
+        throw new Error("Failed to store guest session — please try again");
+      }
+
+      // Verify the write succeeded (belt-and-suspenders)
+      const verifyToken      = sessionStorage.getItem("guest_team_token");
+      const verifyTeamId     = sessionStorage.getItem("guest_team_id");
+      const verifyPermissions = sessionStorage.getItem("guest_team_permissions");
+
+      console.log("✅ [GUEST TEAM VIEW] Verification — sessionStorage written:", {
+        token:       verifyToken       ? "✓" : "✗",
+        teamId:      verifyTeamId      ? "✓" : "✗",
+        permissions: verifyPermissions ? "✓" : "✗",
       });
 
-      // Store team data for display
+      // Populate local state for the success UI
       setTeamData({
-        teamId: validation.teamId,
-        teamName: validation.teamName,
+        teamId:      validation.teamId,
+        teamName:    validation.teamName,
         permissions: validation.permissions,
-        expiresAt: validation.expiresAt,
-        token: validation.token,
+        expiresAt:   validation.expiresAt,
+        token:       validation.token,
       });
 
       setStatus("success");
@@ -91,18 +111,19 @@ export default function GuestTeamView({ onNavigate }) {
       // Track in GA4
       if (window.gtag) {
         window.gtag("event", "guest_team_access", {
-          team_id: validation.teamId,
+          team_id:   validation.teamId,
           team_name: validation.teamName,
         });
       }
 
-      // ✅ CRITICAL FIX: Use longer delay to ensure storage write completes
-      console.log("⏰ [GUEST TEAM VIEW] Starting redirect countdown (3 seconds)...");
-      
+      // Give the browser a tick to paint the success UI, then redirect.
+      // 3 s is enough; the memory backup means the token is safe even if
+      // sessionStorage gets flushed during the redirect.
+      console.log("⏰ [GUEST TEAM VIEW] Redirecting in 3 s …");
       setTimeout(() => {
-        console.log("🚀 [GUEST TEAM VIEW] Redirecting to home...");
-        
-        // ✅ FIXED: Always use full page reload to ensure App.jsx reinitializes
+        console.log("🚀 [GUEST TEAM VIEW] Redirecting to home …");
+        // Full page reload so App.jsx re-runs its useState initialiser
+        // which calls hasGuestAccess() and detects the stored token.
         window.location.href = "/";
       }, 3000);
 
@@ -131,7 +152,7 @@ export default function GuestTeamView({ onNavigate }) {
   }
 
   function handleSignUp() {
-    console.log("📝 [GUEST TEAM VIEW] Redirecting to signup...");
+    console.log("📝 [GUEST TEAM VIEW] Redirecting to signup…");
     if (onNavigate) {
       onNavigate("/");
     } else {
@@ -141,40 +162,28 @@ export default function GuestTeamView({ onNavigate }) {
 
   const getStatusColor = () => {
     switch (status) {
-      case "loading":
-        return "text-blue-600 dark:text-blue-400";
-      case "success":
-        return "text-green-600 dark:text-green-400";
-      case "error":
-        return "text-red-600 dark:text-red-400";
-      default:
-        return "text-gray-600 dark:text-gray-400";
+      case "loading": return "text-blue-600 dark:text-blue-400";
+      case "success": return "text-green-600 dark:text-green-400";
+      case "error":   return "text-red-600 dark:text-red-400";
+      default:        return "text-gray-600 dark:text-gray-400";
     }
   };
 
   const getStatusIcon = () => {
     switch (status) {
-      case "loading":
-        return <Loader2 className="w-12 h-12 animate-spin" />;
-      case "success":
-        return <CheckCircle2 className="w-12 h-12" />;
-      case "error":
-        return <XCircle className="w-12 h-12" />;
-      default:
-        return <Eye className="w-12 h-12" />;
+      case "loading": return <Loader2 className="w-12 h-12 animate-spin" />;
+      case "success": return <CheckCircle2 className="w-12 h-12" />;
+      case "error":   return <XCircle className="w-12 h-12" />;
+      default:        return <Eye className="w-12 h-12" />;
     }
   };
 
   const getTitle = () => {
     switch (status) {
-      case "loading":
-        return "Validating Access";
-      case "success":
-        return "Access Granted!";
-      case "error":
-        return "Access Denied";
-      default:
-        return "Team Access";
+      case "loading": return "Validating Access";
+      case "success": return "Access Granted!";
+      case "error":   return "Access Denied";
+      default:        return "Team Access";
     }
   };
 
@@ -201,7 +210,7 @@ export default function GuestTeamView({ onNavigate }) {
           {/* Message */}
           <p className={`mb-6 ${getStatusColor()}`}>{message}</p>
 
-          {/* Success State - Show Access Details */}
+          {/* Success State — Access Details */}
           {status === "success" && teamData && (
             <>
               <div
@@ -214,10 +223,7 @@ export default function GuestTeamView({ onNavigate }) {
                 <div className="space-y-3">
                   {/* Team Name */}
                   <div className="flex items-center justify-center gap-2 mb-3">
-                    <Users
-                      className="w-5 h-5"
-                      style={{ color: "var(--primary)" }}
-                    />
+                    <Users className="w-5 h-5" style={{ color: "var(--primary)" }} />
                     <span
                       className="text-lg font-semibold"
                       style={{ color: "var(--foreground)" }}
@@ -258,9 +264,7 @@ export default function GuestTeamView({ onNavigate }) {
                         style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
                       >
                         <CheckCircle2 className="w-3 h-3 text-green-500" />
-                        <span style={{ color: "var(--foreground)" }}>
-                          View prompts
-                        </span>
+                        <span style={{ color: "var(--foreground)" }}>View prompts</span>
                       </div>
 
                       <div
@@ -268,9 +272,7 @@ export default function GuestTeamView({ onNavigate }) {
                         style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
                       >
                         <Copy className="w-3 h-3 text-green-500" />
-                        <span style={{ color: "var(--foreground)" }}>
-                          Copy prompts
-                        </span>
+                        <span style={{ color: "var(--foreground)" }}>Copy prompts</span>
                       </div>
 
                       <div
@@ -286,9 +288,7 @@ export default function GuestTeamView({ onNavigate }) {
                         style={{ backgroundColor: "rgba(34, 197, 94, 0.1)" }}
                       >
                         <Star className="w-3 h-3 text-green-500" />
-                        <span style={{ color: "var(--foreground)" }}>
-                          Rate prompts
-                        </span>
+                        <span style={{ color: "var(--foreground)" }}>Rate prompts</span>
                       </div>
 
                       <div
@@ -324,15 +324,21 @@ export default function GuestTeamView({ onNavigate }) {
 
               {/* Redirecting indicator */}
               <div className="flex items-center justify-center gap-2 mb-4">
-                <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--primary)" }} />
-                <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                  Redirecting to team workspace...
+                <Loader2
+                  className="w-4 h-4 animate-spin"
+                  style={{ color: "var(--primary)" }}
+                />
+                <span
+                  className="text-sm"
+                  style={{ color: "var(--muted-foreground)" }}
+                >
+                  Redirecting to team workspace…
                 </span>
               </div>
             </>
           )}
 
-          {/* Success State - Upgrade CTA */}
+          {/* Success State — Upgrade CTA */}
           {status === "success" && (
             <div
               className="p-4 rounded-lg"
@@ -372,7 +378,7 @@ export default function GuestTeamView({ onNavigate }) {
             </div>
           )}
 
-          {/* Error State - Action Buttons */}
+          {/* Error State — Action Buttons */}
           {status === "error" && (
             <div className="space-y-3">
               <div
@@ -422,7 +428,7 @@ export default function GuestTeamView({ onNavigate }) {
                 style={{ color: "var(--muted-foreground)" }}
               >
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="text-sm">Please wait...</span>
+                <span className="text-sm">Please wait…</span>
               </div>
             </div>
           )}
@@ -438,12 +444,15 @@ export default function GuestTeamView({ onNavigate }) {
             >
               <div className="font-semibold mb-1">Debug Info:</div>
               <div>Status: {status}</div>
-              <div>Token: {token ? token.substring(0, 8) + "..." : "None"}</div>
+              <div>Token: {token ? token.substring(0, 8) + "…" : "None"}</div>
               {teamData && (
                 <>
                   <div>Team: {teamData.teamName}</div>
                   <div>Team ID: {teamData.teamId}</div>
-                  <div>Session Storage: {sessionStorage.getItem('guest_team_token') ? '✅ Set' : '❌ Not Set'}</div>
+                  <div>
+                    sessionStorage token:{" "}
+                    {sessionStorage.getItem("guest_team_token") ? "✅ Set" : "❌ Not Set"}
+                  </div>
                 </>
               )}
             </div>
