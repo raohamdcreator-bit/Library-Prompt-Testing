@@ -1,250 +1,166 @@
-// src/lib/promptStats.js - FIXED: Proper guest copy tracking
-import { db } from './firebase';
-import { doc, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
-import { getGuestToken } from './guestToken';
+// src/lib/prompts.js - FIXED: Added guest mode support
+import { db } from "./firebase";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  doc,
+  updateDoc,
+  deleteDoc,
+  setDoc,
+  deleteDoc as fbDeleteDoc,
+} from "firebase/firestore";
+import { getInitialStats } from "./promptStats";
+import { guestState } from "./guestState";  // ✅ ADD THIS
 
 /**
- * Get initial stats structure for a new prompt
+ * Save new prompt with visibility control
+ * ✅ FIXED: Added guest mode support
  */
-export function getInitialStats() {
-  return {
-    views: 0,
-    copies: 0,
-    guestCopies: 0, // ✅ Track guest copies separately
-    comments: 0,
-    ratings: {
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 0,
-      5: 0,
-    },
-    totalRatings: 0,
-    averageRating: 0,
-    lastViewed: null,
-    lastCopied: null,
-    lastRated: null,
-  };
-}
-
-/**
- * Track when a prompt is copied
- * ✅ FIXED: Properly tracks guest copies with token verification
- */
-export async function trackPromptCopy(teamId, promptId, isGuest = false) {
-  try {
-    console.log('📋 [COPY TRACKING] Starting:', { teamId, promptId, isGuest });
+export async function savePrompt(userId, prompt, teamId) {
+  // ✅ GUEST MODE: Save to sessionStorage
+  if (userId === 'guest' || !userId) {
+    const { title, text, tags, visibility = "public" } = prompt;
     
-    if (!teamId || !promptId) {
-      console.error('❌ [COPY TRACKING] Missing teamId or promptId');
-      return { success: false, error: 'Missing required parameters' };
-    }
-
-    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
-    
-    // ✅ CRITICAL: Build update object based on user type
-    const updateData = {
-      'stats.copies': increment(1),
-      'stats.lastCopied': serverTimestamp(),
+    const guestPrompt = {
+      title: title || "",
+      text: text || "",
+      tags: Array.isArray(tags) ? tags : [],
+      visibility: visibility,
+      owner: 'guest',
+      isGuest: true,
     };
     
-    // ✅ Track guest copies separately
-    if (isGuest) {
-      const guestToken = getGuestToken();
-      console.log('📋 [COPY TRACKING] Guest copy detected, token:', guestToken ? 'present' : 'missing');
-      
-      if (!guestToken) {
-        console.error('❌ [COPY TRACKING] Guest token not found');
-        // Still track the copy, but don't increment guest counter
-      } else {
-        updateData['stats.guestCopies'] = increment(1);
-        console.log('✅ [COPY TRACKING] Incrementing guestCopies counter');
-      }
-    }
-
-    await updateDoc(promptRef, updateData);
-    
-    console.log('✅ [COPY TRACKING] Copy tracked successfully');
-    return { success: true };
-  } catch (error) {
-    console.error('❌ [COPY TRACKING] Error:', error);
-    
-    // Handle case where stats field doesn't exist yet
-    if (error.code === 'not-found') {
-      try {
-        const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
-        const promptSnap = await getDoc(promptRef);
-        
-        if (promptSnap.exists()) {
-          const stats = promptSnap.data().stats || getInitialStats();
-          stats.copies = (stats.copies || 0) + 1;
-          stats.lastCopied = new Date();
-          
-          if (isGuest) {
-            stats.guestCopies = (stats.guestCopies || 0) + 1;
-          }
-          
-          await updateDoc(promptRef, { stats });
-          console.log('✅ [COPY TRACKING] Stats initialized and copy tracked');
-          return { success: true };
-        }
-      } catch (retryError) {
-        console.error('❌ [COPY TRACKING] Retry failed:', retryError);
-        return { success: false, error: retryError.message };
-      }
-    }
-    
-    return { success: false, error: error.message };
+    return guestState.addPrompt(guestPrompt);
   }
+  
+  // ✅ AUTHENTICATED: Save to Firestore
+  if (!teamId) throw new Error("No team selected");
+
+  const { title, text, tags, visibility = "public" } = prompt;
+
+  await addDoc(collection(db, "teams", teamId, "prompts"), {
+    title: title || "",
+    text: text || "",
+    tags: Array.isArray(tags) ? tags : [],
+    visibility: visibility,
+    createdAt: serverTimestamp(),
+    createdBy: userId,
+    stats: getInitialStats(),  
+  });
 }
 
 /**
- * Track when a prompt is viewed
+ * Update existing prompt
+ * ✅ FIXED: Added guest mode support
  */
-export async function trackPromptView(teamId, promptId) {
-  try {
-    if (!teamId || !promptId) {
-      return { success: false, error: 'Missing required parameters' };
-    }
-
-    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
-    
-    await updateDoc(promptRef, {
-      'stats.views': increment(1),
-      'stats.lastViewed': serverTimestamp(),
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error tracking view:', error);
-    return { success: false, error: error.message };
+export async function updatePrompt(teamId, promptId, updates) {
+  // ✅ GUEST MODE: Update in guestState
+  if (!teamId || teamId === null) {
+    return guestState.updatePrompt(promptId, updates);
   }
+  
+  // ✅ AUTHENTICATED: Update in Firestore
+  const ref = doc(db, "teams", teamId, "prompts", promptId);
+  const { id, teamId: tid, createdAt, createdBy, ...allowedUpdates } = updates;
+  await updateDoc(ref, allowedUpdates);
 }
 
 /**
- * Update comment count when comments are added/removed
+ * Toggle prompt visibility between public and private
  */
-export async function updateCommentCount(teamId, promptId, delta = 1) {
-  try {
-    if (!teamId || !promptId) {
-      return { success: false, error: 'Missing required parameters' };
-    }
-
-    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
-    
-    await updateDoc(promptRef, {
-      'stats.comments': increment(delta),
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error updating comment count:', error);
-    return { success: false, error: error.message };
-  }
+export async function togglePromptVisibility(teamId, promptId, currentVisibility) {
+  const ref = doc(db, "teams", teamId, "prompts", promptId);
+  const newVisibility = currentVisibility === "public" ? "private" : "public";
+  
+  await updateDoc(ref, {
+    visibility: newVisibility,
+    lastVisibilityChange: serverTimestamp(),
+  });
+  
+  return newVisibility;
 }
 
 /**
- * Recalculate rating statistics
- * This should be called when ratings are added/removed/updated
+ * Check if user can view a prompt based on visibility rules
  */
-export async function recalculateRatingStats(teamId, promptId, ratings) {
-  try {
-    if (!teamId || !promptId || !ratings) {
-      return { success: false, error: 'Missing required parameters' };
+export function canViewPrompt(prompt, userId, userRole) {
+  // Public prompts are visible to all team members
+  if (prompt.visibility === "public" || !prompt.visibility) {
+    return true;
+  }
+
+  // Private prompts visibility rules
+  if (prompt.visibility === "private") {
+    if (prompt.createdBy === userId) {
+      return true;
     }
 
-    const ratingCounts = {
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 0,
-      5: 0,
-    };
+    if (userRole === "admin" || userRole === "owner") {
+      return true;
+    }
 
-    let totalRatings = 0;
-    let totalScore = 0;
-
-    // Count each rating value
-    ratings.forEach((rating) => {
-      const value = rating.rating;
-      if (value >= 1 && value <= 5) {
-        ratingCounts[value]++;
-        totalRatings++;
-        totalScore += value;
-      }
-    });
-
-    const averageRating = totalRatings > 0 ? totalScore / totalRatings : 0;
-
-    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
-    
-    await updateDoc(promptRef, {
-      'stats.ratings': ratingCounts,
-      'stats.totalRatings': totalRatings,
-      'stats.averageRating': averageRating,
-      'stats.lastRated': serverTimestamp(),
-    });
-
-    return {
-      success: true,
-      stats: {
-        ratingCounts,
-        totalRatings,
-        averageRating,
-      },
-    };
-  } catch (error) {
-    console.error('Error recalculating rating stats:', error);
-    return { success: false, error: error.message };
+    return false;
   }
+
+  return true;
 }
 
 /**
- * Get prompt statistics
+ * Check if user can edit a prompt's visibility
  */
-export async function getPromptStats(teamId, promptId) {
-  try {
-    if (!teamId || !promptId) {
-      return { success: false, error: 'Missing required parameters' };
-    }
-
-    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
-    const promptSnap = await getDoc(promptRef);
-
-    if (!promptSnap.exists()) {
-      return { success: false, error: 'Prompt not found' };
-    }
-
-    const stats = promptSnap.data().stats || getInitialStats();
-
-    return {
-      success: true,
-      stats,
-    };
-  } catch (error) {
-    console.error('Error getting prompt stats:', error);
-    return { success: false, error: error.message };
+export function canChangeVisibility(prompt, userId, userRole) {
+  if (prompt.createdBy === userId) {
+    return true;
   }
+
+  if (userRole === "admin" || userRole === "owner") {
+    return true;
+  }
+
+  return false;
 }
 
 /**
- * Reset all stats for a prompt (admin function)
+ * Filter prompts based on visibility permissions
  */
-export async function resetPromptStats(teamId, promptId) {
-  try {
-    if (!teamId || !promptId) {
-      return { success: false, error: 'Missing required parameters' };
-    }
+export function filterVisiblePrompts(prompts, userId, userRole) {
+  return prompts.filter(prompt => canViewPrompt(prompt, userId, userRole));
+}
 
-    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
-    
-    await updateDoc(promptRef, {
-      stats: getInitialStats(),
+/**
+ * Delete prompt
+ * ✅ FIXED: Added guest mode support
+ */
+export async function deletePrompt(teamId, promptId) {
+  // ✅ GUEST MODE: Delete from guestState (not needed, handled elsewhere)
+  if (!teamId || teamId === null) {
+    // Guest deletion handled in PromptList via deleteDemoPrompt
+    return;
+  }
+  
+  // ✅ AUTHENTICATED: Delete from Firestore
+  const ref = doc(db, "teams", teamId, "prompts", promptId);
+  await deleteDoc(ref);
+}
+
+/**
+ * Toggle Favorite
+ */
+export async function toggleFavorite(userId, prompt, isFav) {
+  const favRef = doc(db, "users", userId, "favorites", prompt.id);
+
+  if (isFav) {
+    await fbDeleteDoc(favRef);
+  } else {
+    await setDoc(favRef, {
+      teamId: prompt.teamId,
+      promptId: prompt.id,
+      title: prompt.title,
+      text: prompt.text,
+      tags: prompt.tags || [],
+      visibility: prompt.visibility || "public",
+      createdAt: serverTimestamp(),
     });
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error resetting prompt stats:', error);
-    return { success: false, error: error.message };
   }
 }
