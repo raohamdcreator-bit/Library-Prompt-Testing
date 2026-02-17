@@ -8,7 +8,7 @@ import {
   useRef,
 } from "react";
 import { useAuth } from "./AuthContext";
-import { hasGuestAccess } from "../lib/guestTeamAccess"; // ✅ Import guest access checker
+import { hasGuestAccess } from "../lib/guestTeamAccess";
 
 const AppStateContext = createContext({});
 
@@ -20,11 +20,20 @@ export function useAppState() {
   return context;
 }
 
-/**
- * Secure state management provider
- * Replaces localStorage with sessionStorage and encrypted persistence
- * ✅ FIXED: Preserves guest team state
- */
+// ─── Guest session keys that must never be wiped ──────────────────────────────
+const GUEST_KEYS = [
+  "guest_team_token",
+  "guest_team_id",
+  "guest_team_permissions",
+  "is_guest_mode",
+  "pending_guest_restore",
+];
+
+function removeNonGuestSessionData() {
+  // Remove only app_state; leave guest keys untouched
+  sessionStorage.removeItem("app_state");
+}
+
 export function AppStateProvider({ children }) {
   const { user } = useAuth();
   const [activeTeam, setActiveTeam] = useState(null);
@@ -36,42 +45,31 @@ export function AppStateProvider({ children }) {
   });
   const [loading, setLoading] = useState(true);
 
-  // Use ref to track if we should save (prevents save loops)
   const saveTimerRef = useRef(null);
   const initialLoadRef = useRef(true);
-  
-  // ✅ Check if we're in guest mode
+
   const guestAccess = hasGuestAccess();
   const isGuestMode = guestAccess.hasAccess;
 
-  // Load state on mount (from sessionStorage only)
   useEffect(() => {
     loadStateFromSession();
   }, []);
 
-  // Save state when it changes (debounced to prevent loops)
   useEffect(() => {
-    // Skip saving during initial load
     if (initialLoadRef.current) {
       initialLoadRef.current = false;
       return;
     }
 
-    // Clear existing timer
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
     }
 
-    // Debounce saves to prevent rapid updates
     saveTimerRef.current = setTimeout(() => {
       if (user || isGuestMode) {
-        // ✅ FIXED: Save state for authenticated users OR guest users
         saveStateToSession();
       } else {
-        // ✅ FIXED: Only clear if NOT in guest mode
-        if (!isGuestMode) {
-          clearState();
-        }
+        clearState();
       }
     }, 100);
 
@@ -82,60 +80,42 @@ export function AppStateProvider({ children }) {
     };
   }, [user, activeTeam, preferences, isGuestMode]);
 
-  /**
-   * Load state from sessionStorage (more secure than localStorage)
-   * Session data is cleared when browser/tab closes
-   */
   function loadStateFromSession() {
     try {
       const savedState = sessionStorage.getItem("app_state");
       if (savedState) {
         const parsed = JSON.parse(savedState);
-
-        // Validate and restore state
-        if (parsed.activeTeam) {
-          setActiveTeam(parsed.activeTeam);
-        }
-
-        if (parsed.preferences) {
-          setPreferences((prev) => ({ ...prev, ...parsed.preferences }));
-        }
+        if (parsed.activeTeam) setActiveTeam(parsed.activeTeam);
+        if (parsed.preferences) setPreferences((prev) => ({ ...prev, ...parsed.preferences }));
       }
     } catch (error) {
       console.error("Error loading state from session:", error);
-      // Clear corrupted data
       sessionStorage.removeItem("app_state");
     } finally {
       setLoading(false);
     }
   }
 
-  /**
-   * Save state to sessionStorage
-   * Only non-sensitive UI preferences are stored
-   */
   function saveStateToSession() {
     try {
-      const stateToSave = {
-        activeTeam,
-        preferences,
-        timestamp: Date.now(),
-      };
-
-      sessionStorage.setItem("app_state", JSON.stringify(stateToSave));
+      sessionStorage.setItem(
+        "app_state",
+        JSON.stringify({ activeTeam, preferences, timestamp: Date.now() })
+      );
     } catch (error) {
       console.error("Error saving state to session:", error);
-      // Handle quota exceeded errors gracefully
       if (error.name === "QuotaExceededError") {
-        console.warn("Session storage quota exceeded, clearing old data");
-        sessionStorage.clear();
+        console.warn("Session storage quota exceeded");
+        // Only remove app_state, not guest keys
+        removeNonGuestSessionData();
       }
     }
   }
 
   /**
-   * Clear all state (on logout)
-   * ✅ FIXED: Don't clear guest team access data
+   * Clear app state on logout.
+   * Only removes "app_state" — guest session keys are never touched here.
+   * AuthContext.clearSessionStorageSafely() handles the full clear safely.
    */
   const clearState = useCallback(() => {
     setActiveTeam(null);
@@ -145,62 +125,27 @@ export function AppStateProvider({ children }) {
       sortOrder: "newest",
       notifications: true,
     });
-
-    // Clear session storage (but preserve guest team access)
-    try {
-      // Save guest team data if present
-      const guestToken = sessionStorage.getItem("guest_team_token");
-      const guestTeamId = sessionStorage.getItem("guest_team_id");
-      const guestPermissions = sessionStorage.getItem("guest_team_permissions");
-      const isGuestMode = sessionStorage.getItem("is_guest_mode");
-      
-      sessionStorage.removeItem("app_state");
-      
-      // Restore guest data if it existed
-      if (guestToken) sessionStorage.setItem("guest_team_token", guestToken);
-      if (guestTeamId) sessionStorage.setItem("guest_team_id", guestTeamId);
-      if (guestPermissions) sessionStorage.setItem("guest_team_permissions", guestPermissions);
-      if (isGuestMode) sessionStorage.setItem("is_guest_mode", isGuestMode);
-    } catch (error) {
-      console.error("Error clearing state:", error);
-    }
+    removeNonGuestSessionData();
   }, []);
 
-  /**
-   * Update active team (with validation)
-   * ✅ FIXED: Allow setting team in guest mode
-   */
   const updateActiveTeam = useCallback((teamId) => {
-    // Allow null to clear active team
     if (teamId === null) {
       setActiveTeam(null);
       return true;
     }
-
-    // Validate non-null teamId
     if (!teamId || typeof teamId !== "string") {
       console.warn("Invalid team ID:", teamId);
       return false;
     }
-
-    console.log('📝 [CONTEXT] Updating active team:', teamId);
+    console.log("📝 [CONTEXT] Updating active team:", teamId);
     setActiveTeam(teamId);
     return true;
   }, []);
 
-  /**
-   * Update user preferences
-   */
   const updatePreferences = useCallback((newPreferences) => {
-    setPreferences((prev) => ({
-      ...prev,
-      ...newPreferences,
-    }));
+    setPreferences((prev) => ({ ...prev, ...newPreferences }));
   }, []);
 
-  /**
-   * Reset to default preferences
-   */
   const resetPreferences = useCallback(() => {
     setPreferences({
       theme: "dark",
@@ -211,18 +156,13 @@ export function AppStateProvider({ children }) {
   }, []);
 
   const value = {
-    // State
     activeTeam,
     preferences,
     loading,
-
-    // Actions
     updateActiveTeam,
     updatePreferences,
     resetPreferences,
     clearState,
-
-    // Helpers
     hasActiveTeam: !!activeTeam,
   };
 
@@ -233,51 +173,31 @@ export function AppStateProvider({ children }) {
   );
 }
 
-/**
- * Hook for active team management
- */
 export function useActiveTeam() {
   const { activeTeam, updateActiveTeam, hasActiveTeam } = useAppState();
   return { activeTeam, setActiveTeam: updateActiveTeam, hasActiveTeam };
 }
 
-/**
- * Hook for user preferences
- */
 export function usePreferences() {
   const { preferences, updatePreferences, resetPreferences } = useAppState();
   return { preferences, updatePreferences, resetPreferences };
 }
 
-/**
- * Secure storage utility (for IndexedDB - more secure for sensitive data)
- */
-export const SecureStorage = {
-  /**
-   * Check if IndexedDB is available
-   */
-  isAvailable() {
-    return typeof indexedDB !== "undefined";
-  },
+// ─── SecureStorage, MemoryStorage, SmartStorage — unchanged ──────────────────
 
-  /**
-   * Open IndexedDB connection
-   */
+export const SecureStorage = {
+  isAvailable() { return typeof indexedDB !== "undefined"; },
+
   async openDB() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open("PromptTeamsDB", 1);
-
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result);
-
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
-
-        // Create object stores if they don't exist
         if (!db.objectStoreNames.contains("userSettings")) {
           db.createObjectStore("userSettings", { keyPath: "id" });
         }
-
         if (!db.objectStoreNames.contains("tempData")) {
           db.createObjectStore("tempData", { keyPath: "id" });
         }
@@ -285,282 +205,127 @@ export const SecureStorage = {
     });
   },
 
-  /**
-   * Store data securely in IndexedDB
-   */
   async setItem(key, value, storeName = "userSettings") {
     try {
       const db = await this.openDB();
-      const transaction = db.transaction([storeName], "readwrite");
-      const store = transaction.objectStore(storeName);
-
-      const data = {
-        id: key,
-        value: value,
-        timestamp: Date.now(),
-      };
-
+      const tx = db.transaction([storeName], "readwrite");
+      const store = tx.objectStore(storeName);
       return new Promise((resolve, reject) => {
-        const request = store.put(data);
-        request.onsuccess = () => resolve(true);
-        request.onerror = () => reject(request.error);
+        const req = store.put({ id: key, value, timestamp: Date.now() });
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject(req.error);
       });
-    } catch (error) {
-      console.error("SecureStorage.setItem error:", error);
-      return false;
-    }
+    } catch (e) { console.error("SecureStorage.setItem error:", e); return false; }
   },
 
-  /**
-   * Retrieve data from IndexedDB
-   */
   async getItem(key, storeName = "userSettings") {
     try {
       const db = await this.openDB();
-      const transaction = db.transaction([storeName], "readonly");
-      const store = transaction.objectStore(storeName);
-
+      const tx = db.transaction([storeName], "readonly");
+      const store = tx.objectStore(storeName);
       return new Promise((resolve, reject) => {
-        const request = store.get(key);
-        request.onsuccess = () => {
-          const result = request.result;
-          resolve(result ? result.value : null);
-        };
-        request.onerror = () => reject(request.error);
+        const req = store.get(key);
+        req.onsuccess = () => resolve(req.result ? req.result.value : null);
+        req.onerror = () => reject(req.error);
       });
-    } catch (error) {
-      console.error("SecureStorage.getItem error:", error);
-      return null;
-    }
+    } catch (e) { console.error("SecureStorage.getItem error:", e); return null; }
   },
 
-  /**
-   * Remove data from IndexedDB
-   */
   async removeItem(key, storeName = "userSettings") {
     try {
       const db = await this.openDB();
-      const transaction = db.transaction([storeName], "readwrite");
-      const store = transaction.objectStore(storeName);
-
+      const tx = db.transaction([storeName], "readwrite");
+      const store = tx.objectStore(storeName);
       return new Promise((resolve, reject) => {
-        const request = store.delete(key);
-        request.onsuccess = () => resolve(true);
-        request.onerror = () => reject(request.error);
+        const req = store.delete(key);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject(req.error);
       });
-    } catch (error) {
-      console.error("SecureStorage.removeItem error:", error);
-      return false;
-    }
+    } catch (e) { console.error("SecureStorage.removeItem error:", e); return false; }
   },
 
-  /**
-   * Clear all data from a store
-   */
   async clear(storeName = "userSettings") {
     try {
       const db = await this.openDB();
-      const transaction = db.transaction([storeName], "readwrite");
-      const store = transaction.objectStore(storeName);
-
+      const tx = db.transaction([storeName], "readwrite");
+      const store = tx.objectStore(storeName);
       return new Promise((resolve, reject) => {
-        const request = store.clear();
-        request.onsuccess = () => resolve(true);
-        request.onerror = () => reject(request.error);
+        const req = store.clear();
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject(req.error);
       });
-    } catch (error) {
-      console.error("SecureStorage.clear error:", error);
-      return false;
-    }
+    } catch (e) { console.error("SecureStorage.clear error:", e); return false; }
   },
 
-  /**
-   * Clear all stores on logout
-   */
   async clearAll() {
     await this.clear("userSettings");
     await this.clear("tempData");
   },
 };
 
-/**
- * Memory-only storage (most secure - cleared on page refresh)
- */
 export class MemoryStorage {
-  constructor() {
-    this.storage = new Map();
-  }
-
-  setItem(key, value) {
-    this.storage.set(key, {
-      value,
-      timestamp: Date.now(),
-    });
-  }
-
-  getItem(key) {
-    const item = this.storage.get(key);
-    return item ? item.value : null;
-  }
-
-  removeItem(key) {
-    this.storage.delete(key);
-  }
-
-  clear() {
-    this.storage.clear();
-  }
-
-  has(key) {
-    return this.storage.has(key);
-  }
-
-  keys() {
-    return Array.from(this.storage.keys());
-  }
-
-  size() {
-    return this.storage.size;
-  }
-
-  // Auto-cleanup old entries (optional)
+  constructor() { this.storage = new Map(); }
+  setItem(key, value) { this.storage.set(key, { value, timestamp: Date.now() }); }
+  getItem(key) { const item = this.storage.get(key); return item ? item.value : null; }
+  removeItem(key) { this.storage.delete(key); }
+  clear() { this.storage.clear(); }
+  has(key) { return this.storage.has(key); }
+  keys() { return Array.from(this.storage.keys()); }
+  size() { return this.storage.size; }
   cleanup(maxAge = 3600000) {
-    // 1 hour default
     const now = Date.now();
     for (const [key, item] of this.storage.entries()) {
-      if (now - item.timestamp > maxAge) {
-        this.storage.delete(key);
-      }
+      if (now - item.timestamp > maxAge) this.storage.delete(key);
     }
   }
 }
 
-// Export singleton instance for memory storage
 export const memoryStorage = new MemoryStorage();
 
-/**
- * Storage utility that automatically chooses the best storage method
- */
 export const SmartStorage = {
-  /**
-   * Store data using the most appropriate method
-   * @param {string} key - Storage key
-   * @param {any} value - Value to store
-   * @param {object} options - Storage options
-   */
   async set(key, value, options = {}) {
-    const {
-      sensitive = false, // Use IndexedDB for sensitive data
-      persistent = false, // Use sessionStorage for session data
-      temporary = false, // Use memory storage for temporary data
-    } = options;
-
+    const { sensitive = false, persistent = false, temporary = false } = options;
     try {
-      if (temporary) {
-        // Memory storage - most secure, cleared on refresh
-        memoryStorage.setItem(key, value);
-        return true;
-      }
-
-      if (sensitive) {
-        // IndexedDB - secure and persistent
-        return await SecureStorage.setItem(key, value);
-      }
-
-      if (persistent) {
-        // SessionStorage - cleared on browser/tab close
-        sessionStorage.setItem(key, JSON.stringify(value));
-        return true;
-      }
-
-      // Default: memory storage
+      if (temporary) { memoryStorage.setItem(key, value); return true; }
+      if (sensitive) return await SecureStorage.setItem(key, value);
+      if (persistent) { sessionStorage.setItem(key, JSON.stringify(value)); return true; }
       memoryStorage.setItem(key, value);
       return true;
-    } catch (error) {
-      console.error("SmartStorage.set error:", error);
-      // Fallback to memory storage
+    } catch (e) {
+      console.error("SmartStorage.set error:", e);
       memoryStorage.setItem(key, value);
       return false;
     }
   },
 
-  /**
-   * Retrieve data from storage
-   */
   async get(key, options = {}) {
-    const {
-      sensitive = false,
-      persistent = false,
-      temporary = false,
-    } = options;
-
+    const { sensitive = false, persistent = false, temporary = false } = options;
     try {
-      if (temporary) {
-        return memoryStorage.getItem(key);
-      }
-
-      if (sensitive) {
-        return await SecureStorage.getItem(key);
-      }
-
-      if (persistent) {
-        const item = sessionStorage.getItem(key);
-        return item ? JSON.parse(item) : null;
-      }
-
+      if (temporary) return memoryStorage.getItem(key);
+      if (sensitive) return await SecureStorage.getItem(key);
+      if (persistent) { const item = sessionStorage.getItem(key); return item ? JSON.parse(item) : null; }
       return memoryStorage.getItem(key);
-    } catch (error) {
-      console.error("SmartStorage.get error:", error);
-      return null;
-    }
+    } catch (e) { console.error("SmartStorage.get error:", e); return null; }
   },
 
-  /**
-   * Remove data from storage
-   */
   async remove(key, options = {}) {
-    const {
-      sensitive = false,
-      persistent = false,
-      temporary = false,
-    } = options;
-
+    const { sensitive = false, persistent = false, temporary = false } = options;
     try {
-      if (temporary) {
-        memoryStorage.removeItem(key);
-        return true;
-      }
-
-      if (sensitive) {
-        return await SecureStorage.removeItem(key);
-      }
-
-      if (persistent) {
-        sessionStorage.removeItem(key);
-        return true;
-      }
-
+      if (temporary) { memoryStorage.removeItem(key); return true; }
+      if (sensitive) return await SecureStorage.removeItem(key);
+      if (persistent) { sessionStorage.removeItem(key); return true; }
       memoryStorage.removeItem(key);
       return true;
-    } catch (error) {
-      console.error("SmartStorage.remove error:", error);
-      return false;
-    }
+    } catch (e) { console.error("SmartStorage.remove error:", e); return false; }
   },
 
-  /**
-   * Clear all storage
-   */
   async clearAll() {
     try {
       memoryStorage.clear();
       sessionStorage.clear();
       await SecureStorage.clearAll();
       return true;
-    } catch (error) {
-      console.error("SmartStorage.clearAll error:", error);
-      return false;
-    }
+    } catch (e) { console.error("SmartStorage.clearAll error:", e); return false; }
   },
 };
 
