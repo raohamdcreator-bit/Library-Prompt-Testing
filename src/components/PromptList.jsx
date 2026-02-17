@@ -1,6 +1,6 @@
 // src/components/PromptList.jsx - COMPLETE VERSION WITH RATING STATS
-// ✅ FIXED: Guest copy tracking now properly updates in real-time
-// ✅ All existing features maintained
+
+
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
