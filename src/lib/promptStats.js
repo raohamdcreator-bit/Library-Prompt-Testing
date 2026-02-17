@@ -1,88 +1,17 @@
-// src/lib/promptStats.js - Helper functions for tracking prompt statistics
-// ✅ FIXED: Proper guest copy tracking with real-time updates
-
-import { doc, updateDoc, increment, getDoc } from "firebase/firestore";
-import { db } from "./firebase";
-
-/**
- * Track when a prompt is copied
- * ✅ FIXED: Now properly tracks guest copies separately
- */
-export async function trackPromptCopy(teamId, promptId, isGuest = false) {
-  if (!teamId || !promptId) {
-    console.warn('⚠️ [TRACK COPY] Missing teamId or promptId');
-    return;
-  }
-
-  console.log('📊 [TRACK COPY] Starting:', { teamId, promptId, isGuest });
-
-  try {
-    const promptRef = doc(db, "teams", teamId, "prompts", promptId);
-    
-    // ✅ FIXED: Increment both total copies and guest copies if applicable
-    const updates = {
-      "stats.copies": increment(1),
-    };
-    
-    if (isGuest) {
-      updates["stats.guestCopies"] = increment(1);
-      console.log('📊 [TRACK COPY] Incrementing guestCopies');
-    }
-    
-    console.log('📊 [TRACK COPY] Applying updates:', updates);
-    await updateDoc(promptRef, updates);
-    
-    console.log(`✅ [TRACK COPY] Successfully tracked copy for prompt ${promptId}${isGuest ? ' (guest)' : ' (authenticated)'}`);
-  } catch (error) {
-    console.error("❌ [TRACK COPY] Error tracking prompt copy:", error);
-    console.error("❌ [TRACK COPY] Error details:", error.message, error.code);
-    // Don't throw - tracking shouldn't break the copy functionality
-  }
-}
+// src/lib/promptStats.js - FIXED: Proper guest copy tracking
+import { db } from './firebase';
+import { doc, updateDoc, increment, serverTimestamp, getDoc } from 'firebase/firestore';
+import { getGuestToken } from './guestToken';
 
 /**
- * Track when a prompt is viewed
+ * Get initial stats structure for a new prompt
  */
-export async function trackPromptView(teamId, promptId) {
-  if (!teamId || !promptId) return;
-
-  try {
-    const promptRef = doc(db, "teams", teamId, "prompts", promptId);
-    await updateDoc(promptRef, {
-      "stats.views": increment(1),
-    });
-  } catch (error) {
-    console.error("Error tracking prompt view:", error);
-  }
-}
-
-/**
- * Update comment count for a prompt
- */
-export async function updateCommentCount(teamId, promptId, increment_value = 1) {
-  if (!teamId || !promptId) return;
-
-  try {
-    const promptRef = doc(db, "teams", teamId, "prompts", promptId);
-    await updateDoc(promptRef, {
-      "stats.comments": increment(increment_value),
-    });
-  } catch (error) {
-    console.error("Error updating comment count:", error);
-  }
-}
-
-/**
- * Initialize stats object for a new prompt
- */
-export function initializePromptStats() {
+export function getInitialStats() {
   return {
     views: 0,
     copies: 0,
     guestCopies: 0, // ✅ Track guest copies separately
     comments: 0,
-    totalRatings: 0,
-    averageRating: 0,
     ratings: {
       1: 0,
       2: 0,
@@ -90,28 +19,232 @@ export function initializePromptStats() {
       4: 0,
       5: 0,
     },
+    totalRatings: 0,
+    averageRating: 0,
+    lastViewed: null,
+    lastCopied: null,
+    lastRated: null,
   };
 }
 
 /**
- * Alias for backward compatibility
+ * Track when a prompt is copied
+ * ✅ FIXED: Properly tracks guest copies with token verification
  */
-export const getInitialStats = initializePromptStats;
+export async function trackPromptCopy(teamId, promptId, isGuest = false) {
+  try {
+    console.log('📋 [COPY TRACKING] Starting:', { teamId, promptId, isGuest });
+    
+    if (!teamId || !promptId) {
+      console.error('❌ [COPY TRACKING] Missing teamId or promptId');
+      return { success: false, error: 'Missing required parameters' };
+    }
+
+    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
+    
+    // ✅ CRITICAL: Build update object based on user type
+    const updateData = {
+      'stats.copies': increment(1),
+      'stats.lastCopied': serverTimestamp(),
+    };
+    
+    // ✅ Track guest copies separately
+    if (isGuest) {
+      const guestToken = getGuestToken();
+      console.log('📋 [COPY TRACKING] Guest copy detected, token:', guestToken ? 'present' : 'missing');
+      
+      if (!guestToken) {
+        console.error('❌ [COPY TRACKING] Guest token not found');
+        // Still track the copy, but don't increment guest counter
+      } else {
+        updateData['stats.guestCopies'] = increment(1);
+        console.log('✅ [COPY TRACKING] Incrementing guestCopies counter');
+      }
+    }
+
+    await updateDoc(promptRef, updateData);
+    
+    console.log('✅ [COPY TRACKING] Copy tracked successfully');
+    return { success: true };
+  } catch (error) {
+    console.error('❌ [COPY TRACKING] Error:', error);
+    
+    // Handle case where stats field doesn't exist yet
+    if (error.code === 'not-found') {
+      try {
+        const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
+        const promptSnap = await getDoc(promptRef);
+        
+        if (promptSnap.exists()) {
+          const stats = promptSnap.data().stats || getInitialStats();
+          stats.copies = (stats.copies || 0) + 1;
+          stats.lastCopied = new Date();
+          
+          if (isGuest) {
+            stats.guestCopies = (stats.guestCopies || 0) + 1;
+          }
+          
+          await updateDoc(promptRef, { stats });
+          console.log('✅ [COPY TRACKING] Stats initialized and copy tracked');
+          return { success: true };
+        }
+      } catch (retryError) {
+        console.error('❌ [COPY TRACKING] Retry failed:', retryError);
+        return { success: false, error: retryError.message };
+      }
+    }
+    
+    return { success: false, error: error.message };
+  }
+}
 
 /**
- * Get formatted stats for display
+ * Track when a prompt is viewed
  */
-export function getFormattedStats(stats) {
-  if (!stats) return initializePromptStats();
-  
-  return {
-    views: stats.views || 0,
-    copies: stats.copies || 0,
-    guestCopies: stats.guestCopies || 0,
-    authenticatedCopies: (stats.copies || 0) - (stats.guestCopies || 0),
-    comments: stats.comments || 0,
-    totalRatings: stats.totalRatings || 0,
-    averageRating: stats.averageRating || 0,
-    ratings: stats.ratings || { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
-  };
+export async function trackPromptView(teamId, promptId) {
+  try {
+    if (!teamId || !promptId) {
+      return { success: false, error: 'Missing required parameters' };
+    }
+
+    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
+    
+    await updateDoc(promptRef, {
+      'stats.views': increment(1),
+      'stats.lastViewed': serverTimestamp(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error tracking view:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update comment count when comments are added/removed
+ */
+export async function updateCommentCount(teamId, promptId, delta = 1) {
+  try {
+    if (!teamId || !promptId) {
+      return { success: false, error: 'Missing required parameters' };
+    }
+
+    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
+    
+    await updateDoc(promptRef, {
+      'stats.comments': increment(delta),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating comment count:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Recalculate rating statistics
+ * This should be called when ratings are added/removed/updated
+ */
+export async function recalculateRatingStats(teamId, promptId, ratings) {
+  try {
+    if (!teamId || !promptId || !ratings) {
+      return { success: false, error: 'Missing required parameters' };
+    }
+
+    const ratingCounts = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+    };
+
+    let totalRatings = 0;
+    let totalScore = 0;
+
+    // Count each rating value
+    ratings.forEach((rating) => {
+      const value = rating.rating;
+      if (value >= 1 && value <= 5) {
+        ratingCounts[value]++;
+        totalRatings++;
+        totalScore += value;
+      }
+    });
+
+    const averageRating = totalRatings > 0 ? totalScore / totalRatings : 0;
+
+    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
+    
+    await updateDoc(promptRef, {
+      'stats.ratings': ratingCounts,
+      'stats.totalRatings': totalRatings,
+      'stats.averageRating': averageRating,
+      'stats.lastRated': serverTimestamp(),
+    });
+
+    return {
+      success: true,
+      stats: {
+        ratingCounts,
+        totalRatings,
+        averageRating,
+      },
+    };
+  } catch (error) {
+    console.error('Error recalculating rating stats:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get prompt statistics
+ */
+export async function getPromptStats(teamId, promptId) {
+  try {
+    if (!teamId || !promptId) {
+      return { success: false, error: 'Missing required parameters' };
+    }
+
+    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
+    const promptSnap = await getDoc(promptRef);
+
+    if (!promptSnap.exists()) {
+      return { success: false, error: 'Prompt not found' };
+    }
+
+    const stats = promptSnap.data().stats || getInitialStats();
+
+    return {
+      success: true,
+      stats,
+    };
+  } catch (error) {
+    console.error('Error getting prompt stats:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Reset all stats for a prompt (admin function)
+ */
+export async function resetPromptStats(teamId, promptId) {
+  try {
+    if (!teamId || !promptId) {
+      return { success: false, error: 'Missing required parameters' };
+    }
+
+    const promptRef = doc(db, 'teams', teamId, 'prompts', promptId);
+    
+    await updateDoc(promptRef, {
+      stats: getInitialStats(),
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error resetting prompt stats:', error);
+    return { success: false, error: error.message };
+  }
 }
