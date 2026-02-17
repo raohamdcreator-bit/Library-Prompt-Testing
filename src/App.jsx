@@ -16,8 +16,8 @@ import {
 import { useAuth } from "./context/AuthContext";
 import { useActiveTeam } from "./context/AppStateContext";
 import { useGuestMode } from "./context/GuestModeContext";
-import { hasGuestAccess,setGuestAccess,clearGuestAccessCache } from "./lib/guestTeamAccess";
-import { setGuestToken, debugGuestToken } from "./lib/guestToken";
+// ✅ FIX 1: Added clearGuestAccess to imports; removed setGuestToken/debugGuestToken (they're handled inside guestTeamAccess.js now)
+import { hasGuestAccess, setGuestAccess, clearGuestAccess, clearGuestAccessCache } from "./lib/guestTeamAccess";
 import SaveLockModal from "./components/SaveLockModal";
 import PromptList from "./components/PromptList";
 import TeamInviteForm from "./components/TeamInviteForm";
@@ -719,44 +719,32 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
 }
 
 // ===================================
-// MAIN APP COMPONENT - FIXED GUEST TEAM ACCESS
+// MAIN APP COMPONENT
 // ===================================
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
   
- // ✅ CRITICAL FIX: Initialize guest team access FIRST before anything else
-const [guestTeamId, setGuestTeamId] = useState(() => {
-  const guestAccess = hasGuestAccess();
-  if (guestAccess.hasAccess) {
-    console.log('👁️ [APP INIT] Guest team access detected:', {
-      teamId: guestAccess.teamId,
-      hasAccess: guestAccess.hasAccess,
-    });
-    console.log('👁️ [APP INIT] Guest permissions loaded:', guestAccess.permissions);
-    
-    if (guestAccess.token) {
-      const success = setGuestToken(guestAccess.token);
-      if (success) {
-        console.log('✅ [APP INIT] Guest token stored successfully');
-        debugGuestToken();
-      } else {
-        console.error('❌ [APP INIT] Failed to store guest token');
-      }
-    } else {
-      console.warn('⚠️ [APP INIT] No guest token found in access data');
+  // ✅ FIX 2: Simplified useState initializer — token is already in sessionStorage
+  // from setGuestAccess(). Don't re-store it (setGuestToken didn't exist anyway),
+  // and don't clear the cache immediately after warming it.
+  const [guestTeamId, setGuestTeamId] = useState(() => {
+    const guestAccess = hasGuestAccess();
+    if (guestAccess.hasAccess) {
+      console.log('👁️ [APP INIT] Guest team access detected:', {
+        teamId: guestAccess.teamId,
+        hasAccess: guestAccess.hasAccess,
+      });
+      console.log('👁️ [APP INIT] Guest permissions loaded:', guestAccess.permissions);
+      // Token is already in sessionStorage from setGuestAccess() — no action needed.
+      // Leave the cache warm so subsequent reads within 1s don't hit sessionStorage again.
+      return guestAccess.teamId;
     }
-    
-    // ✅ ADD THIS: Clear cache after initial read to prevent stale data
-    clearGuestAccessCache();
-    
-    return guestAccess.teamId;
-  }
-  return null;
-});
+    return null;
+  });
   
   const contextActiveTeam = useActiveTeam();
   
-  // ✅ CRITICAL FIX: For guest users, manage activeTeam locally to prevent context resets
+  // ✅ For guest users, manage activeTeam locally to prevent context resets
   const [guestActiveTeam, setGuestActiveTeam] = useState(guestTeamId);
   
   // Use guest activeTeam if in guest mode, otherwise use context
@@ -803,14 +791,11 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
     return null;
   });
 
-
-  // ✅ CRITICAL FIX: Set active team when guest team data is ready
-  // Use a stable reference to prevent context resets from interfering
+  // ✅ Set active team when guest team data is ready
   const activeTeamRef = useRef(activeTeam);
   activeTeamRef.current = activeTeam;
   
   useEffect(() => {
-    // If we have a guest team ID, teams are loaded, but no active team set
     if (guestTeamId && teams.length > 0 && !activeTeamRef.current) {
       const guestTeam = teams.find(t => t.id === guestTeamId);
       if (guestTeam) {
@@ -905,14 +890,11 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
       willLoad: !user && guestTeamId && teams.length === 0
     });
     
-    // ✅ CRITICAL FIX: Load guest team data for guest users
-    // Use teams.length check instead of ref to avoid getting stuck
+    // ✅ Load guest team data for guest users
     if (!user && guestTeamId) {
-      // Guest team user - either load or keep existing team
       if (teams.length === 0) {
         console.log('👁️ [TEAMS] Loading guest team data:', guestTeamId);
         
-        // Fetch the single guest team
         const fetchGuestTeam = async () => {
           try {
             const teamRef = doc(db, "teams", guestTeamId);
@@ -921,7 +903,7 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
             if (teamSnap.exists()) {
               const teamData = { id: teamSnap.id, ...teamSnap.data() };
               console.log('✅ [TEAMS] Guest team loaded:', teamData.name);
-              setTeams([teamData]); // Set as single-item array
+              setTeams([teamData]);
               setLoading(false);
             } else {
               console.error('❌ [TEAMS] Guest team not found');
@@ -939,7 +921,7 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
       } else {
         console.log('👁️ [TEAMS] Guest team already loaded, keeping it');
       }
-      return; // ✅ CRITICAL: Return here to prevent clearing below
+      return;
     }
     
     // Regular user without guest access
@@ -968,7 +950,7 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
     );
 
     return () => unsub();
-  }, [user, guestTeamId, teams.length]); // ✅ Removed setActiveTeam to prevent loop
+  }, [user, guestTeamId, teams.length]);
   
   // Handle page exit/refresh for guests with unsaved work
   useEffect(() => {
@@ -998,7 +980,6 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
 
   // Validate active team still exists (skip for guest users)
   useEffect(() => {
-    // ✅ Skip validation for guest users - they don't have teams in the normal way
     if (guestTeamId) return;
     
     if (!user || loading || !activeTeam || teams.length === 0) return;
@@ -1039,7 +1020,7 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
     fetchRole();
   }, [activeTeam, user]);
 
-  // Load avatars (static data - loaded once)
+  // Load avatars
   useEffect(() => {
     async function loadAvatars() {
       const avatarResults = {};
@@ -1058,7 +1039,6 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
                 };
               }
             } catch (error) {
-              // ✅ Don't log errors for guest users - they don't have permission to read user docs
               if (!guestTeamId) {
                 console.error("Error loading avatar for", uid, error);
               }
@@ -1116,7 +1096,7 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
     };
   }, [teams]);
 
-  // Check if user needs onboarding (guests + authenticated)
+  // Check if user needs onboarding
   useEffect(() => {
     if (loading) return;
     
@@ -1222,7 +1202,7 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
     }
   }
 
-  // Function to create example prompts for onboarding
+  // Create example prompts for onboarding
   async function createExamplePrompts(examples) {
     if (!activeTeam || !user) return;
     
@@ -1287,65 +1267,60 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
   }
 
   function handleExitGuestMode() {
-  if (guestState.hasUnsavedWork()) {
-    const confirmExit = window.confirm(
-      'You have unsaved work. Sign up to save it permanently, or continue without saving?'
-    );
-    
-    if (!confirmExit) {
-      return;
+    if (guestState.hasUnsavedWork()) {
+      const confirmExit = window.confirm(
+        'You have unsaved work. Sign up to save it permanently, or continue without saving?'
+      );
+      
+      if (!confirmExit) {
+        return;
+      }
     }
+    
+    guestState.clearGuestWork();
+    setIsExploringAsGuest(false);
+    
+    clearGuestAccessCache();
+    
+    if (window.gtag) {
+      window.gtag('event', 'guest_mode_exited', {
+        had_work: guestState.hasUnsavedWork(),
+      });
+    }
+    
+    navigate('/');
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   }
-  
-  guestState.clearGuestWork();
-  setIsExploringAsGuest(false);
-  
-  
-  clearGuestAccessCache();
-  
-  if (window.gtag) {
-    window.gtag('event', 'guest_mode_exited', {
-      had_work: guestState.hasUnsavedWork(),
-    });
-  }
-  
-  navigate('/');
-  setTimeout(() => {
-    window.location.reload();
-  }, 100);
-}
 
-  // ✅ FIXED: Handle guest team exit
- function handleExitGuestTeam() {
-  console.log('🚪 [EXIT] Exiting guest team mode');
-  
-  // Clear guest team access
-  sessionStorage.removeItem('guest_team_token');
-  sessionStorage.removeItem('guest_team_id');
-  sessionStorage.removeItem('guest_team_permissions');
-  sessionStorage.removeItem('is_guest_mode');
-  
-  
-  clearGuestAccessCache();
-  
-  setGuestTeamId(null);
-  setGuestTeamPermissions(null);
-  setActiveTeam(null);
-  
-  if (window.gtag) {
-    window.gtag('event', 'guest_team_exited');
+  // ✅ FIX 3 & 4: handleExitGuestTeam uses clearGuestAccess() instead of raw
+  // sessionStorage.removeItem() calls. This clears both sessionStorage AND the
+  // in-memory backup in guestTeamAccess.js, preventing stale token restoration.
+  function handleExitGuestTeam() {
+    console.log('🚪 [EXIT] Exiting guest team mode');
+    
+    // ✅ Single call clears sessionStorage + in-memory backup
+    clearGuestAccess();
+    
+    setGuestTeamId(null);
+    setGuestTeamPermissions(null);
+    setActiveTeam(null);
+    
+    if (window.gtag) {
+      window.gtag('event', 'guest_team_exited');
+    }
+    
+    navigate('/');
+    
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   }
-  
-  navigate('/');
-  
-  // Force reload to clear all state
-  setTimeout(() => {
-    window.location.reload();
-  }, 100);
-}
+
   const activeTeamObj = teams.find((t) => t.id === activeTeam);
   
-  // ✅ DEBUG: Log activeTeamObj state for guest users
+  // Debug log for guest team state
   useEffect(() => {
     if (guestTeamId) {
       console.log('🔍 [DEBUG] Guest team state:', {
@@ -1451,7 +1426,7 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
     );
   }
 
-  // ✅ CRITICAL FIX: Don't show loading for guest team users
+  // Don't show loading for guest team users
   if (loading && !isGuest && !guestTeamId) {
     return (
       <div className="app-container">
@@ -1465,7 +1440,7 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
     );
   }
 
-  // ✅ CRITICAL FIX: Show landing page only if NOT in guest team mode
+  // Show landing page only if NOT in guest team mode
   if (!user && !isExploringAsGuest && !guestTeamId) {
     return (
       <LandingPage
@@ -1561,7 +1536,7 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
             </>
           )}
 
-          {/* ✅ UPDATED: Guest Mode Indicator (both types) */}
+          {/* Guest Mode Indicator (both types) */}
           {(isGuest || guestTeamId) && (
             <>
               <div className="sidebar-user-section">
@@ -1810,7 +1785,7 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0" style={{ marginLeft: '260px' }}>
-        {/* ✅ UPDATED: Mobile Header */}
+        {/* Mobile Header */}
         <div className="mobile-header">
           <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn">
             <Menu size={24} />
@@ -1872,7 +1847,6 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
 
         {/* Main Content */}
         <div className="flex-1 p-4 md:p-6 overflow-y-auto" style={{ backgroundColor: "var(--background)" }}>
-          {/* ✅ CRITICAL: Guest team users should see prompts */}
           {activeTeamObj && activeView === "prompts" && (
             <>
               <PromptList 
@@ -1943,7 +1917,7 @@ const [guestTeamId, setGuestTeamId] = useState(() => {
         {user && <MyInvites />}
       </div>
 
-      {/* ✅ UPDATED: Team Chat (hide for guest team users) */}
+      {/* Team Chat (hide for guest team users) */}
       {activeTeamObj && user && !guestTeamId && (
         <TeamChat
           teamId={activeTeamObj.id}
