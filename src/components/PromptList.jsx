@@ -1,4 +1,4 @@
-// src/components/PromptList.jsx - Updated: added Mark Favourite to kebab menu
+// src/components/PromptList.jsx - Redesigned: maximized info density, output previews, upward kebab menu
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -27,6 +27,7 @@ import {
   Image as ImageIcon, Send, Loader2, Cpu, DollarSign,
   Target, TrendingUp, User, Calendar, Tag, Ruler, BarChart2,
   Lightbulb, SlidersHorizontal, UserPlus, TrendingUp as TrendIcon,
+  ChevronUp,
 } from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
 import EnhancedBadge from './EnhancedBadge';
@@ -43,7 +44,7 @@ import BulkOperations, { PromptSelector } from "./BulkOperations";
 import { useNotification } from "../context/NotificationContext";
 import usePagination, { PaginationControls } from "../hooks/usePagination";
 
-// Utility functions
+// ─── Utility functions ────────────────────────────────────────────────────────
 function getRelativeTime(timestamp) {
   if (!timestamp) return "";
   try {
@@ -67,7 +68,7 @@ function getUserInitials(name, email) {
   return "U";
 }
 
-// User Avatar Component
+// ─── User Avatar ─────────────────────────────────────────────────────────────
 function UserAvatar({ src, name, email, size = "sm" }) {
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -75,7 +76,7 @@ function UserAvatar({ src, name, email, size = "sm" }) {
 
   if (!src || imageError) {
     return (
-      <div className={`${sizeClasses[size]} rounded-full flex items-center justify-center text-white font-semibold`}
+      <div className={`${sizeClasses[size]} rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0`}
            style={{ backgroundColor: "var(--primary)" }}>
         {getUserInitials(name, email)}
       </div>
@@ -85,13 +86,13 @@ function UserAvatar({ src, name, email, size = "sm" }) {
   return (
     <>
       {!imageLoaded && (
-        <div className={`${sizeClasses[size]} rounded-full flex items-center justify-center`} 
+        <div className={`${sizeClasses[size]} rounded-full flex items-center justify-center flex-shrink-0`}
              style={{ backgroundColor: "var(--muted)" }}>
           <Loader2 className="w-3 h-3 animate-spin" />
         </div>
       )}
       <img src={src} alt={`${name || email}'s avatar`}
-        className={`${sizeClasses[size]} rounded-full object-cover border-2 border-border/50 ${imageLoaded ? 'block' : 'hidden'}`}
+        className={`${sizeClasses[size]} rounded-full object-cover border-2 border-border/50 flex-shrink-0 ${imageLoaded ? 'block' : 'hidden'}`}
         onLoad={() => setImageLoaded(true)}
         onError={() => setImageError(true)}
       />
@@ -99,7 +100,7 @@ function UserAvatar({ src, name, email, size = "sm" }) {
   );
 }
 
-// Copy Button Component
+// ─── Copy Button ─────────────────────────────────────────────────────────────
 function CopyButton({ text, promptId, onCopy, isGuestMode }) {
   const [copied, setCopied] = useState(false);
   const handleCopy = async () => {
@@ -108,100 +109,88 @@ function CopyButton({ text, promptId, onCopy, isGuestMode }) {
     setTimeout(() => setCopied(false), 2000);
   };
   return (
-    <button onClick={handleCopy} className="btn-action-secondary">
-      {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-      <span className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
+    <button onClick={handleCopy} className="btn-action-secondary" title="Copy prompt">
+      {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+      <span className="hidden sm:inline">{copied ? "Copied!" : "Copy"}</span>
     </button>
   );
 }
 
-// Rating Stats Bar Component
-function RatingStatsBar({ ratings = {}, totalRatings = 0, averageRating = 0, isExpanded, onToggle }) {
-  const ratingCounts = {
-    5: ratings[5] || 0,
-    4: ratings[4] || 0,
-    3: ratings[3] || 0,
-    2: ratings[2] || 0,
-    1: ratings[1] || 0,
+// ─── Compact Rating Display ───────────────────────────────────────────────────
+function CompactRating({ teamId, promptId, isGuestMode }) {
+  const { averageRating, totalRatings, userRating, ratePrompt } = usePromptRating(teamId, promptId);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleRate = async (rating) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try { await ratePrompt(rating); }
+    catch (error) { if (isGuestMode && !teamId) alert("Sign up to rate prompts"); }
+    finally { setIsSubmitting(false); }
   };
 
-  const maxCount = Math.max(...Object.values(ratingCounts), 1);
-
-  if (totalRatings === 0) {
-    return (
-      <div className="rating-stats-container">
-        <button onClick={onToggle} className="rating-stats-header" disabled>
-          <div className="flex items-center gap-2">
-            <TrendIcon className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium text-muted-foreground">No ratings yet</span>
-          </div>
-        </button>
-      </div>
-    );
-  }
+  const displayRating = hoverRating || userRating || 0;
 
   return (
-    <div className="rating-stats-container">
-      <button onClick={onToggle} className="rating-stats-header">
-        <div className="flex items-center gap-2">
-          <TrendIcon className="w-4 h-4" style={{ color: "var(--primary)" }} />
-          <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
-            Rating Distribution
-          </span>
-          <span className="text-xs px-2 py-0.5 rounded-full" style={{
-            backgroundColor: "var(--muted)",
-            color: "var(--muted-foreground)"
-          }}>
-            {totalRatings} {totalRatings === 1 ? 'rating' : 'ratings'}
-          </span>
+    <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map(star => (
+          <button key={star} onClick={() => handleRate(star)}
+            onMouseEnter={() => setHoverRating(star)}
+            onMouseLeave={() => setHoverRating(0)}
+            className="p-0 transition-transform hover:scale-110" disabled={isSubmitting}>
+            <Star className={`w-3 h-3 transition-all ${star <= displayRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600 hover:text-yellow-300'}`} />
+          </button>
+        ))}
+      </div>
+      {totalRatings > 0 && (
+        <span className="text-xs font-medium tabular-nums" style={{ color: "var(--muted-foreground)" }}>
+          {averageRating.toFixed(1)} <span className="opacity-60">({totalRatings})</span>
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Rating Stats Bar ─────────────────────────────────────────────────────────
+function RatingStatsBar({ ratings = {}, totalRatings = 0, averageRating = 0, isExpanded, onToggle }) {
+  const ratingCounts = { 5: ratings[5]||0, 4: ratings[4]||0, 3: ratings[3]||0, 2: ratings[2]||0, 1: ratings[1]||0 };
+  const maxCount = Math.max(...Object.values(ratingCounts), 1);
+
+  if (totalRatings === 0) return null;
+
+  return (
+    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+      <button onClick={onToggle} className="w-full flex items-center justify-between text-xs py-1 hover:opacity-80 transition-opacity">
+        <div className="flex items-center gap-1.5">
+          <TrendIcon className="w-3 h-3" style={{ color: "var(--primary)" }} />
+          <span style={{ color: "var(--muted-foreground)" }}>Rating Distribution</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-            <span className="text-sm font-bold" style={{ color: "var(--foreground)" }}>
-              {averageRating.toFixed(1)}
-            </span>
-          </div>
-          <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-1">
+          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+          <span className="font-bold tabular-nums" style={{ color: "var(--foreground)" }}>{averageRating.toFixed(1)}</span>
+          <span style={{ color: "var(--muted-foreground)" }}>({totalRatings})</span>
+          <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} style={{ color: "var(--muted-foreground)" }} />
         </div>
       </button>
 
       {isExpanded && (
-        <div className="rating-stats-content" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+        <div className="space-y-1 mt-2" style={{ animation: 'fadeIn 0.2s ease-out' }}>
           {[5, 4, 3, 2, 1].map((stars) => {
             const count = ratingCounts[stars];
-            const percentage = totalRatings > 0 ? (count / totalRatings) * 100 : 0;
             const barWidth = maxCount > 0 ? (count / maxCount) * 100 : 0;
-
             return (
-              <div key={stars} className="rating-stat-row">
-                <div className="flex items-center gap-2 min-w-[60px]">
-                  <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
-                    {stars}
-                  </span>
-                  <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+              <div key={stars} className="flex items-center gap-2">
+                <span className="text-xs w-4 tabular-nums text-right" style={{ color: "var(--muted-foreground)" }}>{stars}</span>
+                <Star className="w-2.5 h-2.5 fill-yellow-400 text-yellow-400" />
+                <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--border)" }}>
+                  <div className="h-full rounded-full transition-all duration-500" style={{
+                    width: `${barWidth}%`,
+                    backgroundColor: stars >= 4 ? 'rgb(34,197,94)' : stars === 3 ? 'rgb(251,191,36)' : 'rgb(239,68,68)',
+                  }} />
                 </div>
-
-                <div className="flex-1 rating-bar-container">
-                  <div
-                    className="rating-bar-fill"
-                    style={{
-                      width: `${barWidth}%`,
-                      backgroundColor: stars >= 4 ? 'rgba(34, 197, 94, 0.6)' : 
-                                       stars === 3 ? 'rgba(251, 191, 36, 0.6)' : 
-                                       'rgba(239, 68, 68, 0.6)',
-                    }}
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 min-w-[80px] justify-end">
-                  <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                    {count}
-                  </span>
-                  <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                    ({percentage.toFixed(0)}%)
-                  </span>
-                </div>
+                <span className="text-xs w-5 tabular-nums" style={{ color: "var(--muted-foreground)" }}>{count}</span>
               </div>
             );
           })}
@@ -211,166 +200,84 @@ function RatingStatsBar({ ratings = {}, totalRatings = 0, averageRating = 0, isE
   );
 }
 
-// Output Preview with 120px truncation + Guest Mode Lock Icons
-function OutputPreviewPanel({ outputs, onViewAll, isGuestMode = false }) {
-  if (!outputs || outputs.length === 0) {
+// ─── Inline Output Preview Strip ─────────────────────────────────────────────
+// Compact horizontal strip showing latest output inline on the card
+function OutputPreviewStrip({ outputs, onViewAll, isGuestMode = false }) {
+  if (isGuestMode) {
     return (
-      <div className="output-preview-panel-empty">
-        <FileText className="w-5 h-5 text-muted-foreground opacity-50" />
-        <p className="text-sm text-muted-foreground">
-          {isGuestMode ? "Outputs locked in guest mode" : "No outputs yet"}
-        </p>
-        {isGuestMode ? (
-          <button 
-            onClick={() => alert("Sign up to attach outputs and track prompt performance!")} 
-            className="text-xs text-muted-foreground hover:text-primary mt-1 flex items-center gap-1 opacity-60 cursor-not-allowed"
-            title="Sign up to attach outputs"
-          >
-            <Lock className="w-3 h-3" />
-            Sign up to attach outputs
-          </button>
-        ) : (
-          <button onClick={onViewAll} className="text-xs text-primary hover:underline mt-1">
-            Attach first output
-          </button>
-        )}
-      </div>
+      <button
+        onClick={() => alert("Sign up to attach outputs and track prompt performance!")}
+        className="output-strip-locked"
+        title="Sign up to attach outputs"
+      >
+        <Lock className="w-3 h-3" />
+        <span>Sign up to attach outputs</span>
+      </button>
     );
   }
 
-  const latestOutput = outputs[0];
-  const getOutputIcon = (type) => {
-    switch (type) {
-      case 'text': return <FileText className="w-4 h-4 text-blue-400" />;
-      case 'code': return <Code className="w-4 h-4 text-purple-400" />;
-      case 'image': return <ImageIcon className="w-4 h-4 text-pink-400" />;
-      default: return <FileText className="w-4 h-4" />;
-    }
-  };
+  if (!outputs || outputs.length === 0) {
+    return (
+      <button onClick={onViewAll} className="output-strip-empty" title="Attach first output">
+        <Activity className="w-3 h-3 opacity-40" />
+        <span>No outputs — attach one</span>
+        <Plus className="w-3 h-3 opacity-60 ml-auto" />
+      </button>
+    );
+  }
+
+  const latest = outputs[0];
+  const typeIcon = latest.type === 'code'
+    ? <Code className="w-3 h-3 text-purple-400 flex-shrink-0" />
+    : latest.type === 'image'
+    ? <ImageIcon className="w-3 h-3 text-pink-400 flex-shrink-0" />
+    : <FileText className="w-3 h-3 text-blue-400 flex-shrink-0" />;
 
   return (
-    <div className="output-preview-panel" onClick={onViewAll} role="button" tabIndex={0}>
-      <div className="output-preview-header">
-        <div className="flex items-center gap-2">
-          <Activity className="w-3.5 h-3.5 text-muted-foreground" />
-          <span className="output-preview-label">Latest Output</span>
-        </div>
-        <span className="output-count-badge">{outputs.length} Output{outputs.length !== 1 ? 's' : ''}</span>
-      </div>
-      
-      <div className="output-preview-content" style={{ maxHeight: '120px', overflow: 'hidden' }}>
-        {latestOutput.type === 'text' && (
-          <div className="output-text-preview">
-            {getOutputIcon('text')}
-            <div className="flex-1 min-w-0">
-              <p className="output-preview-title truncate">{latestOutput.title}</p>
-              <p className="truncate-2-lines text-sm">{latestOutput.content}</p>
-            </div>
-          </div>
-        )}
-        {latestOutput.type === 'code' && (
-          <div className="output-code-preview">
-            {getOutputIcon('code')}
-            <div className="flex-1 min-w-0">
-              <p className="output-preview-title truncate">{latestOutput.title}</p>
-              <pre className="code-snippet" style={{ maxHeight: '80px', overflow: 'hidden' }}>
-                {latestOutput.content.slice(0, 100)}...
-              </pre>
-            </div>
-          </div>
-        )}
-        {latestOutput.type === 'image' && latestOutput.imageUrl && (
-          <div className="output-image-preview" style={{ maxHeight: '120px' }}>
-            <img src={latestOutput.imageUrl} alt={latestOutput.title}
-              style={{ maxHeight: '120px', width: '100%', objectFit: 'cover', borderRadius: '8px' }}
-            />
-            <div className="image-overlay">
-              <ImageIcon className="w-5 h-5" />
-              <span className="text-xs font-medium truncate">{latestOutput.title}</span>
-            </div>
-          </div>
+    <button onClick={onViewAll} className="output-strip" title="View all outputs">
+      {latest.type === 'image' && latest.imageUrl ? (
+        <img
+          src={latest.imageUrl}
+          alt={latest.title}
+          className="output-strip-thumb"
+        />
+      ) : typeIcon}
+      <div className="output-strip-body">
+        <span className="output-strip-title">{latest.title || 'Untitled output'}</span>
+        {latest.type !== 'image' && latest.content && (
+          <span className="output-strip-preview">{latest.content.slice(0, 80)}</span>
         )}
       </div>
-      <div className="output-preview-footer">
-        <span className="text-xs text-primary font-medium flex items-center gap-1">
-          View all outputs <ChevronDown className="w-3 h-3" />
-        </span>
+      <div className="output-strip-count">
+        <span>{outputs.length}</span>
+        <ChevronUp className="w-3 h-3 opacity-60" />
       </div>
-    </div>
+    </button>
   );
 }
 
-// Inline Rating with functional integration
-function InlineRating({ teamId, promptId, isGuestMode }) {
-  const { user } = useAuth();
-  const { averageRating, totalRatings, userRating, ratePrompt } = usePromptRating(teamId, promptId);
-  const [hoverRating, setHoverRating] = useState(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleRate = async (rating) => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      await ratePrompt(rating);
-    } catch (error) {
-      console.error("Error rating:", error);
-      if (isGuestMode && !teamId) {
-        alert("Sign up to rate prompts");
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const displayRating = hoverRating || userRating || 0;
-
-  return (
-    <div className="inline-rating-section">
-      <div className="rating-stars-display">
-        {[1, 2, 3, 4, 5].map(star => (
-          <button key={star} onClick={() => handleRate(star)}
-            onMouseEnter={() => setHoverRating(star)}
-            onMouseLeave={() => setHoverRating(0)}
-            className="star-button" disabled={isSubmitting}>
-            <Star className={`w-4 h-4 transition-all ${
-              star <= displayRating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-600'
-            }`} />
-          </button>
-        ))}
-      </div>
-      {totalRatings > 0 && (
-        <div className="rating-summary">
-          <span className="rating-value">{averageRating.toFixed(1)}</span>
-          <span className="rating-count">({totalRatings})</span>
-        </div>
-      )}
-    </div>
-  );
+// Legacy panel kept for backwards compat — replaced by strip on card
+function OutputPreviewPanel({ outputs, onViewAll, isGuestMode = false }) {
+  return <OutputPreviewStrip outputs={outputs} onViewAll={onViewAll} isGuestMode={isGuestMode} />;
 }
 
-// Full Comments Section
+// ─── Inline Comments Section ──────────────────────────────────────────────────
 function ExpandedCommentsSection({ promptId, teamId, commentCount, onClose, userRole }) {
   return (
-    <div className="expanded-comments-section" style={{
-      marginTop: '1rem',
-      padding: '1rem',
+    <div style={{
+      marginTop: '0.75rem',
+      padding: '0.875rem',
       backgroundColor: 'var(--muted)',
-      borderRadius: '0.75rem',
-      border: '1px solid var(--border)'
+      borderRadius: '0.625rem',
+      border: '1px solid var(--border)',
     }}>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <MessageSquare className="w-4 h-4 text-primary" />
-          <h4 className="text-sm font-semibold text-foreground">
-            Comments ({commentCount})
-          </h4>
+          <MessageSquare className="w-3.5 h-3.5 text-primary" />
+          <h4 className="text-xs font-semibold text-foreground">Comments ({commentCount})</h4>
         </div>
-        <button 
-          onClick={onClose}
-          className="p-1 hover:bg-background rounded transition-colors"
-          title="Close comments"
-        >
-          <X className="w-4 h-4 text-muted-foreground" />
+        <button onClick={onClose} className="p-1 hover:bg-background rounded transition-colors" title="Close comments">
+          <X className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
       </div>
       <Comments teamId={teamId} promptId={promptId} userRole={userRole} />
@@ -378,6 +285,7 @@ function ExpandedCommentsSection({ promptId, teamId, commentCount, onClose, user
   );
 }
 
+// ─── AI Analysis Section ──────────────────────────────────────────────────────
 function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
   const stats = useMemo(() => {
     if (!text) return null;
@@ -389,121 +297,57 @@ function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
       cost,
       bestModel: recommendations[0]?.model || "gpt-4",
       bestModelReason: recommendations[0]?.reason || "Recommended for this prompt",
-      compatibleModels: Object.keys(AI_MODELS).filter((model) =>
-        TokenEstimator.fitsInContext(text, model)
-      ).length,
+      compatibleModels: Object.keys(AI_MODELS).filter((model) => TokenEstimator.fitsInContext(text, model)).length,
       totalModels: Object.keys(AI_MODELS).length,
     };
   }, [text]);
 
   if (!stats) return null;
-  
   const BestIcon = AI_MODELS[stats.bestModel]?.icon || Cpu;
   const BestModelConfig = AI_MODELS[stats.bestModel];
-  const compatibilityPercentage = Math.round((stats.compatibleModels / stats.totalModels) * 100);
+  const compatPct = Math.round((stats.compatibleModels / stats.totalModels) * 100);
 
   return (
-    <div className="glass-card p-3 rounded-lg border border-border/50 bg-muted/30 transition-all duration-300 hover:border-primary/30">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between text-sm font-medium text-foreground hover:text-primary transition-colors"
-      >
-        <div className="flex items-center gap-2">
-          <Cpu className="w-4 h-4 text-primary" />
-          <span>AI Model Analysis</span>
-          <span className={`text-xs px-2 py-0.5 rounded-full ${
-            compatibilityPercentage >= 80 
-              ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-              : compatibilityPercentage >= 50 
-              ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30' 
-              : 'bg-red-500/20 text-red-400 border border-red-500/30'
-          }`}>
-            {compatibilityPercentage}% compatible
+    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
+      <button onClick={onToggle}
+        className="w-full flex items-center justify-between text-xs py-1 hover:opacity-80 transition-opacity">
+        <div className="flex items-center gap-1.5">
+          <Cpu className="w-3 h-3" style={{ color: "var(--primary)" }} />
+          <span style={{ color: "var(--muted-foreground)" }}>AI Model Analysis</span>
+          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+            compatPct >= 80 ? 'bg-green-500/15 text-green-400' :
+            compatPct >= 50 ? 'bg-yellow-500/15 text-yellow-400' :
+            'bg-red-500/15 text-red-400'}`}>
+            {compatPct}%
           </span>
         </div>
-        <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} style={{ color: "var(--muted-foreground)" }} />
       </button>
 
       {isExpanded && (
-        <div className="mt-3 space-y-3" style={{ animation: 'fadeIn 0.3s ease-out' }}>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="p-2 rounded bg-muted/50 border border-border/30 hover:border-primary/30 transition-colors">
-              <div className="flex items-center gap-1 text-muted-foreground mb-1">
-                <TrendingUp className="w-3 h-3" />
-                <span>Tokens (GPT-4)</span>
+        <div className="mt-2 space-y-2" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+          <div className="grid grid-cols-4 gap-1.5 text-xs">
+            {[
+              { icon: <TrendingUp className="w-3 h-3" />, label: "Tokens", value: stats.tokens.toLocaleString() },
+              { icon: <DollarSign className="w-3 h-3" />, label: "Cost", value: `$${stats.cost.toFixed(4)}` },
+              { icon: <Target className="w-3 h-3" />, label: "Compatible", value: `${stats.compatibleModels}/${stats.totalModels}` },
+            ].map(({ icon, label, value }) => (
+              <div key={label} className="p-2 rounded-lg col-span-1" style={{ backgroundColor: "var(--muted)", border: "1px solid var(--border)" }}>
+                <div className="flex items-center gap-1 mb-0.5" style={{ color: "var(--muted-foreground)" }}>{icon}<span>{label}</span></div>
+                <span className="font-mono font-bold text-xs" style={{ color: "var(--foreground)" }}>{value}</span>
               </div>
-              <span className="font-mono font-bold text-foreground">
-                {stats.tokens.toLocaleString()}
-              </span>
-            </div>
-
-            <div className="p-2 rounded bg-muted/50 border border-border/30 hover:border-primary/30 transition-colors">
-              <div className="flex items-center gap-1 text-muted-foreground mb-1">
-                <DollarSign className="w-3 h-3" />
-                <span>Est. Cost</span>
-              </div>
-              <span className="font-mono font-bold text-foreground">
-                ${stats.cost.toFixed(4)}
-              </span>
-            </div>
-
-            <div className="p-2 rounded bg-muted/50 border border-border/30 hover:border-primary/30 transition-colors">
-              <div className="flex items-center gap-1 text-muted-foreground mb-1">
-                <Target className="w-3 h-3" />
-                <span>Compatible</span>
-              </div>
-              <span className="font-mono font-bold text-foreground">
-                {stats.compatibleModels}/{stats.totalModels} models
-              </span>
-            </div>
-
-            <div className="p-2 rounded bg-primary/10 border border-primary/30 hover:border-primary/50 transition-colors">
-              <div className="flex items-center gap-1 text-primary mb-1">
-                <BestIcon className="w-3 h-3" />
-                <span className="font-semibold">Best Model</span>
-              </div>
-              <span className="font-bold text-foreground text-xs truncate block">
-                {BestModelConfig?.name || stats.bestModel}
-              </span>
-            </div>
-          </div>
-
-          <div className="p-2 rounded-lg bg-primary/5 border border-primary/20">
-            <div className="flex items-start gap-2">
-              <BestIcon className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-semibold text-foreground mb-1">
-                  {BestModelConfig?.name} • {BestModelConfig?.provider}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {stats.bestModelReason}
-                </div>
-                {BestModelConfig?.strengths && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {BestModelConfig.strengths.map((strength) => (
-                      <span
-                        key={strength}
-                        className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
-                      >
-                        {strength}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+            ))}
+            <div className="p-2 rounded-lg col-span-1" style={{ backgroundColor: "var(--primary-10, rgba(var(--primary-rgb),0.1))", border: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-1 mb-0.5 text-primary"><BestIcon className="w-3 h-3" /><span className="text-xs">Best</span></div>
+              <span className="font-bold text-xs truncate block" style={{ color: "var(--foreground)" }}>{BestModelConfig?.name || stats.bestModel}</span>
             </div>
           </div>
 
           {onEnhance && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onEnhance();
-              }}
-              className="w-full btn-secondary text-xs py-2 flex items-center justify-center gap-2 hover:bg-primary/10 hover:text-primary transition-all"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              View Detailed Analysis & Enhancement
+            <button onClick={(e) => { e.stopPropagation(); onEnhance(); }}
+              className="w-full btn-secondary text-xs py-1.5 flex items-center justify-center gap-1.5 hover:bg-primary/10 hover:text-primary transition-all">
+              <Sparkles className="w-3 h-3" />
+              Detailed Analysis & Enhancement
             </button>
           )}
         </div>
@@ -512,7 +356,7 @@ function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
   );
 }
 
-// Main Prompt Card Component
+// ─── Prompt Card ──────────────────────────────────────────────────────────────
 function PromptCard({ 
   prompt, outputs = [], commentCount = 0, isDemo = false, canEdit = false,
   author, isGuestMode = false, activeTeam, userRole,
@@ -520,7 +364,6 @@ function PromptCard({
   onViewOutputs, onAttachOutput, onEnhance, viewedPrompts = new Set(),
   onMarkViewed, showCommentSection, onToggleComments,
   isSelected, onSelect, openMenuId, onMenuToggle, onTrackView,
-  // ✅ NEW: favourite props
   onToggleFavourite, favouritePromptIds = new Set(),
 }) {
   const [isTextExpanded, setIsTextExpanded] = useState(false);
@@ -529,32 +372,22 @@ function PromptCard({
   const menuRef = useRef(null);
   const isPrivate = prompt.visibility === "private";
   const isViewed = viewedPrompts.has(prompt.id);
-  const shouldTruncate = prompt.text.length > 200;
-  const displayText = isTextExpanded ? prompt.text : prompt.text.slice(0, 200);
+  const shouldTruncate = prompt.text.length > 160;
+  const displayText = isTextExpanded ? prompt.text : prompt.text.slice(0, 160);
   const badge = getPromptBadge(prompt, isGuestMode);
   const showMenu = openMenuId === prompt.id;
-
-  // ✅ NEW: derive favourite state for this prompt
   const isFavourited = favouritePromptIds.has(prompt.id);
 
-  // Get rating data
   const { ratings, averageRating, totalRatings } = usePromptRating(activeTeam, prompt.id);
   const ratingDistribution = useMemo(() => {
     const dist = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    ratings.forEach(r => {
-      if (r.rating >= 1 && r.rating <= 5) {
-        dist[r.rating]++;
-      }
-    });
+    ratings.forEach(r => { if (r.rating >= 1 && r.rating <= 5) dist[r.rating]++; });
     return dist;
   }, [ratings]);
 
-  // Auto-close menu on outside click
   useEffect(() => {
     function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target) && showMenu) {
-        onMenuToggle(null);
-      }
+      if (menuRef.current && !menuRef.current.contains(event.target) && showMenu) onMenuToggle(null);
     }
     if (showMenu) {
       document.addEventListener('mousedown', handleClickOutside);
@@ -563,329 +396,490 @@ function PromptCard({
   }, [showMenu, onMenuToggle]);
 
   return (
-    <article className={`prompt-card-v2 ${isViewed ? 'viewed' : 'new'} ${isSelected ? 'ring-2 ring-primary' : ''}`}>
-      <div className="prompt-card-header">
-        <div className="prompt-author-row">
-          {onSelect && !isDemo && (
-            <PromptSelector promptId={prompt.id} isSelected={isSelected} onSelectionChange={onSelect} />
-          )}
-          {!isDemo && author && (
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-              <UserAvatar src={author?.avatar} name={author?.name} email={author?.email} size="sm" />
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium truncate text-foreground">
-                  {isGuestMode ? "You" : (author?.name || author?.email || "Unknown")}
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="w-3 h-3" />
-                  <span>{getRelativeTime(prompt.createdAt)}</span>
-                </div>
-              </div>
-            </div>
-          )}
-          {!isGuestMode && !isDemo && (
-            <div className={`privacy-badge ${isPrivate ? 'private' : 'public'}`}>
-              {isPrivate ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-              <span className="hidden sm:inline">{isPrivate ? 'Private' : 'Public'}</span>
-            </div>
-          )}
-          {badge && <span className="demo-badge-small">{badge.label}</span>}
-        </div>
-      </div>
+    <article className={`prompt-card-v2 prompt-card-dense ${isViewed ? 'viewed' : 'new'} ${isSelected ? 'ring-2 ring-primary' : ''}`}
+      style={{
+        display: 'grid',
+        gridTemplateRows: 'auto',
+        gap: 0,
+      }}>
 
-      <div className="prompt-main-content">
-        <div className="prompt-title-row">
-          <h3 className="prompt-title-text">{prompt.title}</h3>
+      {/* ── Top Meta Bar ── */}
+      <div className="prompt-card-meta-bar" style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        padding: '0.625rem 0.875rem',
+        borderBottom: '1px solid var(--border)',
+        flexWrap: 'wrap',
+      }}>
+        {onSelect && !isDemo && (
+          <PromptSelector promptId={prompt.id} isSelected={isSelected} onSelectionChange={onSelect} />
+        )}
+
+        {/* Author */}
+        {!isDemo && author && (
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <UserAvatar src={author?.avatar} name={author?.name} email={author?.email} size="sm" />
+            <span className="text-xs font-medium truncate" style={{ color: "var(--foreground)" }}>
+              {isGuestMode ? "You" : (author?.name || author?.email || "Unknown")}
+            </span>
+          </div>
+        )}
+        {isDemo && <div className="flex-1" />}
+
+        {/* Right-side chips */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className="flex items-center gap-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
+            <Clock className="w-3 h-3" />
+            {getRelativeTime(prompt.createdAt)}
+          </span>
+
+          {!isGuestMode && !isDemo && (
+            <span className={`privacy-badge ${isPrivate ? 'private' : 'public'}`} style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem' }}>
+              {isPrivate ? <Lock className="w-2.5 h-2.5" /> : <Unlock className="w-2.5 h-2.5" />}
+              <span className="hidden sm:inline">{isPrivate ? 'Private' : 'Public'}</span>
+            </span>
+          )}
+
+          {badge && <span className="demo-badge-small">{badge.label}</span>}
+
           {!isDemo && prompt.enhanced && (
             <EnhancedBadge enhanced={prompt.enhanced} enhancedFor={prompt.enhancedFor}
               enhancementType={prompt.enhancementType} size="sm" />
           )}
-        </div>
 
-        <div className="prompt-preview-section">
-          <div className={`prompt-text-content ${isTextExpanded ? 'expanded' : 'collapsed'}`}>
-            {displayText}
-            {!isTextExpanded && shouldTruncate && <span className="text-muted-foreground">...</span>}
-          </div>
-          {shouldTruncate && (
-            <button 
-              onClick={() => {
-                setIsTextExpanded(!isTextExpanded);
-                if (!isTextExpanded && onTrackView) {
-                  onTrackView(prompt.id);
-                }
-              }} 
-              className="read-more-btn"
+          {/* Favourite star quick-action */}
+          {!isGuestMode && !isDemo && onToggleFavourite && (
+            <button
+              onClick={() => onToggleFavourite(prompt.id, prompt.teamId || activeTeam)}
+              className="p-0.5 rounded transition-all hover:scale-110"
+              title={isFavourited ? "Remove favourite" : "Mark favourite"}
             >
-              {isTextExpanded ? "Show less" : "Read more"}
-              <ChevronDown className={`w-3 h-3 transition-transform ${isTextExpanded ? 'rotate-180' : ''}`} />
+              <Star className={`w-3.5 h-3.5 transition-all ${isFavourited ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground hover:text-yellow-400'}`} />
             </button>
           )}
         </div>
+      </div>
 
-        {prompt.tags && prompt.tags.length > 0 && (
-          <div className="prompt-tags">
-            {prompt.tags.slice(0, 4).map((tag, idx) => (
-              <span key={idx} className="prompt-tag">#{tag}</span>
-            ))}
-            {prompt.tags.length > 4 && <span className="prompt-tag-more">+{prompt.tags.length - 4}</span>}
+      {/* ── Two-column body: main content + output preview ── */}
+      <div className="prompt-card-body" style={{
+        display: 'grid',
+        gridTemplateColumns: outputs.length > 0 || !isDemo ? '1fr auto' : '1fr',
+        gap: 0,
+      }}>
+
+        {/* Left: text + tags + metadata */}
+        <div style={{ padding: '0.75rem 0.875rem', minWidth: 0 }}>
+          {/* Title */}
+          <h3 className="prompt-title-text" style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.35rem', lineHeight: 1.3 }}>
+            {prompt.title}
+          </h3>
+
+          {/* Prompt text */}
+          <div className="prompt-preview-section" style={{ marginBottom: '0.5rem' }}>
+            <p className="prompt-text-content text-sm" style={{
+              color: "var(--muted-foreground)",
+              lineHeight: 1.55,
+              display: isTextExpanded ? 'block' : '-webkit-box',
+              WebkitLineClamp: isTextExpanded ? 'unset' : 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: isTextExpanded ? 'visible' : 'hidden',
+            }}>
+              {prompt.text}
+            </p>
+            {shouldTruncate && (
+              <button
+                onClick={() => {
+                  setIsTextExpanded(!isTextExpanded);
+                  if (!isTextExpanded && onTrackView) onTrackView(prompt.id);
+                }}
+                className="read-more-btn"
+                style={{ marginTop: '0.25rem', fontSize: '0.7rem' }}
+              >
+                {isTextExpanded ? "Show less" : "Read more"}
+                <ChevronDown className={`w-3 h-3 transition-transform ${isTextExpanded ? 'rotate-180' : ''}`} />
+              </button>
+            )}
           </div>
-        )}
 
-        {!isDemo && (
-          <AIAnalysisSection 
-            text={prompt.text} 
-            isExpanded={showAIAnalysis}
-            onToggle={() => setShowAIAnalysis(!showAIAnalysis)} 
-            onEnhance={isGuestMode && activeTeam ? null : () => onEnhance && onEnhance(prompt)}
-          />
-        )}
+          {/* Tags */}
+          {prompt.tags && prompt.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-0.5">
+              {prompt.tags.slice(0, 5).map((tag, idx) => (
+                <span key={idx} className="prompt-tag" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem' }}>
+                  #{tag}
+                </span>
+              ))}
+              {prompt.tags.length > 5 && (
+                <span className="prompt-tag-more" style={{ fontSize: '0.65rem' }}>+{prompt.tags.length - 5}</span>
+              )}
+            </div>
+          )}
 
-        {!isDemo && activeTeam && (
-          <RatingStatsBar 
-            ratings={ratingDistribution}
-            totalRatings={totalRatings}
-            averageRating={averageRating}
-            isExpanded={showRatingStats}
-            onToggle={() => setShowRatingStats(!showRatingStats)}
-          />
-        )}
-
-        {!isDemo && (
-          <OutputPreviewPanel 
-            outputs={outputs} 
-            onViewAll={() => onViewOutputs && onViewOutputs(prompt)}
-            isGuestMode={isGuestMode}
-          />
-        )}
-
-        <div className="prompt-metadata-row">
-          <div className="flex items-center gap-3 flex-wrap">
+          {/* Stats row: rating · comments · views */}
+          <div className="flex items-center gap-3 flex-wrap" style={{ marginTop: '0.5rem' }}>
             {!isDemo && activeTeam && (
+              <CompactRating teamId={activeTeam} promptId={prompt.id} isGuestMode={isGuestMode} />
+            )}
+            {!isDemo && (
               <>
-                <InlineRating teamId={activeTeam} promptId={prompt.id} isGuestMode={isGuestMode} />
-                <div className="metadata-dot" />
+                {activeTeam && <span className="text-muted-foreground opacity-40 text-xs">·</span>}
+                {isGuestMode && !activeTeam ? (
+                  <button
+                    onClick={() => alert("Sign up to view and add comments!")}
+                    className="flex items-center gap-1 text-xs opacity-50 cursor-not-allowed"
+                    style={{ color: "var(--muted-foreground)" }}>
+                    <Lock className="w-2.5 h-2.5" />
+                    <MessageSquare className="w-3 h-3" />
+                    <span>{commentCount}</span>
+                  </button>
+                ) : (
+                  <button onClick={() => onToggleComments(prompt.id)}
+                    className="flex items-center gap-1 text-xs hover:text-primary transition-colors"
+                    style={{ color: "var(--muted-foreground)" }}>
+                    <MessageSquare className="w-3 h-3" />
+                    <span>{commentCount}</span>
+                  </button>
+                )}
+                <span className="text-muted-foreground opacity-40 text-xs">·</span>
+                <div className="flex items-center gap-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  <Eye className="w-3 h-3" />
+                  <span>{prompt.stats?.views || 0}</span>
+                </div>
               </>
             )}
-            {isGuestMode && !activeTeam ? (
-              <button 
-                onClick={() => alert("Sign up to view and add comments!")} 
-                className="metadata-item-button opacity-60 cursor-not-allowed"
-                title="Sign up to comment"
-              >
-                <Lock className="w-3 h-3 mr-1" />
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>{commentCount}</span>
-              </button>
-            ) : (
-              <button onClick={() => onToggleComments(prompt.id)} className="metadata-item-button">
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>{commentCount}</span>
-              </button>
-            )}
-            <div className="metadata-dot" />
-            <div className="metadata-item"><Eye className="w-3.5 h-3.5" /><span>{prompt.stats?.views || 0}</span></div>
           </div>
+
+          {/* Collapsible AI analysis */}
+          {!isDemo && (
+            <AIAnalysisSection
+              text={prompt.text}
+              isExpanded={showAIAnalysis}
+              onToggle={() => setShowAIAnalysis(!showAIAnalysis)}
+              onEnhance={isGuestMode && activeTeam ? null : () => onEnhance && onEnhance(prompt)}
+            />
+          )}
+
+          {/* Collapsible rating distribution */}
+          {!isDemo && activeTeam && (
+            <RatingStatsBar
+              ratings={ratingDistribution}
+              totalRatings={totalRatings}
+              averageRating={averageRating}
+              isExpanded={showRatingStats}
+              onToggle={() => setShowRatingStats(!showRatingStats)}
+            />
+          )}
         </div>
 
-        {showCommentSection && !isDemo && activeTeam && (
-          <ExpandedCommentsSection 
+        {/* Right: output preview sidebar */}
+        {!isDemo && (
+          <div className="prompt-output-sidebar" style={{
+            width: '180px',
+            flexShrink: 0,
+            borderLeft: '1px solid var(--border)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}>
+            <OutputSidebar
+              outputs={outputs}
+              onViewAll={() => onViewOutputs && onViewOutputs(prompt)}
+              onAttach={() => onAttachOutput && onAttachOutput(prompt)}
+              isGuestMode={isGuestMode}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* ── Inline comments ── */}
+      {showCommentSection && !isDemo && activeTeam && (
+        <div style={{ padding: '0 0.875rem 0.75rem' }}>
+          <ExpandedCommentsSection
             promptId={prompt.id}
             teamId={activeTeam}
             commentCount={commentCount}
             onClose={() => onToggleComments(prompt.id)}
             userRole={userRole}
           />
-        )}
-
-        <div className="prompt-actions">
-          {isDemo ? (
-            <>
-              <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} isGuestMode={isGuestMode} />
-              <button onClick={() => onDuplicate && onDuplicate(prompt)} className="btn-action-primary">
-                <Sparkles className="w-3.5 h-3.5" /><span>Make My Own</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} isGuestMode={isGuestMode} />
-              {isGuestMode && activeTeam ? (
-                <button 
-                  onClick={() => alert("Sign up to enhance prompts and unlock all features!")} 
-                  className="btn-action-secondary opacity-60 cursor-not-allowed"
-                  title="Sign up to enhance prompts"
-                >
-                  <Lock className="w-3 h-3 mr-1" />
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Enhance</span>
-                </button>
-              ) : (
-                <button onClick={() => onEnhance(prompt)} className="btn-action-secondary" title="AI Enhance">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Enhance</span>
-                </button>
-              )}
-              {isGuestMode && !activeTeam ? (
-                <button 
-                  onClick={() => alert("Sign up to add comments and collaborate with your team!")} 
-                  className="btn-action-secondary opacity-60 cursor-not-allowed"
-                  title="Sign up to comment"
-                >
-                  <Lock className="w-3 h-3 mr-1" />
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Comment</span>
-                </button>
-              ) : (
-                <button onClick={() => onToggleComments(prompt.id)} className="btn-action-secondary">
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Comment</span>
-                </button>
-              )}
-              <div className="relative" ref={menuRef}>
-                <button 
-                  onClick={() => onMenuToggle(showMenu ? null : prompt.id)}
-                  className="btn-action-secondary" 
-                  aria-expanded={showMenu}
-                  title="More actions"
-                >
-                  <MoreVertical className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">More Actions</span>
-                </button>
-                {showMenu && (
-                  <div className="kebab-menu-v2">
-                    {/* ✅ NEW: Mark Favourite — shown to authenticated users only */}
-                    {!isGuestMode && onToggleFavourite && (
-                      <>
-                        <button
-                          onClick={() => { onToggleFavourite(prompt.id, prompt.teamId || activeTeam); onMenuToggle(null); }}
-                          className="menu-item"
-                        >
-                          <Star
-                            className={`w-4 h-4 ${isFavourited ? 'fill-yellow-400 text-yellow-400' : ''}`}
-                          />
-                          <span>{isFavourited ? 'Remove Favourite' : 'Mark Favourite'}</span>
-                        </button>
-                        <div className="menu-divider" />
-                      </>
-                    )}
-
-                    {outputs.length > 0 && (
-                      <>
-                        <button onClick={() => { onViewOutputs(prompt); onMenuToggle(null); }} className="menu-item">
-                          <FileText className="w-4 h-4" />
-                          <span>View All Outputs ({outputs.length})</span>
-                        </button>
-                        <div className="menu-divider" />
-                      </>
-                    )}
-                    {isGuestMode ? (
-                      <button 
-                        onClick={() => { 
-                          alert("Sign up to attach outputs and track prompt performance!"); 
-                          onMenuToggle(null); 
-                        }} 
-                        className="menu-item opacity-60 cursor-not-allowed"
-                        title="Sign up to attach outputs"
-                      >
-                        <Lock className="w-3 h-3 mr-1" />
-                        <Plus className="w-4 h-4" />
-                        <span>Attach New Output</span>
-                      </button>
-                    ) : (
-                      <button onClick={() => { onAttachOutput(prompt); onMenuToggle(null); }} className="menu-item">
-                        <Plus className="w-4 h-4" /><span>Attach New Output</span>
-                      </button>
-                    )}
-                    <div className="menu-divider" />
-                    {!isGuestMode && (
-                      <button onClick={() => { onToggleVisibility(prompt.id); onMenuToggle(null); }} className="menu-item">
-                        {isPrivate ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
-                        <span>Make {isPrivate ? "Public" : "Private"}</span>
-                      </button>
-                    )}
-                    {canEdit && (
-                      <>
-                        <div className="menu-divider" />
-                        <button onClick={() => { onEdit(prompt); onMenuToggle(null); }} className="menu-item">
-                          <Edit2 className="w-4 h-4" /><span>Edit</span>
-                        </button>
-                        <button onClick={() => { onDelete(prompt.id); onMenuToggle(null); }} className="menu-item danger">
-                          <Trash2 className="w-4 h-4" /><span>Delete</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
         </div>
+      )}
+
+      {/* ── Action bar ── */}
+      <div className="prompt-actions" style={{
+        borderTop: '1px solid var(--border)',
+        padding: '0.5rem 0.875rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+        flexWrap: 'wrap',
+      }}>
+        {isDemo ? (
+          <>
+            <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} isGuestMode={isGuestMode} />
+            <button onClick={() => onDuplicate && onDuplicate(prompt)} className="btn-action-primary">
+              <Sparkles className="w-3.5 h-3.5" /><span>Make My Own</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} isGuestMode={isGuestMode} />
+
+            {isGuestMode && activeTeam ? (
+              <button
+                onClick={() => alert("Sign up to enhance prompts and unlock all features!")}
+                className="btn-action-secondary opacity-60 cursor-not-allowed" title="Sign up to enhance">
+                <Lock className="w-3 h-3" /><Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Enhance</span>
+              </button>
+            ) : (
+              <button onClick={() => onEnhance(prompt)} className="btn-action-secondary" title="AI Enhance">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Enhance</span>
+              </button>
+            )}
+
+            {isGuestMode && !activeTeam ? (
+              <button
+                onClick={() => alert("Sign up to add comments and collaborate!")}
+                className="btn-action-secondary opacity-60 cursor-not-allowed" title="Sign up to comment">
+                <Lock className="w-3 h-3" /><MessageSquare className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Comment</span>
+              </button>
+            ) : (
+              <button onClick={() => onToggleComments(prompt.id)} className="btn-action-secondary">
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Comment</span>
+              </button>
+            )}
+
+            {/* Kebab menu — opens UPWARD */}
+            <div className="relative ml-auto" ref={menuRef}>
+              <button
+                onClick={() => onMenuToggle(showMenu ? null : prompt.id)}
+                className="btn-action-secondary"
+                aria-expanded={showMenu}
+                title="More actions"
+              >
+                <MoreVertical className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">More</span>
+              </button>
+
+              {showMenu && (
+                <div className="kebab-menu-v2 kebab-menu-upward" style={{
+                  position: 'absolute',
+                  bottom: 'calc(100% + 6px)',
+                  right: 0,
+                  top: 'auto',
+                  zIndex: 50,
+                  minWidth: '11rem',
+                }}>
+                  {/* Favourite */}
+                  {!isGuestMode && onToggleFavourite && (
+                    <>
+                      <button
+                        onClick={() => { onToggleFavourite(prompt.id, prompt.teamId || activeTeam); onMenuToggle(null); }}
+                        className="menu-item"
+                      >
+                        <Star className={`w-4 h-4 ${isFavourited ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                        <span>{isFavourited ? 'Remove Favourite' : 'Mark Favourite'}</span>
+                      </button>
+                      <div className="menu-divider" />
+                    </>
+                  )}
+
+                  {outputs.length > 0 && (
+                    <>
+                      <button onClick={() => { onViewOutputs(prompt); onMenuToggle(null); }} className="menu-item">
+                        <FileText className="w-4 h-4" />
+                        <span>View All Outputs ({outputs.length})</span>
+                      </button>
+                      <div className="menu-divider" />
+                    </>
+                  )}
+
+                  {isGuestMode ? (
+                    <button
+                      onClick={() => { alert("Sign up to attach outputs!"); onMenuToggle(null); }}
+                      className="menu-item opacity-60 cursor-not-allowed">
+                      <Lock className="w-3.5 h-3.5" /><Plus className="w-4 h-4" /><span>Attach Output</span>
+                    </button>
+                  ) : (
+                    <button onClick={() => { onAttachOutput(prompt); onMenuToggle(null); }} className="menu-item">
+                      <Plus className="w-4 h-4" /><span>Attach Output</span>
+                    </button>
+                  )}
+
+                  <div className="menu-divider" />
+
+                  {!isGuestMode && (
+                    <button onClick={() => { onToggleVisibility(prompt.id); onMenuToggle(null); }} className="menu-item">
+                      {isPrivate ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                      <span>Make {isPrivate ? "Public" : "Private"}</span>
+                    </button>
+                  )}
+
+                  {canEdit && (
+                    <>
+                      <div className="menu-divider" />
+                      <button onClick={() => { onEdit(prompt); onMenuToggle(null); }} className="menu-item">
+                        <Edit2 className="w-4 h-4" /><span>Edit</span>
+                      </button>
+                      <button onClick={() => { onDelete(prompt.id); onMenuToggle(null); }} className="menu-item danger">
+                        <Trash2 className="w-4 h-4" /><span>Delete</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </article>
   );
 }
 
-// Filter Card Component
-function FilterCard({ 
-  filters, 
-  onFilterChange, 
-  onClearFilters, 
-  hasActiveFilters, 
-  filteredCount,
-  teamMembers = {},
-  isExpanded,
-  onToggleExpanded 
-}) {
-  const authors = Object.entries(teamMembers).map(([uid, member]) => ({
-    uid,
-    name: member.name || member.email,
-  }));
-
-  const activeFilterCount = Object.values(filters).filter((value, index) => {
-    const keys = Object.keys(filters);
-    const key = keys[index];
+// ─── Output Sidebar (right panel on card) ─────────────────────────────────────
+function OutputSidebar({ outputs, onViewAll, onAttach, isGuestMode }) {
+  if (isGuestMode) {
     return (
-      key !== "sortBy" && value !== "" && value !== "all"
+      <div className="output-sidebar-locked" onClick={() => alert("Sign up to attach outputs!")}
+        style={{ cursor: 'pointer', padding: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.375rem', height: '100%', opacity: 0.6 }}>
+        <Lock className="w-4 h-4" style={{ color: "var(--muted-foreground)" }} />
+        <span style={{ fontSize: '0.65rem', textAlign: 'center', color: "var(--muted-foreground)" }}>Sign up for outputs</span>
+      </div>
     );
-  }).length;
+  }
+
+  if (!outputs || outputs.length === 0) {
+    return (
+      <button onClick={onAttach}
+        className="output-sidebar-empty"
+        style={{
+          width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: '0.375rem',
+          padding: '0.75rem', cursor: 'pointer', border: 'none', background: 'transparent',
+          color: 'var(--muted-foreground)',
+          transition: 'background 0.15s',
+        }}
+        title="Attach first output"
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--muted)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+      >
+        <Activity className="w-5 h-5 opacity-30" />
+        <span style={{ fontSize: '0.65rem', textAlign: 'center', opacity: 0.6 }}>No outputs yet</span>
+        <span style={{
+          fontSize: '0.6rem', padding: '0.1rem 0.5rem', borderRadius: '999px',
+          border: '1px dashed var(--border)', marginTop: '0.25rem', opacity: 0.7,
+        }}>+ Attach</span>
+      </button>
+    );
+  }
+
+  const latest = outputs[0];
+
+  return (
+    <button onClick={onViewAll}
+      className="output-sidebar-filled"
+      style={{
+        width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+        padding: '0', cursor: 'pointer', border: 'none', background: 'transparent',
+        textAlign: 'left', transition: 'background 0.15s',
+      }}
+      title="View all outputs"
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--muted)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+    >
+      {/* Thumbnail or type header */}
+      {latest.type === 'image' && latest.imageUrl ? (
+        <div style={{ width: '100%', height: '80px', overflow: 'hidden', flexShrink: 0 }}>
+          <img
+            src={latest.imageUrl}
+            alt={latest.title}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        </div>
+      ) : (
+        <div style={{
+          padding: '0.5rem 0.625rem 0.25rem',
+          display: 'flex', alignItems: 'center', gap: '0.375rem',
+          borderBottom: '1px solid var(--border)',
+        }}>
+          {latest.type === 'code'
+            ? <Code className="w-3 h-3 text-purple-400 flex-shrink-0" />
+            : <FileText className="w-3 h-3 text-blue-400 flex-shrink-0" />}
+          <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--foreground)', truncate: true }}>
+            {latest.type === 'code' ? 'Code' : 'Text'}
+          </span>
+        </div>
+      )}
+
+      {/* Content */}
+      <div style={{ padding: '0.5rem 0.625rem', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <p style={{
+          fontSize: '0.7rem', fontWeight: 600, color: 'var(--foreground)',
+          marginBottom: '0.25rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+        }}>
+          {latest.title || 'Untitled'}
+        </p>
+        {latest.type !== 'image' && latest.content && (
+          <p style={{
+            fontSize: '0.65rem', color: 'var(--muted-foreground)', lineHeight: 1.45,
+            display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>
+            {latest.content}
+          </p>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{
+        borderTop: '1px solid var(--border)',
+        padding: '0.3rem 0.625rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexShrink: 0,
+      }}>
+        <span style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)' }}>
+          {outputs.length} output{outputs.length !== 1 ? 's' : ''}
+        </span>
+        <ChevronUp className="w-3 h-3" style={{ color: "var(--primary)", opacity: 0.7 }} />
+      </div>
+    </button>
+  );
+}
+
+// ─── Filter Card ──────────────────────────────────────────────────────────────
+function FilterCard({ filters, onFilterChange, onClearFilters, hasActiveFilters, filteredCount, teamMembers = {}, isExpanded, onToggleExpanded }) {
+  const authors = Object.entries(teamMembers).map(([uid, member]) => ({ uid, name: member.name || member.email }));
+  const activeFilterCount = Object.entries(filters).filter(([k, v]) => k !== "sortBy" && v !== "" && v !== "all").length;
 
   return (
     <div className="glass-card p-6 mb-6" id="filter-card">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <SlidersHorizontal className="w-5 h-5" style={{ color: "var(--primary)" }} />
+          <SlidersHorizontal className="w-4 h-4" style={{ color: "var(--primary)" }} />
           <div>
-            <h3 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
-              Advanced Filters
-            </h3>
+            <h3 className="text-base font-bold" style={{ color: "var(--foreground)" }}>Advanced Filters</h3>
             {activeFilterCount > 0 && (
-              <p className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-                {activeFilterCount} active {activeFilterCount === 1 ? 'filter' : 'filters'} • {filteredCount} results
+              <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+                {activeFilterCount} active {activeFilterCount === 1 ? 'filter' : 'filters'} · {filteredCount} results
               </p>
             )}
           </div>
         </div>
-        <button
-          onClick={onToggleExpanded}
-          className="btn-secondary px-4 py-2 flex items-center gap-2"
-        >
+        <button onClick={onToggleExpanded} className="btn-secondary px-3 py-1.5 flex items-center gap-1.5 text-sm">
           <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-          <span>{isExpanded ? 'Collapse' : 'Expand'}</span>
+          {isExpanded ? 'Collapse' : 'Expand'}
         </button>
       </div>
 
       {isExpanded && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           <div>
-            <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
-              <BarChart2 className="w-4 h-4" />
-              Sort By
+            <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5" style={{ color: "var(--foreground)" }}>
+              <BarChart2 className="w-3.5 h-3.5" />Sort By
             </label>
-            <select
-              value={filters.sortBy}
-              onChange={(e) => onFilterChange("sortBy", e.target.value)}
-              className="form-input w-full"
-            >
+            <select value={filters.sortBy} onChange={(e) => onFilterChange("sortBy", e.target.value)} className="form-input w-full text-sm">
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
               <option value="title">Title A-Z</option>
@@ -895,138 +889,60 @@ function FilterCard({
             </select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
-                <User className="w-4 h-4" />
-                Author
-              </label>
-              <select
-                value={filters.author}
-                onChange={(e) => onFilterChange("author", e.target.value)}
-                className="form-input w-full"
-              >
-                <option value="all">All Authors</option>
-                {authors.map((author) => (
-                  <option key={author.uid} value={author.uid}>
-                    {author.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[
+              { key: 'author', label: 'Author', icon: User, type: 'select', options: [{ value: 'all', label: 'All Authors' }, ...authors.map(a => ({ value: a.uid, label: a.name }))] },
+              { key: 'visibility', label: 'Visibility', icon: Lock, type: 'select', options: [{ value: 'all', label: 'All Prompts' }, { value: 'public', label: 'Public Only' }, { value: 'private', label: 'Private Only' }] },
+              { key: 'dateRange', label: 'Created', icon: Calendar, type: 'select', options: [{ value: 'all', label: 'Any Time' }, { value: 'today', label: 'Today' }, { value: 'week', label: 'Past Week' }, { value: 'month', label: 'Past Month' }, { value: 'quarter', label: 'Past 3 Months' }] },
+            ].map(({ key, label, icon: Icon, type, options }) => (
+              <div key={key}>
+                <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5" style={{ color: "var(--foreground)" }}>
+                  <Icon className="w-3.5 h-3.5" />{label}
+                </label>
+                <select value={filters[key]} onChange={(e) => onFilterChange(key, e.target.value)} className="form-input w-full text-sm">
+                  {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+            ))}
 
             <div>
-              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
-                <Lock className="w-4 h-4" />
-                Visibility
+              <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5" style={{ color: "var(--foreground)" }}>
+                <Tag className="w-3.5 h-3.5" />Tags
               </label>
-              <select
-                value={filters.visibility}
-                onChange={(e) => onFilterChange("visibility", e.target.value)}
-                className="form-input w-full"
-              >
-                <option value="all">All Prompts</option>
-                <option value="public">Public Only</option>
-                <option value="private">Private Only</option>
-              </select>
+              <input type="text" placeholder="writing, creative" value={filters.tags}
+                onChange={(e) => onFilterChange("tags", e.target.value)} className="form-input w-full text-sm" />
+              <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>Comma separated</p>
             </div>
 
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
-                <Calendar className="w-4 h-4" />
-                Created
-              </label>
-              <select
-                value={filters.dateRange}
-                onChange={(e) => onFilterChange("dateRange", e.target.value)}
-                className="form-input w-full"
-              >
-                <option value="all">Any Time</option>
-                <option value="today">Today</option>
-                <option value="week">Past Week</option>
-                <option value="month">Past Month</option>
-                <option value="quarter">Past 3 Months</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
-                <Tag className="w-4 h-4" />
-                Tags
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. writing, creative"
-                value={filters.tags}
-                onChange={(e) => onFilterChange("tags", e.target.value)}
-                className="form-input w-full"
-              />
-              <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
-                Comma separated
-              </p>
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
-                <Ruler className="w-4 h-4" />
-                Min Characters
-              </label>
-              <input
-                type="number"
-                placeholder="0"
-                value={filters.minLength}
-                onChange={(e) => onFilterChange("minLength", e.target.value)}
-                className="form-input w-full"
-                min="0"
-              />
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
-                <Ruler className="w-4 h-4" />
-                Max Characters
-              </label>
-              <input
-                type="number"
-                placeholder="No limit"
-                value={filters.maxLength}
-                onChange={(e) => onFilterChange("maxLength", e.target.value)}
-                className="form-input w-full"
-                min="0"
-              />
-            </div>
+            {[{ key: 'minLength', label: 'Min Characters' }, { key: 'maxLength', label: 'Max Characters' }].map(({ key, label }) => (
+              <div key={key}>
+                <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5" style={{ color: "var(--foreground)" }}>
+                  <Ruler className="w-3.5 h-3.5" />{label}
+                </label>
+                <input type="number" placeholder={key === 'minLength' ? '0' : 'No limit'}
+                  value={filters[key]} onChange={(e) => onFilterChange(key, e.target.value)}
+                  className="form-input w-full text-sm" min="0" />
+              </div>
+            ))}
           </div>
 
           {hasActiveFilters && (
-            <div className="flex justify-between items-center pt-4 border-t" style={{ borderColor: "var(--border)" }}>
-              <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            <div className="flex justify-between items-center pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
                 {activeFilterCount} active {activeFilterCount === 1 ? "filter" : "filters"}
               </p>
-              <button
-                onClick={onClearFilters}
-                className="btn-secondary text-sm px-4 py-2 flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear All Filters
+              <button onClick={onClearFilters} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5">
+                <X className="w-3.5 h-3.5" />Clear All
               </button>
             </div>
           )}
 
-          <div className="p-3 rounded-lg border" style={{
-            backgroundColor: "var(--muted)",
-            borderColor: "var(--border)",
-          }}>
-            <div className="flex items-start gap-2">
-              <Lightbulb className="w-4 h-4 mt-0.5" style={{ color: "var(--primary)" }} />
-              <div>
-                <p className="text-xs font-medium mb-1" style={{ color: "var(--foreground)" }}>
-                  Filter Tips
-                </p>
-                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                  Combine multiple filters for precise results. Use tag search with commas to find prompts matching multiple tags.
-                </p>
-              </div>
-            </div>
+          <div className="p-2.5 rounded-lg border flex items-start gap-2 text-xs"
+            style={{ backgroundColor: "var(--muted)", borderColor: "var(--border)" }}>
+            <Lightbulb className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "var(--primary)" }} />
+            <p style={{ color: "var(--muted-foreground)" }}>
+              Combine filters for precision. Use commas in Tags to match multiple.
+            </p>
           </div>
         </div>
       )}
@@ -1034,7 +950,7 @@ function FilterCard({
   );
 }
 
-// Main Component
+// ─── Main Component ────────────────────────────────────────────────────────────
 export default function PromptList({ activeTeam, userRole, isGuestMode = false, userId, onScrollToInvite }) {
   const { user } = useAuth();
   const { playNotification } = useSoundEffects();
@@ -1053,7 +969,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [promptOutputs, setPromptOutputs] = useState({});
   const [promptComments, setPromptComments] = useState({});
   const [showCommentSection, setShowCommentSection] = useState({});
-  const [showRatingsSection, setShowRatingsSection] = useState({});
   const [selectedPromptForAttach, setSelectedPromptForAttach] = useState(null);
   const [showAIEnhancer, setShowAIEnhancer] = useState(false);
   const [currentPromptForAI, setCurrentPromptForAI] = useState(null);
@@ -1064,136 +979,77 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [showFilters, setShowFilters] = useState(false);
   const filterCardRef = useRef(null);
   const importCardRef = useRef(null);
-  
-  // ✅ NEW: Favourites state — tracks which promptIds the user has favourited
   const [favouritePromptIds, setFavouritePromptIds] = useState(new Set());
 
   const [filters, setFilters] = useState({
-    author: "all",
-    tags: "",
-    dateRange: "all",
-    sortBy: "newest",
-    minLength: "",
-    maxLength: "",
-    visibility: "all",
+    author: "all", tags: "", dateRange: "all", sortBy: "newest",
+    minLength: "", maxLength: "", visibility: "all",
   });
-  
+
   const demos = useMemo(() => {
     if (isGuestMode && userPrompts.length === 0) return getAllDemoPrompts();
     return [];
   }, [isGuestMode, userPrompts.length]);
 
-  // ✅ NEW: Load user's favourites from Firestore on mount
+  // Load favourites
   useEffect(() => {
     if (!user || isGuestMode) return;
-
     const favRef = collection(db, "users", user.uid, "favourites");
     const unsub = onSnapshot(favRef, (snap) => {
-      const ids = new Set(snap.docs.map((d) => d.id));
-      setFavouritePromptIds(ids);
+      setFavouritePromptIds(new Set(snap.docs.map((d) => d.id)));
     });
-
     return () => unsub();
   }, [user, isGuestMode]);
 
+  // Load prompts
   useEffect(() => {
     if (isGuestMode && !activeTeam) {
-      console.log('📝 [PROMPTS] Loading local guest prompts');
       setUserPrompts(guestState.getPrompts());
       setLoading(false);
       return;
     }
-    
-    if (!activeTeam) {
-      console.log('📝 [PROMPTS] No active team');
-      setUserPrompts([]);
-      setLoading(false);
-      return;
-    }
-    
-    console.log('📝 [PROMPTS] Loading prompts from Firestore:', activeTeam);
+    if (!activeTeam) { setUserPrompts([]); setLoading(false); return; }
     setLoading(true);
-    
-    const q = query(
-      collection(db, "teams", activeTeam, "prompts"), 
-      orderBy("createdAt", "desc")
-    );
-    
+    const q = query(collection(db, "teams", activeTeam, "prompts"), orderBy("createdAt", "desc"));
     const unsub = onSnapshot(q, (snap) => {
-      console.log('📝 [PROMPTS] Received', snap.docs.length, 'prompts from Firestore');
-      
-      const data = snap.docs.map((d) => ({ 
-        id: d.id, 
-        teamId: activeTeam, 
-        ...d.data() 
-      }));
-      
-      const uniqueData = Array.from(
-        new Map(data.map((item) => [item.id, item])).values()
-      );
-      
-      const visiblePrompts = user 
-        ? filterVisiblePrompts(uniqueData, user.uid, userRole)
-        : uniqueData.filter(p => p.visibility === 'public' || !p.visibility);
-      
-      console.log('📝 [PROMPTS] Setting', visiblePrompts.length, 'visible prompts');
-      setUserPrompts(visiblePrompts);
+      const data = snap.docs.map((d) => ({ id: d.id, teamId: activeTeam, ...d.data() }));
+      const unique = Array.from(new Map(data.map(item => [item.id, item])).values());
+      const visible = user
+        ? filterVisiblePrompts(unique, user.uid, userRole)
+        : unique.filter(p => p.visibility === 'public' || !p.visibility);
+      setUserPrompts(visible);
       setLoading(false);
-    }, (error) => {
-      console.error("❌ [PROMPTS] Error loading prompts:", error);
-      setLoading(false);
-    });
-    
+    }, () => setLoading(false));
     return () => unsub();
   }, [activeTeam, user, userRole, isGuestMode]);
 
+  // Load outputs
   useEffect(() => {
     if (!activeTeam) return;
-    
-    console.log('📊 [OUTPUTS] Loading outputs for', userPrompts.length, 'prompts');
-    const unsubscribers = [];
-    
-    userPrompts.forEach((prompt) => {
-      const unsub = subscribeToResults(activeTeam, prompt.id, (results) => {
+    const unsubs = userPrompts.map((prompt) =>
+      subscribeToResults(activeTeam, prompt.id, (results) => {
         setPromptOutputs((prev) => ({ ...prev, [prompt.id]: results }));
-      });
-      unsubscribers.push(unsub);
-    });
-    
-    return () => unsubscribers.forEach((unsub) => unsub());
+      })
+    );
+    return () => unsubs.forEach(u => u());
   }, [userPrompts, activeTeam]);
 
+  // Load comment counts
   useEffect(() => {
     if (!activeTeam) return;
-    
-    console.log('💬 [COMMENTS] Loading comment counts');
-    const unsubscribers = [];
-    
-    userPrompts.forEach((prompt) => {
-      const q = query(
-        collection(db, "teams", activeTeam, "prompts", prompt.id, "comments")
-      );
-      const unsub = onSnapshot(q, (snap) => {
+    const unsubs = userPrompts.map((prompt) => {
+      const q = query(collection(db, "teams", activeTeam, "prompts", prompt.id, "comments"));
+      return onSnapshot(q, (snap) => {
         setPromptComments((prev) => ({ ...prev, [prompt.id]: snap.docs.length }));
       });
-      unsubscribers.push(unsub);
     });
-    
-    return () => unsubscribers.forEach((unsub) => unsub());
+    return () => unsubs.forEach(u => u());
   }, [userPrompts, activeTeam]);
 
+  // Load team data
   useEffect(() => {
     async function loadTeamData() {
-      if (!activeTeam || isGuestMode) {
-        console.log('📝 [TEAM DATA] No team or guest mode, skipping');
-        return;
-      }
-      
-      if (!user) {
-        console.log('📝 [TEAM DATA] No user: skipping member profile loading');
-        return;
-      }
-      
+      if (!activeTeam || isGuestMode || !user) return;
       try {
         const teamDoc = await getDoc(doc(db, "teams", activeTeam));
         if (!teamDoc.exists()) return;
@@ -1205,53 +1061,35 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           try {
             const userDoc = await getDoc(doc(db, "users", memberId));
             if (userDoc.exists()) profiles[memberId] = userDoc.data();
-          } catch (error) { }
+          } catch {}
         }
         setTeamMembers(profiles);
-      } catch (error) { 
-        console.error("Error loading team data:", error); 
-      }
+      } catch {}
     }
     loadTeamData();
   }, [activeTeam, isGuestMode, user]);
 
-  // ✅ NEW: Toggle favourite — writes to /users/{uid}/favourites/{promptId}
   async function handleToggleFavourite(promptId, teamId) {
-    if (!user) {
-      showNotification("Sign up to save favourites", "info");
-      return;
-    }
-
+    if (!user) { showNotification("Sign up to save favourites", "info"); return; }
     const favRef = doc(db, "users", user.uid, "favourites", promptId);
     const isCurrentlyFaved = favouritePromptIds.has(promptId);
-
-    // Optimistic update
     setFavouritePromptIds((prev) => {
       const next = new Set(prev);
-      if (isCurrentlyFaved) next.delete(promptId);
-      else next.add(promptId);
+      isCurrentlyFaved ? next.delete(promptId) : next.add(promptId);
       return next;
     });
-
     try {
       if (isCurrentlyFaved) {
         await deleteDoc(favRef);
         showSuccessToast("Removed from favourites");
       } else {
-        await setDoc(favRef, {
-          promptId,
-          teamId: teamId || activeTeam,
-          addedAt: serverTimestamp(),
-        });
+        await setDoc(favRef, { promptId, teamId: teamId || activeTeam, addedAt: serverTimestamp() });
         showSuccessToast("Added to favourites ★");
       }
-    } catch (err) {
-      console.error("Error toggling favourite:", err);
-      // Revert optimistic update
+    } catch {
       setFavouritePromptIds((prev) => {
         const next = new Set(prev);
-        if (isCurrentlyFaved) next.add(promptId);
-        else next.delete(promptId);
+        isCurrentlyFaved ? next.add(promptId) : next.delete(promptId);
         return next;
       });
       showNotification("Failed to update favourites", "error");
@@ -1259,207 +1097,97 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   }
 
   function applyFilters(promptsList) {
-    function getTimestamp(prompt) {
-      if (!prompt.createdAt) return 0;
-      if (typeof prompt.createdAt.toMillis === 'function') {
-        return prompt.createdAt.toMillis();
-      }
-      if (prompt.createdAt instanceof Date) {
-        return prompt.createdAt.getTime();
-      }
-      if (typeof prompt.createdAt === 'number') {
-        return prompt.createdAt;
-      }
+    function getTimestamp(p) {
+      if (!p.createdAt) return 0;
+      if (typeof p.createdAt.toMillis === 'function') return p.createdAt.toMillis();
+      if (p.createdAt instanceof Date) return p.createdAt.getTime();
+      if (typeof p.createdAt === 'number') return p.createdAt;
       return 0;
     }
-    
     let filtered = [...promptsList];
-
     if (searchQuery.trim()) {
-      const searchTerm = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(
-        (prompt) =>
-          prompt.title?.toLowerCase().includes(searchTerm) ||
-          prompt.text?.toLowerCase().includes(searchTerm) ||
-          (Array.isArray(prompt.tags) &&
-            prompt.tags.some((tag) => tag.toLowerCase().includes(searchTerm)))
+      const term = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(p =>
+        p.title?.toLowerCase().includes(term) ||
+        p.text?.toLowerCase().includes(term) ||
+        (Array.isArray(p.tags) && p.tags.some(t => t.toLowerCase().includes(term)))
       );
     }
-
-    if (filters.author !== "all") {
-      filtered = filtered.filter(
-        (prompt) => prompt.createdBy === filters.author
-      );
-    }
-
-    if (filters.visibility !== "all") {
-      filtered = filtered.filter(
-        (prompt) => (prompt.visibility || "public") === filters.visibility
-      );
-    }
-
+    if (filters.author !== "all") filtered = filtered.filter(p => p.createdBy === filters.author);
+    if (filters.visibility !== "all") filtered = filtered.filter(p => (p.visibility || "public") === filters.visibility);
     if (filters.tags.trim()) {
-      const searchTags = filters.tags
-        .toLowerCase()
-        .split(",")
-        .map((t) => t.trim())
-        .filter(Boolean);
-      filtered = filtered.filter(
-        (prompt) =>
-          Array.isArray(prompt.tags) &&
-          searchTags.some((searchTag) =>
-            prompt.tags.some((tag) => tag.toLowerCase().includes(searchTag))
-          )
+      const searchTags = filters.tags.toLowerCase().split(",").map(t => t.trim()).filter(Boolean);
+      filtered = filtered.filter(p =>
+        Array.isArray(p.tags) && searchTags.some(st => p.tags.some(t => t.toLowerCase().includes(st)))
       );
     }
-
     if (filters.dateRange !== "all") {
-      const now = new Date();
-      const cutoffDate = new Date();
-
-      switch (filters.dateRange) {
-        case "today":
-          cutoffDate.setHours(0, 0, 0, 0);
-          break;
-        case "week":
-          cutoffDate.setDate(now.getDate() - 7);
-          break;
-        case "month":
-          cutoffDate.setMonth(now.getMonth() - 1);
-          break;
-        case "quarter":
-          cutoffDate.setMonth(now.getMonth() - 3);
-          break;
-      }
-
-      filtered = filtered.filter((prompt) => {
-        if (!prompt.createdAt) return false;
+      const now = new Date(), cutoff = new Date();
+      if (filters.dateRange === "today") cutoff.setHours(0, 0, 0, 0);
+      else if (filters.dateRange === "week") cutoff.setDate(now.getDate() - 7);
+      else if (filters.dateRange === "month") cutoff.setMonth(now.getMonth() - 1);
+      else if (filters.dateRange === "quarter") cutoff.setMonth(now.getMonth() - 3);
+      filtered = filtered.filter(p => {
+        if (!p.createdAt) return false;
         try {
-          let promptDate;
-          if (typeof prompt.createdAt.toDate === 'function') {
-            promptDate = prompt.createdAt.toDate();
-          } 
-          else if (prompt.createdAt instanceof Date) {
-            promptDate = prompt.createdAt;
-          }
-          else if (typeof prompt.createdAt === 'number') {
-            promptDate = new Date(prompt.createdAt);
-          } else {
-            return false;
-          }
-          return promptDate >= cutoffDate;
-        } catch {
-          return false;
-        }
+          const d = typeof p.createdAt.toDate === 'function' ? p.createdAt.toDate()
+                  : p.createdAt instanceof Date ? p.createdAt
+                  : typeof p.createdAt === 'number' ? new Date(p.createdAt) : null;
+          return d && d >= cutoff;
+        } catch { return false; }
       });
     }
-
-    if (filters.minLength && !isNaN(filters.minLength)) {
-      filtered = filtered.filter(
-        (prompt) => (prompt.text?.length || 0) >= parseInt(filters.minLength)
-      );
-    }
-
-    if (filters.maxLength && !isNaN(filters.maxLength)) {
-      filtered = filtered.filter(
-        (prompt) => (prompt.text?.length || 0) <= parseInt(filters.maxLength)
-      );
-    }
+    if (filters.minLength && !isNaN(filters.minLength)) filtered = filtered.filter(p => (p.text?.length || 0) >= parseInt(filters.minLength));
+    if (filters.maxLength && !isNaN(filters.maxLength)) filtered = filtered.filter(p => (p.text?.length || 0) <= parseInt(filters.maxLength));
 
     filtered.sort((a, b) => {
       switch (filters.sortBy) {
-        case "newest":
-          return getTimestamp(b) - getTimestamp(a);
-        case "oldest":
-          return getTimestamp(a) - getTimestamp(b);
-        case "title":
-          return (a.title || "").localeCompare(b.title || "");
+        case "newest": return getTimestamp(b) - getTimestamp(a);
+        case "oldest": return getTimestamp(a) - getTimestamp(b);
+        case "title": return (a.title || "").localeCompare(b.title || "");
         case "author":
-          const authorA =
-            teamMembers[a.createdBy]?.name ||
-            teamMembers[a.createdBy]?.email ||
-            "";
-          const authorB =
-            teamMembers[b.createdBy]?.name ||
-            teamMembers[b.createdBy]?.email ||
-            "";
-          return authorA.localeCompare(authorB);
-        case "length-asc":
-          return (a.text?.length || 0) - (b.text?.length || 0);
-        case "length-desc":
-          return (b.text?.length || 0) - (a.text?.length || 0);
-        default:
-          return 0;
+          return (teamMembers[a.createdBy]?.name || teamMembers[a.createdBy]?.email || "")
+            .localeCompare(teamMembers[b.createdBy]?.name || teamMembers[b.createdBy]?.email || "");
+        case "length-asc": return (a.text?.length || 0) - (b.text?.length || 0);
+        case "length-desc": return (b.text?.length || 0) - (a.text?.length || 0);
+        default: return 0;
       }
     });
-
     return filtered;
   }
 
-  function handleFilterChange(key, value) {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function clearFilters() {
-    setFilters({
-      author: "all",
-      tags: "",
-      dateRange: "all",
-      sortBy: "newest",
-      minLength: "",
-      maxLength: "",
-      visibility: "all",
-    });
-  }
-
+  function handleFilterChange(key, value) { setFilters(prev => ({ ...prev, [key]: value })); }
+  function clearFilters() { setFilters({ author: "all", tags: "", dateRange: "all", sortBy: "newest", minLength: "", maxLength: "", visibility: "all" }); }
   function hasActiveFilters() {
-    return (
-      filters.author !== "all" ||
-      filters.tags !== "" ||
-      filters.dateRange !== "all" ||
-      filters.minLength !== "" ||
-      filters.maxLength !== "" ||
-      filters.visibility !== "all"
-    );
+    return filters.author !== "all" || filters.tags !== "" || filters.dateRange !== "all" ||
+      filters.minLength !== "" || filters.maxLength !== "" || filters.visibility !== "all";
   }
 
   function scrollToFilters() {
     setShowFilters(true);
-    setTimeout(() => {
-      filterCardRef.current?.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-      });
-    }, 100);
+    setTimeout(() => filterCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   }
 
-  const allPrompts = useMemo(() => {
-    let combined = [...demos, ...userPrompts];
-    return applyFilters(combined);
-  }, [demos, userPrompts, searchQuery, filters, teamMembers]);
-
+  const allPrompts = useMemo(() => applyFilters([...demos, ...userPrompts]), [demos, userPrompts, searchQuery, filters, teamMembers]);
   const displayDemos = useMemo(() => allPrompts.filter(p => isDemoPrompt(p)), [allPrompts]);
   const displayUserPrompts = useMemo(() => allPrompts.filter(p => !isDemoPrompt(p)), [allPrompts]);
-
   const userPromptsPagination = usePagination(displayUserPrompts, 10);
   const demoPromptsPagination = usePagination(displayDemos, 5);
 
-  const handleSelectPrompt = (promptId, isSelected) => {
-    setSelectedPrompts(prev => isSelected ? [...prev, promptId] : prev.filter(id => id !== promptId));
+  const handleSelectPrompt = (promptId, isSel) => {
+    setSelectedPrompts(prev => isSel ? [...prev, promptId] : prev.filter(id => id !== promptId));
   };
 
   const handleBulkDelete = async (promptIds) => {
     try {
-      for (const promptId of promptIds) {
-        if (isGuestMode) guestState.deletePrompt(promptId);
-        else await deletePrompt(activeTeam, promptId);
+      for (const id of promptIds) {
+        if (isGuestMode) guestState.deletePrompt(id);
+        else await deletePrompt(activeTeam, id);
       }
       if (isGuestMode) setUserPrompts(prev => prev.filter(p => !promptIds.includes(p.id)));
       setSelectedPrompts([]);
       showSuccessToast(`${promptIds.length} prompts deleted`);
-    } catch (error) {
-      showNotification("Failed to delete some prompts", "error");
-    }
+    } catch { showNotification("Failed to delete some prompts", "error"); }
   };
 
   const handleBulkExport = (prompts, format) => {
@@ -1473,122 +1201,69 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     if (!userPrompt) { showNotification('Failed to duplicate demo', 'error'); return; }
     checkSaveRequired('duplicate_demo', async () => {
       if (isGuestMode) {
-        const savedPrompt = guestState.addPrompt(userPrompt);
-        setUserPrompts(prev => [savedPrompt, ...prev]);
+        const saved = guestState.addPrompt(userPrompt);
+        setUserPrompts(prev => [saved, ...prev]);
         showSuccessToast('Demo copied! Edit it however you like.');
-        setEditingPrompt(savedPrompt);
-        setShowEditModal(true);
+        setEditingPrompt(saved); setShowEditModal(true);
       } else {
-        try {
-          await savePrompt(user.uid, userPrompt, activeTeam);
-          showSuccessToast('Demo copied!');
-        } catch (error) { showNotification('Failed to save copied prompt', 'error'); }
+        try { await savePrompt(user.uid, userPrompt, activeTeam); showSuccessToast('Demo copied!'); }
+        catch { showNotification('Failed to save copied prompt', 'error'); }
       }
     });
   };
 
   async function handleCreate(e) {
     e.preventDefault();
-    if (!newPrompt.title.trim() || !newPrompt.text.trim()) {
-      showNotification("Title and prompt text are required", "error");
-      return;
-    }
+    if (!newPrompt.title.trim() || !newPrompt.text.trim()) { showNotification("Title and prompt text are required", "error"); return; }
     try {
       if (isGuestMode) {
-        const savedPrompt = guestState.addPrompt({
-          title: newPrompt.title.trim(),
-          text: newPrompt.text.trim(),
-          tags: newPrompt.tags.split(",").map((t) => t.trim()).filter(Boolean),
-          visibility: newPrompt.visibility,
-        });
-        setUserPrompts(prev => [savedPrompt, ...prev]);
+        const saved = guestState.addPrompt({ title: newPrompt.title.trim(), text: newPrompt.text.trim(), tags: newPrompt.tags.split(",").map(t => t.trim()).filter(Boolean), visibility: newPrompt.visibility });
+        setUserPrompts(prev => [saved, ...prev]);
         checkSaveRequired('create_prompt', () => {});
       } else {
-        await savePrompt(user.uid, {
-          title: newPrompt.title.trim(),
-          text: newPrompt.text.trim(),
-          tags: newPrompt.tags.split(",").map((t) => t.trim()).filter(Boolean),
-          visibility: newPrompt.visibility,
-        }, activeTeam);
+        await savePrompt(user.uid, { title: newPrompt.title.trim(), text: newPrompt.text.trim(), tags: newPrompt.tags.split(",").map(t => t.trim()).filter(Boolean), visibility: newPrompt.visibility }, activeTeam);
       }
       setNewPrompt({ title: "", tags: "", text: "", visibility: "public" });
       setShowCreateForm(false);
       showSuccessToast("Prompt created successfully!");
-    } catch (error) { showNotification("Failed to create prompt", "error"); }
+    } catch { showNotification("Failed to create prompt", "error"); }
   }
 
   async function handleUpdate(promptId, updates) {
     try {
-      if (isGuestMode) {
-        guestState.updatePrompt(promptId, updates);
-        setUserPrompts(prev => prev.map(p => p.id === promptId ? { ...p, ...updates } : p));
-      } else {
-        await updatePromptFirestore(activeTeam, promptId, updates);
-      }
-      setShowEditModal(false);
-      setEditingPrompt(null);
+      if (isGuestMode) { guestState.updatePrompt(promptId, updates); setUserPrompts(prev => prev.map(p => p.id === promptId ? { ...p, ...updates } : p)); }
+      else await updatePromptFirestore(activeTeam, promptId, updates);
+      setShowEditModal(false); setEditingPrompt(null);
       showSuccessToast("Prompt updated successfully!");
-    } catch (error) { showNotification("Failed to update prompt", "error"); }
+    } catch { showNotification("Failed to update prompt", "error"); }
   }
 
   async function handleDelete(promptId) {
     if (!confirm("Are you sure you want to delete this prompt?")) return;
     try {
-      if (isGuestMode) {
-        guestState.deletePrompt(promptId);
-        setUserPrompts(prev => prev.filter(p => p.id !== promptId));
-      } else {
-        await deletePrompt(activeTeam, promptId);
-      }
+      if (isGuestMode) { guestState.deletePrompt(promptId); setUserPrompts(prev => prev.filter(p => p.id !== promptId)); }
+      else await deletePrompt(activeTeam, promptId);
       showSuccessToast("Prompt deleted");
-    } catch (error) { showNotification("Failed to delete prompt", "error"); }
+    } catch { showNotification("Failed to delete prompt", "error"); }
   }
 
   async function handleToggleVisibility(promptId) {
     if (isGuestMode) { showNotification("Sign up to manage prompt visibility", "info"); return; }
-    const prompt = allPrompts.find((p) => p.id === promptId);
+    const prompt = allPrompts.find(p => p.id === promptId);
     if (!prompt) return;
-    try {
-      await togglePromptVisibility(activeTeam, promptId, prompt.visibility || "public");
-      showSuccessToast("Visibility updated");
-    } catch (error) { showNotification("Failed to change visibility", "error"); }
+    try { await togglePromptVisibility(activeTeam, promptId, prompt.visibility || "public"); showSuccessToast("Visibility updated"); }
+    catch { showNotification("Failed to change visibility", "error"); }
   }
 
   async function handleCopy(text, promptId, isGuestUser = false) {
     try {
       await navigator.clipboard.writeText(text);
       showSuccessToast("Copied to clipboard!");
-      
-      console.log('📋 [COPY] Copy initiated:', { 
-        promptId, 
-        isGuestMode, 
-        activeTeam,
-        hasSessionToken: !!sessionStorage.getItem('guest_team_token')
-      });
-      
       if (activeTeam) {
         const guestToken = sessionStorage.getItem('guest_team_token');
-        const isGuest = !!guestToken;
-        
-        console.log('📋 [COPY] Tracking copy:', { 
-          isGuest, 
-          guestToken: guestToken ? guestToken.substring(0, 8) + '...' : 'none',
-          activeTeam: activeTeam.substring(0, 8) + '...'
-        });
-        
-        try {
-          await trackPromptCopy(activeTeam, promptId, isGuest);
-          console.log('✅ [COPY] Copy tracked successfully');
-        } catch (trackError) {
-          console.error('❌ [COPY] Tracking failed:', trackError);
-        }
-      } else if (isGuestMode) {
-        console.log('📋 [COPY] Local guest mode, no tracking');
+        try { await trackPromptCopy(activeTeam, promptId, !!guestToken); } catch {}
       }
-    } catch (error) { 
-      console.error('❌ [COPY] Failed to copy:', error);
-      showNotification("Failed to copy", "error"); 
-    }
+    } catch { showNotification("Failed to copy", "error"); }
   }
 
   function canEditPrompt(prompt) {
@@ -1597,11 +1272,23 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   }
 
   function handleToggleComments(promptId) {
-    if (isGuestMode && !activeTeam) {
-      alert("Sign up to view and add comments!");
-      return;
-    }
+    if (isGuestMode && !activeTeam) { alert("Sign up to view and add comments!"); return; }
     setShowCommentSection(prev => ({ ...prev, [promptId]: !prev[promptId] }));
+  }
+
+  async function handleTrackView(promptId) {
+    if (trackedViews.has(promptId)) return;
+    setTrackedViews(prev => new Set([...prev, promptId]));
+    if (activeTeam) {
+      try { await updateDoc(doc(db, "teams", activeTeam, "prompts", promptId), { 'stats.views': increment(1) }); }
+      catch { setTrackedViews(prev => { const s = new Set(prev); s.delete(promptId); return s; }); }
+    }
+  }
+
+  async function handleImportPrompts(validPrompts) {
+    if (isGuestMode) { validPrompts.forEach(p => guestState.addPrompt(p)); setUserPrompts(guestState.getPrompts()); return; }
+    try { for (const p of validPrompts) await savePrompt(user.uid, p, activeTeam); }
+    catch (e) { console.error("Import error:", e); throw e; }
   }
 
   function handleEnhance(prompt) {
@@ -1609,241 +1296,125 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     setShowAIEnhancer(true);
   }
 
-  function handleViewOutputs(prompt) {
-    setViewOutputsPrompt(prompt);
-  }
-
-  async function handleTrackView(promptId) {
-    console.log('👁️ [VIEW] View tracking requested:', { 
-      promptId, 
-      alreadyTracked: trackedViews.has(promptId),
-      isGuestMode,
-      activeTeam 
-    });
-    
-    if (trackedViews.has(promptId)) {
-      console.log('👁️ [VIEW] Already tracked for this user, skipping');
-      return;
-    }
-    
-    setTrackedViews(prev => new Set([...prev, promptId]));
-    
-    if (activeTeam) {
-      const guestToken = sessionStorage.getItem('guest_team_token');
-      console.log('👁️ [VIEW] Tracking view:', { 
-        activeTeam,
-        isGuest: !!guestToken,
-        guestToken: guestToken?.substring(0, 8)
-      });
-      
-      try {
-        const promptRef = doc(db, "teams", activeTeam, "prompts", promptId);
-        await updateDoc(promptRef, {
-          'stats.views': increment(1)
-        });
-        console.log('✅ [VIEW] View tracked successfully');
-      } catch (error) {
-        console.error("❌ [VIEW] Error tracking view:", error);
-        setTrackedViews(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(promptId);
-          return newSet;
-        });
-      }
-    } else if (isGuestMode) {
-      console.log('👁️ [VIEW] Local guest mode, no tracking');
-    }
-  }
-
-  async function handleImportPrompts(validPrompts) {
-    if (isGuestMode) {
-      validPrompts.forEach(prompt => {
-        guestState.addPrompt(prompt);
-      });
-      setUserPrompts(guestState.getPrompts());
-      return;
-    }
-
-    try {
-      for (const prompt of validPrompts) {
-        await savePrompt(user.uid, prompt, activeTeam);
-      }
-    } catch (error) {
-      console.error("Import error:", error);
-      throw error;
-    }
-  }
-
-  function showSuccessToast(message) {
+  function showSuccessToast(msg) { playNotification(); success(msg, 3000); }
+  function showNotification(msg, type = "info") {
     playNotification();
-    success(message, 3000);
-  }
-
-  function showNotification(message, type = "info") {
-    playNotification();
-    if (type === "error") {
-      error(message, 3000);
-    } else if (type === "info") {
-      info(message, 3000);
-    } else {
-      success(message, 3000);
-    }
+    if (type === "error") error(msg, 3000);
+    else if (type === "info") info(msg, 3000);
+    else success(msg, 3000);
   }
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="skeleton-card h-64"></div>
-        <div className="skeleton-card h-64"></div>
+      <div className="space-y-3">
+        {[1,2,3].map(i => <div key={i} className="skeleton-card h-48" />)}
       </div>
     );
   }
 
+  const activeFilterCount = Object.entries(filters).filter(([k, v]) => k !== "sortBy" && v !== "" && v !== "all").length;
+
   return (
     <div className="prompt-list-container">
-      <div className="glass-card p-6 mb-6">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-4">
-          <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold mb-2" style={{ color: "var(--foreground)" }}>
+
+      {/* ── Header ── */}
+      <div className="glass-card p-5 mb-4">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+          <div>
+            <h2 className="text-xl font-bold" style={{ color: "var(--foreground)" }}>
               {isGuestMode ? "Demo Prompts" : "Prompt Library"}
             </h2>
-            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
               {isGuestMode
-                ? `${displayDemos.length} demos • ${displayUserPrompts.length} your prompts`
+                ? `${displayDemos.length} demos · ${displayUserPrompts.length} yours`
                 : `${displayUserPrompts.length} ${displayUserPrompts.length === 1 ? "prompt" : "prompts"}`}
+              {hasActiveFilters() && <span className="text-primary font-medium"> · filtered</span>}
             </p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {!isGuestMode && (userRole === "owner" || userRole === "admin") && onScrollToInvite && (
+              <button onClick={onScrollToInvite} className="btn-secondary px-3 py-2 flex items-center gap-1.5 text-sm">
+                <UserPlus className="w-4 h-4" /><span>Invite</span>
+              </button>
+            )}
+            <button onClick={scrollToFilters}
+              className={`px-3 py-2 flex items-center gap-1.5 text-sm whitespace-nowrap transition-all ${hasActiveFilters() ? 'btn-primary' : 'btn-secondary'}`}>
+              <Filter className="w-3.5 h-3.5" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="text-xs rounded-full px-1.5 py-0.5 font-bold min-w-[1.1rem] text-center"
+                  style={{ backgroundColor: "var(--primary-foreground)", color: "var(--primary)" }}>
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            <button onClick={() => setShowCreateForm(!showCreateForm)} className="btn-primary px-4 py-2 flex items-center gap-1.5 text-sm">
+              {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              {showCreateForm ? "Cancel" : "Create Prompt"}
+            </button>
           </div>
         </div>
 
-        <div className="flex gap-3 flex-wrap items-stretch">
-          <button 
-            onClick={() => setShowCreateForm(!showCreateForm)} 
-            className="btn-primary px-4 py-3 flex items-center gap-2 whitespace-nowrap"
-          >
-            {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            <span>{showCreateForm ? "Cancel" : "Create Prompt"}</span>
-          </button>
-
-          <div className="flex-1 min-w-[200px] relative">
-            <Search 
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" 
-              style={{ color: 'var(--muted-foreground)', pointerEvents: 'none' }} 
-            />
-            <input 
-              type="text" 
-              placeholder="Search prompts..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)} 
-              className="search-input pl-10 h-full" 
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-          <button 
-            onClick={scrollToFilters}
-            className={`px-4 py-3 flex items-center gap-2 whitespace-nowrap transition-all ${
-              hasActiveFilters() ? 'btn-primary' : 'btn-secondary'
-            }`}
-          >
-            <Filter className="w-4 h-4" />
-            <span>Filters</span>
-            {hasActiveFilters() && (
-              <span className="text-xs rounded-full px-2 py-0.5 min-w-[1.25rem] text-center font-bold"
-                style={{
-                  backgroundColor: "var(--primary-foreground)",
-                  color: "var(--primary)",
-                }}>
-                {Object.values(filters).filter((v, i) => {
-                  const keys = Object.keys(filters);
-                  return keys[i] !== "sortBy" && v !== "" && v !== "all";
-                }).length}
-              </span>
-            )}
-          </button>
-
-          {!isGuestMode && (userRole === "owner" || userRole === "admin") && onScrollToInvite && (
-            <button 
-              onClick={onScrollToInvite}
-              className="btn-secondary px-4 py-3 flex items-center gap-2 whitespace-nowrap"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Invite Member</span>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: "var(--muted-foreground)" }} />
+          <input type="text" placeholder="Search prompts by title, content, or tag…"
+            value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input pl-9 w-full" />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-foreground" style={{ color: "var(--muted-foreground)" }}>
+              <X className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
 
+      {/* ── Create form ── */}
       {showCreateForm && (
-        <div className="glass-card p-6 mb-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--foreground)" }}>Create New Prompt</h3>
-          <form onSubmit={handleCreate} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Title *</label>
-              <input type="text" placeholder="e.g., Blog Post Generator" className="form-input"
-                value={newPrompt.title} onChange={(e) => setNewPrompt({ ...newPrompt, title: e.target.value })} required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Prompt Text *</label>
-              <textarea placeholder="Enter your prompt..." className="form-input min-h-[150px]"
-                value={newPrompt.text} onChange={(e) => setNewPrompt({ ...newPrompt, text: e.target.value })} required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Tags (comma separated)</label>
-              <input type="text" placeholder="e.g., writing, creative, marketing" className="form-input"
-                value={newPrompt.tags} onChange={(e) => setNewPrompt({ ...newPrompt, tags: e.target.value })} />
-            </div>
+        <div className="glass-card p-5 mb-4">
+          <h3 className="text-base font-semibold mb-3" style={{ color: "var(--foreground)" }}>Create New Prompt</h3>
+          <form onSubmit={handleCreate} className="space-y-3">
+            <input type="text" placeholder="Title *" className="form-input w-full"
+              value={newPrompt.title} onChange={(e) => setNewPrompt({ ...newPrompt, title: e.target.value })} required />
+            <textarea placeholder="Prompt text *" className="form-input w-full min-h-[120px]"
+              value={newPrompt.text} onChange={(e) => setNewPrompt({ ...newPrompt, text: e.target.value })} required />
+            <input type="text" placeholder="Tags (comma separated)" className="form-input w-full"
+              value={newPrompt.tags} onChange={(e) => setNewPrompt({ ...newPrompt, tags: e.target.value })} />
             {!isGuestMode && (
-              <div>
-                <label className="block text-sm font-medium mb-2">Visibility</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2">
-                    <input type="radio" value="public" checked={newPrompt.visibility === "public"}
+              <div className="flex gap-4">
+                {['public', 'private'].map(vis => (
+                  <label key={vis} className="flex items-center gap-2 cursor-pointer text-sm">
+                    <input type="radio" value={vis} checked={newPrompt.visibility === vis}
                       onChange={(e) => setNewPrompt({ ...newPrompt, visibility: e.target.value })} />
-                    <span>Public</span>
+                    <span className="capitalize">{vis}</span>
                   </label>
-                  <label className="flex items-center gap-2">
-                    <input type="radio" value="private" checked={newPrompt.visibility === "private"}
-                      onChange={(e) => setNewPrompt({ ...newPrompt, visibility: e.target.value })} />
-                    <span>Private</span>
-                  </label>
-                </div>
+                ))}
               </div>
             )}
-            <div className="flex gap-3">
-              <button type="submit" className="btn-primary flex-1">Create Prompt</button>
-              <button type="button" onClick={() => setShowCreateForm(false)} className="btn-secondary px-6">Cancel</button>
+            <div className="flex gap-2">
+              <button type="submit" className="btn-primary flex-1 text-sm">Create Prompt</button>
+              <button type="button" onClick={() => setShowCreateForm(false)} className="btn-secondary px-5 text-sm">Cancel</button>
             </div>
           </form>
         </div>
       )}
 
+      {/* ── Bulk operations ── */}
       {!isGuestMode && displayUserPrompts.length > 0 && (
-        <BulkOperations 
-          prompts={displayUserPrompts} 
-          selectedPrompts={selectedPrompts}
-          onSelectionChange={setSelectedPrompts} 
-          onBulkDelete={handleBulkDelete}
-          onBulkExport={handleBulkExport} 
-          userRole={userRole} 
-          userId={userId} 
+        <BulkOperations
+          prompts={displayUserPrompts} selectedPrompts={selectedPrompts}
+          onSelectionChange={setSelectedPrompts} onBulkDelete={handleBulkDelete}
+          onBulkExport={handleBulkExport} userRole={userRole} userId={userId}
         />
       )}
 
+      {/* ── Demo section ── */}
       {displayDemos.length > 0 && (
-        <section className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <Sparkles className="w-5 h-5" style={{ color: 'var(--primary)' }} />
-            <h3 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>Try These Examples</h3>
+        <section className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4" style={{ color: 'var(--primary)' }} />
+            <h3 className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>Try These Examples</h3>
           </div>
-          
-          {demoPromptsPagination.currentItems.map((prompt) => (
+          {demoPromptsPagination.currentItems.map(prompt => (
             <PromptCard key={prompt.id} prompt={prompt} outputs={[]} commentCount={0} isDemo={true}
               canEdit={false} author={null} isGuestMode={isGuestMode} activeTeam={activeTeam}
               userRole={userRole} onCopy={handleCopy} onDuplicate={handleDuplicateDemo}
@@ -1851,161 +1422,301 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView}
               onToggleFavourite={null} favouritePromptIds={favouritePromptIds} />
           ))}
-
           {displayDemos.length > 5 && (
-            <div className="mt-6">
-              <PaginationControls 
-                pagination={demoPromptsPagination}
-                showSearch={false}
-                showPageSizeSelector={true}
-                showItemCount={true}
-                pageSizeOptions={[5, 10, 15]}
-              />
+            <div className="mt-4">
+              <PaginationControls pagination={demoPromptsPagination} showSearch={false} showPageSizeSelector pageSizeOptions={[5, 10, 15]} />
             </div>
           )}
         </section>
       )}
 
+      {/* ── User prompts section ── */}
       {displayUserPrompts.length > 0 && (
         <section>
           {isGuestMode && displayDemos.length > 0 && (
-            <div className="flex items-center gap-3 mb-4">
-              <FileText className="w-5 h-5" style={{ color: 'var(--primary)' }} />
-              <h3 className="text-xl font-semibold" style={{ color: 'var(--foreground)' }}>Your Prompts</h3>
+            <div className="flex items-center gap-2 mb-3">
+              <FileText className="w-4 h-4" style={{ color: 'var(--primary)' }} />
+              <h3 className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>Your Prompts</h3>
             </div>
           )}
-          
-          {userPromptsPagination.currentItems.map((prompt) => (
+          {userPromptsPagination.currentItems.map(prompt => (
             <PromptCard key={prompt.id} prompt={prompt} outputs={promptOutputs[prompt.id] || []}
               commentCount={promptComments[prompt.id] || 0} isDemo={false} canEdit={canEditPrompt(prompt)}
               author={teamMembers[prompt.createdBy]} isGuestMode={isGuestMode} activeTeam={activeTeam}
-              userRole={userRole} onCopy={handleCopy} onEdit={(p) => { setEditingPrompt(p); setShowEditModal(true); }}
+              userRole={userRole} onCopy={handleCopy}
+              onEdit={(p) => { setEditingPrompt(p); setShowEditModal(true); }}
               onDelete={handleDelete} onToggleVisibility={handleToggleVisibility} onEnhance={handleEnhance}
-              onViewOutputs={handleViewOutputs} onAttachOutput={(p) => setSelectedPromptForAttach(p)}
-              viewedPrompts={viewedPrompts} onMarkViewed={(id) => setViewedPrompts(prev => new Set([...prev, id]))}
-              showCommentSection={showCommentSection[prompt.id] || false} onToggleComments={handleToggleComments}
+              onViewOutputs={setViewOutputsPrompt}
+              onAttachOutput={(p) => setSelectedPromptForAttach(p)}
+              viewedPrompts={viewedPrompts}
+              onMarkViewed={(id) => setViewedPrompts(prev => new Set([...prev, id]))}
+              showCommentSection={showCommentSection[prompt.id] || false}
+              onToggleComments={handleToggleComments}
               isSelected={selectedPrompts.includes(prompt.id)} onSelect={handleSelectPrompt}
               openMenuId={openMenuId} onMenuToggle={setOpenMenuId} onTrackView={handleTrackView}
               onToggleFavourite={handleToggleFavourite} favouritePromptIds={favouritePromptIds} />
           ))}
+          {displayUserPrompts.length > 5 && (
+            <div className="mt-4">
+              <PaginationControls pagination={userPromptsPagination} showSearch={false} showPageSizeSelector showItemCount pageSizeOptions={[5, 10, 20, 50]} />
+            </div>
+          )}
         </section>
       )}
 
+      {/* ── Empty state ── */}
       {allPrompts.length === 0 && (
-        <div className="glass-card p-12 text-center mb-12">
-          <Sparkles size={48} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
-          <h3 className="text-lg font-semibold mb-2">
-            {searchQuery || hasActiveFilters() 
-              ? "No prompts match your search or filters" 
-              : "No prompts yet"}
+        <div className="glass-card p-10 text-center mb-8">
+          <Sparkles size={40} style={{ color: 'var(--primary)', margin: '0 auto 0.75rem' }} />
+          <h3 className="text-base font-semibold mb-2">
+            {searchQuery || hasActiveFilters() ? "No prompts match your search or filters" : "No prompts yet"}
           </h3>
-          <p className="mb-6" style={{ color: "var(--muted-foreground)" }}>
+          <p className="text-sm mb-5" style={{ color: "var(--muted-foreground)" }}>
             {searchQuery || hasActiveFilters() ? (
-              <>
-                Try adjusting your search or{' '}
-                <button 
-                  onClick={() => {
-                    setSearchQuery('');
-                    clearFilters();
-                  }} 
-                  className="text-primary hover:underline"
-                >
-                  clear all filters
-                </button>
-              </>
-            ) : (
-              "Create your first prompt to get started"
-            )}
+              <><span>Try adjusting your search or </span>
+              <button onClick={() => { setSearchQuery(''); clearFilters(); }} className="text-primary hover:underline">clear all filters</button></>
+            ) : "Create your first prompt to get started"}
           </p>
           {!searchQuery && !hasActiveFilters() && (
-            <button onClick={() => setShowCreateForm(true)} className="btn-primary">
+            <button onClick={() => setShowCreateForm(true)} className="btn-primary text-sm">
               <Plus className="w-4 h-4" />Create First Prompt
             </button>
           )}
         </div>
       )}
 
-      {displayUserPrompts.length > 5 && (
-        <div className="mt-6">
-          <PaginationControls 
-            pagination={userPromptsPagination}
-            showSearch={false}
-            showPageSizeSelector={true}
-            showItemCount={true}
-            pageSizeOptions={[5, 10, 20, 50]}
-          />
-        </div>
-      )}
-      
+      {/* ── Filter card ── */}
       <div ref={filterCardRef}>
-        <FilterCard 
-          filters={filters}
-          onFilterChange={handleFilterChange}
-          onClearFilters={clearFilters}
-          hasActiveFilters={hasActiveFilters()}
-          filteredCount={allPrompts.length}
-          teamMembers={teamMembers}
-          isExpanded={showFilters}
-          onToggleExpanded={() => setShowFilters(!showFilters)}
-        />
+        <FilterCard filters={filters} onFilterChange={handleFilterChange} onClearFilters={clearFilters}
+          hasActiveFilters={hasActiveFilters()} filteredCount={allPrompts.length}
+          teamMembers={teamMembers} isExpanded={showFilters} onToggleExpanded={() => setShowFilters(!showFilters)} />
       </div>
 
+      {/* ── Export/Import ── */}
       <div ref={importCardRef}>
-        <ExportImport 
-          onImport={handleImportPrompts}
-          teamId={activeTeam}
-          teamName={teamName}
-          userRole={userRole}
-        />
+        <ExportImport onImport={handleImportPrompts} teamId={activeTeam} teamName={teamName} userRole={userRole} />
       </div>
 
+      {/* ── Modals ── */}
       {showEditModal && editingPrompt && (
         <EditPromptModal open={showEditModal} prompt={editingPrompt}
           onClose={() => { setShowEditModal(false); setEditingPrompt(null); }}
           onSave={(updates) => handleUpdate(editingPrompt.id, updates)} />
       )}
-
       {selectedPromptForAttach && (
         <AddResultModal isOpen={!!selectedPromptForAttach}
           onClose={() => setSelectedPromptForAttach(null)}
           promptId={selectedPromptForAttach.id} teamId={activeTeam} userId={user?.uid} />
       )}
-
       {viewOutputsPrompt && (
-        <ViewOutputsModal 
-          isOpen={!!viewOutputsPrompt}
-          onClose={() => setViewOutputsPrompt(null)}
-          prompt={viewOutputsPrompt}
-          teamId={activeTeam}
-          userRole={userRole}
-          isGuestMode={isGuestMode}
-          onAttachNew={
-            isGuestMode 
-              ? null
-              : () => {
-                  setViewOutputsPrompt(null);
-                  setSelectedPromptForAttach(viewOutputsPrompt);
-                }
-          }
-        />
+        <ViewOutputsModal isOpen={!!viewOutputsPrompt} onClose={() => setViewOutputsPrompt(null)}
+          prompt={viewOutputsPrompt} teamId={activeTeam} userRole={userRole} isGuestMode={isGuestMode}
+          onAttachNew={isGuestMode ? null : () => { setViewOutputsPrompt(null); setSelectedPromptForAttach(viewOutputsPrompt); }} />
       )}
-
       {showAIEnhancer && currentPromptForAI && (
         <AIPromptEnhancer prompt={currentPromptForAI}
           onApply={async (enhanced) => { await handleUpdate(enhanced.id, enhanced); setShowAIEnhancer(false); }}
           onSaveAsNew={(enhanced) => {
-            if (isGuestMode) {
-              const newPrompt = guestState.addPrompt(enhanced);
-              setUserPrompts(prev => [newPrompt, ...prev]);
-            } else {
-              savePrompt(user.uid, enhanced, activeTeam);
-            }
-            setShowAIEnhancer(false);
-            showSuccessToast("Enhanced prompt saved!");
+            if (isGuestMode) { const p = guestState.addPrompt(enhanced); setUserPrompts(prev => [p, ...prev]); }
+            else savePrompt(user.uid, enhanced, activeTeam);
+            setShowAIEnhancer(false); showSuccessToast("Enhanced prompt saved!");
           }}
-          onClose={() => { setShowAIEnhancer(false); setCurrentPromptForAI(null); }}
-        />
+          onClose={() => { setShowAIEnhancer(false); setCurrentPromptForAI(null); }} />
       )}
-    </div>
-  );
+
+      {/* ── Scoped styles ── */}
+      <style>{`
+        .prompt-card-dense {
+          margin-bottom: 0.75rem;
+          overflow: hidden;
+          border-radius: 0.75rem;
+          border: 1px solid var(--border);
+          background: var(--card);
+          transition: box-shadow 0.15s, border-color 0.15s;
+        }
+        .prompt-card-dense:hover {
+          box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+          border-color: var(--primary-20, color-mix(in srgb, var(--primary) 20%, transparent));
+        }
+        .prompt-card-dense.new .prompt-card-meta-bar {
+          border-left: 3px solid var(--primary);
+        }
+        .prompt-card-dense.viewed .prompt-card-meta-bar {
+          border-left: 3px solid transparent;
+        }
+
+        /* Output sidebar */
+        .prompt-output-sidebar {
+          background: var(--muted-10, color-mix(in srgb, var(--muted) 40%, transparent));
+          min-height: 120px;
+        }
+
+        /* Output strip (compact, below text) */
+        .output-strip,
+        .output-strip-empty,
+        .output-strip-locked {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          width: 100%;
+          padding: 0.375rem 0.5rem;
+          border-radius: 0.5rem;
+          border: 1px dashed var(--border);
+          background: transparent;
+          cursor: pointer;
+          font-size: 0.7rem;
+          color: var(--muted-foreground);
+          transition: background 0.15s, border-color 0.15s;
+          text-align: left;
+          margin-top: 0.5rem;
+        }
+        .output-strip:hover {
+          background: var(--muted);
+          border-color: var(--primary-30, color-mix(in srgb, var(--primary) 30%, transparent));
+        }
+        .output-strip-empty:hover {
+          background: var(--muted);
+        }
+        .output-strip-locked {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+        .output-strip-thumb {
+          width: 28px;
+          height: 28px;
+          border-radius: 4px;
+          object-fit: cover;
+          flex-shrink: 0;
+        }
+        .output-strip-body {
+          flex: 1;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 0.1rem;
+        }
+        .output-strip-title {
+          font-weight: 600;
+          color: var(--foreground);
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        .output-strip-preview {
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          opacity: 0.7;
+        }
+        .output-strip-count {
+          display: flex;
+          align-items: center;
+          gap: 0.25rem;
+          flex-shrink: 0;
+          font-weight: 600;
+          color: var(--primary);
+        }
+
+        /* Kebab upward override */
+        .kebab-menu-upward {
+          bottom: calc(100% + 6px) !important;
+          top: auto !important;
+          transform-origin: bottom right;
+          animation: menuUpIn 0.15s ease-out;
+        }
+        @keyframes menuUpIn {
+          from { opacity: 0; transform: translateY(6px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Compact privacy badge */
+        .privacy-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.2rem;
+          font-size: 0.65rem;
+          padding: 0.1rem 0.45rem;
+          border-radius: 999px;
+          font-weight: 600;
+        }
+        .privacy-badge.private {
+          background: rgba(239,68,68,0.12);
+          color: rgb(239,68,68);
+        }
+        .privacy-badge.public {
+          background: rgba(34,197,94,0.12);
+          color: rgb(34,197,94);
+        }
+
+        /* Fade in animation */
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Read more button */
+        .read-more-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          font-size: 0.7rem;
+          color: var(--primary);
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 0;
+          opacity: 0.85;
+          transition: opacity 0.15s;
+        }
+        .read-more-btn:hover { opacity: 1; }
+
+        /* Tags */
+        .prompt-tag {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.1rem 0.45rem;
+          border-radius: 999px;
+          font-size: 0.65rem;
+          font-weight: 500;
+          background: var(--muted);
+          color: var(--muted-foreground);
+          border: 1px solid var(--border);
+        }
+        .prompt-tag-more {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.1rem 0.45rem;
+          border-radius: 999px;
+          font-size: 0.65rem;
+          font-weight: 500;
+          background: var(--muted);
+          color: var(--primary);
+          border: 1px dashed var(--border);
+        }
+
+        /* Demo badge */
+        .demo-badge-small {
+          display: inline-flex;
+          align-items: center;
+          padding: 0.1rem 0.45rem;
+          border-radius: 999px;
+          font-size: 0.65rem;
+          font-weight: 600;
+          background: rgba(var(--primary-rgb, 99,102,241),0.15);
+          color: var(--primary);
+          border: 1px solid rgba(var(--primary-rgb, 99,102,241),0.3);
+        }
+
+        /* Responsive: stack output sidebar below content on mobile */
+        @media (max-width: 600px) {
+          .prompt-card-body {
+            grid-template-columns: 1fr !important;
+          }
+          .prompt-output-sidebar {
+            width: 100% !important;
+            border-left: none !important;
+            border-top: 1px solid var(--border) !important;
+            min-height: unset !important;
+          }
+        }
 }
