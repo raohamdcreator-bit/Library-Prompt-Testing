@@ -130,26 +130,47 @@ function OutputCard({ output, onDelete, canDelete }) {
       {/* Content preview */}
       <div style={{ padding: ".75rem .875rem" }}>
         {output.type === "text" && output.content && (
-          <p style={{
-            fontSize: ".8rem", lineHeight: 1.65, color: "rgba(228,228,231,.78)",
-            margin: 0, whiteSpace: "pre-wrap",
-            display: expanded ? "block" : "-webkit-box",
-            WebkitLineClamp: expanded ? "unset" : 4,
-            WebkitBoxOrient: "vertical",
-            overflow: expanded ? "visible" : "hidden",
-          }}>{output.content}</p>
+          <div style={{
+            maxHeight: expanded ? "400px" : "110px",
+            overflowY: expanded ? "auto" : "hidden",
+            overflowX: "hidden",
+            scrollbarWidth: "thin",
+            scrollbarColor: "rgba(139,92,246,.3) transparent",
+            borderRadius: expanded ? "6px" : 0,
+            transition: "max-height .25s ease",
+          }}>
+            <p style={{
+              fontSize: ".8rem", lineHeight: 1.65, color: "rgba(228,228,231,.78)",
+              margin: 0, whiteSpace: "pre-wrap",
+              display: !expanded ? "-webkit-box" : "block",
+              WebkitLineClamp: !expanded ? 4 : "unset",
+              WebkitBoxOrient: "vertical",
+              overflow: !expanded ? "hidden" : "visible",
+            }}>{output.content}</p>
+          </div>
         )}
 
         {output.type === "code" && output.content && (
-          <div style={{ borderRadius: "7px", overflow: "hidden", background: "rgba(0,0,0,.35)", border: "1px solid rgba(255,255,255,.06)" }}>
+          <div style={{
+            borderRadius: "7px",
+            border: "1px solid rgba(255,255,255,.06)",
+            background: "rgba(0,0,0,.35)",
+            maxHeight: expanded ? "400px" : "140px",
+            overflowY: expanded ? "auto" : "hidden",
+            overflowX: expanded ? "auto" : "hidden",
+            scrollbarWidth: "thin",
+            scrollbarColor: "rgba(139,92,246,.3) transparent",
+            transition: "max-height .25s ease",
+          }}>
             <pre style={{
               margin: 0, padding: ".625rem .75rem",
               fontSize: ".73rem", lineHeight: 1.6, color: "#e2e8f0",
               fontFamily: "'JetBrains Mono','Consolas',monospace",
-              overflow: "hidden",
-              display: expanded ? "block" : "-webkit-box",
-              WebkitLineClamp: expanded ? "unset" : 5,
+              display: !expanded ? "-webkit-box" : "block",
+              WebkitLineClamp: !expanded ? 5 : "unset",
               WebkitBoxOrient: "vertical",
+              overflow: !expanded ? "hidden" : "visible",
+              whiteSpace: "pre",
             }}>{output.content}</pre>
           </div>
         )}
@@ -288,6 +309,9 @@ export default function ViewOutputsModal({ isOpen, onClose, prompt, teamId, user
           display:flex;flex-direction:column;gap:.625rem;
           scrollbar-width:thin;scrollbar-color:rgba(139,92,246,.2) transparent;
         }
+        .vom-body::-webkit-scrollbar { width:5px; }
+        .vom-body::-webkit-scrollbar-thumb { background:rgba(139,92,246,.3);border-radius:3px; }
+        .vom-body::-webkit-scrollbar-track { background:transparent; }
 
         .vom-footer {
           padding:.75rem 1.375rem;border-top:1px solid rgba(139,92,246,.08);
