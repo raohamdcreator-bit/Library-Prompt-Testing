@@ -1,40 +1,37 @@
-// src/lib/guestState.js - FIXED: Removed duplicate getWorkSummary method
+// src/lib/guestState.js
 import { createTimestampMock } from './guestDemoContent';
 
 const GUEST_STORAGE_KEY = 'prism_guest_work';
 const GUEST_SESSION_KEY = 'prism_guest_session';
+// ✅ FIX: Key used to prevent duplicate migrations across re-renders
+const MIGRATION_DONE_KEY = 'prism_migration_done';
 
 /**
  * Guest State Manager
- * Persists user work in localStorage until they sign up
+ * Persists user work in localStorage until they sign up.
  */
 export class GuestStateManager {
   constructor() {
     this.sessionId = this.getOrCreateSessionId();
   }
 
-  /**
-   * Generate unique session ID for guest user
-   */
+  // ─── Session ID ────────────────────────────────────────────────────────────
+
   getOrCreateSessionId() {
     let sessionId = sessionStorage.getItem(GUEST_SESSION_KEY);
-    
     if (!sessionId) {
       sessionId = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       sessionStorage.setItem(GUEST_SESSION_KEY, sessionId);
     }
-    
     return sessionId;
   }
 
-  /**
-   * Get all guest work from localStorage
-   */
+  // ─── Raw Storage ───────────────────────────────────────────────────────────
+
   getGuestWork() {
     try {
       const data = localStorage.getItem(GUEST_STORAGE_KEY);
       if (!data) return this.getDefaultState();
-      
       return JSON.parse(data);
     } catch (error) {
       console.error('Error loading guest work:', error);
@@ -42,48 +39,17 @@ export class GuestStateManager {
     }
   }
 
-  /**
-   * Default empty state structure
-   */
   getDefaultState() {
     return {
       prompts: [],
       outputs: [],
       chatMessages: [],
-      enhancementCount: 0, // ✅ Track enhancements
+      enhancementCount: 0,
       lastModified: null,
       sessionId: this.sessionId,
     };
   }
-  
-  /**
-   * ✅ HELPER: Reconstruct timestamp mock from stored data
-   */
-  reconstructTimestamp(timestamp) {
-    if (!timestamp) return undefined;
-    
-    // Already a timestamp mock (has methods)
-    if (timestamp.toMillis && typeof timestamp.toMillis === 'function') {
-      return timestamp;
-    }
-    
-    // Stored as object with seconds/nanoseconds
-    if (timestamp.seconds !== undefined) {
-      return createTimestampMock(new Date(timestamp.seconds * 1000));
-    }
-    
-    // Stored as ISO string
-    if (typeof timestamp === 'string') {
-      return createTimestampMock(new Date(timestamp));
-    }
-    
-    // Fallback
-    return createTimestampMock(new Date());
-  }
 
-  /**
-   * Save guest work to localStorage
-   */
   saveGuestWork(data) {
     try {
       const currentWork = this.getGuestWork();
@@ -93,16 +59,12 @@ export class GuestStateManager {
         lastModified: new Date().toISOString(),
         sessionId: this.sessionId,
       };
-      
       localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(updatedWork));
       return { success: true };
     } catch (error) {
       console.error('Error saving guest work:', error);
-      
-      // Handle quota exceeded
       if (error.name === 'QuotaExceededError') {
         this.cleanupOldWork();
-        // Retry save
         try {
           localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(data));
           return { success: true };
@@ -110,14 +72,22 @@ export class GuestStateManager {
           return { success: false, error: 'Storage quota exceeded' };
         }
       }
-      
       return { success: false, error: error.message };
     }
   }
 
-  /**
-   * Add a prompt to guest work
-   */
+  // ─── Timestamp Helpers ─────────────────────────────────────────────────────
+
+  reconstructTimestamp(timestamp) {
+    if (!timestamp) return undefined;
+    if (timestamp.toMillis && typeof timestamp.toMillis === 'function') return timestamp;
+    if (timestamp.seconds !== undefined) return createTimestampMock(new Date(timestamp.seconds * 1000));
+    if (typeof timestamp === 'string') return createTimestampMock(new Date(timestamp));
+    return createTimestampMock(new Date());
+  }
+
+  // ─── Prompts ───────────────────────────────────────────────────────────────
+
   addPrompt(prompt) {
     const work = this.getGuestWork();
     const newPrompt = {
@@ -127,42 +97,30 @@ export class GuestStateManager {
       owner: 'guest',
       isGuest: true,
     };
-    
     work.prompts.push(newPrompt);
     this.saveGuestWork(work);
-    
     return newPrompt;
   }
 
-  /**
-   * Update a guest prompt
-   */
   updatePrompt(promptId, updates, isEnhancement = false) {
     const work = this.getGuestWork();
     const promptIndex = work.prompts.findIndex(p => p.id === promptId);
-    
-    if (promptIndex === -1) {
-      return { success: false, error: 'Prompt not found' };
-    }
-    
+    if (promptIndex === -1) return { success: false, error: 'Prompt not found' };
+
     work.prompts[promptIndex] = {
       ...work.prompts[promptIndex],
       ...updates,
       updatedAt: new Date().toISOString(),
     };
-    
-    // ✅ Track enhancements for save trigger
+
     if (isEnhancement) {
       work.enhancementCount = (work.enhancementCount || 0) + 1;
     }
-    
+
     this.saveGuestWork(work);
     return { success: true };
   }
 
-  /**
-   * Delete a guest prompt
-   */
   deletePrompt(promptId) {
     const work = this.getGuestWork();
     work.prompts = work.prompts.filter(p => p.id !== promptId);
@@ -170,9 +128,12 @@ export class GuestStateManager {
     return { success: true };
   }
 
-  /**
-   * Add output to a prompt
-   */
+  getPrompts() {
+    return this.getGuestWork().prompts || [];
+  }
+
+  // ─── Outputs ───────────────────────────────────────────────────────────────
+
   addOutput(promptId, output) {
     const work = this.getGuestWork();
     const newOutput = {
@@ -182,64 +143,37 @@ export class GuestStateManager {
       createdAt: createTimestampMock(new Date()),
       isGuest: true,
     };
-    
     work.outputs.push(newOutput);
     this.saveGuestWork(work);
-    
     return newOutput;
   }
 
-  /**
-   * Add chat message
-   */
+  getOutputs(promptId = null) {
+    const outputs = this.getGuestWork().outputs || [];
+    return promptId ? outputs.filter(o => o.promptId === promptId) : outputs;
+  }
+
+  // ─── Chat ──────────────────────────────────────────────────────────────────
+
   addChatMessage(message) {
     const work = this.getGuestWork();
     const newMessage = {
       id: `guest_msg_${Date.now()}`,
       ...message,
-      timestamp: createTimestampMock(new Date()), 
+      timestamp: createTimestampMock(new Date()),
       isGuest: true,
     };
-    
     work.chatMessages.push(newMessage);
     this.saveGuestWork(work);
-    
     return newMessage;
   }
 
-  /**
-   * Get all guest prompts
-   */
-  getPrompts() {
-    const work = this.getGuestWork();
-    return work.prompts || [];
-  }
-
-  /**
-   * Get all guest outputs
-   */
-  getOutputs(promptId = null) {
-    const work = this.getGuestWork();
-    const outputs = work.outputs || [];
-    
-    if (promptId) {
-      return outputs.filter(o => o.promptId === promptId);
-    }
-    
-    return outputs;
-  }
-
-  /**
-   * Get all guest chat messages
-   */
   getChatMessages() {
-    const work = this.getGuestWork();
-    return work.chatMessages || [];
+    return this.getGuestWork().chatMessages || [];
   }
 
-  /**
-   * Check if guest has any unsaved work
-   */
+  // ─── Work Summary ──────────────────────────────────────────────────────────
+
   hasUnsavedWork() {
     const work = this.getGuestWork();
     return (
@@ -249,9 +183,6 @@ export class GuestStateManager {
     );
   }
 
-  /**
-   * ✅ FIXED: Single getWorkSummary method (removed duplicate)
-   */
   getWorkSummary() {
     const work = this.getGuestWork();
     return {
@@ -264,26 +195,39 @@ export class GuestStateManager {
     };
   }
 
+  // ─── Migration ─────────────────────────────────────────────────────────────
+
   /**
-   * Clear all guest work (after successful migration)
+   * Returns true if migration has already been triggered for this browser
+   * session. Uses sessionStorage so the flag resets on tab close.
    */
-  clearGuestWork() {
-    try {
-      localStorage.removeItem(GUEST_STORAGE_KEY);
-      sessionStorage.removeItem(GUEST_SESSION_KEY);
-      return { success: true };
-    } catch (error) {
-      console.error('Error clearing guest work:', error);
-      return { success: false, error: error.message };
-    }
+  isMigrationComplete() {
+    return sessionStorage.getItem(MIGRATION_DONE_KEY) === 'true';
   }
 
   /**
-   * Export guest work for migration to backend
+   * Mark migration as done for this session.
+   * Called immediately when migration begins so re-renders cannot trigger it again.
    */
+  markMigrationComplete() {
+    sessionStorage.setItem(MIGRATION_DONE_KEY, 'true');
+  }
+
+  /**
+   * Snapshot the current guest work and clear it from localStorage
+   * before any async saves begin. Returns the snapshot.
+   * This prevents double-migration when the effect re-fires.
+   */
+  snapshotAndClear() {
+    const work = this.exportForMigration();
+    this.clearGuestWork();
+    return work;
+  }
+
+  // ─── Export / Clear ────────────────────────────────────────────────────────
+
   exportForMigration() {
     const work = this.getGuestWork();
-    
     return {
       prompts: work.prompts.map(p => ({
         title: p.title || 'Untitled Prompt',
@@ -302,45 +246,35 @@ export class GuestStateManager {
     };
   }
 
-  /**
-   * Cleanup old work to free up space
-   */
+  clearGuestWork() {
+    try {
+      localStorage.removeItem(GUEST_STORAGE_KEY);
+      sessionStorage.removeItem(GUEST_SESSION_KEY);
+      return { success: true };
+    } catch (error) {
+      console.error('Error clearing guest work:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   cleanupOldWork() {
     try {
       const work = this.getGuestWork();
-      
-      // Keep only last 10 prompts
-      if (work.prompts.length > 10) {
-        work.prompts = work.prompts.slice(-10);
-      }
-      
-      // Keep only last 20 outputs
-      if (work.outputs.length > 20) {
-        work.outputs = work.outputs.slice(-20);
-      }
-      
-      // Keep only last 50 chat messages
-      if (work.chatMessages.length > 50) {
-        work.chatMessages = work.chatMessages.slice(-50);
-      }
-      
+      if (work.prompts.length > 10)     work.prompts      = work.prompts.slice(-10);
+      if (work.outputs.length > 20)     work.outputs      = work.outputs.slice(-20);
+      if (work.chatMessages.length > 50) work.chatMessages = work.chatMessages.slice(-50);
       this.saveGuestWork(work);
     } catch (error) {
       console.error('Error cleaning up guest work:', error);
     }
   }
 
-  /**
-   * Check storage usage
-   */
   getStorageInfo() {
     const data = localStorage.getItem(GUEST_STORAGE_KEY);
     const sizeInBytes = data ? new Blob([data]).size : 0;
-    const sizeInKB = (sizeInBytes / 1024).toFixed(2);
-    
     return {
       sizeInBytes,
-      sizeInKB,
+      sizeInKB: (sizeInBytes / 1024).toFixed(2),
       promptCount: this.getPrompts().length,
       outputCount: this.getOutputs().length,
       chatCount: this.getChatMessages().length,
@@ -348,42 +282,44 @@ export class GuestStateManager {
   }
 }
 
-// Singleton instance
+// ─── Singleton ─────────────────────────────────────────────────────────────
 export const guestState = new GuestStateManager();
 
-// Helper functions
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
 export function isGuestUser(user) {
   return !user || user === null;
 }
 
 export function shouldTriggerSaveModal(user, action) {
-  // Trigger save modal for guest users on these actions
   const saveActions = [
-    'save_prompt',
-    'save_workspace',
-    'create_team',
-    'invite_member',
-    'persist_work',
+    'save_prompt', 'save_workspace', 'create_team', 'invite_member', 'persist_work',
   ];
-  
   return isGuestUser(user) && saveActions.includes(action);
 }
 
 /**
- * Migrate guest work to authenticated user's backend
+ * Migrate guest work to an authenticated user's Firestore team.
+ *
+ * ✅ FIX: Guest work is snapshot-and-cleared BEFORE the async save loop.
+ * This ensures that even if the calling effect fires multiple times (e.g. due
+ * to Firestore onSnapshot re-renders), the data is only ever migrated once.
+ * The `isMigrationComplete` / `markMigrationComplete` session flags in
+ * GuestStateManager provide a second layer of protection at the call-site.
  */
 export async function migrateGuestWorkToUser(userId, teamId, savePromptFn) {
   try {
-    const guestWork = guestState.exportForMigration();
-    
+    // ✅ Snapshot data and clear localStorage atomically BEFORE saving.
+    // Any subsequent calls to this function will see an empty prompts array.
+    const guestWork = guestState.snapshotAndClear();
+
     if (guestWork.prompts.length === 0) {
       return { success: true, migratedCount: 0 };
     }
-    
+
     let migratedCount = 0;
     const errors = [];
-    
-    // Migrate each prompt
+
     for (const promptData of guestWork.prompts) {
       try {
         await savePromptFn(userId, promptData, teamId);
@@ -393,12 +329,7 @@ export async function migrateGuestWorkToUser(userId, teamId, savePromptFn) {
         errors.push(error);
       }
     }
-    
-    // Clear guest work after successful migration
-    if (migratedCount > 0 && errors.length === 0) {
-      guestState.clearGuestWork();
-    }
-    
+
     return {
       success: errors.length === 0,
       migratedCount,
@@ -407,13 +338,8 @@ export async function migrateGuestWorkToUser(userId, teamId, savePromptFn) {
     };
   } catch (error) {
     console.error('Error during migration:', error);
-    return {
-      success: false,
-      migratedCount: 0,
-      error: error.message,
-    };
+    return { success: false, migratedCount: 0, error: error.message };
   }
 }
 
-// Export for use in components
 export default guestState;
