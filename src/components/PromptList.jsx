@@ -1719,4 +1719,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             min-height: unset !important;
           }
         }
-`}
+      `}</style>
+    </div>
+  );
+}
