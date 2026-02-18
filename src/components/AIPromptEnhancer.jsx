@@ -282,23 +282,18 @@ export default function AIPromptEnhancer({ prompt, onApply, onSaveAsNew, onClose
 
         /* ── Enhance button ── */
         .aie-enhance-btn {
-          width:100%;padding:.875rem;border-radius:10px;border:none;cursor:pointer;
-          font-size:.875rem;font-weight:700;letter-spacing:-.01em;
+          width:100%;padding:1rem 1.25rem;border-radius:10px;border:none;cursor:pointer;
+          font-size:.9rem;font-weight:700;letter-spacing:-.01em;
+          min-height:52px;flex-shrink:0;
           display:flex;align-items:center;justify-content:center;gap:.625rem;
-          background:linear-gradient(135deg,var(--primary),rgba(139,92,246,.7));
+          background:linear-gradient(135deg,var(--primary) 0%,#7c3aed 100%);
           color:#fff;
-          box-shadow:0 4px 20px rgba(139,92,246,.3);
-          transition:all .2s;position:relative;overflow:hidden;
+          box-shadow:0 4px 20px rgba(139,92,246,.35);
+          transition:box-shadow .2s,transform .2s;
         }
-        .aie-enhance-btn::before {
-          content:'';position:absolute;inset:0;
-          background:linear-gradient(135deg,rgba(255,255,255,.12),transparent);
-          opacity:0;transition:opacity .2s;
-        }
-        .aie-enhance-btn:hover::before { opacity:1; }
-        .aie-enhance-btn:hover { transform:translateY(-1px);box-shadow:0 6px 28px rgba(139,92,246,.4); }
+        .aie-enhance-btn:hover { transform:translateY(-1px);box-shadow:0 6px 28px rgba(139,92,246,.45); }
         .aie-enhance-btn:active { transform:none; }
-        .aie-enhance-btn:disabled { opacity:.45;cursor:not-allowed;transform:none; }
+        .aie-enhance-btn:disabled { opacity:.45;cursor:not-allowed;transform:none;box-shadow:none; }
 
         /* ── Loading state ── */
         .aie-loading {
@@ -328,7 +323,7 @@ export default function AIPromptEnhancer({ prompt, onApply, onSaveAsNew, onClose
 
         /* ── Result ── */
         .aie-result {
-          border-radius:12px;overflow:hidden;
+          border-radius:12px;
           border:1px solid;
           animation:aieResultIn .3s ease-out;
         }
@@ -336,6 +331,7 @@ export default function AIPromptEnhancer({ prompt, onApply, onSaveAsNew, onClose
         .aie-result-header {
           padding:.625rem .875rem;
           display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;
+          border-radius:11px 11px 0 0;
         }
         .aie-result-header-left { display:flex;align-items:center;gap:.5rem; }
         .aie-result-check { width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center; }
@@ -345,12 +341,18 @@ export default function AIPromptEnhancer({ prompt, onApply, onSaveAsNew, onClose
           font-size:.63rem;font-weight:700;padding:.15rem .5rem;border-radius:999px;letter-spacing:.02em;
         }
         .aie-result-text {
-          padding:.75rem .875rem;max-height:200px;overflow-y:auto;
-          font-size:.8rem;line-height:1.65;color:rgba(228,228,231,.88);
+          padding:.875rem;
+          max-height:260px;
+          overflow-y:auto;
+          overflow-x:hidden;
+          font-size:.8rem;line-height:1.7;color:rgba(228,228,231,.9);
           white-space:pre-wrap;word-break:break-word;
           font-family:'JetBrains Mono','Consolas',monospace;
-          scrollbar-width:thin;scrollbar-color:rgba(139,92,246,.2) transparent;
+          scrollbar-width:thin;scrollbar-color:rgba(139,92,246,.35) transparent;
         }
+        .aie-result-text::-webkit-scrollbar { width:5px; }
+        .aie-result-text::-webkit-scrollbar-thumb { background:rgba(139,92,246,.35);border-radius:3px; }
+        .aie-result-text::-webkit-scrollbar-track { background:transparent; }
         .aie-result-footer {
           padding:.5rem .875rem;border-top:1px solid rgba(255,255,255,.06);
           display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;
