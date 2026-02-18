@@ -1,120 +1,84 @@
-// src/components/Comments.jsx - COMPLETE UPDATE
-// ✅ Displays "Team Owner" / "Team Admin" for admins
-// ✅ Allows guests to delete their own comments
-// ✅ Ensures only one menu opens at a time
-
+// src/components/Comments.jsx — Redesigned UI
 import { useState, useEffect, useRef } from "react";
 import { db } from "../lib/firebase";
 import { updateCommentCount } from "../lib/promptStats";
 import {
-  collection,
-  addDoc,
-  onSnapshot,
-  serverTimestamp,
-  deleteDoc,
-  doc,
-  updateDoc,
-  getDoc,
-  orderBy,
-  query,
-  getDocs,
+  collection, addDoc, onSnapshot, serverTimestamp,
+  deleteDoc, doc, updateDoc, getDoc, orderBy, query, getDocs,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useTimestamp } from "../hooks/useTimestamp";
-import { 
-  MessageCircle, 
-  Send, 
-  Edit2, 
-  Trash2, 
-  Reply, 
-  X,
-  Loader2,
-  MoreVertical
-} from "lucide-react";
+import { MessageCircle, Send, Edit2, Trash2, Reply, X, Loader2, MoreVertical, Check } from "lucide-react";
 
-// ✅ HELPER: Generate or retrieve guest token
+// ── Guest token ─────────────────────────────────────────────────────────────
 function getOrCreateGuestToken() {
-  let guestToken = sessionStorage.getItem('guest_team_token');
-  
-  if (!guestToken) {
-    guestToken = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 10)}`;
-    sessionStorage.setItem('guest_team_token', guestToken);
-    console.log('🎫 [GUEST TOKEN] Created new token:', guestToken.substring(0, 16) + '...');
+  let t = sessionStorage.getItem("guest_team_token");
+  if (!t) {
+    t = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 10)}`;
+    sessionStorage.setItem("guest_team_token", t);
   }
-  
-  return guestToken;
+  return t;
 }
 
-// Comments hook
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function initials(name, email) {
+  if (name) return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+  if (email) return email[0].toUpperCase();
+  return "U";
+}
+
+function Avatar({ src, name, email, size = 28 }) {
+  const [err, setErr] = useState(false);
+  const px = size + "px";
+  if (!src || err) {
+    return (
+      <div style={{
+        width: px, height: px, borderRadius: "50%", flexShrink: 0,
+        background: "linear-gradient(135deg,rgba(139,92,246,.5),rgba(139,92,246,.2))",
+        border: "1px solid rgba(139,92,246,.3)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: size <= 28 ? "10px" : "12px", fontWeight: 700, color: "var(--primary)",
+      }}>
+        {initials(name, email)}
+      </div>
+    );
+  }
+  return (
+    <img src={src} alt="" onError={() => setErr(true)}
+      style={{ width: px, height: px, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(139,92,246,.2)" }} />
+  );
+}
+
+// ── useComments hook ──────────────────────────────────────────────────────────
 export function useComments(teamId, promptId) {
   const [comments, setComments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading,  setLoading]  = useState(true);
   const [profiles, setProfiles] = useState({});
   const [teamData, setTeamData] = useState(null);
 
   useEffect(() => {
-    if (!teamId || !promptId) {
-      setComments([]);
-      setLoading(false);
-      return;
-    }
+    if (!teamId || !promptId) { setComments([]); setLoading(false); return; }
 
-    // ✅ Load team data to get member roles
-    const loadTeamData = async () => {
-      try {
-        const teamDoc = await getDoc(doc(db, "teams", teamId));
-        if (teamDoc.exists()) {
-          setTeamData(teamDoc.data());
-        }
-      } catch (error) {
-        console.error("Error loading team data:", error);
-      }
-    };
-
-    loadTeamData();
+    getDoc(doc(db, "teams", teamId)).then(d => { if (d.exists()) setTeamData(d.data()); }).catch(() => {});
 
     const q = query(
       collection(db, "teams", teamId, "prompts", promptId, "comments"),
       orderBy("createdAt", "asc")
     );
 
-    const unsub = onSnapshot(
-      q,
-      async (snap) => {
-        const commentData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setComments(commentData);
-
-        const authorIds = [
-          ...new Set(commentData.map((c) => c.createdBy).filter(Boolean)),
-        ];
-        const profilesData = {};
-
-        for (const authorId of authorIds) {
-          // ✅ Skip guest IDs (they have guestName stored in comment)
-          if (authorId.startsWith('guest_')) {
-            continue;
-          }
-          
-          if (!profilesData[authorId]) {
-            try {
-              const userDoc = await getDoc(doc(db, "users", authorId));
-              if (userDoc.exists()) {
-                profilesData[authorId] = userDoc.data();
-              }
-            } catch (error) {
-              console.error("Error loading comment author profile:", error);
-            }
-          }
+    const unsub = onSnapshot(q, async snap => {
+      const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setComments(data);
+      const ids = [...new Set(data.map(c => c.createdBy).filter(id => id && !id.startsWith("guest_")))];
+      const p = {};
+      for (const id of ids) {
+        if (!p[id]) {
+          try { const ud = await getDoc(doc(db, "users", id)); if (ud.exists()) p[id] = ud.data(); } catch {}
         }
-
-        setProfiles(profilesData);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error loading comments:", error);
-        setLoading(false);
       }
-    );
+      setProfiles(p);
+      setLoading(false);
+    }, () => setLoading(false));
 
     return () => unsub();
   }, [teamId, promptId]);
@@ -122,457 +86,66 @@ export function useComments(teamId, promptId) {
   return { comments, loading, profiles, teamData };
 }
 
-// ✅ CONTEXT: Track which menu is open (single menu at a time)
-const MenuContext = { activeMenuId: null };
-
-// Individual comment component
-export function Comment({
-  comment,
-  profile,
-  onDelete,
-  onEdit,
-  canModify,
-  onReply,
-  teamData,
-  userRole,
-  userId,
-  activeMenuId,
-  onMenuToggle,
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(comment.text);
-  const [showReplyForm, setShowReplyForm] = useState(false);
-  const menuRef = useRef(null);
-  const { formatRelative } = useTimestamp();
-  const { user } = useAuth();
-  
-  const showMenu = activeMenuId === comment.id;
-
-  function getUserInitials(name, email) {
-    if (name) {
-      return name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-    }
-    if (email) {
-      return email[0].toUpperCase();
-    }
-    return "U";
-  }
-
-  function UserAvatar({ src, name, email, size = "small", className = "" }) {
-    const [imageError, setImageError] = useState(false);
-    const avatarClass =
-      size === "small" ? "w-8 h-8 md:w-9 md:h-9" : "w-10 h-10 md:w-11 md:h-11";
-    const initialsClass = size === "small" ? "text-xs" : "text-sm";
-
-    if (!src || imageError) {
-      return (
-        <div
-          className={`${avatarClass} ${className} rounded-full flex items-center justify-center text-white font-bold transition-transform duration-200 hover:scale-105`}
-          style={{ backgroundColor: "var(--primary)" }}
-        >
-          <span className={initialsClass}>{getUserInitials(name, email)}</span>
-        </div>
-      );
-    }
-
-    return (
-      <img
-        src={src}
-        alt="avatar"
-        className={`${avatarClass} ${className} rounded-full border-2 transition-transform duration-200 hover:scale-105`}
-        style={{ borderColor: "var(--border)" }}
-        onError={() => setImageError(true)}
-      />
-    );
-  }
-
-  // ✅ Get author display name with role badge
-  function getAuthorDisplay() {
-    if (comment.isGuest) {
-      return {
-        name: comment.guestName || "Anonymous Guest",
-        role: null,
-      };
-    }
-
-    const profile_name = profile?.name || profile?.email || "Unknown user";
-    const authorId = comment.createdBy;
-
-    // ✅ Check if author is team owner or admin
-    if (teamData && teamData.members) {
-      const authorRole = teamData.members[authorId];
-      
-      if (authorRole === 'owner') {
-        return {
-          name: profile_name,
-          role: "Team Owner",
-        };
-      } else if (authorRole === 'admin') {
-        return {
-          name: profile_name,
-          role: "Team Admin",
-        };
-      }
-    }
-
-    return {
-      name: profile_name,
-      role: null,
-    };
-  }
-
-  const authorDisplay = getAuthorDisplay();
-
-  // ✅ Auto-close menu on outside click
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target) && showMenu) {
-        onMenuToggle(null);
-      }
-    }
-    if (showMenu) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showMenu, onMenuToggle]);
-
-  const handleEdit = async () => {
-    if (!editText.trim()) return;
-
-    try {
-      await onEdit(comment.id, editText.trim());
-      setIsEditing(false);
-      onMenuToggle(null);
-    } catch (error) {
-      alert("Failed to update comment. Please try again.");
-    }
-  };
-
-  // ✅ Guests can delete their own comments
-  function canDeleteOwnComment() {
-    if (comment.isGuest && user === null) {
-      // Guest user deleting their own comment (guestToken matches)
-      const guestToken = sessionStorage.getItem('guest_team_token');
-      const commentGuestToken = comment.guestToken;
-      return guestToken === commentGuestToken;
-    }
-    return false;
-  }
-
-  const canDelete = canModify || canDeleteOwnComment();
-
-  return (
-    <div
-      className={`group relative p-4 md:p-5 rounded-xl border transition-all duration-200 hover:shadow-lg ${
-        comment.parentId ? "ml-6 md:ml-12" : ""
-      }`}
-      style={{
-        backgroundColor: comment.parentId 
-          ? "var(--muted)" 
-          : "var(--card)",
-        borderColor: "var(--border)",
-      }}
-    >
-     <div className="flex gap-3 md:gap-4">
-  {/* ✅ Show badge for guest comments */}
-  {comment.isGuest ? (
-    <div 
-      className="w-8 h-8 md:w-9 md:h-9 flex-shrink-0 rounded-full flex items-center justify-center"
-      style={{ backgroundColor: "var(--muted)" }}
-    >
-      <span 
-        className="text-xs font-semibold"
-        style={{ color: "var(--muted-foreground)" }}
-      >
-        G
-      </span>
-    </div>
-  ) : (
-    <UserAvatar
-      src={profile?.avatar}
-      name={profile?.name}
-      email={profile?.email}
-      size="small"
-      className="flex-shrink-0"
-    />
-  )}
-
-  <div className="flex-1 min-w-0">
-    {/* Header */}
-    <div className="flex items-start justify-between gap-2 mb-2">
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span
-            className="text-sm md:text-base font-semibold"
-            style={{ color: "var(--foreground)" }}
-          >
-            {authorDisplay.name}
-          </span>
-          
-          {/* ✅ Role badges for team owners and admins */}
-          {authorDisplay.role && (
-            <span 
-              className="text-xs px-2 py-0.5 rounded font-medium"
-              style={{ 
-                backgroundColor: authorDisplay.role === "Team Owner" 
-                  ? "rgba(168, 85, 247, 0.2)" 
-                  : "rgba(59, 130, 246, 0.2)",
-                color: authorDisplay.role === "Team Owner" 
-                  ? "rgb(168, 85, 247)" 
-                  : "rgb(59, 130, 246)",
-                border: authorDisplay.role === "Team Owner"
-                  ? "1px solid rgb(168, 85, 247)"
-                  : "1px solid rgb(59, 130, 246)",
-              }}
-            >
-              {authorDisplay.role}
-            </span>
-          )}
-
-          {/* Guest badge */}
-          {comment.isGuest && (
-            <span 
-              className="text-xs px-2 py-0.5 rounded"
-              style={{ 
-                backgroundColor: "var(--muted)", 
-                color: "var(--muted-foreground)" 
-              }}
-            >
-              Guest
-            </span>
-          )}
-        </div>
-        
-        <div
-          className="flex items-center gap-2 text-xs"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-         <span>{formatRelative(comment.createdAt)}</span>
-          {comment.updatedAt && (
-            <>
-              <span>•</span>
-              <span className="font-medium">(edited)</span>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ✅ Menu button with single menu open at a time */}
-      {(canModify || canDelete) && (
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => onMenuToggle(showMenu ? null : comment.id)}
-            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors opacity-0 group-hover:opacity-100"
-            style={{ color: "var(--muted-foreground)" }}
-            title="More options"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </button>
-
-          {showMenu && (
-            <div
-              className="absolute right-0 top-full mt-1 w-40 rounded-lg border shadow-xl z-10"
-              style={{
-                backgroundColor: "var(--card)",
-                borderColor: "var(--border)",
-              }}
-            >
-              {canModify && (
-                <>
-                  <button
-                    onClick={() => {
-                      setIsEditing(!isEditing);
-                      onMenuToggle(null);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/5 transition-colors rounded-t-lg"
-                    style={{ color: "var(--foreground)" }}
-                  >
-                    <Edit2 className="w-4 h-4" />
-                    <span>{isEditing ? "Cancel" : "Edit"}</span>
-                  </button>
-                  <div className="menu-divider" />
-                </>
-              )}
-              
-              {/* ✅ Delete button for admins or own comments */}
-              {canDelete && (
-                <button
-                  onClick={() => {
-                    onDelete(comment.id);
-                    onMenuToggle(null);
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-white/5 transition-colors rounded-b-lg"
-                  style={{ color: "var(--destructive)" }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete</span>
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-
-    {/* Content */}
-    {isEditing ? (
-      <div className="space-y-3">
-        <textarea
-          value={editText}
-          onChange={(e) => setEditText(e.target.value)}
-          className="form-input resize-none text-sm md:text-base w-full"
-          rows={3}
-          placeholder="Edit your comment..."
-        />
-        <div className="flex gap-2">
-          <button
-            onClick={handleEdit}
-            disabled={!editText.trim()}
-            className="btn-primary text-xs px-4 py-2 flex items-center gap-2"
-          >
-            <Send className="w-3 h-3" />
-            Save
-          </button>
-          <button
-            onClick={() => {
-              setIsEditing(false);
-              setEditText(comment.text);
-            }}
-            className="btn-secondary text-xs px-4 py-2 flex items-center gap-2"
-          >
-            <X className="w-3 h-3" />
-            Cancel
-          </button>
-        </div>
-      </div>
-    ) : (
-      <div>
-        <p
-          className="text-sm md:text-base whitespace-pre-wrap leading-relaxed mb-3"
-          style={{ color: "var(--foreground)" }}
-        >
-          {comment.text}
-        </p>
-
-        {!comment.parentId && (
-          <button
-            onClick={() => setShowReplyForm(!showReplyForm)}
-            className="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
-            style={{ color: "var(--primary)" }}
-          >
-            <Reply className="w-3 h-3" />
-            Reply
-          </button>
-        )}
-      </div>
-    )}
-
-    {/* Reply Form */}
-    {showReplyForm && (
-      <div
-        className="mt-4 p-3 md:p-4 rounded-lg border"
-        style={{
-          backgroundColor: "var(--muted)",
-          borderColor: "var(--border)",
-        }}
-      >
-        <CommentForm
-          onSubmit={(text) => {
-            onReply(comment.id, text);
-            setShowReplyForm(false);
-          }}
-          onCancel={() => setShowReplyForm(false)}
-          placeholder={`Reply to ${authorDisplay.name}...`}
-          submitText="Reply"
-        />
-      </div>
-    )}
-  </div>
-</div>
-    </div>
-  );
-}
-
-// Comment form component
-export function CommentForm({
-  onSubmit,
-  onCancel,
-  placeholder = "Add a comment...",
-  submitText = "Comment",
-  autoFocus = false,
-}) {
-  const [text, setText] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+// ── CommentForm ───────────────────────────────────────────────────────────────
+export function CommentForm({ onSubmit, onCancel, placeholder = "Add a comment…", submitText = "Comment", autoFocus = false }) {
+  const [text,        setText]        = useState("");
+  const [submitting,  setSubmitting]  = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (!text.trim()) return;
-    
-    setIsSubmitting(true);
-    try {
-      await onSubmit(text);
-      setText('');
-    } catch (error) {
-      console.error("Error submitting comment:", error);
-      alert("Failed to submit comment. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+    setSubmitting(true);
+    try { await onSubmit(text); setText(""); } catch { alert("Failed to submit. Try again."); }
+    finally { setSubmitting(false); }
   }
 
+  const over = text.length > 450;
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={placeholder}
-        className="form-input resize-none text-sm md:text-base"
-        rows={3}
-        autoFocus={autoFocus}
-        disabled={isSubmitting}
-      />
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div 
-          className="text-xs"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          <span
-            className={`font-medium ${
-              text.length > 400
-                ? "text-yellow-500"
-                : text.length > 450
-                ? "text-red-500"
-                : ""
-            }`}
-          >
-            {text.length}/500
-          </span>
-          <span className="ml-1">characters</span>
-        </div>
-        <div className="flex gap-2 w-full sm:w-auto">
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: ".625rem" }}>
+      <div style={{ position: "relative" }}>
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder={placeholder}
+          rows={3}
+          autoFocus={autoFocus}
+          disabled={submitting}
+          style={{
+            width: "100%", resize: "vertical", padding: ".625rem .75rem",
+            background: "rgba(255,255,255,.03)", border: "1px solid var(--border)",
+            borderRadius: "8px", color: "var(--foreground)", fontSize: ".82rem",
+            lineHeight: 1.55, fontFamily: "inherit", transition: "border-color .15s",
+            outline: "none",
+          }}
+          onFocus={e => e.target.style.borderColor = "rgba(139,92,246,.5)"}
+          onBlur={e => e.target.style.borderColor = "var(--border)"}
+        />
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: ".5rem" }}>
+        <span style={{ fontSize: ".65rem", color: over ? "#f87171" : "var(--muted-foreground)", fontVariantNumeric: "tabular-nums" }}>
+          {text.length}/500
+        </span>
+        <div style={{ display: "flex", gap: ".5rem" }}>
           {onCancel && (
-            <button
-              type="button"
-              onClick={onCancel}
-              disabled={isSubmitting}
-              className="btn-secondary text-xs px-4 py-2 flex items-center gap-2 flex-1 sm:flex-none"
-            >
-              <X className="w-3 h-3" />
-              Cancel
-            </button>
+            <button type="button" onClick={onCancel} disabled={submitting}
+              style={{
+                padding: ".4rem .75rem", borderRadius: "6px", fontSize: ".75rem", fontWeight: 600,
+                background: "transparent", color: "var(--muted-foreground)", border: "1px solid var(--border)",
+                cursor: "pointer", transition: "all .15s",
+              }}
+            >Cancel</button>
           )}
-          <button
-            type="submit"
-            disabled={!text.trim() || isSubmitting || text.length > 500}
-            className="btn-primary text-xs px-4 py-2 flex items-center justify-center gap-2 flex-1 sm:flex-none"
+          <button type="submit" disabled={!text.trim() || submitting || text.length > 500}
+            style={{
+              padding: ".4rem .875rem", borderRadius: "6px", fontSize: ".75rem", fontWeight: 700,
+              background: "var(--primary)", color: "#fff", border: "none",
+              cursor: "pointer", transition: "all .15s", display: "flex", alignItems: "center", gap: ".375rem",
+              opacity: (!text.trim() || text.length > 500) ? .45 : 1,
+            }}
           >
-            {isSubmitting && <Loader2 className="w-3 h-3 animate-spin" />}
-            <Send className="w-3 h-3" />
+            {submitting && <Loader2 size={11} style={{ animation: "spin .75s linear infinite" }} />}
+            <Send size={11} />
             {submitText}
           </button>
         </div>
@@ -581,300 +154,403 @@ export function CommentForm({
   );
 }
 
-// Main comments component
-export default function Comments({ teamId, promptId, userRole }) {
+// ── Comment ───────────────────────────────────────────────────────────────────
+export function Comment({ comment, profile, onDelete, onEdit, canModify, onReply, teamData, userRole, userId, activeMenuId, onMenuToggle }) {
+  const [editing,      setEditing]      = useState(false);
+  const [editText,     setEditText]     = useState(comment.text);
+  const [replyOpen,    setReplyOpen]    = useState(false);
+  const [hovered,      setHovered]      = useState(false);
+  const menuRef = useRef(null);
+  const { formatRelative } = useTimestamp();
   const { user } = useAuth();
+  const showMenu = activeMenuId === comment.id;
+
+  function getAuthorDisplay() {
+    if (comment.isGuest) return { name: comment.guestName || "Guest", role: null, isGuest: true };
+    const name = profile?.name || profile?.email || "Unknown";
+    if (teamData?.members) {
+      const r = teamData.members[comment.createdBy];
+      if (r === "owner") return { name, role: "Owner",  isGuest: false };
+      if (r === "admin") return { name, role: "Admin",  isGuest: false };
+    }
+    return { name, role: null, isGuest: false };
+  }
+
+  function canDeleteOwn() {
+    if (comment.isGuest && !user) {
+      const t = sessionStorage.getItem("guest_team_token");
+      return t === comment.guestToken;
+    }
+    return false;
+  }
+
+  const author    = getAuthorDisplay();
+  const canDelete = canModify || canDeleteOwn();
+  const isReply   = !!comment.parentId;
+
+  useEffect(() => {
+    function outside(e) { if (menuRef.current && !menuRef.current.contains(e.target) && showMenu) onMenuToggle(null); }
+    if (showMenu) { document.addEventListener("mousedown", outside); return () => document.removeEventListener("mousedown", outside); }
+  }, [showMenu, onMenuToggle]);
+
+  async function submitEdit() {
+    if (!editText.trim()) return;
+    try { await onEdit(comment.id, editText.trim()); setEditing(false); onMenuToggle(null); }
+    catch { alert("Failed to update comment."); }
+  }
+
+  const roleColor = author.role === "Owner" ? "rgba(168,85,247,.9)" : "rgba(59,130,246,.9)";
+  const roleBg    = author.role === "Owner" ? "rgba(168,85,247,.12)" : "rgba(59,130,246,.12)";
+
+  return (
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex", gap: ".625rem",
+        padding: ".75rem",
+        borderRadius: "10px",
+        background: isReply ? "rgba(255,255,255,.015)" : "rgba(255,255,255,.025)",
+        border: "1px solid",
+        borderColor: isReply ? "rgba(255,255,255,.04)" : "rgba(139,92,246,.08)",
+        marginLeft: isReply ? "2rem" : 0,
+        transition: "border-color .15s",
+        ...(hovered && { borderColor: isReply ? "rgba(255,255,255,.07)" : "rgba(139,92,246,.15)" }),
+      }}
+    >
+      {/* Avatar */}
+      {comment.isGuest ? (
+        <div style={{
+          width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0,
+          background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: "10px", fontWeight: 700, color: "var(--muted-foreground)",
+        }}>G</div>
+      ) : (
+        <Avatar src={profile?.avatar} name={profile?.name} email={profile?.email} size={28} />
+      )}
+
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Header row */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: ".5rem", marginBottom: ".375rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: ".375rem", flexWrap: "wrap" }}>
+            <span style={{ fontSize: ".8rem", fontWeight: 700, color: "var(--foreground)" }}>{author.name}</span>
+            {author.role && (
+              <span style={{
+                fontSize: ".6rem", fontWeight: 700, padding: ".1rem .4rem", borderRadius: "4px",
+                background: roleBg, color: roleColor, border: `1px solid ${roleColor}`,
+              }}>{author.role}</span>
+            )}
+            {author.isGuest && (
+              <span style={{
+                fontSize: ".6rem", padding: ".1rem .4rem", borderRadius: "4px",
+                background: "rgba(255,255,255,.05)", color: "var(--muted-foreground)",
+              }}>Guest</span>
+            )}
+            <span style={{ fontSize: ".65rem", color: "var(--muted-foreground)" }}>
+              {formatRelative(comment.createdAt)}
+              {comment.updatedAt && <span style={{ marginLeft: ".25rem", opacity: .6 }}>· edited</span>}
+            </span>
+          </div>
+
+          {/* Actions menu */}
+          {(canModify || canDelete) && (
+            <div ref={menuRef} style={{ position: "relative", flexShrink: 0 }}>
+              <button
+                onClick={() => onMenuToggle(showMenu ? null : comment.id)}
+                style={{
+                  width: "26px", height: "26px", borderRadius: "6px", border: "none",
+                  background: showMenu ? "rgba(139,92,246,.15)" : "transparent",
+                  color: "var(--muted-foreground)", cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  opacity: hovered || showMenu ? 1 : 0, transition: "opacity .15s, background .15s",
+                }}
+              ><MoreVertical size={13} /></button>
+
+              {showMenu && (
+                <div style={{
+                  position: "absolute", right: 0, top: "calc(100% + 4px)", zIndex: 100,
+                  minWidth: "130px", background: "var(--popover)",
+                  border: "1px solid var(--border)", borderRadius: "8px",
+                  padding: ".25rem", boxShadow: "0 8px 24px rgba(0,0,0,.35)",
+                  animation: "cmMenuIn .12s ease-out",
+                }}>
+                  {canModify && (
+                    <button
+                      onClick={() => { setEditing(!editing); onMenuToggle(null); }}
+                      style={{
+                        width: "100%", display: "flex", alignItems: "center", gap: ".5rem",
+                        padding: ".45rem .625rem", borderRadius: "6px", border: "none",
+                        background: "transparent", color: "var(--foreground)",
+                        fontSize: ".78rem", cursor: "pointer", transition: "background .12s",
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(139,92,246,.1)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    >
+                      <Edit2 size={12} />{editing ? "Cancel Edit" : "Edit"}
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      onClick={() => { onDelete(comment.id); onMenuToggle(null); }}
+                      style={{
+                        width: "100%", display: "flex", alignItems: "center", gap: ".5rem",
+                        padding: ".45rem .625rem", borderRadius: "6px", border: "none",
+                        background: "transparent", color: "#f87171",
+                        fontSize: ".78rem", cursor: "pointer", transition: "background .12s",
+                        marginTop: canModify ? ".25rem" : 0,
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,.1)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                    >
+                      <Trash2 size={12} />Delete
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Body */}
+        {editing ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: ".5rem" }}>
+            <textarea
+              value={editText}
+              onChange={e => setEditText(e.target.value)}
+              rows={3}
+              style={{
+                width: "100%", resize: "vertical", padding: ".5rem .625rem",
+                background: "rgba(255,255,255,.03)", border: "1px solid rgba(139,92,246,.3)",
+                borderRadius: "6px", color: "var(--foreground)", fontSize: ".8rem",
+                fontFamily: "inherit", lineHeight: 1.5, outline: "none",
+              }}
+            />
+            <div style={{ display: "flex", gap: ".375rem" }}>
+              <button onClick={submitEdit} disabled={!editText.trim()}
+                style={{
+                  padding: ".35rem .75rem", borderRadius: "6px", fontSize: ".73rem", fontWeight: 700,
+                  background: "var(--primary)", color: "#fff", border: "none", cursor: "pointer",
+                  display: "flex", alignItems: "center", gap: ".3rem",
+                }}>
+                <Check size={11} />Save
+              </button>
+              <button onClick={() => { setEditing(false); setEditText(comment.text); }}
+                style={{
+                  padding: ".35rem .75rem", borderRadius: "6px", fontSize: ".73rem",
+                  background: "transparent", color: "var(--muted-foreground)",
+                  border: "1px solid var(--border)", cursor: "pointer",
+                }}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p style={{ fontSize: ".82rem", lineHeight: 1.6, color: "rgba(228,228,231,.85)", whiteSpace: "pre-wrap", margin: "0 0 .375rem 0" }}>
+              {comment.text}
+            </p>
+            {!isReply && (
+              <button
+                onClick={() => setReplyOpen(!replyOpen)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: ".3rem",
+                  fontSize: ".68rem", fontWeight: 600, color: "var(--primary)",
+                  background: "none", border: "none", cursor: "pointer", padding: "0",
+                  opacity: .8, transition: "opacity .15s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                onMouseLeave={e => e.currentTarget.style.opacity = .8}
+              >
+                <Reply size={11} />Reply
+              </button>
+            )}
+          </>
+        )}
+
+        {/* Reply form */}
+        {replyOpen && (
+          <div style={{ marginTop: ".625rem", padding: ".625rem", borderRadius: "8px", background: "rgba(255,255,255,.02)", border: "1px solid rgba(255,255,255,.05)" }}>
+            <CommentForm
+              onSubmit={text => { onReply(comment.id, text); setReplyOpen(false); }}
+              onCancel={() => setReplyOpen(false)}
+              placeholder={`Reply to ${author.name}…`}
+              submitText="Reply"
+            />
+          </div>
+        )}
+      </div>
+
+      <style>{`
+        @keyframes cmMenuIn { from{opacity:0;transform:translateY(-4px)} to{opacity:1;transform:none} }
+        @keyframes spin { to{transform:rotate(360deg)} }
+      `}</style>
+    </div>
+  );
+}
+
+// ── Main Comments Component ───────────────────────────────────────────────────
+export default function Comments({ teamId, promptId, userRole }) {
+  const { user }                              = useAuth();
   const { comments, loading, profiles, teamData } = useComments(teamId, promptId);
-  const [showCommentForm, setShowCommentForm] = useState(false);
-  const [activeMenuId, setActiveMenuId] = useState(null);
+  const [showForm,     setShowForm]           = useState(false);
+  const [activeMenuId, setActiveMenuId]       = useState(null);
 
-  // ✅ FIXED: Complete rewrite with proper guest token & name handling
-  async function handleAddComment(text, parentId = null) {
+  async function handleAdd(text, parentId = null) {
     if (!teamId || !promptId) return;
-
-    try {
-      const commentData = {
-        text,
-        createdAt: serverTimestamp(),
-        parentId: parentId || null,
-      };
-      
-      // ✅ Support both authenticated users and team guests
-      if (user) {
-        // Authenticated user
-        commentData.createdBy = user.uid;
-        console.log('💬 [COMMENT] Creating comment from authenticated user:', user.uid);
-      } else {
-        // Team guest - get or create guest token
-        const guestToken = getOrCreateGuestToken();
-        const guestId = `guest_${guestToken.substring(0, 16)}`;
-        
-        commentData.createdBy = guestId;
-        commentData.isGuest = true;
-        commentData.guestToken = guestToken;         // ✅ REQUIRED by Firestore rules
-        commentData.guestName = "Anonymous Guest";   // ✅ REQUIRED by Firestore rules
-        
-        console.log('💬 [COMMENT] Creating guest comment:', {
-          guestId,
-          guestToken: guestToken.substring(0, 16) + '...',
-          guestName: commentData.guestName,
-        });
-      }
-      
-      console.log('💬 [COMMENT] Comment data:', {
-        ...commentData,
-        guestToken: commentData.guestToken ? commentData.guestToken.substring(0, 16) + '...' : 'N/A'
-      });
-      
-      await addDoc(
-        collection(db, "teams", teamId, "prompts", promptId, "comments"),
-        commentData
-      );
-      
-      console.log('✅ [COMMENT] Comment added successfully');
-      
-      // ✅ Update stats
-      await updateCommentCount(teamId, promptId, 1);
-      console.log('✅ [COMMENT] Comment count updated');
-      
-    } catch (error) {
-      console.error("❌ [COMMENT] Error adding comment:", error);
-      throw error;
+    const data = { text, createdAt: serverTimestamp(), parentId: parentId || null };
+    if (user) {
+      data.createdBy = user.uid;
+    } else {
+      const token = getOrCreateGuestToken();
+      data.createdBy  = `guest_${token.substring(0, 16)}`;
+      data.isGuest    = true;
+      data.guestToken = token;
+      data.guestName  = "Anonymous Guest";
     }
+    await addDoc(collection(db, "teams", teamId, "prompts", promptId, "comments"), data);
+    await updateCommentCount(teamId, promptId, 1);
   }
 
-  async function handleEditComment(commentId, newText) {
-    if (!teamId || !promptId) return;
-
-    try {
-      await updateDoc(
-        doc(db, "teams", teamId, "prompts", promptId, "comments", commentId),
-        {
-          text: newText,
-          updatedAt: serverTimestamp(),
-        }
-      );
-    } catch (error) {
-      console.error("Error editing comment:", error);
-      throw error;
-    }
+  async function handleEdit(id, text) {
+    await updateDoc(doc(db, "teams", teamId, "prompts", promptId, "comments", id), { text, updatedAt: serverTimestamp() });
   }
 
-  function canDeleteComment(comment) {
-    // ✅ Guests cannot delete unless it's their own
-    if (!user) return false;
-    
-    // ✅ Users can delete own comments or admins can delete any
-    return comment.createdBy === user.uid || userRole === 'admin' || userRole === 'owner';
+  async function handleDelete(id) {
+    if (!confirm("Delete this comment?")) return;
+    const ref = collection(db, "teams", teamId, "prompts", promptId, "comments");
+    const all  = await getDocs(ref);
+    const replies = all.docs.filter(d => d.data().parentId === id);
+    for (const r of replies) await deleteDoc(doc(db, "teams", teamId, "prompts", promptId, "comments", r.id));
+    await deleteDoc(doc(db, "teams", teamId, "prompts", promptId, "comments", id));
+    await updateCommentCount(teamId, promptId, -(1 + replies.length));
   }
 
-  // ✅ FIXED: Now counts and deletes all replies
-  async function handleDeleteComment(commentId) {
-    if (!confirm("Are you sure you want to delete this comment?")) return;
-
-    try {
-      const commentsRef = collection(db, "teams", teamId, "prompts", promptId, "comments");
-      
-      // Find all replies to this comment
-      const repliesSnapshot = await getDocs(commentsRef);
-      const replies = repliesSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(comment => comment.parentId === commentId);
-      
-      // Calculate total deletions (parent + all replies)
-      const totalDeletions = 1 + replies.length;
-      
-      // Delete all replies first
-      for (const reply of replies) {
-        await deleteDoc(
-          doc(db, "teams", teamId, "prompts", promptId, "comments", reply.id)
-        );
-      }
-      
-      // Delete the parent comment
-      await deleteDoc(
-        doc(db, "teams", teamId, "prompts", promptId, "comments", commentId)
-      );
-      
-      // ✅ Update stats with correct count (parent + replies)
-      await updateCommentCount(teamId, promptId, -totalDeletions);
-      
-    } catch (error) {
-      console.error("Error deleting comment:", error);
-      alert("Failed to delete comment. Please try again.");
-    }
+  function canModify(c) {
+    if (!user || !c) return false;
+    return c.createdBy === user.uid || userRole === "owner" || userRole === "admin";
   }
 
-  async function handleReply(parentId, text) {
-    await handleAddComment(text, parentId);
-  }
-
-  function canModifyComment(comment) {
-    if (!user || !comment) return false;
-    return (
-      comment.createdBy === user.uid ||
-      userRole === "owner" ||
-      userRole === "admin"
-    );
-  }
-
-  const organizedComments = comments.reduce((acc, comment) => {
-    if (!comment.parentId) {
-      acc.push({
-        ...comment,
-        replies: comments.filter((c) => c.parentId === comment.id),
-      });
-    }
+  const topLevel = comments.reduce((acc, c) => {
+    if (!c.parentId) acc.push({ ...c, replies: comments.filter(r => r.parentId === c.id) });
     return acc;
   }, []);
 
-  const topLevelComments = organizedComments;
-  const commentCount = comments.length;
-
   if (loading) {
     return (
-      <div className="glass-card p-6 md:p-8 text-center rounded-xl">
-        <Loader2 
-          className="w-8 h-8 animate-spin mx-auto mb-4"
-          style={{ color: "var(--primary)" }}
-        />
-        <span
-          className="text-xs md:text-sm"
-          style={{ color: "var(--muted-foreground)" }}
-        >
-          Loading comments...
-        </span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem", gap: ".625rem", color: "var(--muted-foreground)" }}>
+        <Loader2 size={16} style={{ animation: "spin .75s linear infinite" }} />
+        <span style={{ fontSize: ".8rem" }}>Loading comments…</span>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
   }
 
   return (
-    <div className="glass-card overflow-hidden rounded-xl border" style={{ borderColor: "var(--border)" }}>
-      {/* Header */}
-      <div
-        className="p-4 md:p-6 border-b"
-        style={{ borderColor: "var(--border)" }}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div>
-              <h3
-                className="text-base md:text-lg font-bold"
-                style={{ color: "var(--foreground)" }}
-              >
-                Comments
-              </h3>
-              <p 
-                className="text-xs"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                {commentCount} {commentCount === 1 ? "comment" : "comments"}
-              </p>
-            </div>
-          </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
 
-          {!showCommentForm && (
-            <button
-              onClick={() => setShowCommentForm(true)}
-              className="btn-primary text-xs md:text-sm px-4 py-2 flex items-center gap-2 w-full sm:w-auto justify-center"
-            >
-              <MessageCircle className="w-4 h-4" />
-              Add Comment
-            </button>
-          )}
+      {/* Header row */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        paddingBottom: ".75rem", marginBottom: ".75rem",
+        borderBottom: "1px solid rgba(139,92,246,.08)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: ".5rem" }}>
+          <MessageCircle size={14} color="var(--primary)" />
+          <span style={{ fontSize: ".8rem", fontWeight: 700, color: "var(--foreground)" }}>
+            Comments
+          </span>
+          <span style={{
+            fontSize: ".65rem", fontWeight: 700, padding: ".1rem .45rem", borderRadius: "999px",
+            background: "rgba(139,92,246,.15)", color: "var(--primary)",
+          }}>{comments.length}</span>
         </div>
+        {!showForm && (
+          <button
+            onClick={() => setShowForm(true)}
+            style={{
+              display: "flex", alignItems: "center", gap: ".375rem",
+              padding: ".375rem .75rem", borderRadius: "7px", fontSize: ".73rem", fontWeight: 700,
+              background: "rgba(139,92,246,.12)", color: "var(--primary)",
+              border: "1px solid rgba(139,92,246,.2)", cursor: "pointer", transition: "all .15s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(139,92,246,.2)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(139,92,246,.12)"; }}
+          >
+            <Send size={11} />Add Comment
+          </button>
+        )}
       </div>
 
-      {/* Comment Form */}
-      {showCommentForm && (
-        <div
-          className="p-4 md:p-6 border-b"
-          style={{
-            borderColor: "var(--border)",
-            backgroundColor: "var(--muted)",
-          }}
-        >
+      {/* New comment form */}
+      {showForm && (
+        <div style={{
+          padding: ".75rem", marginBottom: ".75rem", borderRadius: "10px",
+          background: "rgba(139,92,246,.04)", border: "1px solid rgba(139,92,246,.12)",
+        }}>
           <CommentForm
-            onSubmit={(text) => {
-              handleAddComment(text);
-              setShowCommentForm(false);
-            }}
-            onCancel={() => setShowCommentForm(false)}
-            placeholder="Share your thoughts about this prompt..."
-            autoFocus={true}
+            onSubmit={text => { handleAdd(text); setShowForm(false); }}
+            onCancel={() => setShowForm(false)}
+            placeholder="Share your thoughts about this prompt…"
+            autoFocus
           />
         </div>
       )}
 
-      {/* Comments List */}
-      <div className="p-4 md:p-6">
-        {topLevelComments.length === 0 ? (
-          <div className="text-center py-12 md:py-16">
-            <div 
-              className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: "var(--muted)" }}
-            >
-              <MessageCircle 
-                className="w-8 h-8"
-                style={{ color: "var(--muted-foreground)" }}
-              />
-            </div>
-            <p
-              className="text-base md:text-lg font-medium mb-2"
-              style={{ color: "var(--foreground)" }}
-            >
-              No comments yet
-            </p>
-            <p
-              className="text-xs md:text-sm"
-              style={{ color: "var(--muted-foreground)" }}
-            >
-              Be the first to share your thoughts!
-            </p>
+      {/* Empty state */}
+      {topLevel.length === 0 && !showForm && (
+        <div style={{ textAlign: "center", padding: "2rem .5rem" }}>
+          <div style={{
+            width: "40px", height: "40px", borderRadius: "50%", margin: "0 auto .75rem",
+            background: "rgba(139,92,246,.08)", border: "1px solid rgba(139,92,246,.15)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            <MessageCircle size={18} color="rgba(139,92,246,.5)" />
           </div>
-        ) : (
-          <div className="space-y-4 md:space-y-5">
-            {topLevelComments.map((comment) => (
-              <div key={comment.id}>
-                <Comment
-                  comment={comment}
-                  profile={profiles[comment.createdBy]}
-                  onDelete={handleDeleteComment}
-                  onEdit={handleEditComment}
-                  onReply={handleReply}
-                  canModify={canModifyComment(comment)}
-                  teamData={teamData}
-                  userRole={userRole}
-                  userId={user?.uid}
-                  activeMenuId={activeMenuId}
-                  onMenuToggle={setActiveMenuId}
-                />
+          <p style={{ fontSize: ".82rem", fontWeight: 600, color: "var(--foreground)", marginBottom: ".25rem" }}>No comments yet</p>
+          <p style={{ fontSize: ".73rem", color: "var(--muted-foreground)" }}>Be the first to share your thoughts.</p>
+        </div>
+      )}
 
-                {/* Replies */}
-                {comment.replies && comment.replies.length > 0 && (
-                  <div className="mt-4 md:mt-5 space-y-4 md:space-y-5">
-                    {comment.replies.map((reply) => (
-                      <Comment
-                        key={reply.id}
-                        comment={reply}
-                        profile={profiles[reply.createdBy]}
-                        onDelete={handleDeleteComment}
-                        onEdit={handleEditComment}
-                        canModify={canModifyComment(reply)}
-                        teamData={teamData}
-                        userRole={userRole}
-                        userId={user?.uid}
-                        activeMenuId={activeMenuId}
-                        onMenuToggle={setActiveMenuId}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Comment list */}
+      {topLevel.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: ".5rem" }}>
+          {topLevel.map(c => (
+            <div key={c.id}>
+              <Comment
+                comment={c}
+                profile={profiles[c.createdBy]}
+                onDelete={handleDelete}
+                onEdit={handleEdit}
+                onReply={(pid, text) => handleAdd(text, pid)}
+                canModify={canModify(c)}
+                teamData={teamData}
+                userRole={userRole}
+                userId={user?.uid}
+                activeMenuId={activeMenuId}
+                onMenuToggle={setActiveMenuId}
+              />
+              {c.replies?.length > 0 && (
+                <div style={{ marginTop: ".375rem", display: "flex", flexDirection: "column", gap: ".375rem" }}>
+                  {c.replies.map(r => (
+                    <Comment
+                      key={r.id}
+                      comment={r}
+                      profile={profiles[r.createdBy]}
+                      onDelete={handleDelete}
+                      onEdit={handleEdit}
+                      canModify={canModify(r)}
+                      teamData={teamData}
+                      userRole={userRole}
+                      userId={user?.uid}
+                      activeMenuId={activeMenuId}
+                      onMenuToggle={setActiveMenuId}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
