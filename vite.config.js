@@ -4,13 +4,13 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  
+
   // Public directory configuration
   publicDir: 'public',
-  
+
   // Base URL
   base: '/',
-  
+
   // Build configuration
   build: {
     outDir: 'dist',
@@ -18,13 +18,13 @@ export default defineConfig({
     // Ensure public files are copied
     copyPublicDir: true,
   },
-  
+
   // Development server
   server: {
     port: 3000,
     open: true,
   },
-  
+
   // Test configuration
   test: {
     globals: true,
@@ -43,7 +43,7 @@ export default defineConfig({
       ],
     },
   },
-  
+
   // Path aliases
   resolve: {
     alias: {
