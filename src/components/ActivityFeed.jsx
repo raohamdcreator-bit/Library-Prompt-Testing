@@ -54,6 +54,7 @@ const TYPE_CFG = {
   prompt_created:          { icon: Plus,          color: "#8b5cf6", label: "Created"  },
   prompt_updated:          { icon: Edit2,         color: "#a78bfa", label: "Updated"  },
   prompt_deleted:          { icon: Trash2,        color: "#ef4444", label: "Deleted"  },
+  // NOTE: prompt_rated is kept here for the real activities collection path (logPromptRated)
   prompt_rated:            { icon: Star,          color: "#f59e0b", label: "Rated"    },
   prompt_rated_individual: { icon: Star,          color: "#f59e0b", label: "Rated"    },
   comment_added:           { icon: MessageSquare, color: "#22d3ee", label: "Comment"  },
@@ -131,38 +132,120 @@ export default function ActivityFeed({ teamId }) {
     const unsub = onSnapshot(q, async snap => {
       let items = [];
       if (snap.empty) {
+        // ─── Fallback: synthesise activity from prompt documents ───────────────
+        // Fired when the `activities` subcollection doesn't exist yet (older teams).
         const pq = query(collection(db, "teams", teamId, "prompts"), orderBy("createdAt", "desc"), limit(50));
         const ps = await new Promise((res, rej) => onSnapshot(pq, res, rej));
         const promptData = ps.docs.map(d => ({ id: d.id, ...d.data() }));
         const uids = new Set();
         promptData.forEach(p => {
           if (p.createdBy) uids.add(p.createdBy);
-          items.push({ id: `created-${p.id}`, type: "prompt_created", userId: p.createdBy, promptId: p.id, promptTitle: p.title, timestamp: p.createdAt, metadata: { tags: p.tags || [] } });
+
+          // Created event
+          items.push({
+            id: `created-${p.id}`,
+            type: "prompt_created",
+            userId: p.createdBy,
+            promptId: p.id,
+            promptTitle: p.title,
+            timestamp: p.createdAt,
+            metadata: { tags: p.tags || [] },
+          });
+
+          // Updated event (only when updatedAt differs from createdAt)
           if (p.updatedAt && p.updatedAt !== p.createdAt)
-            items.push({ id: `updated-${p.id}`, type: "prompt_updated", userId: p.createdBy, promptId: p.id, promptTitle: p.title, timestamp: p.updatedAt, metadata: { tags: p.tags || [] } });
-          if (p.stats?.lastRated && p.stats?.averageRating > 0)
-            items.push({ id: `rated-${p.id}-${p.stats.lastRated.toMillis()}`, type: "prompt_rated", userId: p.createdBy, promptId: p.id, promptTitle: p.title, timestamp: p.stats.lastRated, metadata: { rating: p.stats.averageRating, totalRatings: p.stats.totalRatings || 0 } });
+            items.push({
+              id: `updated-${p.id}`,
+              type: "prompt_updated",
+              userId: p.createdBy,
+              promptId: p.id,
+              promptTitle: p.title,
+              timestamp: p.updatedAt,
+              metadata: { tags: p.tags || [] },
+            });
+
+          // ✅ FIX: Removed the aggregate `prompt_rated` synthetic event that was
+          // generated from p.stats.lastRated / p.stats.averageRating.
+          //
+          // That event represented the *same* rating(s) already captured one-by-one
+          // by the `prompt_rated_individual` loop below, causing every rating to
+          // appear twice in the feed and in the "Ratings" stat counter.
+          //
+          // The individual subcollection documents are the ground truth; the
+          // aggregate fields on the prompt doc are just a cached summary and
+          // should NOT be rendered as a separate activity entry.
         });
+
+        // Per-prompt comments
         for (const p of promptData) {
           try {
-            const cs = await getDocs(query(collection(db, "teams", teamId, "prompts", p.id, "comments"), orderBy("createdAt", "desc"), limit(10)));
-            cs.docs.forEach(cd => { const c = cd.data(); items.push({ id: `comment-${p.id}-${cd.id}`, type: "comment_added", userId: c.userId || null, isGuest: c.isGuest || false, guestToken: c.guestToken || null, promptId: p.id, promptTitle: p.title, timestamp: c.createdAt, metadata: { commentText: c.text?.substring(0, 50) || "", userName: c.userName || "Guest" } }); });
+            const cs = await getDocs(query(
+              collection(db, "teams", teamId, "prompts", p.id, "comments"),
+              orderBy("createdAt", "desc"),
+              limit(10),
+            ));
+            cs.docs.forEach(cd => {
+              const c = cd.data();
+              items.push({
+                id: `comment-${p.id}-${cd.id}`,
+                type: "comment_added",
+                userId: c.userId || null,
+                isGuest: c.isGuest || false,
+                guestToken: c.guestToken || null,
+                promptId: p.id,
+                promptTitle: p.title,
+                timestamp: c.createdAt,
+                metadata: {
+                  commentText: c.text?.substring(0, 50) || "",
+                  userName: c.userName || "Guest",
+                },
+              });
+            });
           } catch {}
+
+          // Per-prompt individual ratings (one activity item per rater)
           try {
             const rs = await getDocs(collection(db, "teams", teamId, "prompts", p.id, "ratings"));
-            rs.docs.forEach(rd => { const r = rd.data(); if (r.createdAt) items.push({ id: `rating-${p.id}-${rd.id}`, type: "prompt_rated_individual", userId: r.userId || null, isGuest: r.isGuest || false, guestToken: r.guestToken || null, promptId: p.id, promptTitle: p.title, timestamp: r.createdAt, metadata: { rating: r.rating, userName: r.isGuest ? "Guest" : null } }); });
+            rs.docs.forEach(rd => {
+              const r = rd.data();
+              if (r.createdAt)
+                items.push({
+                  id: `rating-${p.id}-${rd.id}`,
+                  type: "prompt_rated_individual",
+                  userId: r.userId || null,
+                  isGuest: r.isGuest || false,
+                  guestToken: r.guestToken || null,
+                  promptId: p.id,
+                  promptTitle: p.title,
+                  timestamp: r.createdAt,
+                  metadata: { rating: r.rating, userName: r.isGuest ? "Guest" : null },
+                });
+            });
           } catch {}
         }
+
         const prof = {};
-        for (const uid of uids) { try { const d = await getDoc(doc(db, "users", uid)); if (d.exists()) prof[uid] = d.data(); } catch {} }
+        for (const uid of uids) {
+          try {
+            const d = await getDoc(doc(db, "users", uid));
+            if (d.exists()) prof[uid] = d.data();
+          } catch {}
+        }
         setProfiles(prof);
       } else {
+        // ─── Normal path: real activities collection ───────────────────────────
         items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const uids = new Set(items.map(a => a.userId).filter(Boolean));
         const prof = {};
-        for (const uid of uids) { try { const d = await getDoc(doc(db, "users", uid)); if (d.exists()) prof[uid] = d.data(); } catch {} }
+        for (const uid of uids) {
+          try {
+            const d = await getDoc(doc(db, "users", uid));
+            if (d.exists()) prof[uid] = d.data();
+          } catch {}
+        }
         setProfiles(prof);
       }
+
       items.sort((a, b) => getTimestampMillis(b.timestamp) - getTimestampMillis(a.timestamp));
       setActivities(items);
       setLoading(false);
