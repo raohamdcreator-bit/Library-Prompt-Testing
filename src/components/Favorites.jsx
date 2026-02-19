@@ -1,404 +1,323 @@
-// src/components/Favorites.jsx - Modernized with Professional Icons
+// src/components/Favorites.jsx
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { toggleFavorite } from "../lib/prompts";
 import { canViewPrompt } from "../lib/prompts";
-import { 
-  Star, Copy, Trash2, ChevronDown, ChevronUp, 
-  Lock, Unlock, Tag, Calendar, CheckCircle, XCircle, Info
-} from 'lucide-react';
+import {
+  Star, Copy, Trash2, ChevronDown, ChevronUp,
+  Lock, Unlock, Tag, Calendar, Check,
+} from "lucide-react";
 
-// Favorite Button Component
+// ── FavoriteButton ─────────────────────────────────────────────────────────────
 export function FavoriteButton({ prompt, teamId, teamName, size = "normal" }) {
   const { user } = useAuth();
   const [isFavorite, setIsFavorite] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading,    setLoading]    = useState(false);
 
   useEffect(() => {
     if (!user || !prompt) return;
-
     const favRef = doc(db, "users", user.uid, "favorites", prompt.id);
-    const unsubscribe = onSnapshot(favRef, (snap) => {
-      setIsFavorite(snap.exists());
-    });
-
-    return () => unsubscribe();
+    const unsub  = onSnapshot(favRef, snap => setIsFavorite(snap.exists()));
+    return () => unsub();
   }, [user, prompt]);
 
   async function handleToggle() {
     if (!user || loading) return;
-
     setLoading(true);
-    try {
-      await toggleFavorite(user.uid, { ...prompt, teamId }, isFavorite);
-    } catch (error) {
-      console.error("Error toggling favorite:", error);
-    } finally {
-      setLoading(false);
-    }
+    try { await toggleFavorite(user.uid, { ...prompt, teamId }, isFavorite); }
+    catch (e) { console.error(e); }
+    finally { setLoading(false); }
   }
 
-  const buttonSize = size === "small" ? "p-2" : "p-3";
+  const iconSize = size === "small" ? 16 : 18;
 
   return (
-    <button
-      onClick={handleToggle}
-      disabled={loading}
-      className={`${buttonSize} rounded-lg transition-all duration-200 hover:scale-110 ${
-        loading ? "opacity-50" : ""
-      }`}
-      style={{
-        backgroundColor: isFavorite ? "var(--accent)" : "var(--secondary)",
-        color: isFavorite ? "var(--accent-foreground)" : "var(--foreground)",
-      }}
-      title={isFavorite ? "Remove from favorites" : "Add to favorites"}
-    >
-      <Star
-        size={size === "small" ? 20 : 24}
-        fill={isFavorite ? "currentColor" : "none"}
-        strokeWidth={2}
-      />
-    </button>
+    <>
+      <style>{`
+        .fav-btn {
+          display:flex;align-items:center;justify-content:center;
+          border-radius:8px;border:none;cursor:pointer;transition:all .15s;
+          flex-shrink:0;
+        }
+        .fav-btn:hover    { transform:scale(1.1); }
+        .fav-btn:disabled { opacity:.5;cursor:not-allowed;transform:none; }
+        .fav-btn.on  { background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.25); }
+        .fav-btn.off { background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08); }
+      `}</style>
+      <button onClick={handleToggle} disabled={loading}
+        className={`fav-btn${isFavorite ? " on" : " off"}`}
+        style={{ padding: size === "small" ? "6px" : "8px" }}
+        title={isFavorite ? "Remove from favorites" : "Add to favorites"}>
+        <Star size={iconSize} color={isFavorite ? "#f59e0b" : "var(--muted-foreground)"}
+          fill={isFavorite ? "#f59e0b" : "none"} strokeWidth={2} />
+      </button>
+    </>
   );
 }
 
-// Main Favorites List Component
+// ── FavoritesList ──────────────────────────────────────────────────────────────
 export default function FavoritesList() {
   const { user } = useAuth();
-  const [favorites, setFavorites] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [expandedFavorites, setExpandedFavorites] = useState({});
-  const [teamRoles, setTeamRoles] = useState({});
+  const [favorites,  setFavorites]  = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [expanded,   setExpanded]   = useState({});
+  const [copied,     setCopied]     = useState({});
 
   useEffect(() => {
-    if (!user) {
-      setFavorites([]);
-      setLoading(false);
-      return;
-    }
-
+    if (!user) { setFavorites([]); setLoading(false); return; }
     const favsRef = collection(db, "users", user.uid, "favorites");
-    const unsubscribe = onSnapshot(
-      favsRef,
-      async (snapshot) => {
-        const favData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        // Load team roles for visibility checking
-        const roles = {};
-        const uniqueTeamIds = [...new Set(favData.map((f) => f.teamId))];
-
-        for (const teamId of uniqueTeamIds) {
-          try {
-            const teamDoc = await getDoc(doc(db, "teams", teamId));
-            if (teamDoc.exists()) {
-              const teamData = teamDoc.data();
-              roles[teamId] = teamData.members?.[user.uid] || null;
-            }
-          } catch (error) {
-            console.error("Error loading team role:", error);
-          }
-        }
-
-        setTeamRoles(roles);
-
-        // Filter out favorites that user can no longer view
-        const visibleFavorites = favData.filter((fav) => {
-          const userRole = roles[fav.teamId];
-          return canViewPrompt(fav, user.uid, userRole);
-        });
-
-        setFavorites(visibleFavorites);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error loading favorites:", error);
-        setLoading(false);
+    const unsub = onSnapshot(favsRef, async snap => {
+      const favData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const roles = {};
+      const teamIds = [...new Set(favData.map(f => f.teamId))];
+      for (const tid of teamIds) {
+        try {
+          const td = await getDoc(doc(db, "teams", tid));
+          if (td.exists()) roles[tid] = td.data().members?.[user.uid] || null;
+        } catch {}
       }
-    );
-
-    return () => unsubscribe();
+      setFavorites(favData.filter(f => canViewPrompt(f, user.uid, roles[f.teamId])));
+      setLoading(false);
+    }, () => setLoading(false));
+    return () => unsub();
   }, [user]);
 
-  async function handleRemoveFavorite(favorite) {
+  async function handleRemove(fav) {
     if (!confirm("Remove this prompt from favorites?")) return;
-
-    try {
-      await toggleFavorite(user.uid, favorite, true);
-    } catch (error) {
-      console.error("Error removing favorite:", error);
-    }
+    try { await toggleFavorite(user.uid, fav, true); }
+    catch (e) { console.error(e); }
   }
 
-  async function handleCopy(text) {
+  async function handleCopy(id, text) {
     try {
       await navigator.clipboard.writeText(text);
-      showNotification("Copied to clipboard!", "success");
-    } catch (error) {
-      console.error("Error copying:", error);
-      showNotification("Failed to copy", "error");
-    }
+      setCopied(p => ({ ...p, [id]: true }));
+      setTimeout(() => setCopied(p => ({ ...p, [id]: false })), 2000);
+    } catch {}
   }
 
-  function toggleExpanded(id) {
-    setExpandedFavorites((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+  function fmtDate(ts) {
+    if (!ts) return "";
+    try { return ts.toDate().toLocaleDateString("en-US",{ month:"short",day:"numeric",year:"numeric" }); }
+    catch { return ""; }
   }
 
-  function showNotification(message, type = "info") {
-    const notification = document.createElement("div");
-    const icons = {
-      success: <CheckCircle size={20} />,
-      error: <XCircle size={20} />,
-      info: <Info size={20} />
-    };
-
-    notification.innerHTML = `
-      <div class="flex items-center gap-2">
-        <span>${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span>
-        <span>${message}</span>
-      </div>
-    `;
-
-    notification.className =
-      "fixed top-4 right-4 glass-card px-4 py-3 rounded-lg z-50 text-sm transition-opacity duration-300";
-    notification.style.backgroundColor = "var(--card)";
-    notification.style.color = "var(--foreground)";
-    notification.style.border = `1px solid var(--${
-      type === "error" ? "destructive" : "primary"
-    })`;
-
-    document.body.appendChild(notification);
-
-    setTimeout(() => {
-      notification.style.opacity = "0";
-      setTimeout(() => {
-        if (notification.parentNode) {
-          document.body.removeChild(notification);
-        }
-      }, 300);
-    }, 3000);
-  }
-
-  function formatDate(timestamp) {
-    if (!timestamp) return "";
-    try {
-      return timestamp.toDate().toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    } catch {
-      return "";
-    }
-  }
-
-  function getVisibilityBadge(visibility) {
-    const isPrivate = visibility === "private";
-    return {
-      icon: isPrivate ? Lock : Unlock,
-      label: isPrivate ? "Private" : "Public",
-      style: {
-        padding: "4px 8px",
-        borderRadius: "12px",
-        fontSize: "0.75rem",
-        fontWeight: "500",
-        backgroundColor: isPrivate ? "var(--accent)" : "var(--secondary)",
-        color: isPrivate
-          ? "var(--accent-foreground)"
-          : "var(--secondary-foreground)",
-        border: "1px solid var(--border)",
-      },
-    };
-  }
-
-  if (loading) {
-    return (
-      <div className="glass-card p-8 text-center">
-        <div className="neo-spinner mx-auto mb-4"></div>
-        <p style={{ color: "var(--muted-foreground)" }}>
-          Loading your favorites...
-        </p>
-      </div>
-    );
-  }
-
-  if (favorites.length === 0) {
-    return (
-      <div className="glass-card p-12 text-center">
-        <div className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--muted)' }}>
-          <Star size={40} color="var(--muted-foreground)" />
-        </div>
-        <h3
-          className="text-xl font-semibold mb-2"
-          style={{ color: "var(--foreground)" }}
-        >
-          No Favorites Yet
-        </h3>
-        <p style={{ color: "var(--muted-foreground)" }}>
-          Star prompts from any team to save them here for quick access
-        </p>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div style={{ display:"flex",alignItems:"center",justifyContent:"center",padding:"4rem",gap:".75rem" }}>
+      <style>{`@keyframes flSpin{to{transform:rotate(360deg)}}`}</style>
+      <div style={{ width:18,height:18,borderRadius:"50%",border:"2px solid rgba(139,92,246,.15)",borderTopColor:"#8b5cf6",animation:"flSpin .75s linear infinite" }} />
+      <span style={{ fontSize:".82rem",color:"var(--muted-foreground)" }}>Loading favorites…</span>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="glass-card p-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div
-            className="w-10 h-10 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: "var(--accent)" }}
-          >
-            <Star size={20} color="var(--accent-foreground)" />
-          </div>
-          <div>
-            <h2
-              className="text-2xl font-bold"
-              style={{ color: "var(--foreground)" }}
-            >
-              My Favorites
-            </h2>
-            <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-              {favorites.length} saved{" "}
-              {favorites.length === 1 ? "prompt" : "prompts"}
-            </p>
-          </div>
+    <>
+      <style>{`
+        @keyframes flSpin    { to{transform:rotate(360deg)} }
+        @keyframes flSlideUp { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:none} }
+
+        .fl-wrap { display:flex;flex-direction:column;gap:.875rem; }
+
+        /* ── Header ── */
+        .fl-header {
+          display:flex;align-items:center;justify-content:space-between;
+          padding:.875rem 1.125rem;
+          background:var(--card);border:1px solid rgba(255,255,255,.05);border-radius:12px;
+        }
+        .fl-header-left { display:flex;align-items:center;gap:.625rem; }
+        .fl-header-icon {
+          width:34px;height:34px;border-radius:9px;flex-shrink:0;
+          display:flex;align-items:center;justify-content:center;
+          background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.2);
+        }
+        .fl-header-title { font-size:.9rem;font-weight:700;color:var(--foreground);letter-spacing:-.01em; }
+        .fl-header-sub   { font-size:.68rem;color:var(--muted-foreground);margin-top:.08rem; }
+        .fl-header-count {
+          font-size:.65rem;font-weight:700;padding:.18rem .55rem;border-radius:5px;
+          background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.18);
+          font-variant-numeric:tabular-nums;
+        }
+
+        /* ── Empty ── */
+        .fl-empty {
+          display:flex;flex-direction:column;align-items:center;
+          padding:4rem 1rem;gap:.75rem;
+          background:var(--card);border:1px solid rgba(255,255,255,.05);border-radius:12px;
+        }
+        .fl-empty-ring {
+          width:52px;height:52px;border-radius:14px;
+          display:flex;align-items:center;justify-content:center;margin-bottom:.25rem;
+          background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.12);
+        }
+        .fl-empty-title { font-size:.95rem;font-weight:700;color:var(--foreground); }
+        .fl-empty-sub   { font-size:.78rem;color:var(--muted-foreground);text-align:center;max-width:280px;line-height:1.55; }
+
+        /* ── Favorite card ── */
+        .fl-card {
+          background:var(--card);border-radius:12px;overflow:hidden;
+          border:1px solid rgba(255,255,255,.05);
+          transition:border-color .15s;
+          animation:flSlideUp .26s ease-out backwards;
+        }
+        .fl-card:hover { border-color:rgba(139,92,246,.14); }
+
+        /* accent strip based on visibility */
+        .fl-strip { height:2px;width:100%;flex-shrink:0; }
+
+        /* card head */
+        .fl-card-hd {
+          display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;
+          padding:.875rem 1rem .75rem;
+        }
+        .fl-card-left  { flex:1;min-width:0; }
+        .fl-title-row  { display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;margin-bottom:.3rem; }
+        .fl-title      { font-size:.88rem;font-weight:700;color:var(--foreground);letter-spacing:-.01em; }
+        .fl-vis-badge  {
+          display:inline-flex;align-items:center;gap:.28rem;
+          font-size:.6rem;font-weight:700;padding:.1rem .45rem;border-radius:4px;
+          white-space:nowrap;
+        }
+        .fl-meta { display:flex;align-items:center;gap:.4rem;font-size:.68rem;color:var(--muted-foreground); }
+        .fl-meta-sep { width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.18); }
+
+        /* actions */
+        .fl-actions { display:flex;align-items:center;gap:.35rem;flex-shrink:0; }
+        .fl-action-btn {
+          width:28px;height:28px;border-radius:7px;
+          border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.03);
+          display:flex;align-items:center;justify-content:center;
+          cursor:pointer;transition:all .13s;color:var(--muted-foreground);
+        }
+        .fl-action-btn:hover { color:var(--foreground);border-color:rgba(255,255,255,.18); }
+        .fl-action-btn.del   { border-color:rgba(239,68,68,.15);background:rgba(239,68,68,.06);color:#f87171; }
+        .fl-action-btn.del:hover { background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.3); }
+        .fl-action-btn.copied { border-color:rgba(52,211,153,.25);background:rgba(52,211,153,.08);color:#34d399; }
+
+        /* text preview */
+        .fl-preview-wrap { padding:0 1rem .875rem; }
+        .fl-preview {
+          padding:.7rem .875rem;border-radius:8px;
+          background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.05);
+          font-family:'JetBrains Mono','Consolas',monospace;
+          font-size:.74rem;line-height:1.7;color:rgba(228,228,231,.8);
+          white-space:pre-wrap;word-break:break-word;
+        }
+        .fl-preview.clamped {
+          display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
+        }
+
+        /* expand toggle */
+        .fl-toggle {
+          display:flex;align-items:center;gap:.3rem;margin-top:.5rem;
+          font-size:.7rem;font-weight:600;color:var(--primary);
+          background:transparent;border:none;cursor:pointer;padding:0;transition:opacity .13s;
+        }
+        .fl-toggle:hover { opacity:.75; }
+
+        /* tags */
+        .fl-tags { display:flex;flex-wrap:wrap;gap:.3rem;padding:0 1rem .875rem; }
+        .fl-tag  {
+          font-size:.62rem;font-weight:600;padding:.1rem .4rem;border-radius:4px;
+          background:rgba(255,255,255,.04);color:var(--muted-foreground);
+          border:1px solid rgba(255,255,255,.06);
+        }
+      `}</style>
+
+      {favorites.length === 0 ? (
+        <div className="fl-empty">
+          <div className="fl-empty-ring"><Star size={24} color="rgba(245,158,11,.5)" fill="none" /></div>
+          <div className="fl-empty-title">No favorites yet</div>
+          <div className="fl-empty-sub">Star prompts from any team to save them here for quick access</div>
         </div>
-      </div>
+      ) : (
+        <div className="fl-wrap">
 
-      {/* Favorites List */}
-      <div className="space-y-4">
-        {favorites.map((favorite) => {
-          const isExpanded = expandedFavorites[favorite.id];
-          const visibilityBadge = getVisibilityBadge(
-            favorite.visibility || "public"
-          );
-          const VisibilityIcon = visibilityBadge.icon;
-
-          return (
-            <div
-              key={favorite.id}
-              className="glass-card p-6 transition-all duration-300 hover:border-primary/50"
-            >
-              {/* Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3
-                      className="text-lg font-semibold"
-                      style={{ color: "var(--foreground)" }}
-                    >
-                      {favorite.title}
-                    </h3>
-                    <span
-                      style={visibilityBadge.style}
-                      className="flex items-center gap-1"
-                    >
-                      <VisibilityIcon size={12} />
-                      {visibilityBadge.label}
-                    </span>
-                  </div>
-                  <div
-                    className="flex items-center gap-3 text-xs"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    <span className="flex items-center gap-1">
-                      <Calendar size={12} />
-                      Saved {formatDate(favorite.createdAt)}
-                    </span>
-                    <span>•</span>
-                    <span>{favorite.text?.length || 0} characters</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 ml-4">
-                  <button
-                    onClick={() => handleCopy(favorite.text)}
-                    className="p-2 rounded-lg transition-colors hover:scale-105"
-                    style={{
-                      backgroundColor: "var(--secondary)",
-                      color: "var(--foreground)",
-                    }}
-                    title="Copy to clipboard"
-                  >
-                    <Copy size={18} />
-                  </button>
-
-                  <button
-                    onClick={() => handleRemoveFavorite(favorite)}
-                    className="p-2 rounded-lg transition-colors hover:scale-105"
-                    style={{
-                      backgroundColor: "var(--destructive)",
-                      color: "var(--destructive-foreground)",
-                    }}
-                    title="Remove from favorites"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-
-                  <button
-                    onClick={() => toggleExpanded(favorite.id)}
-                    className="p-2 rounded-lg transition-colors hover:scale-105"
-                    style={{
-                      backgroundColor: "var(--secondary)",
-                      color: "var(--foreground)",
-                    }}
-                    title={isExpanded ? "Collapse" : "Expand"}
-                  >
-                    {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                  </button>
-                </div>
+          {/* header */}
+          <div className="fl-header">
+            <div className="fl-header-left">
+              <div className="fl-header-icon"><Star size={16} color="#f59e0b" fill="#f59e0b" /></div>
+              <div>
+                <div className="fl-header-title">My Favorites</div>
+                <div className="fl-header-sub">Quick-access saved prompts</div>
               </div>
-
-              {/* Prompt Preview */}
-              <div
-                className="p-4 rounded-lg border"
-                style={{
-                  backgroundColor: "var(--muted)",
-                  borderColor: "var(--border)",
-                }}
-              >
-                <pre
-                  className={`whitespace-pre-wrap text-sm font-mono ${
-                    !isExpanded ? "line-clamp-3" : ""
-                  }`}
-                  style={{ color: "var(--foreground)" }}
-                >
-                  {favorite.text}
-                </pre>
-              </div>
-
-              {/* Tags */}
-              {favorite.tags && favorite.tags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-4">
-                  {favorite.tags.map((tag, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border"
-                      style={{
-                        backgroundColor: "var(--secondary)",
-                        color: "var(--secondary-foreground)",
-                        borderColor: "var(--border)",
-                      }}
-                    >
-                      <Tag size={12} />
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
-          );
-        })}
-      </div>
-    </div>
+            <span className="fl-header-count">{favorites.length} {favorites.length === 1 ? "prompt" : "prompts"}</span>
+          </div>
+
+          {/* cards */}
+          {favorites.map((fav, i) => {
+            const isExpanded = expanded[fav.id];
+            const isPrivate  = fav.visibility === "private";
+            const isCopied   = copied[fav.id];
+            const stripColor = isPrivate ? "#f59e0b" : "rgba(139,92,246,.6)";
+            return (
+              <div key={fav.id} className="fl-card" style={{ animationDelay:`${i*.04}s` }}>
+
+                {/* accent strip */}
+                <div className="fl-strip" style={{ background:stripColor }} />
+
+                {/* head */}
+                <div className="fl-card-hd">
+                  <div className="fl-card-left">
+                    <div className="fl-title-row">
+                      <span className="fl-title">{fav.title}</span>
+                      <span className="fl-vis-badge"
+                        style={isPrivate
+                          ? { background:"rgba(245,158,11,.1)", color:"#f59e0b", border:"1px solid rgba(245,158,11,.18)" }
+                          : { background:"rgba(139,92,246,.1)", color:"#a78bfa", border:"1px solid rgba(139,92,246,.18)" }}>
+                        {isPrivate ? <Lock size={9} /> : <Unlock size={9} />}
+                        {isPrivate ? "Private" : "Public"}
+                      </span>
+                    </div>
+                    <div className="fl-meta">
+                      <Calendar size={11} />
+                      {fmtDate(fav.createdAt) && <span>Saved {fmtDate(fav.createdAt)}</span>}
+                      <span className="fl-meta-sep" />
+                      <span style={{ fontVariantNumeric:"tabular-nums" }}>{fav.text?.length?.toLocaleString() || 0} chars</span>
+                    </div>
+                  </div>
+
+                  <div className="fl-actions">
+                    <button onClick={() => handleCopy(fav.id, fav.text)}
+                      className={`fl-action-btn${isCopied ? " copied" : ""}`} title="Copy to clipboard">
+                      {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                    </button>
+                    <button onClick={() => handleRemove(fav)}
+                      className="fl-action-btn del" title="Remove from favorites">
+                      <Trash2 size={12} />
+                    </button>
+                    <button onClick={() => setExpanded(p => ({ ...p, [fav.id]: !p[fav.id] }))}
+                      className="fl-action-btn" title={isExpanded ? "Collapse" : "Expand"}>
+                      {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* preview */}
+                <div className="fl-preview-wrap">
+                  <div className={`fl-preview${isExpanded ? "" : " clamped"}`}>{fav.text}</div>
+                  <button className="fl-toggle" onClick={() => setExpanded(p => ({ ...p, [fav.id]: !p[fav.id] }))}>
+                    {isExpanded ? <><ChevronUp size={12} />Show less</> : <><ChevronDown size={12} />Show full prompt</>}
+                  </button>
+                </div>
+
+                {/* tags */}
+                {fav.tags?.length > 0 && (
+                  <div className="fl-tags">
+                    {fav.tags.map((t, ti) => (
+                      <span key={ti} className="fl-tag">#{t}</span>
+                    ))}
+                  </div>
+                )}
+
+              </div>
+            );
+          })}
+
+        </div>
+      )}
+    </>
   );
 }
