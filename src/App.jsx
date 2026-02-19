@@ -16,7 +16,6 @@ import {
 import { useAuth } from "./context/AuthContext";
 import { useActiveTeam } from "./context/AppStateContext";
 import { useGuestMode } from "./context/GuestModeContext";
-// ✅ FIX 1: Added clearGuestAccess to imports; removed setGuestToken/debugGuestToken (they're handled inside guestTeamAccess.js now)
 import { hasGuestAccess, setGuestAccess, clearGuestAccess, clearGuestAccessCache } from "./lib/guestTeamAccess";
 import SaveLockModal from "./components/SaveLockModal";
 import PromptList from "./components/PromptList";
@@ -757,6 +756,9 @@ export default function App() {
     : contextActiveTeam.setActiveTeam;
   
   const inviteCardRef = useRef(null);
+  // ✅ FIX: Prevents duplicate migration when Firestore triggers re-renders
+  const migrationDoneRef = useRef(false);
+
   const {
     isGuest,
     showSaveModal,
@@ -1130,62 +1132,76 @@ export default function App() {
     }
   }, [user, teams.length, loading, activeTeam, hasCompletedOnboarding, isGuest, guestDemosInitialized]);
 
- // Migrate guest work after successful signup.
-// ✅ FIX: If the user has no teams yet, create "My Team" first so
-//         guest prompts are never silently dropped.
-useEffect(() => {
-if (!user || isGuest) return;
-  // ✅ Guard 1: ref-based lock (same component lifetime)
-if (migrationDoneRef.current) return;
+  // ─── Migration useEffect ───────────────────────────────────────────────────
+  // Migrate guest work after successful signup.
+  // ✅ FIX: If the user has no teams yet, auto-create "My Team" so that
+  //         guest prompts are never silently dropped.
+  useEffect(() => {
+    if (!user || isGuest) return;
 
-// ✅ Guard 2: sessionStorage flag (survives remount / StrictMode)
-if (guestState.isMigrationComplete()) return;
+    // Guard 1: ref-based lock (same component lifetime, reset only on error)
+    if (migrationDoneRef.current) return;
 
-// ✅ Only proceed once we know the teams list has settled.
-//    loading===false means the onSnapshot has fired at least once,
-//    so teams.length===0 is a real "no teams" state, not a race.
-if (loading) return;
+    // Guard 2: sessionStorage flag (survives React remount / StrictMode)
+    if (guestState.isMigrationComplete()) return;
 
-// Skip entirely if the guest had nothing to migrate.
-if (!guestState.hasUnsavedWork()) return;
+    // Wait until the teams snapshot has resolved so we know the real count.
+    // Without this guard, loading===true and teams===[] looks identical to
+    // "user genuinely has no teams", which would create a spurious "My Team".
+    if (loading) return;
 
-migrationDoneRef.current = true;
-guestState.markMigrationComplete();
+    // Nothing to migrate — bail out without setting the flags so we don't
+    // block a future session where the user does have guest work.
+    if (!guestState.hasUnsavedWork()) return;
 
-const migrateWork = async () => {
-  try {
-    let targetTeamId;
+    // Claim the migration slot synchronously before any await.
+    migrationDoneRef.current = true;
+    guestState.markMigrationComplete();
 
-    if (teams.length > 0) {
-      // Happy path — use the first existing team.
-      targetTeamId = teams[0].id;
-    } else {
-      // ✅ FIX: No team exists — create "My Team" automatically.
-      console.log('📁 [MIGRATION] No team found, creating "My Team"…');
-      const teamRef = await addDoc(collection(db, "teams"), {
-        name: "My Team",
-        ownerId: user.uid,
-        members: { [user.uid]: "owner" },
-        createdAt: serverTimestamp(),
-      });
-      targetTeamId = teamRef.id;
-      console.log('✅ [MIGRATION] "My Team" created:', targetTeamId);
-    }
+    const migrateWork = async () => {
+      try {
+        let targetTeamId;
 
-    const result = await migrateGuestWorkToUser(user.uid, targetTeamId, savePrompt);
+        if (teams.length > 0) {
+          // Happy path — migrate into the user's first existing team.
+          targetTeamId = teams[0].id;
+        } else {
+          // ✅ FIX: New user with no teams — create "My Team" automatically
+          //         so the guest prompts have somewhere to land.
+          console.log('📁 [MIGRATION] No team found, creating "My Team"…');
+          const teamRef = await addDoc(collection(db, "teams"), {
+            name: "My Team",
+            ownerId: user.uid,
+            members: { [user.uid]: "owner" },
+            createdAt: serverTimestamp(),
+          });
+          targetTeamId = teamRef.id;
+          console.log('✅ [MIGRATION] "My Team" created:', targetTeamId);
 
-    if (result.success && result.migratedCount > 0) {
-      console.log(`✅ Migrated ${result.migratedCount} prompt(s) → team ${targetTeamId}`);
-    }
-  } catch (error) {
-    console.error('❌ Error migrating guest work:', error);
-    // Reset guards so a retry is possible on next render.
-    migrationDoneRef.current = false;
-  }
-};
+          if (window.gtag) {
+            window.gtag('event', 'workspace_created', {
+              workspace_name: "My Team",
+              user_id: user.uid,
+              source: 'guest_migration',
+            });
+          }
+        }
 
-migrateWork();
-  }, [user, isGuest, teams, loading]);
+        const result = await migrateGuestWorkToUser(user.uid, targetTeamId, savePrompt);
+
+        if (result.success && result.migratedCount > 0) {
+          console.log(`✅ Migrated ${result.migratedCount} prompt(s) → team ${targetTeamId}`);
+        }
+      } catch (error) {
+        console.error('❌ Error migrating guest work:', error);
+        // Reset the ref so the next render can retry.
+        // Leave the sessionStorage flag in place to avoid an infinite retry loop.
+        migrationDoneRef.current = false;
+      }
+    };
+
+    migrateWork();
+  }, [user, isGuest, teams, loading]); // ← `loading` added so we wait for real team data
 
   // Create new team
   async function createTeam(name) {
