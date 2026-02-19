@@ -1130,25 +1130,62 @@ export default function App() {
     }
   }, [user, teams.length, loading, activeTeam, hasCompletedOnboarding, isGuest, guestDemosInitialized]);
 
-  // Migrate guest work after successful signup
-  useEffect(() => {
-    if (user && !isGuest && teams.length > 0) {
-      const migrateWork = async () => {
-        try {
-          const firstTeamId = teams[0].id;
-          const result = await migrateGuestWorkToUser(user.uid, firstTeamId, savePrompt);
-          
-          if (result.success && result.migratedCount > 0) {
-            console.log(`✅ Migrated ${result.migratedCount} items to your account`);
-          }
-        } catch (error) {
-          console.error('❌ Error migrating guest work:', error);
-        }
-      };
-      
-      migrateWork();
+ // Migrate guest work after successful signup.
+// ✅ FIX: If the user has no teams yet, create "My Team" first so
+//         guest prompts are never silently dropped.
+useEffect(() => {
+if (!user || isGuest) return;
+  // ✅ Guard 1: ref-based lock (same component lifetime)
+if (migrationDoneRef.current) return;
+
+// ✅ Guard 2: sessionStorage flag (survives remount / StrictMode)
+if (guestState.isMigrationComplete()) return;
+
+// ✅ Only proceed once we know the teams list has settled.
+//    loading===false means the onSnapshot has fired at least once,
+//    so teams.length===0 is a real "no teams" state, not a race.
+if (loading) return;
+
+// Skip entirely if the guest had nothing to migrate.
+if (!guestState.hasUnsavedWork()) return;
+
+migrationDoneRef.current = true;
+guestState.markMigrationComplete();
+
+const migrateWork = async () => {
+  try {
+    let targetTeamId;
+
+    if (teams.length > 0) {
+      // Happy path — use the first existing team.
+      targetTeamId = teams[0].id;
+    } else {
+      // ✅ FIX: No team exists — create "My Team" automatically.
+      console.log('📁 [MIGRATION] No team found, creating "My Team"…');
+      const teamRef = await addDoc(collection(db, "teams"), {
+        name: "My Team",
+        ownerId: user.uid,
+        members: { [user.uid]: "owner" },
+        createdAt: serverTimestamp(),
+      });
+      targetTeamId = teamRef.id;
+      console.log('✅ [MIGRATION] "My Team" created:', targetTeamId);
     }
-  }, [user, isGuest, teams]);
+
+    const result = await migrateGuestWorkToUser(user.uid, targetTeamId, savePrompt);
+
+    if (result.success && result.migratedCount > 0) {
+      console.log(`✅ Migrated ${result.migratedCount} prompt(s) → team ${targetTeamId}`);
+    }
+  } catch (error) {
+    console.error('❌ Error migrating guest work:', error);
+    // Reset guards so a retry is possible on next render.
+    migrationDoneRef.current = false;
+  }
+};
+
+migrateWork();
+  }, [user, isGuest, teams, loading]);
 
   // Create new team
   async function createTeam(name) {
