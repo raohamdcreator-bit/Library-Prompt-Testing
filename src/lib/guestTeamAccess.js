@@ -41,6 +41,32 @@ let lastAccessCheck  = 0;
 const ACCESS_CACHE_DURATION = 1000; // 1 second
 
 // ============================================================
+// BASE URL HELPER
+// ============================================================
+/**
+ * Get the canonical base URL for generating guest links.
+ * 
+ * Priority order:
+ *  1. VITE_APP_URL — custom domain set in environment variables
+ *  2. Production check — if in production mode, use production domain
+ *  3. window.location.origin — fallback for development
+ */
+function getBaseUrl() {
+  // Check for Vite environment variable
+  if (import.meta.env.VITE_APP_URL) {
+    return import.meta.env.VITE_APP_URL.replace(/\/$/, ''); // strip trailing slash
+  }
+
+  // Production mode check
+  if (import.meta.env.PROD) {
+    return 'https://prism-app.online';
+  }
+
+  // Development fallback
+  return window.location.origin;
+}
+
+// ============================================================
 // SYNCHRONOUS SELF-RESTORE ON MODULE LOAD
 // ============================================================
 // This IIFE runs once at import time — synchronously, before Firebase
@@ -369,9 +395,12 @@ export function canGuestPerform(action) {
 }
 
 // ============================================================
-// FIRESTORE OPERATIONS (unchanged)
+// FIRESTORE OPERATIONS
 // ============================================================
 
+/**
+ * ✅ FIXED: Generate guest access link with proper base URL
+ */
 export async function generateGuestAccessLink({
   teamId, teamName, createdBy, creatorName, expiresInDays = 30,
 }) {
@@ -398,7 +427,11 @@ export async function generateGuestAccessLink({
     });
 
     const accessToken = guestAccessRef.id;
-    const accessLink  = `${window.location.origin}/guest-team?token=${accessToken}`;
+    
+    // ✅ FIXED: Use getBaseUrl() instead of window.location.origin
+    const baseUrl = getBaseUrl();
+    const accessLink = `${baseUrl}/guest-team?token=${accessToken}`;
+    
     console.log("✅ Guest access link generated:", accessLink);
 
     return { success: true, accessToken, accessLink, expiresAt: expiresAt.toDate() };
