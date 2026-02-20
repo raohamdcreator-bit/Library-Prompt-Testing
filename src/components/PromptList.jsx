@@ -994,7 +994,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   // Load favourites
   useEffect(() => {
     if (!user || isGuestMode) return;
-    const favRef = collection(db, "users", user.uid, "favourites");
+    const favRef = collection(db, "users", user.uid, "favorites");
     const unsub = onSnapshot(favRef, (snap) => {
       setFavouritePromptIds(new Set(snap.docs.map((d) => d.id)));
     });
@@ -1071,7 +1071,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
   async function handleToggleFavourite(promptId, teamId) {
     if (!user) { showNotification("Sign up to save favourites", "info"); return; }
-    const favRef = doc(db, "users", user.uid, "favourites", promptId);
+    const favRef = doc(db, "users", user.uid, "favorites", promptId);
     const isCurrentlyFaved = favouritePromptIds.has(promptId);
     setFavouritePromptIds((prev) => {
       const next = new Set(prev);
@@ -1083,7 +1083,11 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         await deleteDoc(favRef);
         showSuccessToast("Removed from favourites");
       } else {
-        await setDoc(favRef, { promptId, teamId: teamId || activeTeam, addedAt: serverTimestamp() });
+        await setDoc(favRef, { 
+  ...userPrompts.find(p => p.id === promptId), 
+  teamId: teamId || activeTeam, 
+  addedAt: serverTimestamp() 
+});
         showSuccessToast("Added to favourites ★");
       }
     } catch {
