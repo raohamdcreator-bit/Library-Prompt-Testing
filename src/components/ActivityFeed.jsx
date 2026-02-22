@@ -1,4 +1,4 @@
-// src/components/ActivityFeed.jsx
+// src/components/ActivityFeed.jsx - RESPONSIVE
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -9,11 +9,11 @@ import { useAuth } from "../context/AuthContext";
 import {
   Plus, Edit2, Trash2, Star, UserPlus, UserMinus,
   RefreshCw, Activity, Download, FileText,
-  MessageSquare, Users,
+  MessageSquare, Users, ChevronDown,
 } from "lucide-react";
 import { getTimestampMillis } from "../lib/dateUtils";
 
-// ── Activity Logger ────────────────────────────────────────────────────────────
+// ── Activity Logger ────────────────────────────────────────────────────────────────
 export const ActivityLogger = {
   async logPromptCreated(teamId, userId, promptId, promptTitle) {
     try {
@@ -54,7 +54,6 @@ const TYPE_CFG = {
   prompt_created:          { icon: Plus,          color: "#8b5cf6", label: "Created"  },
   prompt_updated:          { icon: Edit2,         color: "#a78bfa", label: "Updated"  },
   prompt_deleted:          { icon: Trash2,        color: "#ef4444", label: "Deleted"  },
-  // NOTE: prompt_rated is kept here for the real activities collection path (logPromptRated)
   prompt_rated:            { icon: Star,          color: "#f59e0b", label: "Rated"    },
   prompt_rated_individual: { icon: Star,          color: "#f59e0b", label: "Rated"    },
   comment_added:           { icon: MessageSquare, color: "#22d3ee", label: "Comment"  },
@@ -125,6 +124,7 @@ export default function ActivityFeed({ teamId }) {
   const [profiles,   setProfiles]   = useState({});
   const [filter,     setFilter]     = useState("all");
   const [timeFilter, setTimeFilter] = useState("week");
+  const [filterOpen, setFilterOpen] = useState(false);
 
   useEffect(() => {
     if (!teamId) { setLoading(false); return; }
@@ -132,92 +132,51 @@ export default function ActivityFeed({ teamId }) {
     const unsub = onSnapshot(q, async snap => {
       let items = [];
       if (snap.empty) {
-        // ─── Fallback: synthesise activity from prompt documents ───────────────
-        // Fired when the `activities` subcollection doesn't exist yet (older teams).
         const pq = query(collection(db, "teams", teamId, "prompts"), orderBy("createdAt", "desc"), limit(50));
         const ps = await new Promise((res, rej) => onSnapshot(pq, res, rej));
         const promptData = ps.docs.map(d => ({ id: d.id, ...d.data() }));
         const uids = new Set();
         promptData.forEach(p => {
           if (p.createdBy) uids.add(p.createdBy);
-
-          // Created event
           items.push({
-            id: `created-${p.id}`,
-            type: "prompt_created",
-            userId: p.createdBy,
-            promptId: p.id,
-            promptTitle: p.title,
-            timestamp: p.createdAt,
+            id: `created-${p.id}`, type: "prompt_created", userId: p.createdBy,
+            promptId: p.id, promptTitle: p.title, timestamp: p.createdAt,
             metadata: { tags: p.tags || [] },
           });
-
-          // Updated event (only when updatedAt differs from createdAt)
           if (p.updatedAt && p.updatedAt !== p.createdAt)
             items.push({
-              id: `updated-${p.id}`,
-              type: "prompt_updated",
-              userId: p.createdBy,
-              promptId: p.id,
-              promptTitle: p.title,
-              timestamp: p.updatedAt,
+              id: `updated-${p.id}`, type: "prompt_updated", userId: p.createdBy,
+              promptId: p.id, promptTitle: p.title, timestamp: p.updatedAt,
               metadata: { tags: p.tags || [] },
             });
-
-          // ✅ FIX: Removed the aggregate `prompt_rated` synthetic event that was
-          // generated from p.stats.lastRated / p.stats.averageRating.
-          //
-          // That event represented the *same* rating(s) already captured one-by-one
-          // by the `prompt_rated_individual` loop below, causing every rating to
-          // appear twice in the feed and in the "Ratings" stat counter.
-          //
-          // The individual subcollection documents are the ground truth; the
-          // aggregate fields on the prompt doc are just a cached summary and
-          // should NOT be rendered as a separate activity entry.
         });
 
-        // Per-prompt comments
         for (const p of promptData) {
           try {
             const cs = await getDocs(query(
               collection(db, "teams", teamId, "prompts", p.id, "comments"),
-              orderBy("createdAt", "desc"),
-              limit(10),
+              orderBy("createdAt", "desc"), limit(10),
             ));
             cs.docs.forEach(cd => {
               const c = cd.data();
               items.push({
-                id: `comment-${p.id}-${cd.id}`,
-                type: "comment_added",
-                userId: c.userId || null,
-                isGuest: c.isGuest || false,
-                guestToken: c.guestToken || null,
-                promptId: p.id,
-                promptTitle: p.title,
-                timestamp: c.createdAt,
-                metadata: {
-                  commentText: c.text?.substring(0, 50) || "",
-                  userName: c.userName || "Guest",
-                },
+                id: `comment-${p.id}-${cd.id}`, type: "comment_added",
+                userId: c.userId || null, isGuest: c.isGuest || false, guestToken: c.guestToken || null,
+                promptId: p.id, promptTitle: p.title, timestamp: c.createdAt,
+                metadata: { commentText: c.text?.substring(0, 50) || "", userName: c.userName || "Guest" },
               });
             });
           } catch {}
 
-          // Per-prompt individual ratings (one activity item per rater)
           try {
             const rs = await getDocs(collection(db, "teams", teamId, "prompts", p.id, "ratings"));
             rs.docs.forEach(rd => {
               const r = rd.data();
               if (r.createdAt)
                 items.push({
-                  id: `rating-${p.id}-${rd.id}`,
-                  type: "prompt_rated_individual",
-                  userId: r.userId || null,
-                  isGuest: r.isGuest || false,
-                  guestToken: r.guestToken || null,
-                  promptId: p.id,
-                  promptTitle: p.title,
-                  timestamp: r.createdAt,
+                  id: `rating-${p.id}-${rd.id}`, type: "prompt_rated_individual",
+                  userId: r.userId || null, isGuest: r.isGuest || false, guestToken: r.guestToken || null,
+                  promptId: p.id, promptTitle: p.title, timestamp: r.createdAt,
                   metadata: { rating: r.rating, userName: r.isGuest ? "Guest" : null },
                 });
             });
@@ -233,7 +192,6 @@ export default function ActivityFeed({ teamId }) {
         }
         setProfiles(prof);
       } else {
-        // ─── Normal path: real activities collection ───────────────────────────
         items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const uids = new Set(items.map(a => a.userId).filter(Boolean));
         const prof = {};
@@ -300,6 +258,8 @@ export default function ActivityFeed({ teamId }) {
     unique:   new Set(activities.map(a => a.userId || a.guestToken).filter(Boolean)).size,
   };
 
+  const activeFilterLabel = FILTERS.find(f => f.key === filter)?.label || "All";
+
   if (loading) return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"4rem", gap:".75rem" }}>
       <style>{`@keyframes afSpin{to{transform:rotate(360deg)}}`}</style>
@@ -314,17 +274,47 @@ export default function ActivityFeed({ teamId }) {
         @keyframes afSpin    { to { transform:rotate(360deg) } }
         @keyframes afSlideUp { from { opacity:0;transform:translateY(7px) } to { opacity:1;transform:none } }
         @keyframes afPulse   { 0%,100%{opacity:.6} 50%{opacity:1} }
+        @keyframes afDrop    { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
 
         .af-wrap { display:flex; flex-direction:column; gap:.875rem; }
 
-        /* bar */
+        /* ── Filter bar — responsive ── */
         .af-bar {
           display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap;
           padding:.625rem .875rem; background:var(--card);
           border:1px solid rgba(255,255,255,.05); border-radius:12px;
         }
-        .af-bar-l { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; flex:1; min-width:0; }
-        .af-pill-row { display:flex; gap:.2rem; }
+        .af-bar-l { display:flex; align-items:center; gap:.5rem; flex:1; min-width:0; flex-wrap:wrap; }
+
+        /* Desktop pill row */
+        .af-pill-row-desktop { display:flex; gap:.2rem; }
+        @media(max-width:560px){ .af-pill-row-desktop { display:none; } }
+
+        /* Mobile filter dropdown */
+        .af-filter-mobile { display:none; position:relative; }
+        @media(max-width:560px){ .af-filter-mobile { display:block; } }
+        .af-mobile-trigger {
+          display:flex; align-items:center; gap:.4rem;
+          padding:.3rem .65rem; border-radius:7px; font-size:.72rem; font-weight:600;
+          border:1px solid rgba(139,92,246,.2); background:rgba(139,92,246,.1);
+          color:#c4b5fd; cursor:pointer;
+        }
+        .af-mobile-dropdown {
+          position:absolute; top:calc(100% + 5px); left:0; z-index:50;
+          background:var(--card); border:1px solid rgba(255,255,255,.08);
+          border-radius:9px; padding:.3rem; min-width:140px;
+          box-shadow:0 8px 24px rgba(0,0,0,.4);
+          animation:afDrop .14s ease-out;
+        }
+        .af-mobile-opt {
+          display:flex; align-items:center; gap:.4rem;
+          padding:.4rem .65rem; border-radius:6px; font-size:.75rem; font-weight:600;
+          background:transparent; border:none; color:var(--muted-foreground);
+          cursor:pointer; width:100%; transition:all .12s;
+        }
+        .af-mobile-opt:hover { background:rgba(255,255,255,.04); color:var(--foreground); }
+        .af-mobile-opt.on { background:rgba(139,92,246,.1); color:#c4b5fd; }
+
         .af-pill {
           display:flex; align-items:center; gap:.3rem; padding:.28rem .6rem; border-radius:6px;
           font-size:.7rem; font-weight:600; border:1px solid transparent; background:transparent;
@@ -332,12 +322,14 @@ export default function ActivityFeed({ teamId }) {
         }
         .af-pill:hover { background:rgba(255,255,255,.04); color:var(--foreground); }
         .af-pill.on { background:rgba(139,92,246,.11); border-color:rgba(139,92,246,.2); color:#c4b5fd; }
+
         .af-time {
           padding:.26rem .6rem; border-radius:6px; font-size:.7rem; font-weight:600;
           border:1px solid rgba(255,255,255,.07); background:rgba(255,255,255,.02);
           color:var(--foreground); cursor:pointer; outline:none;
         }
         .af-time:focus { border-color:rgba(139,92,246,.3); }
+
         .af-export {
           display:flex; align-items:center; gap:.35rem; padding:.28rem .7rem; border-radius:6px;
           font-size:.7rem; font-weight:600; border:1px solid rgba(255,255,255,.07); background:transparent;
@@ -345,10 +337,15 @@ export default function ActivityFeed({ teamId }) {
         }
         .af-export:hover { border-color:rgba(139,92,246,.22); color:var(--foreground); }
 
-        /* stats grid */
-        .af-stats { display:grid; grid-template-columns:repeat(6,1fr); gap:.5rem; }
-        @media(max-width:660px){ .af-stats { grid-template-columns:repeat(3,1fr); } }
-        @media(max-width:420px){ .af-stats { grid-template-columns:repeat(2,1fr); } }
+        /* ── Stats grid — responsive ── */
+        .af-stats {
+          display:grid;
+          grid-template-columns:repeat(6,1fr);
+          gap:.5rem;
+        }
+        @media(max-width:700px){ .af-stats { grid-template-columns:repeat(3,1fr); } }
+        @media(max-width:400px){ .af-stats { grid-template-columns:repeat(2,1fr); } }
+
         .af-stat {
           position:relative; overflow:hidden; padding:.7rem .5rem; border-radius:10px; text-align:center;
           background:var(--card); border:1px solid rgba(255,255,255,.05);
@@ -363,11 +360,11 @@ export default function ActivityFeed({ teamId }) {
         .af-stat-n { font-size:1.3rem; font-weight:800; letter-spacing:-.04em; font-variant-numeric:tabular-nums; line-height:1; margin-bottom:.22rem; }
         .af-stat-l { font-size:.59rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted-foreground); }
 
-        /* panel */
+        /* ── Feed panel ── */
         .af-panel { background:var(--card); border:1px solid rgba(255,255,255,.05); border-radius:12px; overflow:hidden; }
         .af-ph {
           display:flex; align-items:center; justify-content:space-between;
-          padding:.55rem .875rem; border-bottom:1px solid rgba(255,255,255,.04);
+          padding:.55rem .875rem; border-bottom:1px solid rgba(255,255,255,.04); flex-wrap:wrap; gap:.5rem;
         }
         .af-ph-title { display:flex; align-items:center; gap:.45rem; font-size:.74rem; font-weight:700; color:var(--foreground); }
         .af-live { width:6px; height:6px; border-radius:50%; background:#34d399; animation:afPulse 2s ease infinite; }
@@ -377,16 +374,36 @@ export default function ActivityFeed({ teamId }) {
         }
         .af-fn { font-size:.66rem; color:var(--muted-foreground); }
 
-        /* list */
+        /* ── Feed list — scrollable container ── */
+        .af-list-wrap {
+          max-height: 520px;
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(139,92,246,.2) transparent;
+        }
+        .af-list-wrap::-webkit-scrollbar { width: 4px; }
+        .af-list-wrap::-webkit-scrollbar-thumb { background: rgba(139,92,246,.25); border-radius: 2px; }
+
         .af-list { display:flex; flex-direction:column; }
+
+        /* ── Feed items — responsive layout ── */
         .af-item {
-          display:grid; grid-template-columns:24px 26px 1fr auto;
+          display:grid;
+          grid-template-columns:24px 26px 1fr auto;
           align-items:flex-start; gap:.6rem;
           padding:.575rem .875rem;
           border-bottom:1px solid rgba(255,255,255,.025);
           transition:background .12s;
           animation:afSlideUp .23s ease-out backwards;
         }
+        @media(max-width:480px){
+          .af-item {
+            grid-template-columns:24px 1fr auto;
+            gap:.45rem;
+          }
+          .af-item > *:nth-child(2) { display:none; } /* hide avatar on very small screens */
+        }
+
         .af-item:last-child { border-bottom:none; }
         .af-item:hover { background:rgba(255,255,255,.014); }
 
@@ -398,8 +415,12 @@ export default function ActivityFeed({ teamId }) {
         .af-row  { display:flex; align-items:center; gap:.35rem; flex-wrap:wrap; margin-bottom:.18rem; }
         .af-actor  { font-size:.79rem; font-weight:700; color:var(--foreground); white-space:nowrap; }
         .af-verb   { font-size:.79rem; color:var(--muted-foreground); }
-        .af-target { font-size:.79rem; font-weight:600; color:var(--foreground);
-          overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px; }
+        .af-target {
+          font-size:.79rem; font-weight:600; color:var(--foreground);
+          overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:160px;
+        }
+        @media(min-width:600px){ .af-target { max-width:220px; } }
+
         .af-gtag {
           font-size:.57rem; font-weight:700; padding:.08rem .33rem; border-radius:3px;
           background:rgba(139,92,246,.09); color:#a78bfa; border:1px solid rgba(139,92,246,.16);
@@ -408,14 +429,16 @@ export default function ActivityFeed({ teamId }) {
         .af-meta  { display:flex; align-items:center; gap:.32rem; flex-wrap:wrap; font-size:.65rem; color:var(--muted-foreground); }
         .af-sep   { width:3px; height:3px; border-radius:50%; background:rgba(255,255,255,.18); flex-shrink:0; }
         .af-tag   { font-size:.59rem; padding:.07rem .32rem; border-radius:3px; background:rgba(255,255,255,.05); }
-        .af-snip  { font-size:.65rem; font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:160px; }
+        .af-snip  { font-size:.65rem; font-style:italic; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px; }
+        @media(min-width:500px){ .af-snip { max-width:180px; } }
 
         .af-badge {
           font-size:.57rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
           padding:.12rem .45rem; border-radius:4px; white-space:nowrap; align-self:flex-start; margin-top:3px;
         }
+        /* Hide badge label on very small screens */
+        @media(max-width:380px){ .af-badge { display:none; } }
 
-        /* empty */
         .af-empty { display:flex; flex-direction:column; align-items:center; padding:3.5rem 1rem; gap:.6rem; }
         .af-empty-ring {
           width:46px; height:46px; border-radius:12px;
@@ -436,10 +459,11 @@ export default function ActivityFeed({ teamId }) {
 
       <div className="af-wrap">
 
-        {/* bar */}
+        {/* Filter bar */}
         <div className="af-bar">
           <div className="af-bar-l">
-            <div className="af-pill-row">
+            {/* Desktop pills */}
+            <div className="af-pill-row-desktop">
               {FILTERS.map(f => (
                 <button key={f.key} className={`af-pill${filter === f.key ? " on" : ""}`}
                   onClick={() => setFilter(f.key)}>
@@ -447,18 +471,36 @@ export default function ActivityFeed({ teamId }) {
                 </button>
               ))}
             </div>
+
+            {/* Mobile filter dropdown */}
+            <div className="af-filter-mobile">
+              <button className="af-mobile-trigger" onClick={() => setFilterOpen(v => !v)}>
+                {(() => { const F = FILTERS.find(f => f.key === filter); return <><F.icon size={11} />{F.label}<ChevronDown size={11} /></>; })()}
+              </button>
+              {filterOpen && (
+                <div className="af-mobile-dropdown">
+                  {FILTERS.map(f => (
+                    <button key={f.key} className={`af-mobile-opt${filter === f.key ? " on" : ""}`}
+                      onClick={() => { setFilter(f.key); setFilterOpen(false); }}>
+                      <f.icon size={12} />{f.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <select value={timeFilter} onChange={e => setTimeFilter(e.target.value)} className="af-time">
               {TIME_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           {filtered.length > 0 && (
             <button onClick={exportCSV} className="af-export">
-              <Download size={11} />Export CSV
+              <Download size={11} /><span className="hidden-xs">Export</span> CSV
             </button>
           )}
         </div>
 
-        {/* stats */}
+        {/* Stats */}
         <div className="af-stats">
           {[
             { n: stats.created,  l: "Created",    c: "#8b5cf6", d: ".04s" },
@@ -475,7 +517,7 @@ export default function ActivityFeed({ teamId }) {
           ))}
         </div>
 
-        {/* feed */}
+        {/* Feed panel */}
         <div className="af-panel">
           <div className="af-ph">
             <div className="af-ph-title">
@@ -499,73 +541,71 @@ export default function ActivityFeed({ teamId }) {
               </div>
             </div>
           ) : (
-            <div className="af-list">
-              {filtered.slice(0, 50).map((a, i) => {
-                const cfg = getTypeCfg(a.type);
-                const Icon = cfg.icon;
-                return (
-                  <div key={`${a.id}-${i}`} className="af-item"
-                    style={{ animationDelay: `${Math.min(i * .025, .45)}s` }}>
+            <div className="af-list-wrap">
+              <div className="af-list">
+                {filtered.slice(0, 50).map((a, i) => {
+                  const cfg = getTypeCfg(a.type);
+                  const Icon = cfg.icon;
+                  return (
+                    <div key={`${a.id}-${i}`} className="af-item"
+                      style={{ animationDelay: `${Math.min(i * .025, .45)}s` }}>
 
-                    <div className="af-ic"
-                      style={{ background: `${cfg.color}11`, border: `1px solid ${cfg.color}1e` }}>
-                      <Icon size={12} color={cfg.color} />
-                    </div>
+                      <div className="af-ic"
+                        style={{ background: `${cfg.color}11`, border: `1px solid ${cfg.color}1e` }}>
+                        <Icon size={12} color={cfg.color} />
+                      </div>
 
-                    <MiniAvatar profile={profiles[a.userId]} isGuest={a.isGuest} size={26} />
+                      <MiniAvatar profile={profiles[a.userId]} isGuest={a.isGuest} size={26} />
 
-                    <div className="af-body">
-                      <div className="af-row">
-                        <span className="af-actor">{actorName(a)}</span>
-                        <span className="af-verb">
-                          {a.type === "prompt_created" ? "created" :
-                           a.type === "prompt_updated" ? "updated" :
-                           a.type === "prompt_deleted" ? "deleted" :
-                           a.type.startsWith("prompt_rated") ? "rated" :
-                           a.type === "comment_added" ? "commented on" :
-                           a.type === "member_joined" ? "joined" :
-                           a.type === "member_left"   ? "left" : "acted on"}
-                        </span>
-                        {a.promptTitle && <span className="af-target">"{a.promptTitle}"</span>}
-                        {a.type.startsWith("prompt_rated") && a.metadata?.rating != null && (
-                          <span className="af-stars">
-                            <Star size={9} fill="#f59e0b" strokeWidth={0} />
-                            {typeof a.metadata.rating === "number" ? a.metadata.rating.toFixed(1) : a.metadata.rating}
+                      <div className="af-body">
+                        <div className="af-row">
+                          <span className="af-actor">{actorName(a)}</span>
+                          <span className="af-verb">
+                            {a.type === "prompt_created" ? "created" :
+                             a.type === "prompt_updated" ? "updated" :
+                             a.type === "prompt_deleted" ? "deleted" :
+                             a.type.startsWith("prompt_rated") ? "rated" :
+                             a.type === "comment_added" ? "commented on" :
+                             a.type === "member_joined" ? "joined" :
+                             a.type === "member_left"   ? "left" : "acted on"}
                           </span>
-                        )}
-                        {a.isGuest && <span className="af-gtag">Guest</span>}
+                          {a.promptTitle && <span className="af-target">"{a.promptTitle}"</span>}
+                          {a.type.startsWith("prompt_rated") && a.metadata?.rating != null && (
+                            <span className="af-stars">
+                              <Star size={9} fill="#f59e0b" strokeWidth={0} />
+                              {typeof a.metadata.rating === "number" ? a.metadata.rating.toFixed(1) : a.metadata.rating}
+                            </span>
+                          )}
+                          {a.isGuest && <span className="af-gtag">Guest</span>}
+                        </div>
+                        <div className="af-meta">
+                          <span style={{ fontVariantNumeric:"tabular-nums" }}>{relTime(a.timestamp)}</span>
+                          {a.metadata?.tags?.length > 0 && <>
+                            <span className="af-sep" />
+                            {a.metadata.tags.slice(0, 2).map(t => <span key={t} className="af-tag">#{t}</span>)}
+                            {a.metadata.tags.length > 2 && <span>+{a.metadata.tags.length - 2}</span>}
+                          </>}
+                          {a.metadata?.commentText && <>
+                            <span className="af-sep" />
+                            <span className="af-snip">"{a.metadata.commentText}…"</span>
+                          </>}
+                        </div>
                       </div>
-                      <div className="af-meta">
-                        <span style={{ fontVariantNumeric:"tabular-nums" }}>{relTime(a.timestamp)}</span>
-                        {a.metadata?.tags?.length > 0 && <>
-                          <span className="af-sep" />
-                          {a.metadata.tags.slice(0, 2).map(t => <span key={t} className="af-tag">#{t}</span>)}
-                          {a.metadata.tags.length > 2 && <span>+{a.metadata.tags.length - 2}</span>}
-                        </>}
-                        {a.metadata?.commentText && <>
-                          <span className="af-sep" />
-                          <span className="af-snip">"{a.metadata.commentText}…"</span>
-                        </>}
-                        {a.metadata?.totalRatings && <>
-                          <span className="af-sep" />
-                          <span>{a.metadata.totalRatings} total ratings</span>
-                        </>}
-                      </div>
+
+                      <span className="af-badge"
+                        style={{ background:`${cfg.color}10`, color:cfg.color, border:`1px solid ${cfg.color}1c` }}>
+                        {cfg.label}
+                      </span>
                     </div>
+                  );
+                })}
 
-                    <span className="af-badge"
-                      style={{ background:`${cfg.color}10`, color:cfg.color, border:`1px solid ${cfg.color}1c` }}>
-                      {cfg.label}
-                    </span>
+                {filtered.length > 50 && (
+                  <div className="af-more">
+                    <button className="af-more-btn">{filtered.length - 50} more items</button>
                   </div>
-                );
-              })}
-
-              {filtered.length > 50 && (
-                <div className="af-more">
-                  <button className="af-more-btn">{filtered.length - 50} more items</button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>
