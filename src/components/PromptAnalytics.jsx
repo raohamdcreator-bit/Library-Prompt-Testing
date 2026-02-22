@@ -530,17 +530,11 @@ export function TeamAnalytics({ teamId }) {
         {/* ── Header bar ── */}
         <div className="pa-header">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded flex items-center justify-center" style={{ backgroundColor: "var(--primary)" }}>
-              <BarChart3 size={14} style={{ color: "var(--primary-foreground)" }} />
-            </div>
             <div>
-              <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Team Analytics</span>
+              <Activity size={13} style={{ color: "var(--muted-foreground)" }} />
+              <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Live Team Analytics</span>
               <span className="text-xs ml-2 hidden sm:inline" style={{ color: "var(--muted-foreground)" }}>Performance insights &amp; usage statistics</span>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Activity size={13} style={{ color: "var(--muted-foreground)" }} />
-            <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Live</span>
           </div>
         </div>
 
