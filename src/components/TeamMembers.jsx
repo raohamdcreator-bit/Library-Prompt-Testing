@@ -1,4 +1,4 @@
-// src/components/TeamMembers.jsx
+// src/components/TeamMembers.jsx - RESPONSIVE
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -10,6 +10,7 @@ import { cancelTeamInvite, deleteTeamInvite } from "../lib/inviteUtils";
 import {
   Users, Crown, Shield, User, Trash2,
   Mail, Clock, Calendar, X, LogOut, Eye,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -65,6 +66,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
   const [guestStats,        setGuestStats]        = useState({ totalAccesses: 0 });
   const [loadingGuest,      setLoadingGuest]      = useState(true);
   const [isLeaving,         setIsLeaving]         = useState(false);
+  const [permsExpanded,     setPermsExpanded]     = useState(false);
 
   // members
   useEffect(() => {
@@ -220,7 +222,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
           display:flex; align-items:center; justify-content:space-between; gap:1rem;
           padding:.875rem 1.125rem; border-bottom:1px solid rgba(255,255,255,.04); flex-wrap:wrap;
         }
-        .tm-sum-left { display:flex; align-items:center; gap:.625rem; }
+        .tm-sum-left { display:flex; align-items:center; gap:.625rem; min-width:0; flex:1; }
         .tm-sum-icon {
           width:34px; height:34px; border-radius:9px; flex-shrink:0;
           display:flex; align-items:center; justify-content:center;
@@ -229,19 +231,24 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         .tm-sum-title    { font-size:.88rem; font-weight:700; color:var(--foreground); letter-spacing:-.01em; }
         .tm-sum-subtitle { font-size:.68rem; color:var(--muted-foreground); margin-top:.1rem; }
 
-        /* leave btn */
         .tm-leave {
           display:flex; align-items:center; gap:.4rem; padding:.35rem .75rem; border-radius:7px;
           font-size:.73rem; font-weight:600; cursor:pointer; transition:all .14s;
           background:rgba(239,68,68,.08); color:rgba(239,68,68,.9);
-          border:1px solid rgba(239,68,68,.2);
+          border:1px solid rgba(239,68,68,.2); flex-shrink:0;
         }
         .tm-leave:hover    { background:rgba(239,68,68,.15); border-color:rgba(239,68,68,.35); }
         .tm-leave:disabled { opacity:.5; cursor:not-allowed; }
 
-        /* stat tiles */
-        .tm-tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:.5rem; padding:.875rem 1.125rem; }
-        @media(max-width:560px){ .tm-tiles { grid-template-columns:repeat(2,1fr); } }
+        /* stat tiles — responsive grid */
+        .tm-tiles {
+          display:grid;
+          grid-template-columns:repeat(4,1fr);
+          gap:.5rem;
+          padding:.875rem 1.125rem;
+        }
+        @media(max-width:600px){ .tm-tiles { grid-template-columns:repeat(2,1fr); } }
+
         .tm-tile {
           padding:.7rem .625rem; border-radius:9px; text-align:center;
           background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.05);
@@ -267,12 +274,12 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
           background:rgba(139,92,246,.1); color:#c4b5fd; font-variant-numeric:tabular-nums;
         }
 
-        /* ── Member rows ── */
+        /* ── Member rows — stack on mobile ── */
         .tm-list { display:flex; flex-direction:column; }
         .tm-row {
           display:flex; align-items:center; justify-content:space-between; gap:.75rem;
           padding:.625rem 1.125rem; border-bottom:1px solid rgba(255,255,255,.025);
-          transition:background .12s;
+          transition:background .12s; flex-wrap:wrap;
         }
         .tm-row:last-child { border-bottom:none; }
         .tm-row:hover { background:rgba(255,255,255,.013); }
@@ -281,7 +288,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         .tm-row-left { display:flex; align-items:center; gap:.625rem; flex:1; min-width:0; }
         .tm-name-wrap { flex:1; min-width:0; }
         .tm-name-line { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-bottom:.18rem; }
-        .tm-name { font-size:.82rem; font-weight:700; color:var(--foreground); }
+        .tm-name { font-size:.82rem; font-weight:700; color:var(--foreground); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px; }
         .tm-you-tag {
           font-size:.59rem; font-weight:700; padding:.07rem .35rem; border-radius:3px;
           background:rgba(139,92,246,.1); color:#a78bfa; border:1px solid rgba(139,92,246,.18);
@@ -290,7 +297,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
           display:inline-flex; align-items:center; gap:.3rem;
           font-size:.62rem; font-weight:700; padding:.1rem .45rem; border-radius:5px;
         }
-        .tm-email { font-size:.72rem; color:var(--muted-foreground); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .tm-email { font-size:.72rem; color:var(--muted-foreground); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px; }
 
         .tm-row-actions { display:flex; align-items:center; gap:.375rem; flex-shrink:0; }
         .tm-role-select {
@@ -309,7 +316,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         .tm-remove-btn:hover    { background:rgba(239,68,68,.16); border-color:rgba(239,68,68,.35); }
         .tm-remove-btn:disabled { opacity:.4; cursor:not-allowed; }
 
-        /* spinner inline */
         .tm-spin {
           width:12px; height:12px; border-radius:50%;
           border:2px solid rgba(255,255,255,.15); border-top-color:currentColor;
@@ -318,19 +324,19 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
 
         /* ── Invite rows ── */
         .tm-inv-row {
-          display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+          display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem;
           padding:.625rem 1.125rem; border-bottom:1px solid rgba(255,255,255,.025);
-          transition:background .12s;
+          transition:background .12s; flex-wrap:wrap;
         }
         .tm-inv-row:last-child { border-bottom:none; }
         .tm-inv-body  { flex:1; min-width:0; }
         .tm-inv-top   { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-bottom:.22rem; }
-        .tm-inv-email { font-size:.82rem; font-weight:600; color:var(--foreground); }
+        .tm-inv-email { font-size:.82rem; font-weight:600; color:var(--foreground); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:200px; }
         .tm-exp-tag {
           font-size:.61rem; font-weight:700; padding:.08rem .38rem; border-radius:4px;
           display:inline-flex; align-items:center; gap:.25rem;
         }
-        .tm-inv-meta { font-size:.68rem; color:var(--muted-foreground); display:flex; align-items:center; gap:.4rem; }
+        .tm-inv-meta { font-size:.68rem; color:var(--muted-foreground); display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
         .tm-cancel-btn {
           display:flex; align-items:center; gap:.3rem; padding:.3rem .625rem; border-radius:6px;
           font-size:.7rem; font-weight:600; flex-shrink:0; cursor:pointer; transition:all .13s;
@@ -339,9 +345,16 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         .tm-cancel-btn:hover    { color:var(--foreground); border-color:rgba(255,255,255,.18); }
         .tm-cancel-btn:disabled { opacity:.4; cursor:not-allowed; }
 
-        /* ── Permissions table ── */
-        .tm-perms { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; padding:.875rem 1.125rem; }
-        @media(max-width:560px){ .tm-perms { grid-template-columns:1fr; } }
+        /* ── Permissions table — responsive ── */
+        .tm-perms {
+          display:grid;
+          grid-template-columns:repeat(3,1fr);
+          gap:.5rem;
+          padding:.875rem 1.125rem;
+        }
+        @media(max-width:700px){ .tm-perms { grid-template-columns:1fr; } }
+        @media(min-width:701px) and (max-width:900px){ .tm-perms { grid-template-columns:repeat(2,1fr); } }
+
         .tm-perm-card {
           padding:.875rem; border-radius:9px;
           border:1px solid rgba(255,255,255,.05); background:rgba(255,255,255,.018);
@@ -356,6 +369,23 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
           font-size:.72rem; color:var(--muted-foreground); line-height:1.45;
         }
         .tm-perm-dot { width:4px; height:4px; border-radius:50%; margin-top:.42rem; flex-shrink:0; }
+
+        /* collapsible perms toggle */
+        .tm-perms-toggle {
+          display:flex; align-items:center; justify-content:space-between; width:100%;
+          padding:.625rem 1.125rem; background:transparent; border:none; cursor:pointer;
+          color:var(--muted-foreground); font-size:.73rem; font-weight:600;
+          transition:color .13s;
+        }
+        .tm-perms-toggle:hover { color:var(--foreground); }
+
+        /* mobile: compact row actions */
+        @media(max-width:500px) {
+          .tm-row { padding:.625rem .75rem; }
+          .tm-name { max-width:120px; }
+          .tm-email { max-width:130px; }
+          .tm-role-select { font-size:.67rem; padding:.22rem .4rem; }
+        }
       `}</style>
 
       <div className="tm-wrap">
@@ -420,7 +450,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                 <div key={m.uid} className={`tm-row${isMe ? " me" : ""}`}
                   style={{ animationDelay:`${i*.03}s` }}>
                   <div className="tm-row-left">
-                    <Avatar src={m.avatar} name={m.name} email={m.email} size={36} />
+                    <Avatar src={m.avatar} name={m.name} email={m.email} size={34} />
                     <div className="tm-name-wrap">
                       <div className="tm-name-line">
                         <span className="tm-name">{m.name || m.email}</span>
@@ -499,46 +529,54 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
           </div>
         )}
 
-        {/* ── Permissions ── */}
+        {/* ── Permissions (collapsible on mobile) ── */}
         <div className="tm-panel" style={{ animationDelay: ".15s" }}>
-          <div className="tm-panel-head">
-            <Shield size={13} color="var(--primary)" />
-            Role Permissions
-          </div>
-          <div className="tm-perms">
-            {[
-              {
-                role: "member", icon: User, color: "#64748b",
-                perms: ["Create & edit own prompts","View all team prompts","Copy & rate prompts","Add comments"],
-              },
-              {
-                role: "admin", icon: Shield, color: "#8b5cf6",
-                perms: ["All member permissions","Edit any team prompt","Invite new members","Remove members"],
-              },
-              {
-                role: "owner", icon: Crown, color: "#f59e0b",
-                perms: ["All admin permissions","Change member roles","Delete team","Transfer ownership"],
-              },
-            ].map(p => {
-              const Icon = p.icon;
-              return (
-                <div key={p.role} className="tm-perm-card">
-                  <div className="tm-perm-head">
-                    <Icon size={14} color={p.color} />
-                    <div className="tm-perm-title" style={{ color:p.color }}>{p.role.charAt(0).toUpperCase()+p.role.slice(1)}</div>
+          <button
+            className="tm-perms-toggle"
+            onClick={() => setPermsExpanded(v => !v)}
+          >
+            <div style={{ display:"flex", alignItems:"center", gap:".5rem" }}>
+              <Shield size={13} color="var(--primary)" />
+              <span style={{ color:"var(--foreground)" }}>Role Permissions</span>
+            </div>
+            {permsExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+          {permsExpanded && (
+            <div className="tm-perms">
+              {[
+                {
+                  role: "member", icon: User, color: "#64748b",
+                  perms: ["Create & edit own prompts","View all team prompts","Copy & rate prompts","Add comments"],
+                },
+                {
+                  role: "admin", icon: Shield, color: "#8b5cf6",
+                  perms: ["All member permissions","Edit any team prompt","Invite new members","Remove members"],
+                },
+                {
+                  role: "owner", icon: Crown, color: "#f59e0b",
+                  perms: ["All admin permissions","Change member roles","Delete team","Transfer ownership"],
+                },
+              ].map(p => {
+                const Icon = p.icon;
+                return (
+                  <div key={p.role} className="tm-perm-card">
+                    <div className="tm-perm-head">
+                      <Icon size={14} color={p.color} />
+                      <div className="tm-perm-title" style={{ color:p.color }}>{p.role.charAt(0).toUpperCase()+p.role.slice(1)}</div>
+                    </div>
+                    <div className="tm-perm-list">
+                      {p.perms.map(perm => (
+                        <div key={perm} className="tm-perm-item">
+                          <div className="tm-perm-dot" style={{ background:p.color }} />
+                          {perm}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="tm-perm-list">
-                    {p.perms.map(perm => (
-                      <div key={perm} className="tm-perm-item">
-                        <div className="tm-perm-dot" style={{ background:p.color }} />
-                        {perm}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
       </div>
