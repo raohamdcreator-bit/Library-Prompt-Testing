@@ -1,169 +1,51 @@
-// src/components/PromptAnalytics.jsx - RESPONSIVE
+// src/components/PromptAnalytics.jsx - Mobile-first with expandable cards
 import { useState, useEffect, useMemo } from "react";
 import { db } from "../lib/firebase";
-import {
-  collection,
-  doc,
-  setDoc,
-  deleteDoc,
-  onSnapshot,
-  serverTimestamp,
-  increment,
-  updateDoc,
-  getDoc,
-  query,
-  orderBy,
-  limit,
-  getDocs,
-} from "firebase/firestore";
-import { useAuth } from "../context/AuthContext";
-import { getGuestToken, getGuestUserId, debugGuestToken } from "../lib/guestToken";
-import { hasGuestAccess } from "../lib/guestTeamAccess";
+import { collection, onSnapshot, getDocs } from "firebase/firestore";
 import {
   Star, BarChart3, FileText, Copy, MessageSquare,
   TrendingUp, Award, Users, Eye, Activity, UserCheck,
-  UserX, TrendingDown, Clock, Zap, AlertCircle
-} from 'lucide-react';
+  AlertCircle, ChevronDown, ChevronUp,
+} from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// Shared sub-components
 // ─────────────────────────────────────────────────────────────────────────────
 
-function resolveGuestToken() {
-  const fromGuestToken = getGuestToken();
-  if (fromGuestToken) return fromGuestToken;
-  const access = hasGuestAccess();
-  if (access?.token) {
-    try { sessionStorage.setItem("guest_team_token", access.token); } catch (_) {}
-    return access.token;
-  }
-  return null;
+function SectionHeader({ icon, title, badge }) {
+  return (
+    <div className="flex items-center gap-1.5 mb-3">
+      <span style={{ color: "var(--primary)" }}>{icon}</span>
+      <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--foreground)" }}>{title}</span>
+      {badge && (
+        <span className="text-[10px] px-1.5 py-0.5 rounded-full ml-1" style={{ backgroundColor: "var(--secondary)", color: "var(--muted-foreground)" }}>
+          {badge}
+        </span>
+      )}
+    </div>
+  );
 }
 
-function resolveGuestUserId() {
-  const token = resolveGuestToken();
-  return token ? `guest_${token}` : null;
+function MiniBar({ pct, color }) {
+  return (
+    <div className="w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: "var(--secondary)" }}>
+      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
+    </div>
+  );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Hook
-// ─────────────────────────────────────────────────────────────────────────────
-
-export function usePromptRating(teamId, promptId) {
-  const { user } = useAuth();
-  const [ratings, setRatings] = useState([]);
-  const [userRating, setUserRating] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!teamId || !promptId) {
-      setRatings([]); setUserRating(null); setLoading(false); return;
-    }
-    debugGuestToken();
-    try {
-      const ratingsRef = collection(db, "teams", teamId, "prompts", promptId, "ratings");
-      const unsub = onSnapshot(ratingsRef, (snap) => {
-        const ratingsData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        setRatings(ratingsData);
-        const guestToken  = resolveGuestToken();
-        const guestUserId = resolveGuestUserId();
-        const userId      = user?.uid || guestUserId;
-        const found = ratingsData.find(
-          (r) => r.userId === userId || (guestToken && r.guestToken === guestToken)
-        );
-        setUserRating(found?.rating ?? null);
-        setLoading(false);
-      }, (error) => {
-        console.error("❌ [RATING] Error loading ratings:", error);
-        setRatings([]); setUserRating(null); setLoading(false);
-      });
-      return () => unsub();
-    } catch (error) {
-      console.error("❌ [RATING] Error setting up listener:", error);
-      setLoading(false);
-    }
-  }, [teamId, promptId, user?.uid]);
-
-  const averageRating = useMemo(() => {
-    if (ratings.length === 0) return 0;
-    const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
-    return Math.round((sum / ratings.length) * 10) / 10;
-  }, [ratings]);
-
-  async function ratePrompt(rating) {
-    if (!teamId || !promptId || rating < 1 || rating > 5) return;
-    const isGuest     = !user;
-    const guestToken  = isGuest ? resolveGuestToken() : null;
-    const guestUserId = isGuest ? resolveGuestUserId() : null;
-
-    if (isGuest && !guestToken) {
-      throw new Error("Your guest session could not be verified. Please refresh the page and try again.");
-    }
-    const userId = user?.uid || guestUserId;
-    if (!userId) throw new Error("Could not determine user ID — please refresh and try again.");
-
-    try {
-      const ratingRef  = doc(db, "teams", teamId, "prompts", promptId, "ratings", userId);
-      const ratingData = { userId, rating, createdAt: serverTimestamp() };
-      if (isGuest) { ratingData.isGuest = true; ratingData.guestToken = guestToken; }
-      await setDoc(ratingRef, ratingData);
-      const promptRef  = doc(db, "teams", teamId, "prompts", promptId);
-      const promptSnap = await getDoc(promptRef);
-      if (promptSnap.exists()) {
-        const currentStats   = promptSnap.data().stats || {};
-        const currentRatings = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, ...(currentStats.ratings || {}) };
-        if (userRating) currentRatings[userRating] = Math.max(0, (currentRatings[userRating] || 0) - 1);
-        currentRatings[rating] = (currentRatings[rating] || 0) + 1;
-        const totalRatings = Object.values(currentRatings).reduce((s, c) => s + c, 0);
-        const weightedSum  = Object.entries(currentRatings).reduce((s, [star, count]) => s + parseInt(star) * count, 0);
-        const newAverage   = totalRatings > 0 ? weightedSum / totalRatings : 0;
-        await updateDoc(promptRef, {
-          "stats.ratings": currentRatings, "stats.totalRatings": totalRatings,
-          "stats.averageRating": newAverage, "stats.lastRated": serverTimestamp(),
-        });
-      }
-    } catch (error) {
-      console.error("❌ [RATING] Error:", error.message, error.code);
-      throw error;
-    }
-  }
-
-  async function removeRating() {
-    if (!teamId || !promptId || !userRating) return;
-    const guestUserId = resolveGuestUserId();
-    const userId      = user?.uid || guestUserId;
-    if (!userId) return;
-    try {
-      await deleteDoc(doc(db, "teams", teamId, "prompts", promptId, "ratings", userId));
-      const promptRef  = doc(db, "teams", teamId, "prompts", promptId);
-      const promptSnap = await getDoc(promptRef);
-      if (promptSnap.exists()) {
-        const currentStats   = promptSnap.data().stats || {};
-        const currentRatings = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, ...(currentStats.ratings || {}) };
-        currentRatings[userRating] = Math.max(0, (currentRatings[userRating] || 0) - 1);
-        const totalRatings = Object.values(currentRatings).reduce((s, c) => s + c, 0);
-        const weightedSum  = Object.entries(currentRatings).reduce((s, [star, count]) => s + parseInt(star) * count, 0);
-        const newAverage   = totalRatings > 0 ? weightedSum / totalRatings : 0;
-        await updateDoc(promptRef, {
-          "stats.ratings": currentRatings, "stats.totalRatings": totalRatings, "stats.averageRating": newAverage,
-        });
-      }
-    } catch (error) {
-      console.error("Error removing rating:", error); throw error;
-    }
-  }
-
-  return { ratings, userRating, averageRating, totalRatings: ratings.length, loading, ratePrompt, removeRating };
+function LoadingCard() {
+  return (
+    <div className="flex items-center justify-center py-6">
+      <div className="neo-spinner" style={{ width: 18, height: 18 }} />
+      <span className="text-xs ml-2" style={{ color: "var(--muted-foreground)" }}>Loading…</span>
+    </div>
+  );
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// StarRating component
-// ─────────────────────────────────────────────────────────────────────────────
 
 export function StarRating({ rating = 0, onRate, readonly = false, size = "normal", className = "" }) {
   const [hoverRating, setHoverRating] = useState(0);
   const starSize = size === "small" ? 14 : size === "large" ? 24 : 20;
-
   return (
     <div className={`flex items-center gap-0.5 ${className}`}>
       {[1, 2, 3, 4, 5].map((star) => (
@@ -187,102 +69,260 @@ export function StarRating({ rating = 0, onRate, readonly = false, size = "norma
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared sub-components
+// ExpandableCard — wraps any card with a collapsible "Details" toggle on mobile
 // ─────────────────────────────────────────────────────────────────────────────
 
-function StatPill({ icon, value, label, accent = false }) {
+function ExpandableCard({ icon, title, badge, summary, children, defaultExpanded = false, accentColor }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
   return (
     <div
-      className="flex items-center gap-2 px-3 py-2 rounded-lg"
-      style={{ backgroundColor: accent ? "var(--primary)" : "var(--secondary)" }}
+      className="ta-expand-card"
+      style={{ borderColor: "var(--border)", backgroundColor: "var(--card)" }}
     >
-      <span style={{ color: accent ? "var(--primary-foreground)" : "var(--primary)" }}>{icon}</span>
-      <div>
-        <div className="text-xs font-bold leading-none" style={{ color: accent ? "var(--primary-foreground)" : "var(--foreground)" }}>{value}</div>
-        <div className="text-[10px] leading-tight mt-0.5" style={{ color: accent ? "rgba(255,255,255,0.7)" : "var(--muted-foreground)" }}>{label}</div>
+      {/* Card header — always visible */}
+      <button
+        className="ta-card-header"
+        onClick={() => setExpanded(e => !e)}
+        style={{ color: "var(--foreground)" }}
+        type="button"
+      >
+        <div className="ta-card-title">
+          <span className="ta-card-icon" style={{ color: accentColor || "var(--primary)" }}>{icon}</span>
+          <span className="text-sm font-semibold">{title}</span>
+          {badge && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--secondary)", color: "var(--muted-foreground)" }}>
+              {badge}
+            </span>
+          )}
+        </div>
+        <div className="ta-card-summary-row">
+          {summary && (
+            <span className="ta-summary-text text-xs" style={{ color: "var(--muted-foreground)" }}>{summary}</span>
+          )}
+          <span className="ta-details-btn" style={{ color: "var(--primary)" }}>
+            {expanded ? (
+              <><ChevronUp size={14} /><span className="ta-details-label">Less</span></>
+            ) : (
+              <><ChevronDown size={14} /><span className="ta-details-label">Details</span></>
+            )}
+          </span>
+        </div>
+      </button>
+
+      {/* Expandable body */}
+      <div
+        className="ta-card-body"
+        style={{
+          maxHeight: expanded ? "600px" : "0px",
+          opacity: expanded ? 1 : 0,
+          overflow: "hidden",
+          transition: "max-height 0.35s ease, opacity 0.25s ease",
+        }}
+      >
+        <div className="ta-card-body-inner">
+          {children}
+        </div>
       </div>
     </div>
   );
 }
 
-function SectionHeader({ icon, title, badge }) {
-  return (
-    <div className="flex items-center gap-1.5 mb-3">
-      <span style={{ color: "var(--primary)" }}>{icon}</span>
-      <span className="text-xs font-semibold tracking-wide uppercase" style={{ color: "var(--foreground)" }}>{title}</span>
-      {badge && <span className="text-[10px] px-1.5 py-0.5 rounded-full ml-1" style={{ backgroundColor: "var(--secondary)", color: "var(--muted-foreground)" }}>{badge}</span>}
-    </div>
-  );
-}
-
-function MiniBar({ pct, color }) {
-  return (
-    <div className="w-full h-1 rounded-full overflow-hidden" style={{ backgroundColor: "var(--secondary)" }}>
-      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
-    </div>
-  );
-}
-
-function LoadingCard() {
-  return (
-    <div className="flex items-center justify-center py-6">
-      <div className="neo-spinner" style={{ width: 18, height: 18 }} />
-      <span className="text-xs ml-2" style={{ color: "var(--muted-foreground)" }}>Loading…</span>
-    </div>
-  );
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// GuestAnalyticsCard
+// Card content components
 // ─────────────────────────────────────────────────────────────────────────────
 
-function GuestAnalyticsCard({ teamId }) {
-  const [guestStats, setGuestStats] = useState({ guestRatings: 0, guestComments: 0, guestCopies: 0, loading: true });
-
-  useEffect(() => {
-    if (!teamId) { setGuestStats(p => ({ ...p, loading: false })); return; }
-    const unsub = onSnapshot(collection(db, 'teams', teamId, 'prompts'), async (snap) => {
-      try {
-        const results = await Promise.all(snap.docs.map(async (d) => {
-          const guestCopiesCount = d.data().stats?.guestCopies || 0;
-          const ratingsSnap  = await getDocs(collection(db, 'teams', teamId, 'prompts', d.id, 'ratings'));
-          const commentsSnap = await getDocs(collection(db, 'teams', teamId, 'prompts', d.id, 'comments'));
-          return {
-            copies:   guestCopiesCount,
-            ratings:  ratingsSnap.docs.filter(r => r.data().isGuest).length,
-            comments: commentsSnap.docs.filter(r => r.data().isGuest).length,
-          };
-        }));
-        const totals = results.reduce((a, r) => ({ copies: a.copies + r.copies, ratings: a.ratings + r.ratings, comments: a.comments + r.comments }), { copies: 0, ratings: 0, comments: 0 });
-        setGuestStats({ guestRatings: totals.ratings, guestComments: totals.comments, guestCopies: totals.copies, loading: false });
-      } catch { setGuestStats(p => ({ ...p, loading: false })); }
-    }, () => setGuestStats(p => ({ ...p, loading: false })));
-    return () => unsub();
-  }, [teamId]);
-
+function TeamActivityContent({ authStats }) {
+  if (authStats.loading) return <LoadingCard />;
   return (
-    <div className="glass-card p-4">
-      <SectionHeader icon={<Eye size={14} />} title="Guest Activity" badge="Read-Only" />
-      {guestStats.loading ? <LoadingCard /> : (
-        <div className="space-y-2">
-          {[
-            { icon: <Star size={12} />, value: guestStats.guestRatings,  label: "Ratings"  },
-            { icon: <MessageSquare size={12} />, value: guestStats.guestComments, label: "Comments" },
-            { icon: <Copy size={12} />, value: guestStats.guestCopies,   label: "Copies"   },
-          ].map(({ icon, value, label }) => (
-            <div key={label} className="flex items-center justify-between px-2.5 py-1.5 rounded" style={{ backgroundColor: "var(--secondary)" }}>
-              <div className="flex items-center gap-1.5" style={{ color: "var(--muted-foreground)" }}>
-                {icon}
-                <span className="text-xs">{label}</span>
-              </div>
-              <span className="text-xs font-bold" style={{ color: "var(--foreground)" }}>{value}</span>
-            </div>
-          ))}
-          <div className="pt-1 border-t" style={{ borderColor: "var(--border)" }}>
-            <div className="text-[10px] text-center" style={{ color: "var(--muted-foreground)" }}>
-              {guestStats.guestRatings + guestStats.guestComments + guestStats.guestCopies} total interactions
-            </div>
+    <div className="space-y-2">
+      {[
+        { icon: <Star size={12} />, value: authStats.authRatings, label: "Ratings" },
+        { icon: <MessageSquare size={12} />, value: authStats.authComments, label: "Comments" },
+        { icon: <Copy size={12} />, value: authStats.authCopies, label: "Copies" },
+        { icon: <Eye size={12} />, value: authStats.authViews, label: "Views" },
+      ].map(({ icon, value, label }) => (
+        <div key={label} className="flex items-center justify-between px-2.5 py-1.5 rounded" style={{ backgroundColor: "var(--secondary)" }}>
+          <div className="flex items-center gap-1.5" style={{ color: "var(--muted-foreground)" }}>
+            {icon}
+            <span className="text-xs">{label}</span>
           </div>
+          <span className="text-xs font-bold" style={{ color: "var(--foreground)" }}>{value}</span>
+        </div>
+      ))}
+      <div className="pt-1 border-t text-[10px] text-center" style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}>
+        {authStats.authRatings + authStats.authComments + authStats.authCopies} total member interactions
+      </div>
+    </div>
+  );
+}
+
+function GuestActivityContent({ guestStats }) {
+  if (guestStats.loading) return <LoadingCard />;
+  return (
+    <div className="space-y-2">
+      {[
+        { icon: <Star size={12} />, value: guestStats.guestRatings, label: "Ratings" },
+        { icon: <MessageSquare size={12} />, value: guestStats.guestComments, label: "Comments" },
+        { icon: <Copy size={12} />, value: guestStats.guestCopies, label: "Copies" },
+      ].map(({ icon, value, label }) => (
+        <div key={label} className="flex items-center justify-between px-2.5 py-1.5 rounded" style={{ backgroundColor: "var(--secondary)" }}>
+          <div className="flex items-center gap-1.5" style={{ color: "var(--muted-foreground)" }}>
+            {icon}
+            <span className="text-xs">{label}</span>
+          </div>
+          <span className="text-xs font-bold" style={{ color: "var(--foreground)" }}>{value}</span>
+        </div>
+      ))}
+      <div className="pt-1 border-t text-[10px] text-center" style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}>
+        {guestStats.guestRatings + guestStats.guestComments + guestStats.guestCopies} total guest interactions
+      </div>
+    </div>
+  );
+}
+
+function InteractionSplitContent({ userTypeStats, totalMemberInteractions, totalGuestInteractions, totalInteractions }) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+            <UserCheck size={10} /> Members
+          </span>
+          <span className="text-[10px] font-bold" style={{ color: "var(--foreground)" }}>{totalMemberInteractions}</span>
+        </div>
+        <MiniBar pct={totalInteractions > 0 ? (totalMemberInteractions / totalInteractions) * 100 : 0} color="var(--primary)" />
+        <div className="flex gap-2 mt-1">
+          <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>★ {userTypeStats.authenticatedRatings}</span>
+          <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>💬 {userTypeStats.authenticatedComments}</span>
+        </div>
+      </div>
+      <div>
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+            <Eye size={10} /> Guests
+          </span>
+          <span className="text-[10px] font-bold" style={{ color: "var(--foreground)" }}>{totalGuestInteractions}</span>
+        </div>
+        <MiniBar pct={totalInteractions > 0 ? (totalGuestInteractions / totalInteractions) * 100 : 0} color="var(--accent)" />
+        <div className="flex gap-2 mt-1">
+          <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>★ {userTypeStats.guestRatings}</span>
+          <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>💬 {userTypeStats.guestComments}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamHealthContent({ analytics, collabScore, qualityPct }) {
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Collaboration</span>
+          <span className="text-xs font-medium" style={{ color: "var(--foreground)" }}>
+            {analytics.totalComments > 0 ? "Active" : analytics.totalPrompts > 0 ? "Growing" : "Starting"}
+          </span>
+        </div>
+        <MiniBar pct={collabScore} color="var(--primary)" />
+      </div>
+      <div>
+        <div className="flex justify-between items-center mb-1.5">
+          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Content Quality</span>
+          <span className="text-xs font-medium" style={{ color: "var(--foreground)" }}>
+            {analytics.averageRating >= 4 ? "Excellent" : analytics.averageRating >= 3 ? "Good" : analytics.averageRating > 0 ? "Improving" : "No ratings"}
+          </span>
+        </div>
+        <MiniBar pct={qualityPct} color="var(--accent)" />
+      </div>
+    </div>
+  );
+}
+
+function UsageTrendContent({ analytics, engagementRate, totalInteractions }) {
+  return (
+    <div className="space-y-2">
+      {[
+        { label: "Most Active Feature", value: analytics.totalCopies > analytics.totalComments ? "Copying" : "Commenting" },
+        { label: "Engagement Rate", value: `${engagementRate} / prompt` },
+        { label: "Quality Score", value: analytics.averageRating > 0 ? `${((analytics.averageRating / 5) * 100).toFixed(0)}%` : "No ratings" },
+        { label: "Total Interactions", value: totalInteractions },
+      ].map(({ label, value }) => (
+        <div key={label} className="flex justify-between items-center py-1 border-b last:border-0" style={{ borderColor: "var(--border)" }}>
+          <span className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>{label}</span>
+          <span className="text-[11px] font-semibold" style={{ color: "var(--foreground)" }}>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RatingOverviewContent({ analytics }) {
+  if (analytics.totalRatings === 0) {
+    return (
+      <p className="text-xs text-center py-2" style={{ color: "var(--muted-foreground)" }}>No ratings yet</p>
+    );
+  }
+  return (
+    <div className="flex items-center gap-3">
+      <div className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>
+        {analytics.averageRating.toFixed(1)}
+      </div>
+      <div>
+        <StarRating rating={Math.round(analytics.averageRating)} readonly size="small" />
+        <div className="text-[10px] mt-0.5" style={{ color: "var(--muted-foreground)" }}>{analytics.totalRatings} ratings</div>
+      </div>
+    </div>
+  );
+}
+
+function TopPromptsContent({ topPrompts }) {
+  if (topPrompts.length === 0) {
+    return (
+      <div className="text-center py-4">
+        <Award size={24} className="mx-auto mb-2 opacity-30" style={{ color: "var(--muted-foreground)" }} />
+        <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>No rated prompts yet</p>
+      </div>
+    );
+  }
+  return (
+    <div className="pa-top-list">
+      {topPrompts.map((prompt, index) => {
+        const score = ((prompt.stats?.averageRating || 0) * (prompt.stats?.totalRatings || 0)).toFixed(1);
+        const avgR = prompt.stats?.averageRating || 0;
+        const isTop = index < 3;
+        return (
+          <div
+            key={prompt.id}
+            className="flex items-center gap-2 p-2 rounded-lg"
+            style={{
+              backgroundColor: isTop ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "var(--secondary)",
+              borderLeft: isTop ? "2px solid var(--primary)" : "2px solid transparent",
+            }}
+          >
+            <div
+              className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+              style={{ backgroundColor: isTop ? "var(--primary)" : "var(--muted)", color: isTop ? "var(--primary-foreground)" : "var(--muted-foreground)" }}
+            >
+              {index + 1}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium truncate leading-tight" style={{ color: "var(--foreground)" }}>{prompt.title}</div>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <StarRating rating={Math.round(avgR)} readonly size="small" />
+                <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+                  {avgR.toFixed(1)} · {prompt.stats?.totalRatings || 0}r · {prompt.stats?.copies || 0}c
+                </span>
+              </div>
+            </div>
+            <div className="text-[10px] font-bold flex-shrink-0" style={{ color: "var(--primary)" }}>{score}</div>
+          </div>
+        );
+      })}
+      {topPrompts.length === 10 && (
+        <div className="flex items-center gap-1.5 pt-1.5 mt-1 border-t" style={{ borderColor: "var(--border)" }}>
+          <AlertCircle size={11} style={{ color: "var(--muted-foreground)" }} />
+          <p className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>Score = Avg × Ratings. Top 10 shown.</p>
         </div>
       )}
     </div>
@@ -290,64 +330,7 @@ function GuestAnalyticsCard({ teamId }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AuthenticatedUserAnalyticsCard
-// ─────────────────────────────────────────────────────────────────────────────
-
-function AuthenticatedUserAnalyticsCard({ teamId }) {
-  const [authStats, setAuthStats] = useState({ authRatings: 0, authComments: 0, authCopies: 0, authViews: 0, loading: true });
-
-  useEffect(() => {
-    if (!teamId) { setAuthStats(p => ({ ...p, loading: false })); return; }
-    const unsub = onSnapshot(collection(db, 'teams', teamId, 'prompts'), async (snap) => {
-      try {
-        let totalR = 0, totalC = 0, totalCp = 0, totalV = 0;
-        for (const d of snap.docs) {
-          const data = d.data();
-          const ratSnap = await getDocs(collection(db, 'teams', teamId, 'prompts', d.id, 'ratings'));
-          totalR  += ratSnap.docs.filter(r => !r.data().isGuest).length;
-          const comSnap = await getDocs(collection(db, 'teams', teamId, 'prompts', d.id, 'comments'));
-          totalC  += comSnap.docs.filter(r => !r.data().isGuest).length;
-          totalCp += (data.stats?.copies || 0) - (data.stats?.guestCopies || 0);
-          totalV  += data.stats?.views || 0;
-        }
-        setAuthStats({ authRatings: totalR, authComments: totalC, authCopies: totalCp, authViews: totalV, loading: false });
-      } catch { setAuthStats(p => ({ ...p, loading: false })); }
-    });
-    return () => unsub();
-  }, [teamId]);
-
-  return (
-    <div className="glass-card p-4">
-      <SectionHeader icon={<UserCheck size={14} />} title="Member Activity" badge="Team" />
-      {authStats.loading ? <LoadingCard /> : (
-        <div className="space-y-2">
-          {[
-            { icon: <Star size={12} />,         value: authStats.authRatings,  label: "Ratings"  },
-            { icon: <MessageSquare size={12} />, value: authStats.authComments, label: "Comments" },
-            { icon: <Copy size={12} />,          value: authStats.authCopies,   label: "Copies"   },
-            { icon: <Eye size={12} />,           value: authStats.authViews,    label: "Views"    },
-          ].map(({ icon, value, label }) => (
-            <div key={label} className="flex items-center justify-between px-2.5 py-1.5 rounded" style={{ backgroundColor: "var(--secondary)" }}>
-              <div className="flex items-center gap-1.5" style={{ color: "var(--muted-foreground)" }}>
-                {icon}
-                <span className="text-xs">{label}</span>
-              </div>
-              <span className="text-xs font-bold" style={{ color: "var(--foreground)" }}>{value}</span>
-            </div>
-          ))}
-          <div className="pt-1 border-t" style={{ borderColor: "var(--border)" }}>
-            <div className="text-[10px] text-center" style={{ color: "var(--muted-foreground)" }}>
-              {authStats.authRatings + authStats.authComments + authStats.authCopies} total interactions
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// TeamAnalytics — Full Responsive Layout
+// Main TeamAnalytics export
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function TeamAnalytics({ teamId }) {
@@ -361,32 +344,45 @@ export function TeamAnalytics({ teamId }) {
     authenticatedRatings: 0, guestRatings: 0,
     authenticatedComments: 0, guestComments: 0,
   });
+  const [authStats, setAuthStats] = useState({ authRatings: 0, authComments: 0, authCopies: 0, authViews: 0, loading: true });
+  const [guestStats, setGuestStats] = useState({ guestRatings: 0, guestComments: 0, guestCopies: 0, loading: true });
 
   useEffect(() => {
     if (!teamId) { setLoading(false); return; }
+
     const unsub = onSnapshot(collection(db, "teams", teamId, "prompts"), async (snap) => {
       try {
         const allPrompts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
         const totals = allPrompts.reduce((acc, p) => {
           const s = p.stats || {};
           return {
-            totalPrompts:  acc.totalPrompts + 1,
-            totalViews:    acc.totalViews   + (s.views         || 0),
-            totalCopies:   acc.totalCopies  + (s.copies        || 0),
-            totalComments: acc.totalComments + (s.comments     || 0),
-            totalRatings:  acc.totalRatings + (s.totalRatings  || 0),
-            ratingSum:     acc.ratingSum    + ((s.averageRating || 0) * (s.totalRatings || 0)),
+            totalPrompts: acc.totalPrompts + 1,
+            totalViews: acc.totalViews + (s.views || 0),
+            totalCopies: acc.totalCopies + (s.copies || 0),
+            totalComments: acc.totalComments + (s.comments || 0),
+            totalRatings: acc.totalRatings + (s.totalRatings || 0),
+            ratingSum: acc.ratingSum + ((s.averageRating || 0) * (s.totalRatings || 0)),
           };
         }, { totalPrompts: 0, totalViews: 0, totalCopies: 0, totalComments: 0, totalRatings: 0, ratingSum: 0 });
 
         let authR = 0, guestR = 0, authC = 0, guestC = 0;
+        let totalAuthV = 0, totalAuthCp = 0;
+        let guestCp = 0;
+
         for (const p of allPrompts) {
-          const rs = await getDocs(collection(db, 'teams', teamId, 'prompts', p.id, 'ratings'));
+          const data = p;
+          const rs = await getDocs(collection(db, "teams", teamId, "prompts", p.id, "ratings"));
           rs.docs.forEach(d => d.data().isGuest ? guestR++ : authR++);
-          const cs = await getDocs(collection(db, 'teams', teamId, 'prompts', p.id, 'comments'));
+          const cs = await getDocs(collection(db, "teams", teamId, "prompts", p.id, "comments"));
           cs.docs.forEach(d => d.data().isGuest ? guestC++ : authC++);
+          totalAuthV  += data.stats?.views || 0;
+          totalAuthCp += (data.stats?.copies || 0) - (data.stats?.guestCopies || 0);
+          guestCp     += data.stats?.guestCopies || 0;
         }
+
         setUserTypeStats({ authenticatedRatings: authR, guestRatings: guestR, authenticatedComments: authC, guestComments: guestC });
+        setAuthStats({ authRatings: authR, authComments: authC, authCopies: totalAuthCp, authViews: totalAuthV, loading: false });
+        setGuestStats({ guestRatings: guestR, guestComments: guestC, guestCopies: guestCp, loading: false });
 
         const topPrompts = allPrompts
           .filter(p => (p.stats?.averageRating || 0) > 0 && (p.stats?.totalRatings || 0) > 0)
@@ -394,14 +390,16 @@ export function TeamAnalytics({ teamId }) {
           .slice(0, 10);
 
         setAnalytics({
-          totalPrompts: totals.totalPrompts, totalViews: totals.totalViews, totalCopies: totals.totalCopies,
-          totalComments: totals.totalComments, totalRatings: totals.totalRatings,
+          totalPrompts: totals.totalPrompts, totalViews: totals.totalViews,
+          totalCopies: totals.totalCopies, totalComments: totals.totalComments,
+          totalRatings: totals.totalRatings,
           averageRating: totals.totalRatings > 0 ? Math.round((totals.ratingSum / totals.totalRatings) * 10) / 10 : 0,
           topPrompts,
         });
         setLoading(false);
       } catch (e) { console.error("Analytics error:", e); setLoading(false); }
-    }, (e) => { console.error("Analytics listener error:", e); setLoading(false); });
+    }, (e) => { console.error("Listener error:", e); setLoading(false); });
+
     return () => unsub();
   }, [teamId]);
 
@@ -417,96 +415,186 @@ export function TeamAnalytics({ teamId }) {
   const engagementRate = analytics.totalPrompts > 0
     ? ((analytics.totalCopies + analytics.totalComments) / analytics.totalPrompts).toFixed(1)
     : "0.0";
-  const qualityPct  = (analytics.averageRating / 5) * 100;
+  const qualityPct = (analytics.averageRating / 5) * 100;
   const collabScore = analytics.totalPrompts > 0
     ? Math.min(100, ((analytics.totalComments + analytics.totalCopies) / analytics.totalPrompts) * 20)
     : 0;
-  const totalGuestInteractions   = userTypeStats.guestRatings + userTypeStats.guestComments;
-  const totalMemberInteractions  = userTypeStats.authenticatedRatings + userTypeStats.authenticatedComments;
-  const totalInteractions        = totalGuestInteractions + totalMemberInteractions;
+  const totalGuestInteractions = userTypeStats.guestRatings + userTypeStats.guestComments;
+  const totalMemberInteractions = userTypeStats.authenticatedRatings + userTypeStats.authenticatedComments;
+  const totalInteractions = totalGuestInteractions + totalMemberInteractions;
+
+  const CARDS = [
+    {
+      id: "team-activity",
+      icon: <UserCheck size={16} />,
+      title: "Team Activity",
+      badge: "Members",
+      accentColor: "var(--primary)",
+      summary: `${authStats.authRatings + authStats.authComments + authStats.authCopies} interactions`,
+      content: <TeamActivityContent authStats={authStats} />,
+    },
+    {
+      id: "guest-activity",
+      icon: <Eye size={16} />,
+      title: "Guest Activity",
+      badge: "Read-Only",
+      accentColor: "#64d2ff",
+      summary: `${guestStats.guestRatings + guestStats.guestComments + guestStats.guestCopies} interactions`,
+      content: <GuestActivityContent guestStats={guestStats} />,
+    },
+    {
+      id: "interaction-split",
+      icon: <Users size={16} />,
+      title: "Interaction Split",
+      badge: null,
+      accentColor: "var(--accent)",
+      summary: `${totalMemberInteractions} members · ${totalGuestInteractions} guests`,
+      content: <InteractionSplitContent
+        userTypeStats={userTypeStats}
+        totalMemberInteractions={totalMemberInteractions}
+        totalGuestInteractions={totalGuestInteractions}
+        totalInteractions={totalInteractions}
+      />,
+    },
+    {
+      id: "team-health",
+      icon: <Activity size={16} />,
+      title: "Team Health",
+      badge: null,
+      accentColor: "#4ade80",
+      summary: analytics.totalComments > 0 ? "Active" : analytics.totalPrompts > 0 ? "Growing" : "Starting",
+      content: <TeamHealthContent analytics={analytics} collabScore={collabScore} qualityPct={qualityPct} />,
+    },
+    {
+      id: "usage-trend",
+      icon: <TrendingUp size={16} />,
+      title: "Usage Trend",
+      badge: null,
+      accentColor: "#f59e0b",
+      summary: `${engagementRate} eng/prompt`,
+      content: <UsageTrendContent analytics={analytics} engagementRate={engagementRate} totalInteractions={totalInteractions} />,
+    },
+    {
+      id: "rating-overview",
+      icon: <Star size={16} />,
+      title: "Rating Overview",
+      badge: null,
+      accentColor: "#f59e0b",
+      summary: analytics.averageRating > 0 ? `${analytics.averageRating.toFixed(1)} avg · ${analytics.totalRatings} ratings` : "No ratings yet",
+      content: <RatingOverviewContent analytics={analytics} />,
+    },
+    {
+      id: "top-prompts",
+      icon: <Award size={16} />,
+      title: "Top Performing Prompts",
+      badge: "by score",
+      accentColor: "var(--primary)",
+      summary: `${analytics.topPrompts.length} ranked`,
+      content: <TopPromptsContent topPrompts={analytics.topPrompts} />,
+      defaultExpanded: true,
+    },
+  ];
 
   return (
     <>
       <style>{`
-        /* ── Analytics responsive layout ── */
-        .pa-wrap { display:flex; flex-direction:column; gap:.75rem; }
+        /* ── pa-top-list scrollable ── */
+        .pa-top-list {
+          display:flex; flex-direction:column; gap:.375rem;
+          max-height:360px; overflow-y:auto;
+          scrollbar-width:thin; scrollbar-color:rgba(139,92,246,.2) transparent;
+          padding-right:.125rem;
+        }
+        .pa-top-list::-webkit-scrollbar { width:3px; }
+        .pa-top-list::-webkit-scrollbar-thumb { background:rgba(139,92,246,.3); border-radius:2px; }
 
-        .pa-header {
-          background:var(--card); border:1px solid rgba(255,255,255,.05);
-          border-radius:10px; padding:.75rem 1rem;
-          display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem;
+        /* ── Expandable card ── */
+        .ta-expand-card {
+          border:1px solid var(--border);
+          border-radius:12px;
+          overflow:hidden;
+          transition:box-shadow .2s;
+        }
+        .ta-expand-card:hover { box-shadow:0 2px 12px rgba(0,0,0,.15); }
+
+        .ta-card-header {
+          width:100%; display:flex; align-items:center;
+          justify-content:space-between; gap:.75rem;
+          padding:.75rem 1rem; cursor:pointer; background:none; border:none;
+          text-align:left;
+        }
+        .ta-card-header:hover { background:rgba(255,255,255,.03); }
+
+        .ta-card-title {
+          display:flex; align-items:center; gap:.5rem; flex-shrink:0;
+        }
+        .ta-card-icon { display:flex; align-items:center; }
+
+        .ta-card-summary-row {
+          display:flex; align-items:center; gap:.5rem;
+          flex:1; justify-content:flex-end; min-width:0;
+        }
+        .ta-summary-text {
+          white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+          flex:1; text-align:right;
+        }
+        .ta-details-btn {
+          display:flex; align-items:center; gap:.2rem;
+          font-size:.7rem; font-weight:600; white-space:nowrap; flex-shrink:0;
+        }
+        .ta-details-label { font-size:.7rem; }
+
+        .ta-card-body-inner {
+          padding:.25rem 1rem 1rem;
         }
 
-        /* KPI strip */
-        .pa-kpi {
-          display:grid;
-          grid-template-columns:repeat(4,1fr);
-          gap:.5rem;
+        /* ── KPI strip ── */
+        .ta-kpi {
+          display:grid; grid-template-columns:repeat(4,1fr); gap:.5rem;
         }
-        @media(max-width:500px){ .pa-kpi { grid-template-columns:repeat(2,1fr); } }
+        @media(max-width:500px){ .ta-kpi { grid-template-columns:repeat(2,1fr); } }
 
-        /* Main grid: 3 cols on desktop → stacked on mobile */
-        .pa-main {
+        /* ── Desktop: 3-col grid, mobile: single expandable list ── */
+        .ta-desktop-grid {
           display:grid;
           grid-template-columns:1fr 1fr 1fr;
           gap:.75rem;
           align-items:start;
         }
-        @media(max-width:900px){
-          .pa-main { grid-template-columns:1fr 1fr; }
-          .pa-col-right { grid-column:span 2; }
+        .ta-desktop-col { display:flex; flex-direction:column; gap:.75rem; }
+
+        /* On mobile: hide desktop grid, show expandable list */
+        .ta-mobile-list { display:none; flex-direction:column; gap:.5rem; }
+
+        @media(max-width:680px){
+          .ta-desktop-grid { display:none; }
+          .ta-mobile-list { display:flex; }
         }
-        @media(max-width:580px){
-          .pa-main { grid-template-columns:1fr; }
-          .pa-col-right { grid-column:span 1; }
+        @media(min-width:681px) and (max-width:900px){
+          .ta-desktop-grid { grid-template-columns:1fr 1fr; }
+          .ta-col-right-span { grid-column:span 2; }
         }
 
-        /* Col left: 2 activity cards + split */
-        .pa-col { display:flex; flex-direction:column; gap:.75rem; }
-
-        /* Interaction split row on tablet */
-        @media(min-width:581px) and (max-width:900px){
-          .pa-col-left, .pa-col-mid { display:contents; }
-          .pa-activity-row {
-            display:grid;
-            grid-template-columns:1fr 1fr 1fr;
-            gap:.75rem;
-            grid-column:span 2;
-          }
+        /* ── Header bar ── */
+        .ta-header {
+          background:var(--card); border:1px solid rgba(255,255,255,.05);
+          border-radius:10px; padding:.75rem 1rem;
+          display:flex; align-items:center; justify-content:space-between;
+          flex-wrap:wrap; gap:.5rem;
         }
-        @media(max-width:580px){
-          .pa-activity-row { display:flex; flex-direction:column; gap:.75rem; }
-        }
-        @media(min-width:901px){
-          .pa-activity-row { display:contents; }
-        }
-
-        /* Top prompts list: scrollable on small screens */
-        .pa-top-list {
-          display:flex;
-          flex-direction:column;
-          gap:.375rem;
-          max-height:420px;
-          overflow-y:auto;
-          scrollbar-width:thin;
-          scrollbar-color:rgba(139,92,246,.2) transparent;
-          padding-right:.125rem;
-        }
-        .pa-top-list::-webkit-scrollbar { width:3px; }
-        .pa-top-list::-webkit-scrollbar-thumb { background:rgba(139,92,246,.3); border-radius:2px; }
       `}</style>
 
-      <div className="pa-wrap">
+      <div className="flex flex-col gap-3">
 
-        {/* ── Header bar ── */}
-        <div className="pa-header">
+        {/* Header bar */}
+        <div className="ta-header">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded flex items-center justify-center" style={{ backgroundColor: "var(--primary)" }}>
               <BarChart3 size={14} style={{ color: "var(--primary-foreground)" }} />
             </div>
             <div>
               <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Team Analytics</span>
-              <span className="text-xs ml-2 hidden sm:inline" style={{ color: "var(--muted-foreground)" }}>Performance insights &amp; usage statistics</span>
+              <span className="text-xs ml-2 hidden sm:inline" style={{ color: "var(--muted-foreground)" }}>Performance insights & usage statistics</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -515,201 +603,87 @@ export function TeamAnalytics({ teamId }) {
           </div>
         </div>
 
-        {/* ── Top KPI strip ── */}
-        <div className="pa-kpi">
+        {/* KPI strip */}
+        <div className="ta-kpi">
           {[
-            { icon: <FileText size={14} />,     value: analytics.totalPrompts,  label: "Prompts" },
-            { icon: <Copy size={14} />,          value: analytics.totalCopies,   label: "Copies"  },
-            { icon: <MessageSquare size={14} />, value: analytics.totalComments, label: "Comments"},
-            {
-              icon: <Star size={14} />,
-              value: analytics.averageRating > 0 ? analytics.averageRating.toFixed(1) : "—",
-              label: "Avg Rating",
-            },
+            { icon: <FileText size={14} />, value: analytics.totalPrompts, label: "Prompts" },
+            { icon: <Copy size={14} />, value: analytics.totalCopies, label: "Copies" },
+            { icon: <MessageSquare size={14} />, value: analytics.totalComments, label: "Comments" },
+            { icon: <Star size={14} />, value: analytics.averageRating > 0 ? analytics.averageRating.toFixed(1) : "—", label: "Avg Rating" },
           ].map(({ icon, value, label }) => (
             <div key={label} className="glass-card p-3 text-center">
-              <div className="flex items-center justify-center gap-1 mb-1" style={{ color: "var(--primary)" }}>
-                {icon}
-              </div>
+              <div className="flex items-center justify-center gap-1 mb-1" style={{ color: "var(--primary)" }}>{icon}</div>
               <div className="text-lg font-bold leading-none mb-0.5" style={{ color: "var(--foreground)" }}>{value}</div>
               <div className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>{label}</div>
             </div>
           ))}
         </div>
 
-        {/* ── Main grid ── */}
-        <div className="pa-main">
+        {/* ── MOBILE: expandable card list ── */}
+        <div className="ta-mobile-list">
+          {CARDS.map(card => (
+            <ExpandableCard
+              key={card.id}
+              icon={card.icon}
+              title={card.title}
+              badge={card.badge}
+              summary={card.summary}
+              accentColor={card.accentColor}
+              defaultExpanded={card.defaultExpanded}
+            >
+              {card.content}
+            </ExpandableCard>
+          ))}
+        </div>
 
-          {/* ── LEFT: activity cards + split — desktop stacked, tablet row ── */}
-          <div className="pa-activity-row pa-col-left">
-            <AuthenticatedUserAnalyticsCard teamId={teamId} />
-            <GuestAnalyticsCard teamId={teamId} />
-
-            {/* Interaction split */}
+        {/* ── DESKTOP: traditional 3-col grid ── */}
+        <div className="ta-desktop-grid">
+          {/* Left col */}
+          <div className="ta-desktop-col">
+            {/* Team Activity */}
+            <div className="glass-card p-4">
+              <SectionHeader icon={<UserCheck size={14} />} title="Team Activity" badge="Members" />
+              <TeamActivityContent authStats={authStats} />
+            </div>
+            {/* Guest Activity */}
+            <div className="glass-card p-4">
+              <SectionHeader icon={<Eye size={14} />} title="Guest Activity" badge="Read-Only" />
+              <GuestActivityContent guestStats={guestStats} />
+            </div>
+            {/* Interaction Split */}
             <div className="glass-card p-4">
               <SectionHeader icon={<Users size={14} />} title="Interaction Split" />
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
-                      <UserCheck size={10} /> Members
-                    </span>
-                    <span className="text-[10px] font-bold" style={{ color: "var(--foreground)" }}>{totalMemberInteractions}</span>
-                  </div>
-                  <MiniBar pct={totalInteractions > 0 ? (totalMemberInteractions / totalInteractions) * 100 : 0} color="var(--primary)" />
-                  <div className="flex gap-2 mt-1">
-                    <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>★ {userTypeStats.authenticatedRatings}</span>
-                    <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>💬 {userTypeStats.authenticatedComments}</span>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
-                      <Eye size={10} /> Guests
-                    </span>
-                    <span className="text-[10px] font-bold" style={{ color: "var(--foreground)" }}>{totalGuestInteractions}</span>
-                  </div>
-                  <MiniBar pct={totalInteractions > 0 ? (totalGuestInteractions / totalInteractions) * 100 : 0} color="var(--accent)" />
-                  <div className="flex gap-2 mt-1">
-                    <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>★ {userTypeStats.guestRatings}</span>
-                    <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>💬 {userTypeStats.guestComments}</span>
-                  </div>
-                </div>
-              </div>
+              <InteractionSplitContent
+                userTypeStats={userTypeStats}
+                totalMemberInteractions={totalMemberInteractions}
+                totalGuestInteractions={totalGuestInteractions}
+                totalInteractions={totalInteractions}
+              />
             </div>
           </div>
 
-          {/* ── MIDDLE: health + trends + ratings ── */}
-          <div className="pa-col pa-col-mid">
-            {/* Team Health */}
+          {/* Mid col */}
+          <div className="ta-desktop-col">
             <div className="glass-card p-4">
               <SectionHeader icon={<Activity size={14} />} title="Team Health" />
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Collaboration</span>
-                    <span className="text-xs font-medium" style={{ color: "var(--foreground)" }}>
-                      {analytics.totalComments > 0 ? "Active" : analytics.totalPrompts > 0 ? "Growing" : "Starting"}
-                    </span>
-                  </div>
-                  <MiniBar pct={collabScore} color="var(--primary)" />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-1.5">
-                    <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Content Quality</span>
-                    <span className="text-xs font-medium" style={{ color: "var(--foreground)" }}>
-                      {analytics.averageRating >= 4 ? "Excellent" : analytics.averageRating >= 3 ? "Good" : analytics.averageRating > 0 ? "Improving" : "No ratings"}
-                    </span>
-                  </div>
-                  <MiniBar pct={qualityPct} color="var(--accent)" />
-                </div>
-              </div>
+              <TeamHealthContent analytics={analytics} collabScore={collabScore} qualityPct={qualityPct} />
             </div>
-
-            {/* Usage Insights */}
             <div className="glass-card p-4">
-              <SectionHeader icon={<TrendingUp size={14} />} title="Usage Trends" />
-              <div className="space-y-2">
-                {[
-                  {
-                    label: "Most Active Feature",
-                    value: analytics.totalCopies > analytics.totalComments ? "Copying" : "Commenting",
-                  },
-                  { label: "Engagement Rate",  value: `${engagementRate} / prompt` },
-                  {
-                    label: "Quality Score",
-                    value: analytics.averageRating > 0
-                      ? `${((analytics.averageRating / 5) * 100).toFixed(0)}%`
-                      : "No ratings",
-                  },
-                  { label: "Total Interactions", value: totalInteractions },
-                ].map(({ label, value }) => (
-                  <div key={label} className="flex justify-between items-center py-1 border-b last:border-0" style={{ borderColor: "var(--border)" }}>
-                    <span className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>{label}</span>
-                    <span className="text-[11px] font-semibold" style={{ color: "var(--foreground)" }}>{value}</span>
-                  </div>
-                ))}
-              </div>
+              <SectionHeader icon={<TrendingUp size={14} />} title="Usage Trend" />
+              <UsageTrendContent analytics={analytics} engagementRate={engagementRate} totalInteractions={totalInteractions} />
             </div>
-
-            {/* Rating Overview */}
             {analytics.totalRatings > 0 && (
               <div className="glass-card p-4">
                 <SectionHeader icon={<Star size={14} />} title="Rating Overview" />
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>
-                    {analytics.averageRating.toFixed(1)}
-                  </div>
-                  <div>
-                    <StarRating rating={Math.round(analytics.averageRating)} readonly size="small" />
-                    <div className="text-[10px] mt-0.5" style={{ color: "var(--muted-foreground)" }}>{analytics.totalRatings} ratings</div>
-                  </div>
-                </div>
+                <RatingOverviewContent analytics={analytics} />
               </div>
             )}
           </div>
 
-          {/* ── RIGHT: Top Prompts (scrollable list) ── */}
-          <div className="glass-card p-4 pa-col-right">
-            <SectionHeader icon={<Award size={14} />} title="Top 10 Prompts" badge="by score" />
-
-            {analytics.topPrompts.length === 0 ? (
-              <div className="text-center py-8">
-                <Award size={28} className="mx-auto mb-2 opacity-30" style={{ color: "var(--muted-foreground)" }} />
-                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>No rated prompts yet</p>
-              </div>
-            ) : (
-              <div className="pa-top-list">
-                {analytics.topPrompts.map((prompt, index) => {
-                  const score = ((prompt.stats?.averageRating || 0) * (prompt.stats?.totalRatings || 0)).toFixed(1);
-                  const avgR  = (prompt.stats?.averageRating || 0);
-                  const isTop = index < 3;
-                  return (
-                    <div
-                      key={prompt.id}
-                      className="flex items-center gap-2 p-2 rounded-lg transition-all hover:opacity-90"
-                      style={{
-                        backgroundColor: isTop ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "var(--secondary)",
-                        borderLeft: isTop ? `2px solid var(--primary)` : "2px solid transparent",
-                      }}
-                    >
-                      <div
-                        className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-                        style={{
-                          backgroundColor: isTop ? "var(--primary)" : "var(--muted)",
-                          color: isTop ? "var(--primary-foreground)" : "var(--muted-foreground)",
-                        }}
-                      >
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium truncate leading-tight" style={{ color: "var(--foreground)" }}>
-                          {prompt.title}
-                        </div>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <StarRating rating={Math.round(avgR)} readonly size="small" />
-                          <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
-                            {avgR.toFixed(1)} · {prompt.stats?.totalRatings || 0}r · {prompt.stats?.copies || 0}c
-                          </span>
-                        </div>
-                      </div>
-                      <div className="text-[10px] font-bold flex-shrink-0 text-right" style={{ color: "var(--primary)" }}>
-                        {score}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {analytics.topPrompts.length === 10 && (
-                  <div className="flex items-center gap-1.5 pt-1.5 mt-1 border-t" style={{ borderColor: "var(--border)" }}>
-                    <AlertCircle size={11} style={{ color: "var(--muted-foreground)" }} />
-                    <p className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
-                      Score = Avg × Ratings. Showing top 10.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+          {/* Right col */}
+          <div className="glass-card p-4 ta-col-right-span">
+            <SectionHeader icon={<Award size={14} />} title="Top Performing Prompts" badge="by score" />
+            <TopPromptsContent topPrompts={analytics.topPrompts} />
           </div>
         </div>
       </div>
