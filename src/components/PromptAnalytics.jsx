@@ -1,9 +1,4 @@
-// src/components/PromptAnalytics.jsx
-// FIX: usePromptRating.ratePrompt() now reads the token from BOTH
-// guestTeamAccess (memory+sessionStorage) and guestToken as a fallback,
-// and shows a friendly UI message instead of throwing when the token is
-// absent in pure read-only guest-team mode.
-
+// src/components/PromptAnalytics.jsx - RESPONSIVE
 import { useState, useEffect, useMemo } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -37,7 +32,6 @@ import {
 function resolveGuestToken() {
   const fromGuestToken = getGuestToken();
   if (fromGuestToken) return fromGuestToken;
-
   const access = hasGuestAccess();
   if (access?.token) {
     try { sessionStorage.setItem("guest_team_token", access.token); } catch (_) {}
@@ -65,9 +59,7 @@ export function usePromptRating(teamId, promptId) {
     if (!teamId || !promptId) {
       setRatings([]); setUserRating(null); setLoading(false); return;
     }
-    console.log('⭐ [RATING] Setting up listener for:', { teamId, promptId });
     debugGuestToken();
-
     try {
       const ratingsRef = collection(db, "teams", teamId, "prompts", promptId, "ratings");
       const unsub = onSnapshot(ratingsRef, (snap) => {
@@ -100,24 +92,13 @@ export function usePromptRating(teamId, promptId) {
 
   async function ratePrompt(rating) {
     if (!teamId || !promptId || rating < 1 || rating > 5) return;
-
     const isGuest     = !user;
     const guestToken  = isGuest ? resolveGuestToken() : null;
     const guestUserId = isGuest ? resolveGuestUserId() : null;
-    const tokenDebug  = debugGuestToken();
-
-    console.log('⭐ [RATING] ratePrompt called:', {
-      rating, isGuest, hasGuestToken: !!guestToken,
-      tokenSource: guestToken
-        ? (sessionStorage.getItem('guest_team_token') ? 'sessionStorage' : 'memory')
-        : 'none',
-    });
 
     if (isGuest && !guestToken) {
-      console.warn('⚠️ [RATING] Guest token not available.', 'tokenDebug:', tokenDebug);
       throw new Error("Your guest session could not be verified. Please refresh the page and try again.");
     }
-
     const userId = user?.uid || guestUserId;
     if (!userId) throw new Error("Could not determine user ID — please refresh and try again.");
 
@@ -125,9 +106,7 @@ export function usePromptRating(teamId, promptId) {
       const ratingRef  = doc(db, "teams", teamId, "prompts", promptId, "ratings", userId);
       const ratingData = { userId, rating, createdAt: serverTimestamp() };
       if (isGuest) { ratingData.isGuest = true; ratingData.guestToken = guestToken; }
-
       await setDoc(ratingRef, ratingData);
-
       const promptRef  = doc(db, "teams", teamId, "prompts", promptId);
       const promptSnap = await getDoc(promptRef);
       if (promptSnap.exists()) {
@@ -154,7 +133,6 @@ export function usePromptRating(teamId, promptId) {
     const guestUserId = resolveGuestUserId();
     const userId      = user?.uid || guestUserId;
     if (!userId) return;
-
     try {
       await deleteDoc(doc(db, "teams", teamId, "prompts", promptId, "ratings", userId));
       const promptRef  = doc(db, "teams", teamId, "prompts", promptId);
@@ -255,7 +233,7 @@ function LoadingCard() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GuestAnalyticsCard — slim column card
+// GuestAnalyticsCard
 // ─────────────────────────────────────────────────────────────────────────────
 
 function GuestAnalyticsCard({ teamId }) {
@@ -312,7 +290,7 @@ function GuestAnalyticsCard({ teamId }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AuthenticatedUserAnalyticsCard — slim column card
+// AuthenticatedUserAnalyticsCard
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AuthenticatedUserAnalyticsCard({ teamId }) {
@@ -369,7 +347,7 @@ function AuthenticatedUserAnalyticsCard({ teamId }) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TeamAnalytics — Full column-based redesign
+// TeamAnalytics — Full Responsive Layout
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function TeamAnalytics({ teamId }) {
@@ -448,234 +426,293 @@ export function TeamAnalytics({ teamId }) {
   const totalInteractions        = totalGuestInteractions + totalMemberInteractions;
 
   return (
-    <div className="space-y-3">
+    <>
+      <style>{`
+        /* ── Analytics responsive layout ── */
+        .pa-wrap { display:flex; flex-direction:column; gap:.75rem; }
 
-      {/* ── Header bar ── */}
-      <div className="glass-card px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded flex items-center justify-center" style={{ backgroundColor: "var(--primary)" }}>
-            <BarChart3 size={14} style={{ color: "var(--primary-foreground)" }} />
+        .pa-header {
+          background:var(--card); border:1px solid rgba(255,255,255,.05);
+          border-radius:10px; padding:.75rem 1rem;
+          display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem;
+        }
+
+        /* KPI strip */
+        .pa-kpi {
+          display:grid;
+          grid-template-columns:repeat(4,1fr);
+          gap:.5rem;
+        }
+        @media(max-width:500px){ .pa-kpi { grid-template-columns:repeat(2,1fr); } }
+
+        /* Main grid: 3 cols on desktop → stacked on mobile */
+        .pa-main {
+          display:grid;
+          grid-template-columns:1fr 1fr 1fr;
+          gap:.75rem;
+          align-items:start;
+        }
+        @media(max-width:900px){
+          .pa-main { grid-template-columns:1fr 1fr; }
+          .pa-col-right { grid-column:span 2; }
+        }
+        @media(max-width:580px){
+          .pa-main { grid-template-columns:1fr; }
+          .pa-col-right { grid-column:span 1; }
+        }
+
+        /* Col left: 2 activity cards + split */
+        .pa-col { display:flex; flex-direction:column; gap:.75rem; }
+
+        /* Interaction split row on tablet */
+        @media(min-width:581px) and (max-width:900px){
+          .pa-col-left, .pa-col-mid { display:contents; }
+          .pa-activity-row {
+            display:grid;
+            grid-template-columns:1fr 1fr 1fr;
+            gap:.75rem;
+            grid-column:span 2;
+          }
+        }
+        @media(max-width:580px){
+          .pa-activity-row { display:flex; flex-direction:column; gap:.75rem; }
+        }
+        @media(min-width:901px){
+          .pa-activity-row { display:contents; }
+        }
+
+        /* Top prompts list: scrollable on small screens */
+        .pa-top-list {
+          display:flex;
+          flex-direction:column;
+          gap:.375rem;
+          max-height:420px;
+          overflow-y:auto;
+          scrollbar-width:thin;
+          scrollbar-color:rgba(139,92,246,.2) transparent;
+          padding-right:.125rem;
+        }
+        .pa-top-list::-webkit-scrollbar { width:3px; }
+        .pa-top-list::-webkit-scrollbar-thumb { background:rgba(139,92,246,.3); border-radius:2px; }
+      `}</style>
+
+      <div className="pa-wrap">
+
+        {/* ── Header bar ── */}
+        <div className="pa-header">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded flex items-center justify-center" style={{ backgroundColor: "var(--primary)" }}>
+              <BarChart3 size={14} style={{ color: "var(--primary-foreground)" }} />
+            </div>
+            <div>
+              <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Team Analytics</span>
+              <span className="text-xs ml-2 hidden sm:inline" style={{ color: "var(--muted-foreground)" }}>Performance insights &amp; usage statistics</span>
+            </div>
           </div>
-          <div>
-            <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Team Analytics</span>
-            <span className="text-xs ml-2" style={{ color: "var(--muted-foreground)" }}>Performance insights &amp; usage statistics</span>
+          <div className="flex items-center gap-2">
+            <Activity size={13} style={{ color: "var(--muted-foreground)" }} />
+            <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Live</span>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Activity size={13} style={{ color: "var(--muted-foreground)" }} />
-          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Live</span>
-        </div>
-      </div>
 
-      {/* ── Top KPI strip ── */}
-      <div className="grid grid-cols-4 gap-2">
-        {[
-          { icon: <FileText size={14} />,     value: analytics.totalPrompts,  label: "Prompts" },
-          { icon: <Copy size={14} />,          value: analytics.totalCopies,   label: "Copies"  },
-          { icon: <MessageSquare size={14} />, value: analytics.totalComments, label: "Comments"},
-          {
-            icon: <Star size={14} />,
-            value: analytics.averageRating > 0 ? analytics.averageRating.toFixed(1) : "—",
-            label: "Avg Rating",
-          },
-        ].map(({ icon, value, label }, i) => (
-          <div key={label} className="glass-card p-3 text-center">
-            <div className="flex items-center justify-center gap-1 mb-1" style={{ color: "var(--primary)" }}>
-              {icon}
-            </div>
-            <div className="text-lg font-bold leading-none mb-0.5" style={{ color: "var(--foreground)" }}>{value}</div>
-            <div className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>{label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Main 3-column grid ── */}
-      <div className="grid grid-cols-3 gap-3" style={{ alignItems: "start" }}>
-
-        {/* ── LEFT column ── */}
-        <div className="space-y-3">
-
-          {/* Member Activity */}
-          <AuthenticatedUserAnalyticsCard teamId={teamId} />
-
-          {/* Guest Activity */}
-          <GuestAnalyticsCard teamId={teamId} />
-
-          {/* User type breakdown */}
-          <div className="glass-card p-4">
-            <SectionHeader icon={<Users size={14} />} title="Interaction Split" />
-            <div className="space-y-3">
-              {/* Members */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
-                    <UserCheck size={10} /> Members
-                  </span>
-                  <span className="text-[10px] font-bold" style={{ color: "var(--foreground)" }}>{totalMemberInteractions}</span>
-                </div>
-                <MiniBar pct={totalInteractions > 0 ? (totalMemberInteractions / totalInteractions) * 100 : 0} color="var(--primary)" />
-                <div className="flex gap-2 mt-1">
-                  <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>★ {userTypeStats.authenticatedRatings}</span>
-                  <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>💬 {userTypeStats.authenticatedComments}</span>
-                </div>
+        {/* ── Top KPI strip ── */}
+        <div className="pa-kpi">
+          {[
+            { icon: <FileText size={14} />,     value: analytics.totalPrompts,  label: "Prompts" },
+            { icon: <Copy size={14} />,          value: analytics.totalCopies,   label: "Copies"  },
+            { icon: <MessageSquare size={14} />, value: analytics.totalComments, label: "Comments"},
+            {
+              icon: <Star size={14} />,
+              value: analytics.averageRating > 0 ? analytics.averageRating.toFixed(1) : "—",
+              label: "Avg Rating",
+            },
+          ].map(({ icon, value, label }) => (
+            <div key={label} className="glass-card p-3 text-center">
+              <div className="flex items-center justify-center gap-1 mb-1" style={{ color: "var(--primary)" }}>
+                {icon}
               </div>
-              {/* Guests */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
-                    <Eye size={10} /> Guests
-                  </span>
-                  <span className="text-[10px] font-bold" style={{ color: "var(--foreground)" }}>{totalGuestInteractions}</span>
-                </div>
-                <MiniBar pct={totalInteractions > 0 ? (totalGuestInteractions / totalInteractions) * 100 : 0} color="var(--accent)" />
-                <div className="flex gap-2 mt-1">
-                  <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>★ {userTypeStats.guestRatings}</span>
-                  <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>💬 {userTypeStats.guestComments}</span>
-                </div>
-              </div>
+              <div className="text-lg font-bold leading-none mb-0.5" style={{ color: "var(--foreground)" }}>{value}</div>
+              <div className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>{label}</div>
             </div>
-          </div>
+          ))}
         </div>
 
-        {/* ── MIDDLE column ── */}
-        <div className="space-y-3">
+        {/* ── Main grid ── */}
+        <div className="pa-main">
 
-          {/* Team Health */}
-          <div className="glass-card p-4">
-            <SectionHeader icon={<Activity size={14} />} title="Team Health" />
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Collaboration</span>
-                  <span className="text-xs font-medium" style={{ color: "var(--foreground)" }}>
-                    {analytics.totalComments > 0 ? "Active" : analytics.totalPrompts > 0 ? "Growing" : "Starting"}
-                  </span>
-                </div>
-                <MiniBar pct={collabScore} color="var(--primary)" />
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Content Quality</span>
-                  <span className="text-xs font-medium" style={{ color: "var(--foreground)" }}>
-                    {analytics.averageRating >= 4 ? "Excellent" : analytics.averageRating >= 3 ? "Good" : analytics.averageRating > 0 ? "Improving" : "No ratings"}
-                  </span>
-                </div>
-                <MiniBar pct={qualityPct} color="var(--accent)" />
-              </div>
-            </div>
-          </div>
+          {/* ── LEFT: activity cards + split — desktop stacked, tablet row ── */}
+          <div className="pa-activity-row pa-col-left">
+            <AuthenticatedUserAnalyticsCard teamId={teamId} />
+            <GuestAnalyticsCard teamId={teamId} />
 
-          {/* Usage Insights */}
-          <div className="glass-card p-4">
-            <SectionHeader icon={<TrendingUp size={14} />} title="Usage Trends" />
-            <div className="space-y-2">
-              {[
-                {
-                  label: "Most Active Feature",
-                  value: analytics.totalCopies > analytics.totalComments ? "Copying" : "Commenting",
-                },
-                { label: "Engagement Rate",  value: `${engagementRate} / prompt` },
-                {
-                  label: "Quality Score",
-                  value: analytics.averageRating > 0
-                    ? `${((analytics.averageRating / 5) * 100).toFixed(0)}%`
-                    : "No ratings",
-                },
-                { label: "Total Interactions", value: totalInteractions },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex justify-between items-center py-1 border-b last:border-0" style={{ borderColor: "var(--border)" }}>
-                  <span className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>{label}</span>
-                  <span className="text-[11px] font-semibold" style={{ color: "var(--foreground)" }}>{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Rating Distribution (if any ratings) */}
-          {analytics.totalRatings > 0 && (
+            {/* Interaction split */}
             <div className="glass-card p-4">
-              <SectionHeader icon={<Star size={14} />} title="Rating Overview" />
-              <div className="flex items-center gap-3 mb-3">
-                <div className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>
-                  {analytics.averageRating.toFixed(1)}
+              <SectionHeader icon={<Users size={14} />} title="Interaction Split" />
+              <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+                      <UserCheck size={10} /> Members
+                    </span>
+                    <span className="text-[10px] font-bold" style={{ color: "var(--foreground)" }}>{totalMemberInteractions}</span>
+                  </div>
+                  <MiniBar pct={totalInteractions > 0 ? (totalMemberInteractions / totalInteractions) * 100 : 0} color="var(--primary)" />
+                  <div className="flex gap-2 mt-1">
+                    <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>★ {userTypeStats.authenticatedRatings}</span>
+                    <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>💬 {userTypeStats.authenticatedComments}</span>
+                  </div>
                 </div>
                 <div>
-                  <StarRating rating={Math.round(analytics.averageRating)} readonly size="small" />
-                  <div className="text-[10px] mt-0.5" style={{ color: "var(--muted-foreground)" }}>{analytics.totalRatings} ratings</div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+                      <Eye size={10} /> Guests
+                    </span>
+                    <span className="text-[10px] font-bold" style={{ color: "var(--foreground)" }}>{totalGuestInteractions}</span>
+                  </div>
+                  <MiniBar pct={totalInteractions > 0 ? (totalGuestInteractions / totalInteractions) * 100 : 0} color="var(--accent)" />
+                  <div className="flex gap-2 mt-1">
+                    <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>★ {userTypeStats.guestRatings}</span>
+                    <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>💬 {userTypeStats.guestComments}</span>
+                  </div>
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* ── RIGHT column: Top Prompts ── */}
-        <div className="glass-card p-4">
-          <SectionHeader icon={<Award size={14} />} title="Top 10 Prompts" badge="by score" />
-
-          {analytics.topPrompts.length === 0 ? (
-            <div className="text-center py-8">
-              <Award size={28} className="mx-auto mb-2 opacity-30" style={{ color: "var(--muted-foreground)" }} />
-              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>No rated prompts yet</p>
+          {/* ── MIDDLE: health + trends + ratings ── */}
+          <div className="pa-col pa-col-mid">
+            {/* Team Health */}
+            <div className="glass-card p-4">
+              <SectionHeader icon={<Activity size={14} />} title="Team Health" />
+              <div className="space-y-3">
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Collaboration</span>
+                    <span className="text-xs font-medium" style={{ color: "var(--foreground)" }}>
+                      {analytics.totalComments > 0 ? "Active" : analytics.totalPrompts > 0 ? "Growing" : "Starting"}
+                    </span>
+                  </div>
+                  <MiniBar pct={collabScore} color="var(--primary)" />
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Content Quality</span>
+                    <span className="text-xs font-medium" style={{ color: "var(--foreground)" }}>
+                      {analytics.averageRating >= 4 ? "Excellent" : analytics.averageRating >= 3 ? "Good" : analytics.averageRating > 0 ? "Improving" : "No ratings"}
+                    </span>
+                  </div>
+                  <MiniBar pct={qualityPct} color="var(--accent)" />
+                </div>
+              </div>
             </div>
-          ) : (
-            <div className="space-y-1.5">
-              {analytics.topPrompts.map((prompt, index) => {
-                const score = ((prompt.stats?.averageRating || 0) * (prompt.stats?.totalRatings || 0)).toFixed(1);
-                const avgR  = (prompt.stats?.averageRating || 0);
-                const isTop = index < 3;
-                return (
-                  <div
-                    key={prompt.id}
-                    className="flex items-center gap-2 p-2 rounded-lg transition-all hover:opacity-90"
-                    style={{
-                      backgroundColor: isTop ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "var(--secondary)",
-                      borderLeft: isTop ? `2px solid var(--primary)` : "2px solid transparent",
-                    }}
-                  >
-                    {/* Rank badge */}
+
+            {/* Usage Insights */}
+            <div className="glass-card p-4">
+              <SectionHeader icon={<TrendingUp size={14} />} title="Usage Trends" />
+              <div className="space-y-2">
+                {[
+                  {
+                    label: "Most Active Feature",
+                    value: analytics.totalCopies > analytics.totalComments ? "Copying" : "Commenting",
+                  },
+                  { label: "Engagement Rate",  value: `${engagementRate} / prompt` },
+                  {
+                    label: "Quality Score",
+                    value: analytics.averageRating > 0
+                      ? `${((analytics.averageRating / 5) * 100).toFixed(0)}%`
+                      : "No ratings",
+                  },
+                  { label: "Total Interactions", value: totalInteractions },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex justify-between items-center py-1 border-b last:border-0" style={{ borderColor: "var(--border)" }}>
+                    <span className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>{label}</span>
+                    <span className="text-[11px] font-semibold" style={{ color: "var(--foreground)" }}>{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Rating Overview */}
+            {analytics.totalRatings > 0 && (
+              <div className="glass-card p-4">
+                <SectionHeader icon={<Star size={14} />} title="Rating Overview" />
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="text-3xl font-bold" style={{ color: "var(--foreground)" }}>
+                    {analytics.averageRating.toFixed(1)}
+                  </div>
+                  <div>
+                    <StarRating rating={Math.round(analytics.averageRating)} readonly size="small" />
+                    <div className="text-[10px] mt-0.5" style={{ color: "var(--muted-foreground)" }}>{analytics.totalRatings} ratings</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── RIGHT: Top Prompts (scrollable list) ── */}
+          <div className="glass-card p-4 pa-col-right">
+            <SectionHeader icon={<Award size={14} />} title="Top 10 Prompts" badge="by score" />
+
+            {analytics.topPrompts.length === 0 ? (
+              <div className="text-center py-8">
+                <Award size={28} className="mx-auto mb-2 opacity-30" style={{ color: "var(--muted-foreground)" }} />
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>No rated prompts yet</p>
+              </div>
+            ) : (
+              <div className="pa-top-list">
+                {analytics.topPrompts.map((prompt, index) => {
+                  const score = ((prompt.stats?.averageRating || 0) * (prompt.stats?.totalRatings || 0)).toFixed(1);
+                  const avgR  = (prompt.stats?.averageRating || 0);
+                  const isTop = index < 3;
+                  return (
                     <div
-                      className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                      key={prompt.id}
+                      className="flex items-center gap-2 p-2 rounded-lg transition-all hover:opacity-90"
                       style={{
-                        backgroundColor: isTop ? "var(--primary)" : "var(--muted)",
-                        color: isTop ? "var(--primary-foreground)" : "var(--muted-foreground)",
+                        backgroundColor: isTop ? "color-mix(in srgb, var(--primary) 10%, transparent)" : "var(--secondary)",
+                        borderLeft: isTop ? `2px solid var(--primary)` : "2px solid transparent",
                       }}
                     >
-                      {index + 1}
-                    </div>
-
-                    {/* Title + meta */}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium truncate leading-tight" style={{ color: "var(--foreground)" }}>
-                        {prompt.title}
+                      <div
+                        className="w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                        style={{
+                          backgroundColor: isTop ? "var(--primary)" : "var(--muted)",
+                          color: isTop ? "var(--primary-foreground)" : "var(--muted-foreground)",
+                        }}
+                      >
+                        {index + 1}
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <StarRating rating={Math.round(avgR)} readonly size="small" />
-                        <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
-                          {avgR.toFixed(1)} · {prompt.stats?.totalRatings || 0}r · {prompt.stats?.copies || 0}c
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium truncate leading-tight" style={{ color: "var(--foreground)" }}>
+                          {prompt.title}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <StarRating rating={Math.round(avgR)} readonly size="small" />
+                          <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+                            {avgR.toFixed(1)} · {prompt.stats?.totalRatings || 0}r · {prompt.stats?.copies || 0}c
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-[10px] font-bold flex-shrink-0 text-right" style={{ color: "var(--primary)" }}>
+                        {score}
                       </div>
                     </div>
+                  );
+                })}
 
-                    {/* Score */}
-                    <div className="text-[10px] font-bold flex-shrink-0 text-right" style={{ color: "var(--primary)" }}>
-                      {score}
-                    </div>
+                {analytics.topPrompts.length === 10 && (
+                  <div className="flex items-center gap-1.5 pt-1.5 mt-1 border-t" style={{ borderColor: "var(--border)" }}>
+                    <AlertCircle size={11} style={{ color: "var(--muted-foreground)" }} />
+                    <p className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+                      Score = Avg × Ratings. Showing top 10.
+                    </p>
                   </div>
-                );
-              })}
-
-              {analytics.topPrompts.length === 10 && (
-                <div className="flex items-center gap-1.5 pt-1.5 mt-1 border-t" style={{ borderColor: "var(--border)" }}>
-                  <AlertCircle size={11} style={{ color: "var(--muted-foreground)" }} />
-                  <p className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
-                    Score = Avg × Ratings. Showing top 10.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
