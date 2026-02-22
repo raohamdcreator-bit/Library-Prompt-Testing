@@ -1,4 +1,5 @@
-// src/components/PromptList.jsx - Member restriction: members cannot enhance/attach/edit admin/owner prompts
+// src/components/PromptList.jsx - RESPONSIVE VERSION
+// Member restriction: members cannot enhance/attach/edit admin/owner prompts
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { db } from "../lib/firebase";
@@ -167,7 +168,6 @@ function CompactRating({ teamId, promptId, isGuestMode }) {
 function RatingStatsBar({ ratings = {}, totalRatings = 0, averageRating = 0, isExpanded, onToggle }) {
   const ratingCounts = { 5: ratings[5] || 0, 4: ratings[4] || 0, 3: ratings[3] || 0, 2: ratings[2] || 0, 1: ratings[1] || 0 };
   const maxCount = Math.max(...Object.values(ratingCounts), 1);
-
   if (totalRatings === 0) return null;
 
   return (
@@ -184,7 +184,6 @@ function RatingStatsBar({ ratings = {}, totalRatings = 0, averageRating = 0, isE
           <ChevronDown className={`w-3 h-3 ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} style={{ color: "var(--muted-foreground)" }} />
         </div>
       </button>
-
       {isExpanded && (
         <div className="space-y-1 mt-2" style={{ animation: 'fadeIn 0.2s ease-out' }}>
           {[5, 4, 3, 2, 1].map((stars) => {
@@ -214,11 +213,8 @@ function RatingStatsBar({ ratings = {}, totalRatings = 0, averageRating = 0, isE
 function ExpandedCommentsSection({ promptId, teamId, commentCount, onClose, userRole }) {
   return (
     <div style={{
-      marginTop: '0.75rem',
-      padding: '0.875rem',
-      backgroundColor: 'var(--muted)',
-      borderRadius: '0.625rem',
-      border: '1px solid var(--border)',
+      marginTop: '0.75rem', padding: '0.875rem',
+      backgroundColor: 'var(--muted)', borderRadius: '0.625rem', border: '1px solid var(--border)',
     }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
@@ -258,10 +254,7 @@ function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
 
   return (
     <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.5rem', marginTop: '0.5rem' }}>
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between text-xs py-1 hover:opacity-80 transition-opacity"
-      >
+      <button onClick={onToggle} className="w-full flex items-center justify-between text-xs py-1 hover:opacity-80 transition-opacity">
         <div className="flex items-center gap-1.5">
           <Cpu className="w-3 h-3" style={{ color: "var(--primary)" }} />
           <span style={{ color: "var(--muted-foreground)" }}>AI Model Analysis</span>
@@ -272,12 +265,8 @@ function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
             {compatPct}%
           </span>
         </div>
-        <ChevronDown
-          className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-          style={{ color: "var(--muted-foreground)" }}
-        />
+        <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} style={{ color: "var(--muted-foreground)" }} />
       </button>
-
       {isExpanded && (
         <div className="mt-2 space-y-2" style={{ animation: 'fadeIn 0.2s ease-out' }}>
           <div className="grid grid-cols-4 gap-1.5 text-xs">
@@ -296,14 +285,10 @@ function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
               <span className="font-bold text-xs truncate block" style={{ color: "var(--foreground)" }}>{BestModelConfig?.name || stats.bestModel}</span>
             </div>
           </div>
-
           {onEnhance && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onEnhance(); }}
-              className="w-full btn-secondary text-xs py-1.5 flex items-center justify-center gap-1.5 hover:bg-primary/10 hover:text-primary transition-all"
-            >
-              <Sparkles className="w-3 h-3" />
-              Detailed Analysis & Enhancement
+            <button onClick={(e) => { e.stopPropagation(); onEnhance(); }}
+              className="w-full btn-secondary text-xs py-1.5 flex items-center justify-center gap-1.5 hover:bg-primary/10 hover:text-primary transition-all">
+              <Sparkles className="w-3 h-3" />Detailed Analysis & Enhancement
             </button>
           )}
         </div>
@@ -312,33 +297,23 @@ function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
   );
 }
 
-// ─── Output Sidebar (right panel on card) ─────────────────────────────────────
-// canModify = false means the current user (a member) cannot attach to this admin/owner prompt
+// ─── Output Sidebar ─────────────────────────────────────────────────────────
 function OutputSidebar({ outputs, onViewAll, onAttach, isGuestMode, canModify = true }) {
   if (isGuestMode) {
     return (
-      <div
-        className="output-sidebar-locked"
-        onClick={() => alert("Sign up to attach outputs!")}
-        style={{
-          cursor: 'pointer', padding: '0.75rem', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: '0.375rem', height: '100%', opacity: 0.6,
-        }}
-      >
+      <div onClick={() => alert("Sign up to attach outputs!")}
+        style={{ cursor: 'pointer', padding: '0.75rem', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: '0.375rem', height: '100%', opacity: 0.6 }}>
         <Lock className="w-4 h-4" style={{ color: "var(--muted-foreground)" }} />
         <span style={{ fontSize: '0.65rem', textAlign: 'center', color: "var(--muted-foreground)" }}>Sign up for outputs</span>
       </div>
     );
   }
 
-  // Member viewing an admin/owner prompt with no outputs yet — can't attach
   if (!canModify && (!outputs || outputs.length === 0)) {
     return (
-      <div style={{
-        padding: '0.75rem', display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', gap: '0.375rem',
-        height: '100%', opacity: 0.45,
-      }}>
+      <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: '0.375rem', height: '100%', opacity: 0.45 }}>
         <Lock className="w-4 h-4" style={{ color: "var(--muted-foreground)" }} />
         <span style={{ fontSize: '0.6rem', textAlign: 'center', color: "var(--muted-foreground)", lineHeight: 1.4 }}>
           Only admins can attach outputs
@@ -347,57 +322,39 @@ function OutputSidebar({ outputs, onViewAll, onAttach, isGuestMode, canModify = 
     );
   }
 
-  // No outputs yet — show attach prompt only when allowed
   if (!outputs || outputs.length === 0) {
     return (
-      <button
-        onClick={onAttach}
-        className="output-sidebar-empty"
-        style={{
-          width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+      <button onClick={onAttach}
+        style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: '0.375rem',
           padding: '0.75rem', cursor: 'pointer', border: 'none', background: 'transparent',
-          color: 'var(--muted-foreground)', transition: 'background 0.15s',
-        }}
+          color: 'var(--muted-foreground)', transition: 'background 0.15s' }}
         title="Attach first output"
         onMouseEnter={e => e.currentTarget.style.background = 'var(--muted)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-      >
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
         <Activity className="w-5 h-5 opacity-30" />
         <span style={{ fontSize: '0.65rem', textAlign: 'center', opacity: 0.6 }}>No outputs yet</span>
-        <span style={{
-          fontSize: '0.6rem', padding: '0.1rem 0.5rem', borderRadius: '999px',
-          border: '1px dashed var(--border)', marginTop: '0.25rem', opacity: 0.7,
-        }}>+ Attach</span>
+        <span style={{ fontSize: '0.6rem', padding: '0.1rem 0.5rem', borderRadius: '999px',
+          border: '1px dashed var(--border)', marginTop: '0.25rem', opacity: 0.7 }}>+ Attach</span>
       </button>
     );
   }
 
   const latest = outputs[0];
-
   return (
-    <button
-      onClick={onViewAll}
-      className="output-sidebar-filled"
-      style={{
-        width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+    <button onClick={onViewAll}
+      style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
         padding: '0', cursor: 'pointer', border: 'none', background: 'transparent',
-        textAlign: 'left', transition: 'background 0.15s',
-      }}
+        textAlign: 'left', transition: 'background 0.15s' }}
       title="View all outputs"
       onMouseEnter={e => e.currentTarget.style.background = 'var(--muted)'}
-      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-    >
-      {/* Thumbnail or type header */}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
       {latest.type === 'image' && latest.imageUrl ? (
         <div style={{ width: '100%', height: '80px', overflow: 'hidden', flexShrink: 0 }}>
           <img src={latest.imageUrl} alt={latest.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         </div>
       ) : (
-        <div style={{
-          padding: '0.5rem 0.625rem 0.25rem', display: 'flex', alignItems: 'center', gap: '0.375rem',
-          borderBottom: '1px solid var(--border)',
-        }}>
+        <div style={{ padding: '0.5rem 0.625rem 0.25rem', display: 'flex', alignItems: 'center', gap: '0.375rem', borderBottom: '1px solid var(--border)' }}>
           {latest.type === 'code'
             ? <Code className="w-3 h-3 text-purple-400 flex-shrink-0" />
             : <FileText className="w-3 h-3 text-blue-400 flex-shrink-0" />}
@@ -406,30 +363,20 @@ function OutputSidebar({ outputs, onViewAll, onAttach, isGuestMode, canModify = 
           </span>
         </div>
       )}
-
-      {/* Content */}
       <div style={{ padding: '0.5rem 0.625rem', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        <p style={{
-          fontSize: '0.7rem', fontWeight: 600, color: 'var(--foreground)',
-          marginBottom: '0.25rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-        }}>
+        <p style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--foreground)',
+          marginBottom: '0.25rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
           {latest.title || 'Untitled'}
         </p>
         {latest.type !== 'image' && latest.content && (
-          <p style={{
-            fontSize: '0.65rem', color: 'var(--muted-foreground)', lineHeight: 1.45,
-            display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          }}>
+          <p style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', lineHeight: 1.45,
+            display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
             {latest.content}
           </p>
         )}
       </div>
-
-      {/* Footer */}
-      <div style={{
-        borderTop: '1px solid var(--border)', padding: '0.3rem 0.625rem',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
-      }}>
+      <div style={{ borderTop: '1px solid var(--border)', padding: '0.3rem 0.625rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <span style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)' }}>
           {outputs.length} output{outputs.length !== 1 ? 's' : ''}
         </span>
@@ -440,24 +387,18 @@ function OutputSidebar({ outputs, onViewAll, onAttach, isGuestMode, canModify = 
 }
 
 // ─── Restriction Banner ───────────────────────────────────────────────────────
-// Shown at the bottom of a card when a member cannot modify it
 function RestrictionBanner({ creatorRole }) {
   const label = creatorRole === "owner" ? "owner" : "admin";
   return (
     <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '0.5rem',
+      display: 'flex', alignItems: 'center', gap: '0.5rem',
       padding: '0.375rem 0.875rem',
       borderTop: '1px solid rgba(245,158,11,0.15)',
       background: 'rgba(245,158,11,0.04)',
-      fontSize: '0.68rem',
-      color: 'rgba(245,158,11,0.8)',
+      fontSize: '0.68rem', color: 'rgba(245,158,11,0.8)',
     }}>
       <ShieldAlert className="w-3 h-3 flex-shrink-0" />
-      <span>
-        This prompt was created by an {label}. Members can view and copy, but cannot edit, enhance, or attach outputs.
-      </span>
+      <span>This prompt was created by an {label}. Members can view and copy, but cannot edit, enhance, or attach outputs.</span>
     </div>
   );
 }
@@ -471,13 +412,13 @@ function PromptCard({
   onMarkViewed, showCommentSection, onToggleComments,
   isSelected, onSelect, openMenuId, onMenuToggle, onTrackView,
   onToggleFavourite, favouritePromptIds = new Set(),
-  // ── New restriction props ──
-  canModify = true,       // false when a member views an admin/owner prompt
-  creatorRole = "member", // "owner" | "admin" | "member"
+  canModify = true,
+  creatorRole = "member",
 }) {
   const [isTextExpanded, setIsTextExpanded] = useState(false);
   const [showAIAnalysis, setShowAIAnalysis] = useState(false);
   const [showRatingStats, setShowRatingStats] = useState(false);
+  const [showOutputsInline, setShowOutputsInline] = useState(false);
   const menuRef = useRef(null);
   const isPrivate = prompt.visibility === "private";
   const isViewed = viewedPrompts.has(prompt.id);
@@ -485,8 +426,6 @@ function PromptCard({
   const badge = getPromptBadge(prompt, isGuestMode);
   const showMenu = openMenuId === prompt.id;
   const isFavourited = favouritePromptIds.has(prompt.id);
-
-  // Whether to show the restriction banner (only for authenticated members, not guests)
   const showRestrictionBanner = !isGuestMode && !isDemo && !canModify && (creatorRole === "owner" || creatorRole === "admin");
 
   const { ratings, averageRating, totalRatings } = usePromptRating(activeTeam, prompt.id);
@@ -514,20 +453,18 @@ function PromptCard({
       {/* ── Top Meta Bar ── */}
       <div className="prompt-card-meta-bar" style={{
         display: 'flex', alignItems: 'center', gap: '0.5rem',
-        padding: '0.625rem 0.875rem', borderBottom: '1px solid var(--border)', flexWrap: 'wrap',
+        padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border)', flexWrap: 'wrap',
       }}>
         {onSelect && !isDemo && (
           <PromptSelector promptId={prompt.id} isSelected={isSelected} onSelectionChange={onSelect} />
         )}
 
-        {/* Author */}
         {!isDemo && author && (
           <div className="flex items-center gap-1.5 min-w-0 flex-1">
             <UserAvatar src={author?.avatar} name={author?.name} email={author?.email} size="sm" />
-            <span className="text-xs font-medium truncate" style={{ color: "var(--foreground)" }}>
+            <span className="text-xs font-medium truncate" style={{ color: "var(--foreground)", maxWidth: "100px" }}>
               {isGuestMode ? "You" : (author?.name || author?.email || "Unknown")}
             </span>
-            {/* Creator role badge — visible to team members */}
             {!isGuestMode && (creatorRole === "owner" || creatorRole === "admin") && (
               <span style={{
                 fontSize: '0.58rem', fontWeight: 700, padding: '0.08rem 0.38rem',
@@ -535,16 +472,13 @@ function PromptCard({
                 background: creatorRole === "owner" ? 'rgba(139,92,246,0.12)' : 'rgba(59,130,246,0.12)',
                 color: creatorRole === "owner" ? '#a78bfa' : '#60a5fa',
                 border: `1px solid ${creatorRole === "owner" ? 'rgba(139,92,246,0.2)' : 'rgba(59,130,246,0.2)'}`,
-              }}>
-                {creatorRole}
-              </span>
+              }}>{creatorRole}</span>
             )}
           </div>
         )}
         {isDemo && <div className="flex-1" />}
 
-        {/* Right-side chips */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+        <div className="flex items-center gap-1 flex-shrink-0 flex-wrap">
           <span className="flex items-center gap-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
             <Clock className="w-3 h-3" />
             {getRelativeTime(prompt.createdAt)}
@@ -568,7 +502,6 @@ function PromptCard({
             />
           )}
 
-          {/* Favourite star quick-action */}
           {!isGuestMode && !isDemo && onToggleFavourite && (
             <button
               onClick={() => onToggleFavourite(prompt.id, prompt.teamId || activeTeam)}
@@ -581,20 +514,18 @@ function PromptCard({
         </div>
       </div>
 
-      {/* ── Two-column body: main content + output sidebar ── */}
-      <div className="prompt-card-body" style={{
-        display: 'grid',
-        gridTemplateColumns: outputs.length > 0 || !isDemo ? '1fr auto' : '1fr',
-        gap: 0,
-      }}>
+      {/* ── Body: responsive layout ── */}
+      {/*
+        Desktop: side-by-side (prompt text | output sidebar)
+        Mobile: stacked (prompt text on top, output sidebar below as toggle)
+      */}
+      <div className="prompt-card-body-responsive">
         {/* Left: text + tags + metadata */}
-        <div style={{ padding: '0.75rem 0.875rem', minWidth: 0 }}>
-          {/* Title */}
-          <h3 className="prompt-title-text" style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.35rem', lineHeight: 1.3 }}>
+        <div style={{ padding: '0.625rem 0.75rem', minWidth: 0 }}>
+          <h3 className="prompt-title-text" style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.3rem', lineHeight: 1.3 }}>
             {prompt.title}
           </h3>
 
-          {/* Prompt text */}
           <div className="prompt-preview-section" style={{ marginBottom: '0.5rem' }}>
             <p className="prompt-text-content text-sm" style={{
               color: "var(--muted-foreground)", lineHeight: 1.55,
@@ -620,22 +551,20 @@ function PromptCard({
             )}
           </div>
 
-          {/* Tags */}
           {prompt.tags && prompt.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-0.5">
-              {prompt.tags.slice(0, 5).map((tag, idx) => (
+              {prompt.tags.slice(0, 4).map((tag, idx) => (
                 <span key={idx} className="prompt-tag" style={{ fontSize: '0.65rem', padding: '0.1rem 0.45rem' }}>
                   #{tag}
                 </span>
               ))}
-              {prompt.tags.length > 5 && (
-                <span className="prompt-tag-more" style={{ fontSize: '0.65rem' }}>+{prompt.tags.length - 5}</span>
+              {prompt.tags.length > 4 && (
+                <span className="prompt-tag-more" style={{ fontSize: '0.65rem' }}>+{prompt.tags.length - 4}</span>
               )}
             </div>
           )}
 
-          {/* Stats row: rating · comments · views */}
-          <div className="flex items-center gap-3 flex-wrap" style={{ marginTop: '0.5rem' }}>
+          <div className="flex items-center gap-2 flex-wrap" style={{ marginTop: '0.4rem' }}>
             {!isDemo && activeTeam && (
               <CompactRating teamId={activeTeam} promptId={prompt.id} isGuestMode={isGuestMode} />
             )}
@@ -643,41 +572,31 @@ function PromptCard({
               <>
                 {activeTeam && <span className="text-muted-foreground opacity-40 text-xs">·</span>}
                 {isGuestMode && !activeTeam ? (
-                  <button
-                    onClick={() => alert("Sign up to view and add comments!")}
+                  <button onClick={() => alert("Sign up to view and add comments!")}
                     className="flex items-center gap-1 text-xs opacity-50 cursor-not-allowed"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    <Lock className="w-2.5 h-2.5" />
-                    <MessageSquare className="w-3 h-3" />
-                    <span>{commentCount}</span>
+                    style={{ color: "var(--muted-foreground)" }}>
+                    <Lock className="w-2.5 h-2.5" /><MessageSquare className="w-3 h-3" /><span>{commentCount}</span>
                   </button>
                 ) : (
-                  <button
-                    onClick={() => onToggleComments(prompt.id)}
+                  <button onClick={() => onToggleComments(prompt.id)}
                     className="flex items-center gap-1 text-xs hover:text-primary transition-colors"
-                    style={{ color: "var(--muted-foreground)" }}
-                  >
-                    <MessageSquare className="w-3 h-3" />
-                    <span>{commentCount}</span>
+                    style={{ color: "var(--muted-foreground)" }}>
+                    <MessageSquare className="w-3 h-3" /><span>{commentCount}</span>
                   </button>
                 )}
                 <span className="text-muted-foreground opacity-40 text-xs">·</span>
                 <div className="flex items-center gap-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
-                  <Eye className="w-3 h-3" />
-                  <span>{prompt.stats?.views || 0}</span>
+                  <Eye className="w-3 h-3" /><span>{prompt.stats?.views || 0}</span>
                 </div>
               </>
             )}
           </div>
 
-          {/* Collapsible AI analysis */}
           {!isDemo && (
             <AIAnalysisSection
               text={prompt.text}
               isExpanded={showAIAnalysis}
               onToggle={() => setShowAIAnalysis(!showAIAnalysis)}
-              // Only pass onEnhance if allowed; passing null hides the inline enhance button
               onEnhance={
                 isGuestMode && activeTeam ? null
                 : !canModify ? null
@@ -686,7 +605,6 @@ function PromptCard({
             />
           )}
 
-          {/* Collapsible rating distribution */}
           {!isDemo && activeTeam && (
             <RatingStatsBar
               ratings={ratingDistribution}
@@ -698,13 +616,9 @@ function PromptCard({
           )}
         </div>
 
-        {/* Right: output preview sidebar */}
+        {/* Right: output sidebar — hidden on mobile, shown as button instead */}
         {!isDemo && (
-          <div className="prompt-output-sidebar" style={{
-            width: '180px', flexShrink: 0,
-            borderLeft: '1px solid var(--border)',
-            display: 'flex', flexDirection: 'column',
-          }}>
+          <div className="prompt-output-sidebar-desktop">
             <OutputSidebar
               outputs={outputs}
               onViewAll={() => onViewOutputs && onViewOutputs(prompt)}
@@ -716,12 +630,29 @@ function PromptCard({
         )}
       </div>
 
-      {/* ── Inline comments ── */}
+      {/* Mobile output toggle button */}
+      {!isDemo && !isGuestMode && outputs.length > 0 && (
+        <div className="prompt-output-mobile-bar">
+          <button
+            onClick={() => onViewOutputs && onViewOutputs(prompt)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '.375rem',
+              padding: '.35rem .75rem', fontSize: '.68rem', fontWeight: 600,
+              color: 'var(--primary)', background: 'rgba(139,92,246,.07)',
+              border: 'none', borderRadius: '6px', cursor: 'pointer',
+            }}
+          >
+            <Activity className="w-3 h-3" />
+            {outputs.length} output{outputs.length !== 1 ? 's' : ''}
+          </button>
+        </div>
+      )}
+
+      {/* Inline comments */}
       {showCommentSection && !isDemo && activeTeam && (
-        <div style={{ padding: '0 0.875rem 0.75rem' }}>
+        <div style={{ padding: '0 0.75rem 0.625rem' }}>
           <ExpandedCommentsSection
-            promptId={prompt.id}
-            teamId={activeTeam}
+            promptId={prompt.id} teamId={activeTeam}
             commentCount={commentCount}
             onClose={() => onToggleComments(prompt.id)}
             userRole={userRole}
@@ -729,13 +660,12 @@ function PromptCard({
         </div>
       )}
 
-      {/* ── Restriction banner — shown when member views admin/owner prompt ── */}
       {showRestrictionBanner && <RestrictionBanner creatorRole={creatorRole} />}
 
       {/* ── Action bar ── */}
       <div className="prompt-actions" style={{
-        borderTop: '1px solid var(--border)', padding: '0.5rem 0.875rem',
-        display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap',
+        borderTop: '1px solid var(--border)', padding: '0.4rem 0.75rem',
+        display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap',
       }}>
         {isDemo ? (
           <>
@@ -748,47 +678,28 @@ function PromptCard({
           <>
             <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} isGuestMode={isGuestMode} />
 
-            {/* ── Enhance button ── */}
             {isGuestMode && activeTeam ? (
-              // Guest viewing a team prompt
-              <button
-                onClick={() => alert("Sign up to enhance prompts and unlock all features!")}
-                className="btn-action-secondary opacity-60 cursor-not-allowed"
-                title="Sign up to enhance"
-              >
-                <Lock className="w-3 h-3" />
-                <Sparkles className="w-3.5 h-3.5" />
+              <button onClick={() => alert("Sign up to enhance prompts!")}
+                className="btn-action-secondary opacity-60 cursor-not-allowed" title="Sign up to enhance">
+                <Lock className="w-3 h-3" /><Sparkles className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Enhance</span>
               </button>
             ) : !canModify ? (
-              // Authenticated member — blocked from admin/owner prompt
-              <button
-                className="btn-action-secondary cursor-not-allowed"
-                style={{ opacity: 0.4 }}
-                title={`Only admins and owners can enhance ${creatorRole} prompts`}
-                disabled
-              >
-                <Lock className="w-3 h-3" />
-                <Sparkles className="w-3.5 h-3.5" />
+              <button className="btn-action-secondary cursor-not-allowed" style={{ opacity: 0.4 }} disabled>
+                <Lock className="w-3 h-3" /><Sparkles className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Restricted</span>
               </button>
             ) : (
-              // Full access
               <button onClick={() => onEnhance(prompt)} className="btn-action-secondary" title="AI Enhance">
                 <Sparkles className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Enhance</span>
               </button>
             )}
 
-            {/* ── Comment button ── */}
             {isGuestMode && !activeTeam ? (
-              <button
-                onClick={() => alert("Sign up to add comments and collaborate!")}
-                className="btn-action-secondary opacity-60 cursor-not-allowed"
-                title="Sign up to comment"
-              >
-                <Lock className="w-3 h-3" />
-                <MessageSquare className="w-3.5 h-3.5" />
+              <button onClick={() => alert("Sign up to add comments!")}
+                className="btn-action-secondary opacity-60 cursor-not-allowed">
+                <Lock className="w-3 h-3" /><MessageSquare className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Comment</span>
               </button>
             ) : (
@@ -798,7 +709,7 @@ function PromptCard({
               </button>
             )}
 
-            {/* ── Kebab menu — opens UPWARD ── */}
+            {/* Kebab menu — opens UPWARD */}
             <div className="relative ml-auto" ref={menuRef}>
               <button
                 onClick={() => onMenuToggle(showMenu ? null : prompt.id)}
@@ -807,7 +718,6 @@ function PromptCard({
                 title="More actions"
               >
                 <MoreVertical className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">More</span>
               </button>
 
               {showMenu && (
@@ -815,13 +725,9 @@ function PromptCard({
                   position: 'absolute', bottom: 'calc(100% + 6px)', right: 0,
                   top: 'auto', zIndex: 50, minWidth: '11rem',
                 }}>
-                  {/* Favourite */}
                   {!isGuestMode && onToggleFavourite && (
                     <>
-                      <button
-                        onClick={() => { onToggleFavourite(prompt.id, prompt.teamId || activeTeam); onMenuToggle(null); }}
-                        className="menu-item"
-                      >
+                      <button onClick={() => { onToggleFavourite(prompt.id, prompt.teamId || activeTeam); onMenuToggle(null); }} className="menu-item">
                         <Star className={`w-4 h-4 ${isFavourited ? 'fill-yellow-400 text-yellow-400' : ''}`} />
                         <span>{isFavourited ? 'Remove Favourite' : 'Mark Favourite'}</span>
                       </button>
@@ -829,43 +735,31 @@ function PromptCard({
                     </>
                   )}
 
-                  {/* View outputs (always visible if any exist) */}
                   {outputs.length > 0 && (
                     <>
                       <button onClick={() => { onViewOutputs(prompt); onMenuToggle(null); }} className="menu-item">
-                        <FileText className="w-4 h-4" />
-                        <span>View All Outputs ({outputs.length})</span>
+                        <FileText className="w-4 h-4" /><span>View All Outputs ({outputs.length})</span>
                       </button>
                       <div className="menu-divider" />
                     </>
                   )}
 
-                  {/* ── Attach Output ── */}
                   {!canModify ? (
-                    // Member blocked from admin/owner prompt
                     <button className="menu-item" style={{ opacity: 0.4, cursor: 'not-allowed' }} disabled>
-                      <Lock className="w-3.5 h-3.5" />
-                      <span>Attach Output — Restricted</span>
+                      <Lock className="w-3.5 h-3.5" /><span>Attach Output — Restricted</span>
                     </button>
                   ) : isGuestMode ? (
-                    <button
-                      onClick={() => { alert("Sign up to attach outputs!"); onMenuToggle(null); }}
-                      className="menu-item opacity-60 cursor-not-allowed"
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      <Plus className="w-4 h-4" />
-                      <span>Attach Output</span>
+                    <button onClick={() => { alert("Sign up to attach outputs!"); onMenuToggle(null); }} className="menu-item opacity-60 cursor-not-allowed">
+                      <Lock className="w-3.5 h-3.5" /><Plus className="w-4 h-4" /><span>Attach Output</span>
                     </button>
                   ) : (
                     <button onClick={() => { onAttachOutput(prompt); onMenuToggle(null); }} className="menu-item">
-                      <Plus className="w-4 h-4" />
-                      <span>Attach Output</span>
+                      <Plus className="w-4 h-4" /><span>Attach Output</span>
                     </button>
                   )}
 
                   <div className="menu-divider" />
 
-                  {/* Toggle visibility — only for those who can modify */}
                   {!isGuestMode && canModify && (
                     <button onClick={() => { onToggleVisibility(prompt.id); onMenuToggle(null); }} className="menu-item">
                       {isPrivate ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
@@ -873,7 +767,6 @@ function PromptCard({
                     </button>
                   )}
 
-                  {/* Edit / Delete — only for those who can edit (owner of prompt, or admin/owner role) */}
                   {canEdit && (
                     <>
                       <div className="menu-divider" />
@@ -901,27 +794,27 @@ function FilterCard({ filters, onFilterChange, onClearFilters, hasActiveFilters,
   const activeFilterCount = Object.entries(filters).filter(([k, v]) => k !== "sortBy" && v !== "" && v !== "all").length;
 
   return (
-    <div className="glass-card p-6 mb-6" id="filter-card">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
+    <div className="glass-card p-4 mb-4" id="filter-card">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
           <SlidersHorizontal className="w-4 h-4" style={{ color: "var(--primary)" }} />
           <div>
-            <h3 className="text-base font-bold" style={{ color: "var(--foreground)" }}>Advanced Filters</h3>
+            <h3 className="text-sm font-bold" style={{ color: "var(--foreground)" }}>Advanced Filters</h3>
             {activeFilterCount > 0 && (
               <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
-                {activeFilterCount} active {activeFilterCount === 1 ? 'filter' : 'filters'} · {filteredCount} results
+                {activeFilterCount} active · {filteredCount} results
               </p>
             )}
           </div>
         </div>
-        <button onClick={onToggleExpanded} className="btn-secondary px-3 py-1.5 flex items-center gap-1.5 text-sm">
-          <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        <button onClick={onToggleExpanded} className="btn-secondary px-2 py-1 flex items-center gap-1 text-xs">
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
           {isExpanded ? 'Collapse' : 'Expand'}
         </button>
       </div>
 
       {isExpanded && (
-        <div className="space-y-5">
+        <div className="space-y-4">
           <div>
             <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5" style={{ color: "var(--foreground)" }}>
               <BarChart2 className="w-3.5 h-3.5" />Sort By
@@ -936,7 +829,7 @@ function FilterCard({ filters, onFilterChange, onClearFilters, hasActiveFilters,
             </select>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="filter-grid-responsive">
             {[
               { key: 'author', label: 'Author', icon: User, options: [{ value: 'all', label: 'All Authors' }, ...authors.map(a => ({ value: a.uid, label: a.name }))] },
               { key: 'visibility', label: 'Visibility', icon: Lock, options: [{ value: 'all', label: 'All Prompts' }, { value: 'public', label: 'Public Only' }, { value: 'private', label: 'Private Only' }] },
@@ -961,7 +854,7 @@ function FilterCard({ filters, onFilterChange, onClearFilters, hasActiveFilters,
               <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>Comma separated</p>
             </div>
 
-            {[{ key: 'minLength', label: 'Min Characters' }, { key: 'maxLength', label: 'Max Characters' }].map(({ key, label }) => (
+            {[{ key: 'minLength', label: 'Min Chars' }, { key: 'maxLength', label: 'Max Chars' }].map(({ key, label }) => (
               <div key={key}>
                 <label className="flex items-center gap-1.5 text-xs font-medium mb-1.5" style={{ color: "var(--foreground)" }}>
                   <Ruler className="w-3.5 h-3.5" />{label}
@@ -974,22 +867,20 @@ function FilterCard({ filters, onFilterChange, onClearFilters, hasActiveFilters,
           </div>
 
           {hasActiveFilters && (
-            <div className="flex justify-between items-center pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+            <div className="flex justify-between items-center pt-2 border-t" style={{ borderColor: "var(--border)" }}>
               <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
                 {activeFilterCount} active {activeFilterCount === 1 ? "filter" : "filters"}
               </p>
-              <button onClick={onClearFilters} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5">
+              <button onClick={onClearFilters} className="btn-secondary text-xs px-2 py-1 flex items-center gap-1">
                 <X className="w-3.5 h-3.5" />Clear All
               </button>
             </div>
           )}
 
-          <div className="p-2.5 rounded-lg border flex items-start gap-2 text-xs"
+          <div className="p-2 rounded-lg border flex items-start gap-2 text-xs"
             style={{ backgroundColor: "var(--muted)", borderColor: "var(--border)" }}>
             <Lightbulb className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "var(--primary)" }} />
-            <p style={{ color: "var(--muted-foreground)" }}>
-              Combine filters for precision. Use commas in Tags to match multiple.
-            </p>
+            <p style={{ color: "var(--muted-foreground)" }}>Combine filters for precision. Use commas in Tags to match multiple.</p>
           </div>
         </div>
       )}
@@ -1009,7 +900,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   const [editingPrompt, setEditingPrompt] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [teamMembers, setTeamMembers] = useState({});
-  // ── Roles map: { [uid]: "owner" | "admin" | "member" } ──
   const [teamMemberRoles, setTeamMemberRoles] = useState({});
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [teamName, setTeamName] = useState("");
@@ -1040,7 +930,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return [];
   }, [isGuestMode, userPrompts.length]);
 
-  // ── Load favourites ──
   useEffect(() => {
     if (!user || isGuestMode) return;
     const favRef = collection(db, "users", user.uid, "favorites");
@@ -1050,7 +939,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsub();
   }, [user, isGuestMode]);
 
-  // ── Load prompts ──
   useEffect(() => {
     if (isGuestMode && !activeTeam) {
       setUserPrompts(guestState.getPrompts());
@@ -1072,7 +960,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsub();
   }, [activeTeam, user, userRole, isGuestMode]);
 
-  // ── Load outputs ──
   useEffect(() => {
     if (!activeTeam) return;
     const unsubs = userPrompts.map((prompt) =>
@@ -1083,7 +970,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsubs.forEach(u => u());
   }, [userPrompts, activeTeam]);
 
-  // ── Load comment counts ──
   useEffect(() => {
     if (!activeTeam) return;
     const unsubs = userPrompts.map((prompt) => {
@@ -1095,7 +981,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     return () => unsubs.forEach(u => u());
   }, [userPrompts, activeTeam]);
 
-  // ── Load team data (members + roles) ──
   useEffect(() => {
     async function loadTeamData() {
       if (!activeTeam || isGuestMode || !user) return;
@@ -1104,10 +989,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         if (!teamDoc.exists()) return;
         const teamData = teamDoc.data();
         setTeamName(teamData.name || "Unknown Team");
-
-        // Store the full { uid: role } map for permission checks
         setTeamMemberRoles(teamData.members || {});
-
         const memberIds = Object.keys(teamData.members || {});
         const profiles = {};
         for (const memberId of memberIds) {
@@ -1122,40 +1004,23 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     loadTeamData();
   }, [activeTeam, isGuestMode, user]);
 
-  // ─── Permission helpers ───────────────────────────────────────────────────
-
-  /**
-   * Can the current user edit or delete this prompt?
-   * Admins/owners can always edit. Members only their own.
-   */
   function canEditPrompt(prompt) {
     if (isGuestMode) return canEditGuestPrompt(prompt);
     if (!user) return false;
     return prompt.createdBy === user.uid || userRole === "owner" || userRole === "admin";
   }
 
-  /**
-   * Can the current user enhance or attach outputs to this prompt?
-   * Rule: members cannot modify prompts created by admins or owners.
-   * Admins and owners can modify any prompt.
-   */
   function canModifyPrompt(prompt) {
-    if (isGuestMode) return false; // guests handled separately with "sign up" UI
+    if (isGuestMode) return false;
     if (!user) return false;
     if (userRole === "owner" || userRole === "admin") return true;
-    // Current user is a member — allowed only on their own prompts
     if (prompt.createdBy !== user.uid) return false;
     return true;
   }
 
-  /**
-   * Returns the Firestore role of a prompt's creator: "owner" | "admin" | "member"
-   */
   function getPromptCreatorRole(prompt) {
     return teamMemberRoles[prompt.createdBy] || "member";
   }
-
-  // ─── Action handlers ──────────────────────────────────────────────────────
 
   async function handleToggleFavourite(promptId, teamId) {
     if (!user) { showNotification("Sign up to save favourites", "info"); return; }
@@ -1231,7 +1096,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     }
     if (filters.minLength && !isNaN(filters.minLength)) filtered = filtered.filter(p => (p.text?.length || 0) >= parseInt(filters.minLength));
     if (filters.maxLength && !isNaN(filters.maxLength)) filtered = filtered.filter(p => (p.text?.length || 0) <= parseInt(filters.maxLength));
-
     filtered.sort((a, b) => {
       switch (filters.sortBy) {
         case "newest": return getTimestamp(b) - getTimestamp(a);
@@ -1277,12 +1141,10 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       let deletedCount = 0;
       for (const id of promptIds) {
         const prompt = displayUserPrompts.find(p => p.id === id);
-        // Skip prompts the current user cannot modify
         if (prompt && !canEditPrompt(prompt)) continue;
         if (isGuestMode) guestState.deletePrompt(id);
         else {
           await deletePrompt(activeTeam, id);
-          // Clean up favourites
           if (user) deleteDoc(doc(db, "users", user.uid, "favorites", id)).catch(() => {});
         }
         deletedCount++;
@@ -1306,7 +1168,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       if (isGuestMode) {
         const saved = guestState.addPrompt(userPrompt);
         setUserPrompts(prev => [saved, ...prev]);
-        showSuccessToast('Demo copied! Edit it however you like.');
+        showSuccessToast('Demo copied!');
         setEditingPrompt(saved); setShowEditModal(true);
       } else {
         try { await savePrompt(user.uid, userPrompt, activeTeam); showSuccessToast('Demo copied!'); }
@@ -1363,7 +1225,6 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         setUserPrompts(prev => prev.filter(p => p.id !== promptId));
       } else {
         await deletePrompt(activeTeam, promptId);
-        // Clean up the deleting user's own favourite if it exists
         if (user) deleteDoc(doc(db, "users", user.uid, "favorites", promptId)).catch(() => {});
       }
       showSuccessToast("Prompt deleted");
@@ -1374,10 +1235,8 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     if (isGuestMode) { showNotification("Sign up to manage prompt visibility", "info"); return; }
     const prompt = allPrompts.find(p => p.id === promptId);
     if (!prompt) return;
-    // Guard: only those who can modify may toggle
     if (!canModifyPrompt(prompt)) {
-      showNotification("You don't have permission to change this prompt's visibility", "error");
-      return;
+      showNotification("You don't have permission to change this prompt's visibility", "error"); return;
     }
     try {
       await togglePromptVisibility(activeTeam, promptId, prompt.visibility || "public");
@@ -1417,20 +1276,16 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   }
 
   function handleEnhance(prompt) {
-    // Double-check permission before opening enhancer
     if (!canModifyPrompt(prompt)) {
-      showNotification("You don't have permission to enhance this prompt", "error");
-      return;
+      showNotification("You don't have permission to enhance this prompt", "error"); return;
     }
     setCurrentPromptForAI(prompt);
     setShowAIEnhancer(true);
   }
 
   function handleAttachOutput(prompt) {
-    // Double-check permission before opening attach modal
     if (!canModifyPrompt(prompt)) {
-      showNotification("You don't have permission to attach outputs to this prompt", "error");
-      return;
+      showNotification("You don't have permission to attach outputs to this prompt", "error"); return;
     }
     setSelectedPromptForAttach(prompt);
   }
@@ -1446,7 +1301,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
   if (loading) {
     return (
       <div className="space-y-3">
-        {[1, 2, 3].map(i => <div key={i} className="skeleton-card h-48" />)}
+        {[1, 2, 3].map(i => <div key={i} className="skeleton-card h-40" />)}
       </div>
     );
   }
@@ -1457,10 +1312,10 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
     <div className="prompt-list-container">
 
       {/* ── Header ── */}
-      <div className="glass-card p-5 mb-4">
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
+      <div className="glass-card p-4 mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <div>
-            <h2 className="text-xl font-bold" style={{ color: "var(--foreground)" }}>
+            <h2 className="text-lg font-bold" style={{ color: "var(--foreground)" }}>
               {isGuestMode ? "Demo Prompts" : "Prompt Library"}
             </h2>
             <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
@@ -1470,30 +1325,28 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               {hasActiveFilters() && <span className="text-primary font-medium"> · filtered</span>}
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
             {!isGuestMode && (userRole === "owner" || userRole === "admin") && onScrollToInvite && (
-              <button onClick={onScrollToInvite} className="btn-secondary px-3 py-2 flex items-center gap-1.5 text-sm">
-                <UserPlus className="w-4 h-4" /><span>Invite</span>
+              <button onClick={onScrollToInvite} className="btn-secondary px-2.5 py-1.5 flex items-center gap-1 text-xs">
+                <UserPlus className="w-3.5 h-3.5" /><span className="hidden sm:inline">Invite</span>
               </button>
             )}
             <button
               onClick={scrollToFilters}
-              className={`px-3 py-2 flex items-center gap-1.5 text-sm whitespace-nowrap transition-all ${hasActiveFilters() ? 'btn-primary' : 'btn-secondary'}`}
+              className={`px-2.5 py-1.5 flex items-center gap-1 text-xs whitespace-nowrap transition-all ${hasActiveFilters() ? 'btn-primary' : 'btn-secondary'}`}
             >
               <Filter className="w-3.5 h-3.5" />
-              Filters
+              <span className="hidden sm:inline">Filters</span>
               {activeFilterCount > 0 && (
-                <span
-                  className="text-xs rounded-full px-1.5 py-0.5 font-bold min-w-[1.1rem] text-center"
-                  style={{ backgroundColor: "var(--primary-foreground)", color: "var(--primary)" }}
-                >
+                <span className="text-xs rounded-full px-1 py-0.5 font-bold min-w-[1rem] text-center"
+                  style={{ backgroundColor: "var(--primary-foreground)", color: "var(--primary)" }}>
                   {activeFilterCount}
                 </span>
               )}
             </button>
-            <button onClick={() => setShowCreateForm(!showCreateForm)} className="btn-primary px-4 py-2 flex items-center gap-1.5 text-sm">
-              {showCreateForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-              {showCreateForm ? "Cancel" : "Create Prompt"}
+            <button onClick={() => setShowCreateForm(!showCreateForm)} className="btn-primary px-3 py-1.5 flex items-center gap-1 text-xs">
+              {showCreateForm ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+              <span>{showCreateForm ? "Cancel" : "Create"}</span>
             </button>
           </div>
         </div>
@@ -1508,11 +1361,9 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             className="search-input pl-9 w-full"
           />
           {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
+            <button onClick={() => setSearchQuery('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-foreground"
-              style={{ color: "var(--muted-foreground)" }}
-            >
+              style={{ color: "var(--muted-foreground)" }}>
               <X className="w-4 h-4" />
             </button>
           )}
@@ -1521,12 +1372,12 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
       {/* ── Create form ── */}
       {showCreateForm && (
-        <div className="glass-card p-5 mb-4">
-          <h3 className="text-base font-semibold mb-3" style={{ color: "var(--foreground)" }}>Create New Prompt</h3>
+        <div className="glass-card p-4 mb-3">
+          <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>Create New Prompt</h3>
           <form onSubmit={handleCreate} className="space-y-3">
             <input type="text" placeholder="Title *" className="form-input w-full"
               value={newPrompt.title} onChange={(e) => setNewPrompt({ ...newPrompt, title: e.target.value })} required />
-            <textarea placeholder="Prompt text *" className="form-input w-full min-h-[120px]"
+            <textarea placeholder="Prompt text *" className="form-input w-full min-h-[100px]"
               value={newPrompt.text} onChange={(e) => setNewPrompt({ ...newPrompt, text: e.target.value })} required />
             <input type="text" placeholder="Tags (comma separated)" className="form-input w-full"
               value={newPrompt.tags} onChange={(e) => setNewPrompt({ ...newPrompt, tags: e.target.value })} />
@@ -1543,7 +1394,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             )}
             <div className="flex gap-2">
               <button type="submit" className="btn-primary flex-1 text-sm">Create Prompt</button>
-              <button type="button" onClick={() => setShowCreateForm(false)} className="btn-secondary px-5 text-sm">Cancel</button>
+              <button type="button" onClick={() => setShowCreateForm(false)} className="btn-secondary px-4 text-sm">Cancel</button>
             </div>
           </form>
         </div>
@@ -1560,10 +1411,10 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
       {/* ── Demo section ── */}
       {displayDemos.length > 0 && (
-        <section className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
+        <section className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
             <Sparkles className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-            <h3 className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>Try These Examples</h3>
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Try These Examples</h3>
           </div>
           {demoPromptsPagination.currentItems.map(prompt => (
             <PromptCard
@@ -1579,7 +1430,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
             />
           ))}
           {displayDemos.length > 5 && (
-            <div className="mt-4">
+            <div className="mt-3">
               <PaginationControls pagination={demoPromptsPagination} showSearch={false} showPageSizeSelector pageSizeOptions={[5, 10, 15]} />
             </div>
           )}
@@ -1590,9 +1441,9 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       {displayUserPrompts.length > 0 && (
         <section>
           {isGuestMode && displayDemos.length > 0 && (
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-2">
               <FileText className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-              <h3 className="text-base font-semibold" style={{ color: 'var(--foreground)' }}>Your Prompts</h3>
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Your Prompts</h3>
             </div>
           )}
           {userPromptsPagination.currentItems.map(prompt => (
@@ -1625,13 +1476,12 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               onTrackView={handleTrackView}
               onToggleFavourite={handleToggleFavourite}
               favouritePromptIds={favouritePromptIds}
-              // ── Restriction props ──
               canModify={canModifyPrompt(prompt)}
               creatorRole={getPromptCreatorRole(prompt)}
             />
           ))}
           {displayUserPrompts.length > 5 && (
-            <div className="mt-4">
+            <div className="mt-3">
               <PaginationControls pagination={userPromptsPagination} showSearch={false} showPageSizeSelector showItemCount pageSizeOptions={[5, 10, 20, 50]} />
             </div>
           )}
@@ -1640,20 +1490,20 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
 
       {/* ── Empty state ── */}
       {allPrompts.length === 0 && (
-        <div className="glass-card p-10 text-center mb-8">
-          <Sparkles size={40} style={{ color: 'var(--primary)', margin: '0 auto 0.75rem' }} />
-          <h3 className="text-base font-semibold mb-2">
-            {searchQuery || hasActiveFilters() ? "No prompts match your search or filters" : "No prompts yet"}
+        <div className="glass-card p-8 text-center mb-6">
+          <Sparkles size={36} style={{ color: 'var(--primary)', margin: '0 auto 0.75rem' }} />
+          <h3 className="text-sm font-semibold mb-2">
+            {searchQuery || hasActiveFilters() ? "No prompts match your search" : "No prompts yet"}
           </h3>
-          <p className="text-sm mb-5" style={{ color: "var(--muted-foreground)" }}>
+          <p className="text-xs mb-4" style={{ color: "var(--muted-foreground)" }}>
             {searchQuery || hasActiveFilters() ? (
               <><span>Try adjusting your search or </span>
                 <button onClick={() => { setSearchQuery(''); clearFilters(); }} className="text-primary hover:underline">clear all filters</button></>
             ) : "Create your first prompt to get started"}
           </p>
           {!searchQuery && !hasActiveFilters() && (
-            <button onClick={() => setShowCreateForm(true)} className="btn-primary text-sm">
-              <Plus className="w-4 h-4" />Create First Prompt
+            <button onClick={() => setShowCreateForm(true)} className="btn-primary text-xs">
+              <Plus className="w-3.5 h-3.5" />Create First Prompt
             </button>
           )}
         </div>
@@ -1712,10 +1562,11 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         />
       )}
 
-      {/* ── Scoped styles ── */}
+      {/* ── Responsive Scoped styles ── */}
       <style>{`
+        /* ── Card base ── */
         .prompt-card-dense {
-          margin-bottom: 0.75rem;
+          margin-bottom: 0.625rem;
           overflow: hidden;
           border-radius: 0.75rem;
           border: 1px solid var(--border);
@@ -1733,13 +1584,66 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           border-left: 3px solid transparent;
         }
 
-        /* Output sidebar */
-        .prompt-output-sidebar {
-          background: var(--muted-10, color-mix(in srgb, var(--muted) 40%, transparent));
-          min-height: 120px;
+        /* ── Responsive body layout ── */
+        /* Desktop: side-by-side */
+        .prompt-card-body-responsive {
+          display: grid;
+          grid-template-columns: 1fr 160px;
+          gap: 0;
+        }
+        .prompt-output-sidebar-desktop {
+          border-left: 1px solid var(--border);
+          display: flex;
+          flex-direction: column;
+          background: color-mix(in srgb, var(--muted) 40%, transparent);
+          min-height: 100px;
+        }
+        .prompt-output-mobile-bar {
+          display: none;
         }
 
-        /* Kebab upward override */
+        /* Tablet: narrower sidebar */
+        @media (max-width: 860px) {
+          .prompt-card-body-responsive {
+            grid-template-columns: 1fr 140px;
+          }
+        }
+
+        /* Mobile: stack outputs below as a bar */
+        @media (max-width: 580px) {
+          .prompt-card-body-responsive {
+            grid-template-columns: 1fr;
+          }
+          .prompt-output-sidebar-desktop {
+            display: none;
+          }
+          .prompt-output-mobile-bar {
+            display: flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem 0.375rem;
+            border-top: 1px solid var(--border);
+            gap: .5rem;
+          }
+        }
+
+        /* ── Filter grid ── */
+        .filter-grid-responsive {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 0.75rem;
+        }
+        @media (max-width: 700px) {
+          .filter-grid-responsive {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        @media (max-width: 440px) {
+          .filter-grid-responsive {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        /* ── Kebab upward ── */
         .kebab-menu-upward {
           bottom: calc(100% + 6px) !important;
           top: auto !important;
@@ -1751,95 +1655,52 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           to   { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* Compact privacy badge */
+        /* ── Privacy badge ── */
         .privacy-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.2rem;
-          font-size: 0.65rem;
-          padding: 0.1rem 0.45rem;
-          border-radius: 999px;
-          font-weight: 600;
+          display: inline-flex; align-items: center; gap: 0.2rem;
+          font-size: 0.65rem; padding: 0.1rem 0.45rem; border-radius: 999px; font-weight: 600;
         }
-        .privacy-badge.private {
-          background: rgba(239,68,68,0.12);
-          color: rgb(239,68,68);
-        }
-        .privacy-badge.public {
-          background: rgba(34,197,94,0.12);
-          color: rgb(34,197,94);
-        }
+        .privacy-badge.private { background: rgba(239,68,68,0.12); color: rgb(239,68,68); }
+        .privacy-badge.public  { background: rgba(34,197,94,0.12);  color: rgb(34,197,94);  }
 
-        /* Fade in animation */
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(-4px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Read more button */
-        .read-more-btn {
-          display: inline-flex;
-          align-items: center;
-          gap: 0.25rem;
-          font-size: 0.7rem;
-          color: var(--primary);
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 0;
-          opacity: 0.85;
-          transition: opacity 0.15s;
-        }
-        .read-more-btn:hover { opacity: 1; }
-
-        /* Tags */
+        /* ── Tags ── */
         .prompt-tag {
-          display: inline-flex;
-          align-items: center;
-          padding: 0.1rem 0.45rem;
-          border-radius: 999px;
-          font-size: 0.65rem;
-          font-weight: 500;
-          background: var(--muted);
-          color: var(--muted-foreground);
-          border: 1px solid var(--border);
+          display: inline-flex; align-items: center; padding: 0.1rem 0.45rem;
+          border-radius: 999px; font-size: 0.65rem; font-weight: 500;
+          background: var(--muted); color: var(--muted-foreground); border: 1px solid var(--border);
         }
         .prompt-tag-more {
-          display: inline-flex;
-          align-items: center;
-          padding: 0.1rem 0.45rem;
-          border-radius: 999px;
-          font-size: 0.65rem;
-          font-weight: 500;
-          background: var(--muted);
-          color: var(--primary);
-          border: 1px dashed var(--border);
+          display: inline-flex; align-items: center; padding: 0.1rem 0.45rem;
+          border-radius: 999px; font-size: 0.65rem; font-weight: 500;
+          background: var(--muted); color: var(--primary); border: 1px dashed var(--border);
         }
 
-        /* Demo badge */
+        /* ── Demo badge ── */
         .demo-badge-small {
-          display: inline-flex;
-          align-items: center;
-          padding: 0.1rem 0.45rem;
-          border-radius: 999px;
-          font-size: 0.65rem;
-          font-weight: 600;
+          display: inline-flex; align-items: center; padding: 0.1rem 0.45rem;
+          border-radius: 999px; font-size: 0.65rem; font-weight: 600;
           background: rgba(var(--primary-rgb, 99,102,241),0.15);
           color: var(--primary);
           border: 1px solid rgba(var(--primary-rgb, 99,102,241),0.3);
         }
 
-        /* Responsive: stack output sidebar below content on mobile */
-        @media (max-width: 600px) {
-          .prompt-card-body {
-            grid-template-columns: 1fr !important;
-          }
-          .prompt-output-sidebar {
-            width: 100% !important;
-            border-left: none !important;
-            border-top: 1px solid var(--border) !important;
-            min-height: unset !important;
-          }
+        /* Read more */
+        .read-more-btn {
+          display: inline-flex; align-items: center; gap: 0.25rem;
+          font-size: 0.7rem; color: var(--primary); background: none;
+          border: none; cursor: pointer; padding: 0; opacity: 0.85; transition: opacity 0.15s;
+        }
+        .read-more-btn:hover { opacity: 1; }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Mobile action bar compact ── */
+        @media (max-width: 400px) {
+          .prompt-actions { padding: 0.35rem 0.625rem; gap: 0.3rem; }
+          .btn-action-secondary, .btn-action-primary { padding: 0.3rem 0.55rem; font-size: 0.72rem; }
         }
       `}</style>
     </div>
