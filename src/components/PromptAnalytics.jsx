@@ -463,7 +463,7 @@ export function TeamAnalytics({ teamId }) {
   return (
     <>
       <style>{`
-        .pa-wrap { display:flex; flex-direction:column; gap:.75rem; }
+        .pa-wrap { display:flex; flex-direction:column; gap:.75rem; margin-top: 0; }
 
         .pa-header {
           background:var(--card); border:1px solid rgba(255,255,255,.05);
