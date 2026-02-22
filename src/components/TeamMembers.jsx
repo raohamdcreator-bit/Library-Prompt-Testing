@@ -1,4 +1,4 @@
-// src/components/TeamMembers.jsx - RESPONSIVE
+// src/components/TeamMembers.jsx - RESPONSIVE + PERF: parallel member/invite loads
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -7,6 +7,7 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { cancelTeamInvite, deleteTeamInvite } from "../lib/inviteUtils";
+import { batchGetUserProfiles } from "../lib/firestoreUtils"; // ✅ PERF: batch reads
 import {
   Users, Crown, Shield, User, Trash2,
   Mail, Clock, Calendar, X, LogOut, Eye,
@@ -68,22 +69,34 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
   const [isLeaving,         setIsLeaving]         = useState(false);
   const [permsExpanded,     setPermsExpanded]     = useState(false);
 
-  // members
+  // ✅ PERF: Load all member profiles in parallel using batchGetUserProfiles
   useEffect(() => {
     if (!teamId || !teamData) { setLoading(false); return; }
+
     async function load() {
-      const list = [];
-      for (const [uid, role] of Object.entries(teamData.members || {})) {
-        try {
-          const d = await getDoc(doc(db, "users", uid));
-          list.push(d.exists() ? { uid, role, ...d.data() } : { uid, role, email:`user-${uid}@unknown`, name:`User ${uid.slice(-4)}` });
-        } catch { list.push({ uid, role, email:`user-${uid}@error`, name:`User ${uid.slice(-4)}` }); }
-      }
+      const entries = Object.entries(teamData.members || {});
+      const uids = entries.map(([uid]) => uid);
+
+      // Single batched call instead of N sequential getDoc calls
+      const profiles = await batchGetUserProfiles(uids);
+
+      const list = entries.map(([uid, role]) => {
+        const p = profiles[uid];
+        return p
+          ? { uid, role, ...p }
+          : { uid, role, email: `user-${uid}@unknown`, name: `User ${uid.slice(-4)}` };
+      });
+
       const order = { owner:0, admin:1, member:2 };
-      list.sort((a,b) => (order[a.role]||2) - (order[b.role]||2));
-      setMembers(list); setLoading(false);
+      list.sort((a, b) => (order[a.role] || 2) - (order[b.role] || 2));
+      setMembers(list);
+      setLoading(false);
     }
-    load();
+
+    load().catch(err => {
+      console.error("Error loading members:", err);
+      setLoading(false);
+    });
   }, [teamId, teamData]);
 
   // guest stats
@@ -213,7 +226,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
 
         .tm-wrap { display:flex; flex-direction:column; gap:.875rem; }
 
-        /* ── Summary card ── */
         .tm-summary {
           background:var(--card); border:1px solid rgba(255,255,255,.05);
           border-radius:12px; overflow:hidden;
@@ -240,7 +252,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         .tm-leave:hover    { background:rgba(239,68,68,.15); border-color:rgba(239,68,68,.35); }
         .tm-leave:disabled { opacity:.5; cursor:not-allowed; }
 
-        /* stat tiles — responsive grid */
         .tm-tiles {
           display:grid;
           grid-template-columns:repeat(4,1fr);
@@ -258,7 +269,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         .tm-tile-n { font-size:1.2rem; font-weight:800; letter-spacing:-.04em; font-variant-numeric:tabular-nums; line-height:1; margin-bottom:.22rem; }
         .tm-tile-l { font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted-foreground); }
 
-        /* ── Section panel ── */
         .tm-panel {
           background:var(--card); border:1px solid rgba(255,255,255,.05);
           border-radius:12px; overflow:hidden;
@@ -274,7 +284,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
           background:rgba(139,92,246,.1); color:#c4b5fd; font-variant-numeric:tabular-nums;
         }
 
-        /* ── Member rows — stack on mobile ── */
         .tm-list { display:flex; flex-direction:column; }
         .tm-row {
           display:flex; align-items:center; justify-content:space-between; gap:.75rem;
@@ -322,7 +331,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
           animation:tmSpin .7s linear infinite;
         }
 
-        /* ── Invite rows ── */
         .tm-inv-row {
           display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem;
           padding:.625rem 1.125rem; border-bottom:1px solid rgba(255,255,255,.025);
@@ -345,7 +353,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         .tm-cancel-btn:hover    { color:var(--foreground); border-color:rgba(255,255,255,.18); }
         .tm-cancel-btn:disabled { opacity:.4; cursor:not-allowed; }
 
-        /* ── Permissions table — responsive ── */
         .tm-perms {
           display:grid;
           grid-template-columns:repeat(3,1fr);
@@ -370,7 +377,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         }
         .tm-perm-dot { width:4px; height:4px; border-radius:50%; margin-top:.42rem; flex-shrink:0; }
 
-        /* collapsible perms toggle */
         .tm-perms-toggle {
           display:flex; align-items:center; justify-content:space-between; width:100%;
           padding:.625rem 1.125rem; background:transparent; border:none; cursor:pointer;
@@ -379,7 +385,6 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         }
         .tm-perms-toggle:hover { color:var(--foreground); }
 
-        /* mobile: compact row actions */
         @media(max-width:500px) {
           .tm-row { padding:.625rem .75rem; }
           .tm-name { max-width:120px; }
@@ -529,7 +534,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
           </div>
         )}
 
-        {/* ── Permissions (collapsible on mobile) ── */}
+        {/* ── Permissions (collapsible) ── */}
         <div className="tm-panel" style={{ animationDelay: ".15s" }}>
           <button
             className="tm-perms-toggle"
