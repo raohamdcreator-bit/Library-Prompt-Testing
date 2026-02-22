@@ -531,7 +531,6 @@ export function TeamAnalytics({ teamId }) {
         <div className="pa-header">
           <div className="flex items-center gap-2">
             <div>
-              <Activity size={13} style={{ color: "var(--muted-foreground)" }} />
               <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Live Team Analytics</span>
               <span className="text-xs ml-2 hidden sm:inline" style={{ color: "var(--muted-foreground)" }}>Performance insights &amp; usage statistics</span>
             </div>
