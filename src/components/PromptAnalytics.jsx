@@ -277,7 +277,7 @@ function GuestAnalyticsCard({ teamId }) {
 
   return (
     <div className="glass-card p-4">
-      <SectionHeader icon={<Eye size={14} />} title="Guest Activity" badge="Read-Only" />
+      <SectionHeader icon={<Eye size={14} />} title="Guest Activity" />
       {guestStats.loading ? <LoadingCard /> : (
         <div className="space-y-2">
           {[
@@ -342,7 +342,7 @@ function AuthenticatedUserAnalyticsCard({ teamId }) {
 
   return (
     <div className="glass-card p-4">
-      <SectionHeader icon={<UserCheck size={14} />} title="Member Activity" badge="Team" />
+      <SectionHeader icon={<UserCheck size={14} />} title="Member Activity" />
       {authStats.loading ? <LoadingCard /> : (
         <div className="space-y-2">
           {[
@@ -463,7 +463,7 @@ export function TeamAnalytics({ teamId }) {
   return (
     <>
       <style>{`
-        .pa-wrap { display:flex; flex-direction:column; gap:.75rem; margin-top: 0; }
+        .pa-wrap { display:flex; flex-direction:column; gap:.75rem; }
 
         .pa-header {
           background:var(--card); border:1px solid rgba(255,255,255,.05);
