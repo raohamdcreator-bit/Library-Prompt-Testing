@@ -425,7 +425,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
                 l: "Guest Visits",
                 c: "#34d399",
                 d: ".19s",
-                icon: <Eye size={11} style={{ marginBottom:2, flexShrink:0 }} />,
+                
               },
             ].map(s => (
               <div key={s.l} className="tm-tile" style={{ animationDelay: s.d }}>
