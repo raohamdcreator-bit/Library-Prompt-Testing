@@ -1,4 +1,4 @@
-// src/components/PromptAnalytics.jsx - RESPONSIVE
+// src/components/PromptAnalytics.jsx - RESPONSIVE + PERF: parallel subcollection reads
 import { useState, useEffect, useMemo } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -43,6 +43,15 @@ function resolveGuestToken() {
 function resolveGuestUserId() {
   const token = resolveGuestToken();
   return token ? `guest_${token}` : null;
+}
+
+// ✅ PERF: fetch all ratings for all prompts in parallel
+async function fetchAllSubcollections(teamId, promptIds, subcol) {
+  const results = await Promise.all(
+    promptIds.map(id => getDocs(collection(db, "teams", teamId, "prompts", id, subcol)))
+  );
+  // returns Map<promptId, docs[]>
+  return Object.fromEntries(promptIds.map((id, i) => [id, results[i].docs]));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -234,6 +243,7 @@ function LoadingCard() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GuestAnalyticsCard
+// ✅ PERF: fetch ratings + comments for all prompts in parallel (not sequentially)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function GuestAnalyticsCard({ teamId }) {
@@ -243,18 +253,23 @@ function GuestAnalyticsCard({ teamId }) {
     if (!teamId) { setGuestStats(p => ({ ...p, loading: false })); return; }
     const unsub = onSnapshot(collection(db, 'teams', teamId, 'prompts'), async (snap) => {
       try {
-        const results = await Promise.all(snap.docs.map(async (d) => {
-          const guestCopiesCount = d.data().stats?.guestCopies || 0;
-          const ratingsSnap  = await getDocs(collection(db, 'teams', teamId, 'prompts', d.id, 'ratings'));
-          const commentsSnap = await getDocs(collection(db, 'teams', teamId, 'prompts', d.id, 'comments'));
-          return {
-            copies:   guestCopiesCount,
-            ratings:  ratingsSnap.docs.filter(r => r.data().isGuest).length,
-            comments: commentsSnap.docs.filter(r => r.data().isGuest).length,
-          };
-        }));
-        const totals = results.reduce((a, r) => ({ copies: a.copies + r.copies, ratings: a.ratings + r.ratings, comments: a.comments + r.comments }), { copies: 0, ratings: 0, comments: 0 });
-        setGuestStats({ guestRatings: totals.ratings, guestComments: totals.comments, guestCopies: totals.copies, loading: false });
+        const promptDocs = snap.docs;
+        const promptIds  = promptDocs.map(d => d.id);
+
+        // ✅ PERF: fetch all ratings + comments in parallel (2 batch calls vs 2N sequential)
+        const [allRatings, allComments] = await Promise.all([
+          fetchAllSubcollections(teamId, promptIds, 'ratings'),
+          fetchAllSubcollections(teamId, promptIds, 'comments'),
+        ]);
+
+        let guestCopies = 0, guestRatings = 0, guestComments = 0;
+        promptDocs.forEach(d => {
+          guestCopies   += d.data().stats?.guestCopies || 0;
+          guestRatings  += (allRatings[d.id]  || []).filter(r => r.data().isGuest).length;
+          guestComments += (allComments[d.id] || []).filter(r => r.data().isGuest).length;
+        });
+
+        setGuestStats({ guestRatings, guestComments, guestCopies, loading: false });
       } catch { setGuestStats(p => ({ ...p, loading: false })); }
     }, () => setGuestStats(p => ({ ...p, loading: false })));
     return () => unsub();
@@ -291,6 +306,7 @@ function GuestAnalyticsCard({ teamId }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AuthenticatedUserAnalyticsCard
+// ✅ PERF: was sequential for...of, now parallel Promise.all
 // ─────────────────────────────────────────────────────────────────────────────
 
 function AuthenticatedUserAnalyticsCard({ teamId }) {
@@ -300,16 +316,24 @@ function AuthenticatedUserAnalyticsCard({ teamId }) {
     if (!teamId) { setAuthStats(p => ({ ...p, loading: false })); return; }
     const unsub = onSnapshot(collection(db, 'teams', teamId, 'prompts'), async (snap) => {
       try {
+        const promptDocs = snap.docs;
+        const promptIds  = promptDocs.map(d => d.id);
+
+        // ✅ PERF: all subcollection reads run in parallel
+        const [allRatings, allComments] = await Promise.all([
+          fetchAllSubcollections(teamId, promptIds, 'ratings'),
+          fetchAllSubcollections(teamId, promptIds, 'comments'),
+        ]);
+
         let totalR = 0, totalC = 0, totalCp = 0, totalV = 0;
-        for (const d of snap.docs) {
+        promptDocs.forEach(d => {
           const data = d.data();
-          const ratSnap = await getDocs(collection(db, 'teams', teamId, 'prompts', d.id, 'ratings'));
-          totalR  += ratSnap.docs.filter(r => !r.data().isGuest).length;
-          const comSnap = await getDocs(collection(db, 'teams', teamId, 'prompts', d.id, 'comments'));
-          totalC  += comSnap.docs.filter(r => !r.data().isGuest).length;
+          totalR  += (allRatings[d.id]  || []).filter(r => !r.data().isGuest).length;
+          totalC  += (allComments[d.id] || []).filter(r => !r.data().isGuest).length;
           totalCp += (data.stats?.copies || 0) - (data.stats?.guestCopies || 0);
           totalV  += data.stats?.views || 0;
-        }
+        });
+
         setAuthStats({ authRatings: totalR, authComments: totalC, authCopies: totalCp, authViews: totalV, loading: false });
       } catch { setAuthStats(p => ({ ...p, loading: false })); }
     });
@@ -348,6 +372,7 @@ function AuthenticatedUserAnalyticsCard({ teamId }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TeamAnalytics — Full Responsive Layout
+// ✅ PERF: was sequential for...of per prompt, now parallel Promise.all
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function TeamAnalytics({ teamId }) {
@@ -367,6 +392,17 @@ export function TeamAnalytics({ teamId }) {
     const unsub = onSnapshot(collection(db, "teams", teamId, "prompts"), async (snap) => {
       try {
         const allPrompts = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+        const promptIds  = allPrompts.map(p => p.id);
+
+        // ✅ PERF: fetch ratings + comments for ALL prompts in 2 parallel batch calls
+        //    Old: 2N sequential getDocs (e.g. 20 prompts = 40 serial round-trips)
+        //    New: 2 parallel Promise.all calls (all fetches run concurrently)
+        const [allRatings, allComments] = await Promise.all([
+          fetchAllSubcollections(teamId, promptIds, 'ratings'),
+          fetchAllSubcollections(teamId, promptIds, 'comments'),
+        ]);
+
+        // Aggregate totals using pre-fetched subcollection data
         const totals = allPrompts.reduce((acc, p) => {
           const s = p.stats || {};
           return {
@@ -379,13 +415,12 @@ export function TeamAnalytics({ teamId }) {
           };
         }, { totalPrompts: 0, totalViews: 0, totalCopies: 0, totalComments: 0, totalRatings: 0, ratingSum: 0 });
 
+        // Compute guest/auth split from already-fetched subcollection docs
         let authR = 0, guestR = 0, authC = 0, guestC = 0;
-        for (const p of allPrompts) {
-          const rs = await getDocs(collection(db, 'teams', teamId, 'prompts', p.id, 'ratings'));
-          rs.docs.forEach(d => d.data().isGuest ? guestR++ : authR++);
-          const cs = await getDocs(collection(db, 'teams', teamId, 'prompts', p.id, 'comments'));
-          cs.docs.forEach(d => d.data().isGuest ? guestC++ : authC++);
-        }
+        allPrompts.forEach(p => {
+          (allRatings[p.id]  || []).forEach(d => d.data().isGuest ? guestR++ : authR++);
+          (allComments[p.id] || []).forEach(d => d.data().isGuest ? guestC++ : authC++);
+        });
         setUserTypeStats({ authenticatedRatings: authR, guestRatings: guestR, authenticatedComments: authC, guestComments: guestC });
 
         const topPrompts = allPrompts
@@ -428,7 +463,6 @@ export function TeamAnalytics({ teamId }) {
   return (
     <>
       <style>{`
-        /* ── Analytics responsive layout ── */
         .pa-wrap { display:flex; flex-direction:column; gap:.75rem; }
 
         .pa-header {
@@ -437,7 +471,6 @@ export function TeamAnalytics({ teamId }) {
           display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem;
         }
 
-        /* KPI strip */
         .pa-kpi {
           display:grid;
           grid-template-columns:repeat(4,1fr);
@@ -445,7 +478,6 @@ export function TeamAnalytics({ teamId }) {
         }
         @media(max-width:500px){ .pa-kpi { grid-template-columns:repeat(2,1fr); } }
 
-        /* Main grid: 3 cols on desktop → stacked on mobile */
         .pa-main {
           display:grid;
           grid-template-columns:1fr 1fr 1fr;
@@ -461,10 +493,8 @@ export function TeamAnalytics({ teamId }) {
           .pa-col-right { grid-column:span 1; }
         }
 
-        /* Col left: 2 activity cards + split */
         .pa-col { display:flex; flex-direction:column; gap:.75rem; }
 
-        /* Interaction split row on tablet */
         @media(min-width:581px) and (max-width:900px){
           .pa-col-left, .pa-col-mid { display:contents; }
           .pa-activity-row {
@@ -481,7 +511,6 @@ export function TeamAnalytics({ teamId }) {
           .pa-activity-row { display:contents; }
         }
 
-        /* Top prompts list: scrollable on small screens */
         .pa-top-list {
           display:flex;
           flex-direction:column;
@@ -540,7 +569,7 @@ export function TeamAnalytics({ teamId }) {
         {/* ── Main grid ── */}
         <div className="pa-main">
 
-          {/* ── LEFT: activity cards + split — desktop stacked, tablet row ── */}
+          {/* LEFT: activity cards + split */}
           <div className="pa-activity-row pa-col-left">
             <AuthenticatedUserAnalyticsCard teamId={teamId} />
             <GuestAnalyticsCard teamId={teamId} />
@@ -579,7 +608,7 @@ export function TeamAnalytics({ teamId }) {
             </div>
           </div>
 
-          {/* ── MIDDLE: health + trends + ratings ── */}
+          {/* MIDDLE: health + trends + ratings */}
           <div className="pa-col pa-col-mid">
             {/* Team Health */}
             <div className="glass-card p-4">
@@ -649,7 +678,7 @@ export function TeamAnalytics({ teamId }) {
             )}
           </div>
 
-          {/* ── RIGHT: Top Prompts (scrollable list) ── */}
+          {/* RIGHT: Top Prompts */}
           <div className="glass-card p-4 pa-col-right">
             <SectionHeader icon={<Award size={14} />} title="Top 10 Prompts" badge="by score" />
 
