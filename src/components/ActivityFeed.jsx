@@ -1,4 +1,4 @@
-// src/components/ActivityFeed.jsx - RESPONSIVE
+// src/components/ActivityFeed.jsx - RESPONSIVE + PERF: parallel reads + batch profile loading
 import { useState, useEffect } from "react";
 import { db } from "../lib/firebase";
 import {
@@ -6,6 +6,7 @@ import {
   getDoc, getDocs, doc, serverTimestamp, addDoc,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { batchGetUserProfiles } from "../lib/firestoreUtils"; // ✅ PERF: batch profile reads
 import {
   Plus, Edit2, Trash2, Star, UserPlus, UserMinus,
   RefreshCw, Activity, Download, FileText,
@@ -131,13 +132,19 @@ export default function ActivityFeed({ teamId }) {
     const q = query(collection(db, "teams", teamId, "activities"), orderBy("timestamp", "desc"), limit(100));
     const unsub = onSnapshot(q, async snap => {
       let items = [];
+
       if (snap.empty) {
+        // ── Synthetic activities from prompt sub-docs ──
         const pq = query(collection(db, "teams", teamId, "prompts"), orderBy("createdAt", "desc"), limit(50));
         const ps = await new Promise((res, rej) => onSnapshot(pq, res, rej));
         const promptData = ps.docs.map(d => ({ id: d.id, ...d.data() }));
-        const uids = new Set();
+        const promptIds  = promptData.map(p => p.id);
+
+        // Collect uids for profile loading
+        const uids = new Set(promptData.map(p => p.createdBy).filter(Boolean));
+
+        // Build created/updated items from prompt top-level docs
         promptData.forEach(p => {
-          if (p.createdBy) uids.add(p.createdBy);
           items.push({
             id: `created-${p.id}`, type: "prompt_created", userId: p.createdBy,
             promptId: p.id, promptTitle: p.title, timestamp: p.createdAt,
@@ -151,56 +158,68 @@ export default function ActivityFeed({ teamId }) {
             });
         });
 
-        for (const p of promptData) {
-          try {
-            const cs = await getDocs(query(
-              collection(db, "teams", teamId, "prompts", p.id, "comments"),
-              orderBy("createdAt", "desc"), limit(10),
-            ));
-            cs.docs.forEach(cd => {
-              const c = cd.data();
+        // ✅ PERF: fetch ALL comments and ratings for ALL prompts in parallel
+        //    Old: sequential for...of (N serial getDocs for comments + N for ratings = 2N round-trips)
+        //    New: 2 Promise.all fan-outs → all fetches run concurrently
+        const [allCommentSnaps, allRatingSnaps] = await Promise.all([
+          Promise.all(
+            promptIds.map(id =>
+              getDocs(query(
+                collection(db, "teams", teamId, "prompts", id, "comments"),
+                orderBy("createdAt", "desc"),
+                limit(10),
+              )).then(snap => ({ id, snap })).catch(() => ({ id, snap: null }))
+            )
+          ),
+          Promise.all(
+            promptIds.map(id =>
+              getDocs(collection(db, "teams", teamId, "prompts", id, "ratings"))
+                .then(snap => ({ id, snap })).catch(() => ({ id, snap: null }))
+            )
+          ),
+        ]);
+
+        // Process comments
+        allCommentSnaps.forEach(({ id: promptId, snap: cs }) => {
+          if (!cs) return;
+          const prompt = promptData.find(p => p.id === promptId);
+          cs.docs.forEach(cd => {
+            const c = cd.data();
+            items.push({
+              id: `comment-${promptId}-${cd.id}`, type: "comment_added",
+              userId: c.userId || null, isGuest: c.isGuest || false, guestToken: c.guestToken || null,
+              promptId, promptTitle: prompt?.title, timestamp: c.createdAt,
+              metadata: { commentText: c.text?.substring(0, 50) || "", userName: c.userName || "Guest" },
+            });
+          });
+        });
+
+        // Process ratings
+        allRatingSnaps.forEach(({ id: promptId, snap: rs }) => {
+          if (!rs) return;
+          const prompt = promptData.find(p => p.id === promptId);
+          rs.docs.forEach(rd => {
+            const r = rd.data();
+            if (r.createdAt)
               items.push({
-                id: `comment-${p.id}-${cd.id}`, type: "comment_added",
-                userId: c.userId || null, isGuest: c.isGuest || false, guestToken: c.guestToken || null,
-                promptId: p.id, promptTitle: p.title, timestamp: c.createdAt,
-                metadata: { commentText: c.text?.substring(0, 50) || "", userName: c.userName || "Guest" },
+                id: `rating-${promptId}-${rd.id}`, type: "prompt_rated_individual",
+                userId: r.userId || null, isGuest: r.isGuest || false, guestToken: r.guestToken || null,
+                promptId, promptTitle: prompt?.title, timestamp: r.createdAt,
+                metadata: { rating: r.rating, userName: r.isGuest ? "Guest" : null },
               });
-            });
-          } catch {}
+          });
+        });
 
-          try {
-            const rs = await getDocs(collection(db, "teams", teamId, "prompts", p.id, "ratings"));
-            rs.docs.forEach(rd => {
-              const r = rd.data();
-              if (r.createdAt)
-                items.push({
-                  id: `rating-${p.id}-${rd.id}`, type: "prompt_rated_individual",
-                  userId: r.userId || null, isGuest: r.isGuest || false, guestToken: r.guestToken || null,
-                  promptId: p.id, promptTitle: p.title, timestamp: r.createdAt,
-                  metadata: { rating: r.rating, userName: r.isGuest ? "Guest" : null },
-                });
-            });
-          } catch {}
-        }
-
-        const prof = {};
-        for (const uid of uids) {
-          try {
-            const d = await getDoc(doc(db, "users", uid));
-            if (d.exists()) prof[uid] = d.data();
-          } catch {}
-        }
+        // ✅ PERF: batch load profiles instead of sequential getDoc loop
+        const prof = await batchGetUserProfiles([...uids]);
         setProfiles(prof);
+
       } else {
         items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        const uids = new Set(items.map(a => a.userId).filter(Boolean));
-        const prof = {};
-        for (const uid of uids) {
-          try {
-            const d = await getDoc(doc(db, "users", uid));
-            if (d.exists()) prof[uid] = d.data();
-          } catch {}
-        }
+
+        // ✅ PERF: batch load all referenced user profiles in one shot
+        const uids = [...new Set(items.map(a => a.userId).filter(Boolean))];
+        const prof = await batchGetUserProfiles(uids);
         setProfiles(prof);
       }
 
@@ -258,8 +277,6 @@ export default function ActivityFeed({ teamId }) {
     unique:   new Set(activities.map(a => a.userId || a.guestToken).filter(Boolean)).size,
   };
 
-  const activeFilterLabel = FILTERS.find(f => f.key === filter)?.label || "All";
-
   if (loading) return (
     <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"4rem", gap:".75rem" }}>
       <style>{`@keyframes afSpin{to{transform:rotate(360deg)}}`}</style>
@@ -278,7 +295,6 @@ export default function ActivityFeed({ teamId }) {
 
         .af-wrap { display:flex; flex-direction:column; gap:.875rem; }
 
-        /* ── Filter bar — responsive ── */
         .af-bar {
           display:flex; align-items:center; justify-content:space-between; gap:.75rem; flex-wrap:wrap;
           padding:.625rem .875rem; background:var(--card);
@@ -286,11 +302,9 @@ export default function ActivityFeed({ teamId }) {
         }
         .af-bar-l { display:flex; align-items:center; gap:.5rem; flex:1; min-width:0; flex-wrap:wrap; }
 
-        /* Desktop pill row */
         .af-pill-row-desktop { display:flex; gap:.2rem; }
         @media(max-width:560px){ .af-pill-row-desktop { display:none; } }
 
-        /* Mobile filter dropdown */
         .af-filter-mobile { display:none; position:relative; }
         @media(max-width:560px){ .af-filter-mobile { display:block; } }
         .af-mobile-trigger {
@@ -337,7 +351,6 @@ export default function ActivityFeed({ teamId }) {
         }
         .af-export:hover { border-color:rgba(139,92,246,.22); color:var(--foreground); }
 
-        /* ── Stats grid — responsive ── */
         .af-stats {
           display:grid;
           grid-template-columns:repeat(6,1fr);
@@ -360,7 +373,6 @@ export default function ActivityFeed({ teamId }) {
         .af-stat-n { font-size:1.3rem; font-weight:800; letter-spacing:-.04em; font-variant-numeric:tabular-nums; line-height:1; margin-bottom:.22rem; }
         .af-stat-l { font-size:.59rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted-foreground); }
 
-        /* ── Feed panel ── */
         .af-panel { background:var(--card); border:1px solid rgba(255,255,255,.05); border-radius:12px; overflow:hidden; }
         .af-ph {
           display:flex; align-items:center; justify-content:space-between;
@@ -374,7 +386,6 @@ export default function ActivityFeed({ teamId }) {
         }
         .af-fn { font-size:.66rem; color:var(--muted-foreground); }
 
-        /* ── Feed list — scrollable container ── */
         .af-list-wrap {
           max-height: 520px;
           overflow-y: auto;
@@ -386,7 +397,6 @@ export default function ActivityFeed({ teamId }) {
 
         .af-list { display:flex; flex-direction:column; }
 
-        /* ── Feed items — responsive layout ── */
         .af-item {
           display:grid;
           grid-template-columns:24px 26px 1fr auto;
@@ -401,7 +411,7 @@ export default function ActivityFeed({ teamId }) {
             grid-template-columns:24px 1fr auto;
             gap:.45rem;
           }
-          .af-item > *:nth-child(2) { display:none; } /* hide avatar on very small screens */
+          .af-item > *:nth-child(2) { display:none; }
         }
 
         .af-item:last-child { border-bottom:none; }
@@ -436,7 +446,6 @@ export default function ActivityFeed({ teamId }) {
           font-size:.57rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
           padding:.12rem .45rem; border-radius:4px; white-space:nowrap; align-self:flex-start; margin-top:3px;
         }
-        /* Hide badge label on very small screens */
         @media(max-width:380px){ .af-badge { display:none; } }
 
         .af-empty { display:flex; flex-direction:column; align-items:center; padding:3.5rem 1rem; gap:.6rem; }
@@ -462,7 +471,6 @@ export default function ActivityFeed({ teamId }) {
         {/* Filter bar */}
         <div className="af-bar">
           <div className="af-bar-l">
-            {/* Desktop pills */}
             <div className="af-pill-row-desktop">
               {FILTERS.map(f => (
                 <button key={f.key} className={`af-pill${filter === f.key ? " on" : ""}`}
@@ -472,7 +480,6 @@ export default function ActivityFeed({ teamId }) {
               ))}
             </div>
 
-            {/* Mobile filter dropdown */}
             <div className="af-filter-mobile">
               <button className="af-mobile-trigger" onClick={() => setFilterOpen(v => !v)}>
                 {(() => { const F = FILTERS.find(f => f.key === filter); return <><F.icon size={11} />{F.label}<ChevronDown size={11} /></>; })()}
