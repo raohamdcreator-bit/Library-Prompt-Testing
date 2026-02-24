@@ -25,3 +25,11 @@ dist-ssr
 .env.local
 
 .vercel
+# Vercel secrets
+.env.vercel
+.env.*.vercel
+*.vercel
+
+# General env safety
+.env
+.env.*
