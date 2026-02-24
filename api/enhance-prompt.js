@@ -1,4 +1,5 @@
 // api/enhance-prompt.js - Enhanced with Model-Specific Optimizations
+import { authFetch } from '@/services/api';
 const PROVIDERS = {
   GROQ: 'groq',
   HUGGINGFACE: 'huggingface',
@@ -520,12 +521,14 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
     console.log('Making fetch request to:', config.endpoint);
     console.log('Request body size:', JSON.stringify(requestBody).length, 'bytes');
 
-    const response = await fetch(config.endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(requestBody),
-      signal: controller.signal
-    });
+    const response = await authFetch('/api/enhance-prompt', {
+  method: 'POST',
+  body: JSON.stringify({
+    prompt,
+    enhancementType,
+    targetModel,
+  }),
+});
 
     clearTimeout(timeoutId);
 
