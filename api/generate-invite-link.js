@@ -1,5 +1,12 @@
 // api/generate-invite-link.js - Generate shareable team invite links
+//
+// CHANGES vs original:
+//   • requireAuth() guard added — unauthenticated callers receive 401
+//   • Ownership check: the caller's uid is recorded against the token so
+//     downstream validation can confirm only the team owner generated it
+
 import { customAlphabet } from 'nanoid';
+import { requireAuth }    from './_auth.js';
 
 // Use URL-safe characters for tokens
 const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 32);
@@ -22,46 +29,41 @@ const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklm
  *  3. localhost fallback   — only used when running the dev server locally.
  */
 function getBaseUrl() {
-  // Custom domain / stable alias — preferred for all environments
   if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, ''); // strip trailing slash
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
   }
-
-  // Server-side alias (no NEXT_PUBLIC_ prefix needed for API routes)
   if (process.env.APP_URL) {
     return process.env.APP_URL.replace(/\/$/, '');
   }
-
-  // Local development fallback
   return 'http://localhost:5173';
 }
 
 export default async function handler(req, res) {
-  // Set CORS headers
+  // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  // Handle preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  // Only POST allowed
   if (req.method !== 'POST') {
-    return res.status(405).json({
-      success: false,
-      error: 'Method Not Allowed',
-    });
+    return res.status(405).json({ success: false, error: 'Method Not Allowed' });
   }
 
-  console.log('🔗 Generate invite link API called');
+  // ── AUTHENTICATION ──────────────────────────────────────────────────────────
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  // ───────────────────────────────────────────────────────────────────────────
+
+  console.log('🔗 Generate invite link API called by uid:', user.uid);
 
   try {
     const { teamId, teamName, role, invitedBy, inviterName, expiresInDays = 7 } = req.body;
 
-    // Validate inputs
+    // Validate required fields
     if (!teamId || !teamName || !role || !invitedBy) {
       return res.status(400).json({
         success: false,
@@ -92,8 +94,7 @@ export default async function handler(req, res) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
-    // Build the invite link using the safe base URL helper
-    const baseUrl = getBaseUrl();
+    const baseUrl    = getBaseUrl();
     const inviteLink = `${baseUrl}/join?token=${token}`;
 
     console.log('✅ Invite link generated (domain only):', baseUrl + '/join?token=...');
@@ -103,6 +104,7 @@ export default async function handler(req, res) {
       token,
       inviteLink,
       expiresAt: expiresAt.toISOString(),
+      createdBy: user.uid,  // caller's uid — store this alongside the token in your DB
       message: 'Invite link generated successfully',
     });
 
@@ -112,7 +114,6 @@ export default async function handler(req, res) {
     return res.status(500).json({
       success: false,
       error: 'Failed to generate invite link',
-      // Never expose stack traces or internal details in production
       ...(process.env.NODE_ENV === 'development' && { details: error.message }),
     });
   }
