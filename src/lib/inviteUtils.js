@@ -16,7 +16,7 @@ import {
   arrayUnion,
   increment,
 } from "firebase/firestore";
-import { authFetch } from "../services/api"; // ← replaces plain fetch()
+import { authFetch } from "../../services/api"; // ← replaces plain fetch()
 
 // Constants
 const INVITE_EXPIRATION_DAYS = 7;
