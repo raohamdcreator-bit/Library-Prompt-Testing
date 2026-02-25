@@ -1,6 +1,6 @@
 // src/components/AIPromptEnhancer.jsx — Redesigned UI
 import { useState } from "react";
-import { authFetch } from "../services/api";   // ← replaces plain fetch()
+import { authFetch } from "../../services/api";   
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { useGuestMode } from '../context/GuestModeContext';
 import { isDemoPrompt } from '../lib/guestDemoContent';
