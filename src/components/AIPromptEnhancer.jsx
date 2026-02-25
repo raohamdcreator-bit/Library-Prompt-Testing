@@ -1,5 +1,6 @@
 // src/components/AIPromptEnhancer.jsx — Redesigned UI
 import { useState } from "react";
+import { authFetch } from "../services/api";   // ← replaces plain fetch()
 import { useSoundEffects } from '../hooks/useSoundEffects';
 import { useGuestMode } from '../context/GuestModeContext';
 import { isDemoPrompt } from '../lib/guestDemoContent';
@@ -60,9 +61,9 @@ export default function AIPromptEnhancer({ prompt, onApply, onSaveAsNew, onClose
     if (!prompt?.text || loading) return;
     setLoading(true); setError(null); setResult(null);
     try {
-      const res = await fetch("/api/enhance-prompt", {
+      // ── FIX: use authFetch so the Firebase ID token is sent automatically ──
+      const res = await authFetch("/api/enhance-prompt", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: prompt.text,
           enhancementType,
