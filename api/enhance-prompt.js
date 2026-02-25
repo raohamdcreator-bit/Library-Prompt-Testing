@@ -1,5 +1,12 @@
 // api/enhance-prompt.js - Enhanced with Model-Specific Optimizations
-import { authFetch } from '@/services/api';
+//
+// CHANGES vs original:
+//   • requireAuth() guard added — unauthenticated callers receive 401
+//   • Removed the broken `authFetch` import and call that existed inside
+//     the server-side callAIProvider() function; replaced with native fetch()
+
+import { requireAuth } from './_auth.js';
+
 const PROVIDERS = {
   GROQ: 'groq',
   HUGGINGFACE: 'huggingface',
@@ -219,8 +226,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // ── AUTHENTICATION ──────────────────────────────────────────────────────────
+  // Verify Firebase ID token. Returns null (and sends 401) if invalid.
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  // ───────────────────────────────────────────────────────────────────────────
+
   // Detailed logging for debugging
   console.log('=== AI Enhancement Request ===');
+  console.log('Authenticated user:', user.uid);
   console.log('Active Provider:', ACTIVE_PROVIDER);
   console.log('Environment Variables Check:');
   console.log('- AI_PROVIDER:', process.env.AI_PROVIDER ? '✓ Set' : '✗ Not set');
@@ -264,13 +278,6 @@ export default async function handler(req, res) {
 
     if (!config.apiKey) {
       console.error(`Missing API key for provider: ${ACTIVE_PROVIDER}`);
-      console.error('Config check:', {
-        provider: ACTIVE_PROVIDER,
-        hasEndpoint: !!config.endpoint,
-        hasModel: !!config.model,
-        hasApiKey: !!config.apiKey
-      });
-      
       return res.status(500).json({ 
         success: false,
         error: 'Service configuration error',
@@ -297,11 +304,7 @@ export default async function handler(req, res) {
 
     // Call the selected AI provider
     console.log('Calling AI provider...');
-    const enhancedPrompt = await callAIProvider(
-      config,
-      systemPrompt,
-      userPrompt
-    );
+    const enhancedPrompt = await callAIProvider(config, systemPrompt, userPrompt);
 
     console.log('AI response received, length:', enhancedPrompt?.length || 0);
 
@@ -349,7 +352,6 @@ export default async function handler(req, res) {
       console.error('Error cause:', error.cause);
     }
 
-    // Provide helpful error messages
     let errorMessage = 'Failed to enhance prompt';
     let statusCode = 500;
     let errorDetails = error.message;
@@ -390,14 +392,10 @@ export default async function handler(req, res) {
 
 // Generate comprehensive system prompt with model and type specificity
 function generateSystemPrompt(enhancementType, targetModel, context) {
-  // Get model-specific optimization prompt
   const modelPrompt = MODEL_OPTIMIZATION_PROMPTS[targetModel] || MODEL_OPTIMIZATION_PROMPTS.general;
-  
-  // Get enhancement type modifier
   const typeModifier = ENHANCEMENT_TYPE_MODIFIERS[enhancementType] || ENHANCEMENT_TYPE_MODIFIERS.general;
 
-  // Combine both optimizations
-  const combinedPrompt = `${modelPrompt}
+  return `${modelPrompt}
 
 ADDITIONAL ENHANCEMENT FOCUS: ${enhancementType.toUpperCase()}
 ${typeModifier}
@@ -413,8 +411,6 @@ CRITICAL INSTRUCTIONS:
 - Preserve the original intent completely
 - Apply both model-specific and enhancement-type optimizations
 - Make it ready to use immediately`;
-
-  return combinedPrompt;
 }
 
 // Generate user prompt with clear instructions
@@ -454,38 +450,40 @@ IMPROVEMENTS:
 Remember: The enhanced prompt should be optimized for ${targetName} and follow ${enhancementType} enhancement principles.`;
 }
 
-// Call AI provider based on configuration
+/**
+ * Call the configured AI provider using native fetch().
+ *
+ * NOTE: This is a server-side function. It must NOT import or call any
+ * client-side helpers (e.g. authFetch from services/api.js).
+ */
 async function callAIProvider(config, systemPrompt, userPrompt) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 s timeout
 
   try {
     let requestBody;
-    let headers = {
+    const headers = {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey}`,
     };
 
     console.log('Preparing request for provider:', ACTIVE_PROVIDER);
 
-    // Provider-specific request formatting
     switch (ACTIVE_PROVIDER) {
       case PROVIDERS.GROQ:
-        headers['Authorization'] = `Bearer ${config.apiKey}`;
         requestBody = {
           model: config.model,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
+            { role: 'user',   content: userPrompt   }
           ],
           temperature: 0.7,
           max_tokens: 2000,
           top_p: 0.9
         };
-        console.log('Groq request prepared');
         break;
 
       case PROVIDERS.HUGGINGFACE:
-        headers['Authorization'] = `Bearer ${config.apiKey}`;
         requestBody = {
           inputs: `${systemPrompt}\n\n${userPrompt}`,
           parameters: {
@@ -495,23 +493,20 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
             return_full_text: false
           }
         };
-        console.log('HuggingFace request prepared');
         break;
 
       case PROVIDERS.OPENROUTER:
-        headers['Authorization'] = `Bearer ${config.apiKey}`;
-        headers['HTTP-Referer'] = process.env.VERCEL_URL || 'https://prompt-teams.com';
+        headers['HTTP-Referer'] = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://prism-app.online';
         headers['X-Title'] = 'Prompt Teams';
         requestBody = {
           model: config.model,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt }
+            { role: 'user',   content: userPrompt   }
           ],
           temperature: 0.7,
           max_tokens: 2000
         };
-        console.log('OpenRouter request prepared');
         break;
 
       default:
@@ -521,14 +516,13 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
     console.log('Making fetch request to:', config.endpoint);
     console.log('Request body size:', JSON.stringify(requestBody).length, 'bytes');
 
-    const response = await authFetch('/api/enhance-prompt', {
-  method: 'POST',
-  body: JSON.stringify({
-    prompt,
-    enhancementType,
-    targetModel,
-  }),
-});
+    // ── Use native fetch() here — this runs server-side, not in the browser ──
+    const response = await fetch(config.endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
 
     clearTimeout(timeoutId);
 
@@ -541,9 +535,9 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
       
       try {
         const errorJson = JSON.parse(errorText);
-        console.error('Parsed error:', errorJson);
         throw new Error(`AI API error: ${errorJson.error?.message || errorJson.message || errorText}`);
       } catch (e) {
+        if (e.message.startsWith('AI API error:')) throw e;
         throw new Error(`AI API returned ${response.status}: ${errorText.substring(0, 200)}`);
       }
     }
@@ -551,17 +545,14 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
     const data = await response.json();
     console.log('Response parsed successfully');
 
-    // Extract response based on provider
     let content;
     switch (ACTIVE_PROVIDER) {
       case PROVIDERS.GROQ:
       case PROVIDERS.OPENROUTER:
         content = data.choices?.[0]?.message?.content;
-        console.log('Extracted content from choices');
         break;
       case PROVIDERS.HUGGINGFACE:
         content = Array.isArray(data) ? data[0]?.generated_text : data.generated_text;
-        console.log('Extracted content from HuggingFace response');
         break;
     }
 
@@ -578,7 +569,6 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
     clearTimeout(timeoutId);
     
     if (error.name === 'AbortError') {
-      console.error('Request timed out after 30 seconds');
       throw new Error('Request timeout: AI service took too long to respond');
     }
     
@@ -591,8 +581,7 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
 function extractEnhancedPrompt(response) {
   console.log('Extracting enhanced prompt from response...');
   
-  // Try to parse structured response
-  const enhancedMatch = response.match(/ENHANCED PROMPT:\s*([\s\S]*?)(?=IMPROVEMENTS:|$)/i);
+  const enhancedMatch    = response.match(/ENHANCED PROMPT:\s*([\s\S]*?)(?=IMPROVEMENTS:|$)/i);
   const improvementsMatch = response.match(/IMPROVEMENTS:\s*([\s\S]*?)$/i);
 
   let enhanced = '';
@@ -600,47 +589,34 @@ function extractEnhancedPrompt(response) {
 
   if (enhancedMatch) {
     enhanced = enhancedMatch[1].trim();
-    console.log('Found ENHANCED PROMPT section');
   } else {
-    // Fallback: Use first substantial paragraph
     const paragraphs = response.split('\n\n').filter(p => p.trim().length > 50);
     enhanced = paragraphs[0]?.trim() || response.trim();
     console.log('Using fallback extraction method');
   }
 
   if (improvementsMatch) {
-    const improvementsText = improvementsMatch[1].trim();
-    improvements = improvementsText
+    improvements = improvementsMatch[1].trim()
       .split('\n')
       .filter(line => line.trim().match(/^[-•*]\s+/))
       .map(line => line.replace(/^[-•*]\s+/, '').trim())
       .filter(Boolean);
-    console.log('Found', improvements.length, 'improvements');
   }
 
-  // If no improvements found, provide defaults
   if (improvements.length === 0) {
     improvements = [
       'Enhanced clarity and specificity',
       'Added structured format',
       'Improved instruction quality'
     ];
-    console.log('Using default improvements');
   }
 
-  return {
-    enhanced,
-    improvements
-  };
+  return { enhanced, improvements };
 }
 
-/**
- * Analyze what improvements were made based on model and type
- */
 function analyzeImprovements(original, enhanced, targetModel, enhancementType) {
   const improvements = [];
 
-  // Length changes
   if (enhanced.length > original.length * 1.3) {
     improvements.push("Significantly expanded with additional detail and context");
   } else if (enhanced.length > original.length * 1.1) {
@@ -649,7 +625,6 @@ function analyzeImprovements(original, enhanced, targetModel, enhancementType) {
     improvements.push("Simplified and made more concise");
   }
 
-  // Structure improvements
   if (enhanced.includes("\n\n") && !original.includes("\n\n")) {
     improvements.push("Added paragraph structure for better readability");
   }
@@ -658,7 +633,6 @@ function analyzeImprovements(original, enhanced, targetModel, enhancementType) {
     improvements.push("Organized into clear, logical sections");
   }
 
-  // Model-specific improvements
   const modelImprovements = {
     claude: [
       (enhanced.toLowerCase().includes("think") || enhanced.toLowerCase().includes("reason")) && "Added reasoning and thinking guidance",
@@ -695,26 +669,24 @@ function analyzeImprovements(original, enhanced, targetModel, enhancementType) {
   const modelSpecific = modelImprovements[targetModel] || [];
   improvements.push(...modelSpecific.filter(Boolean));
 
-  // Enhancement type improvements
   const typeImprovements = {
     technical: "Added technical specifications, constraints, and precision",
-    creative: "Enhanced with creative elements and descriptive language",
-    analytical: "Structured for analytical thinking and reasoning depth",
-    concise: "Reduced verbosity while preserving core meaning",
-    detailed: "Expanded with comprehensive examples and context",
-    general: "Applied general clarity and effectiveness improvements",
+    creative:  "Enhanced with creative elements and descriptive language",
+    analytical:"Structured for analytical thinking and reasoning depth",
+    concise:   "Reduced verbosity while preserving core meaning",
+    detailed:  "Expanded with comprehensive examples and context",
+    general:   "Applied general clarity and effectiveness improvements",
   };
 
   if (typeImprovements[enhancementType]) {
     improvements.push(typeImprovements[enhancementType]);
   }
 
-  // Add model optimization note
   const modelNames = {
-    claude: "Claude AI",
+    claude:  "Claude AI",
     chatgpt: "ChatGPT",
-    cursor: "Cursor AI",
-    gemini: "Google Gemini",
+    cursor:  "Cursor AI",
+    gemini:  "Google Gemini",
     copilot: "GitHub Copilot",
     general: "universal AI compatibility",
   };
@@ -723,5 +695,5 @@ function analyzeImprovements(original, enhanced, targetModel, enhancementType) {
     improvements.push(`Optimized specifically for ${modelNames[targetModel] || targetModel}`);
   }
 
-  return improvements.filter(Boolean).slice(0, 6); // Limit to top 6 improvements
+  return improvements.filter(Boolean).slice(0, 6);
 }
