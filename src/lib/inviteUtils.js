@@ -16,6 +16,7 @@ import {
   arrayUnion,
   increment,
 } from "firebase/firestore";
+import { authFetch } from "../services/api"; // ← replaces plain fetch()
 
 // Constants
 const INVITE_EXPIRATION_DAYS = 7;
@@ -582,25 +583,15 @@ export function generateInviteLink(token, baseUrl = window.location.origin) {
 
 /**
  * Send invite email via API
+ *
+ * ── FIX: replaced plain fetch() with authFetch() so the Firebase ID token
+ *    is attached as Authorization: Bearer <token> on every request.
  */
-export async function sendInviteEmail({
-  to,
-  teamName,
-  invitedBy,
-  role,
-  link,
-}) {
+export async function sendInviteEmail({ to, teamName, invitedBy, role, link }) {
   try {
-    const response = await fetch("/api/send-invite", {
+    const response = await authFetch("/api/send-invite", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to,
-        link,
-        teamName,
-        invitedBy,
-        role,
-      }),
+      body: JSON.stringify({ to, link, teamName, invitedBy, role }),
     });
 
     if (!response.ok) {
@@ -611,10 +602,7 @@ export async function sendInviteEmail({
     const data = await response.json();
     return { success: true, emailId: data.emailId };
   } catch (error) {
-    return {
-      success: false,
-      error: error.message,
-    };
+    return { success: false, error: error.message };
   }
 }
 
@@ -669,15 +657,15 @@ export async function sendTeamInvitation({
     };
   } catch (error) {
     console.error("❌ Error in sendTeamInvitation:", error);
-    return {
-      success: false,
-      error: error.message,
-    };
+    return { success: false, error: error.message };
   }
 }
 
 /**
  * Complete LINK invite flow (generate token + create invite)
+ *
+ * ── FIX: replaced plain fetch() with authFetch() so the Firebase ID token
+ *    is attached as Authorization: Bearer <token> on every request.
  */
 export async function generateTeamInviteLink({
   teamId,
@@ -688,10 +676,9 @@ export async function generateTeamInviteLink({
   expiresInDays = 7,
 }) {
   try {
-    // Call API to generate token
-    const response = await fetch("/api/generate-invite-link", {
+    // ── FIX: authFetch attaches the Firebase ID token automatically ──
+    const response = await authFetch("/api/generate-invite-link", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         teamId,
         teamName,
@@ -735,10 +722,7 @@ export async function generateTeamInviteLink({
     };
   } catch (error) {
     console.error("❌ Error in generateTeamInviteLink:", error);
-    return {
-      success: false,
-      error: error.message,
-    };
+    return { success: false, error: error.message };
   }
 }
 
@@ -751,43 +735,28 @@ export async function validateInvite(inviteId) {
     const inviteDoc = await getDoc(inviteRef);
 
     if (!inviteDoc.exists()) {
-      return {
-        valid: false,
-        error: "Invite not found",
-      };
+      return { valid: false, error: "Invite not found" };
     }
 
     const inviteData = inviteDoc.data();
 
     // Check status
     if (inviteData.status !== "pending") {
-      return {
-        valid: false,
-        error: "Invite has already been processed",
-      };
+      return { valid: false, error: "Invite has already been processed" };
     }
 
     // Check expiration
     const now = Timestamp.now();
     if (inviteData.expiresAt && inviteData.expiresAt.toMillis() < now.toMillis()) {
-      return {
-        valid: false,
-        error: "Invite has expired",
-      };
+      return { valid: false, error: "Invite has expired" };
     }
 
     return {
       valid: true,
-      invite: {
-        id: inviteDoc.id,
-        ...inviteData,
-      },
+      invite: { id: inviteDoc.id, ...inviteData },
     };
   } catch (error) {
-    return {
-      valid: false,
-      error: error.message,
-    };
+    return { valid: false, error: error.message };
   }
 }
 
