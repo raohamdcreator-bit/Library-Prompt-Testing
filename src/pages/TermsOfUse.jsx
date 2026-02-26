@@ -3,7 +3,7 @@ import LegalLayout from "../components/LegalLayout";
 
 export default function TermsOfUse() {
   return (
-    <LegalLayout title="Terms of Use" lastUpdated="January 15, 2025">
+    <LegalLayout title="Terms of Use" lastUpdated="January 15, 2026">
       <div className="space-y-6" style={{ color: "var(--muted-foreground)" }}>
         <section>
           <h2
