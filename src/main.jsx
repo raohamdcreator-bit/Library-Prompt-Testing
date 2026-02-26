@@ -6,7 +6,7 @@ import "./App.css";
 import App from "./App";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { AppStateProvider } from "./context/AppStateContext.jsx";
-import { GuestModeProvider } from "./context/GuestModeContext.jsx"; // NEW
+import { GuestModeProvider } from "./context/GuestModeContext.jsx";
 import { initSentry } from "./lib/sentry.js";
 import { initCookieConsent } from "./lib/cookieConsent.js";
 import { NotificationProvider } from "./context/NotificationContext";
