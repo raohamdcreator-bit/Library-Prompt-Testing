@@ -27,15 +27,17 @@
       rel="stylesheet"
     />
 
-    <!-- Google Analytics 4 -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-L9G2B4S3JH"></script>
+    <!-- Google Analytics 4 — loaded ONLY after cookie consent (see src/lib/cookieConsent.js) -->
+    <!-- §3.1: GA4 must not fire before the user accepts analytics cookies.      -->
+    <!-- Google Consent Mode v2: default all signals to denied on page load.     -->
     <script>
       window.dataLayer = window.dataLayer || [];
-      function gtag() {
-        dataLayer.push(arguments);
-      }
-      gtag("js", new Date());
-      gtag("config", "G-L9G2B4S3JH");
+      function gtag() { dataLayer.push(arguments); }
+      gtag('consent', 'default', {
+        analytics_storage: 'denied',
+        ad_storage:        'denied',
+        wait_for_update:    500,
+      });
     </script>
 
     <!-- PWA Meta Tags -->
@@ -195,7 +197,7 @@
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", function () {
           navigator.serviceWorker
-            .register("/sw.js", { type: "module" })
+            .register("/sw.js")  // §4.4: removed type:'module' — not supported in Firefox/Safari
             .then(() => console.log("Service Worker registered successfully"))
             .catch((err) => console.log("SW registration failed:", err));
         });
