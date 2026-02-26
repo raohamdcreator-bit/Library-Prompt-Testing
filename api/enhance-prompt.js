@@ -5,7 +5,8 @@
 //   • Removed the broken `authFetch` import and call that existed inside
 //     the server-side callAIProvider() function; replaced with native fetch()
 
-import { requireAuth } from './_auth.js';
+import { requireAuth }    from './_auth.js';
+import { checkRateLimit } from './_rateLimit.js';
 
 const PROVIDERS = {
   GROQ: 'groq',
@@ -212,11 +213,22 @@ const ENHANCEMENT_TYPE_MODIFIERS = {
 };
 
 export default async function handler(req, res) {
-  // CORS headers
+  // §2.2 — CORS: never use wildcard when credentials are involved.
+  // Reflect the request origin only if it is on the allow-list.
+  const ALLOWED_ORIGINS = [
+    'https://prism-app.online',
+    'https://www.prism-app.online',
+    'http://localhost:3000',
+    'http://localhost:5173',
+  ];
+  const reqOrigin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(reqOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin',  reqOrigin);
+    res.setHeader('Vary', 'Origin');
+  }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods',  'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers',  'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -227,20 +239,26 @@ export default async function handler(req, res) {
   }
 
   // ── AUTHENTICATION ──────────────────────────────────────────────────────────
-  // Verify Firebase ID token. Returns null (and sends 401) if invalid.
   const user = await requireAuth(req, res);
   if (!user) return;
   // ───────────────────────────────────────────────────────────────────────────
 
-  // Detailed logging for debugging
-  console.log('=== AI Enhancement Request ===');
-  console.log('Authenticated user:', user.uid);
-  console.log('Active Provider:', ACTIVE_PROVIDER);
-  console.log('Environment Variables Check:');
-  console.log('- AI_PROVIDER:', process.env.AI_PROVIDER ? '✓ Set' : '✗ Not set');
-  console.log('- GROQ_API_KEY:', process.env.GROQ_API_KEY ? `✓ Set (${process.env.GROQ_API_KEY.substring(0, 10)}...)` : '✗ Not set');
-  console.log('- HUGGINGFACE_API_KEY:', process.env.HUGGINGFACE_API_KEY ? '✓ Set' : '✗ Not set');
-  console.log('- OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? '✓ Set' : '✗ Not set');
+  // §2.4 — Rate limiting: 20 requests per user per 60 seconds
+  if (!(await checkRateLimit(req, res, user.uid, 'enhance', 20, 60))) return;
+
+  // §2.6 — Dev-only logging guard: never log key substrings or full bodies in prod
+  const isDev = process.env.NODE_ENV === 'development';
+  const log   = isDev ? console.log.bind(console) : () => {};
+
+  log('=== AI Enhancement Request ===');
+  log('Authenticated user:', user.uid);
+  log('Active Provider:', ACTIVE_PROVIDER);
+  log('Environment Variables Check:');
+  log('- AI_PROVIDER:', process.env.AI_PROVIDER ? '✓ Set' : '✗ Not set');
+  // §2.6 — NEVER log key substrings even in dev (left as existence check only)
+  log('- GROQ_API_KEY:', process.env.GROQ_API_KEY ? '✓ Set' : '✗ Not set');
+  log('- HUGGINGFACE_API_KEY:', process.env.HUGGINGFACE_API_KEY ? '✓ Set' : '✗ Not set');
+  log('- OPENROUTER_API_KEY:', process.env.OPENROUTER_API_KEY ? '✓ Set' : '✗ Not set');
 
   try {
     const { 
@@ -260,9 +278,9 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log('Prompt length:', prompt.length);
-    console.log('Enhancement type:', enhancementType);
-    console.log('Target model:', targetModel);
+    log('Prompt length:', prompt.length);
+    log('Enhancement type:', enhancementType);
+    log('Target model:', targetModel);
 
     // Validate provider configuration
     const config = PROVIDER_CONFIGS[ACTIVE_PROVIDER];
@@ -290,23 +308,23 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log(`✓ Using provider: ${ACTIVE_PROVIDER}`);
-    console.log(`✓ Model: ${config.model}`);
-    console.log(`✓ Target optimization: ${targetModel}`);
-    console.log(`✓ Endpoint: ${config.endpoint}`);
+    log(`✓ Using provider: ${ACTIVE_PROVIDER}`);
+    log(`✓ Model: ${config.model}`);
+    log(`✓ Target optimization: ${targetModel}`);
+    log(`✓ Endpoint: ${config.endpoint}`);
 
     // Generate model-specific and type-specific enhancement prompt
     const systemPrompt = generateSystemPrompt(enhancementType, targetModel, context);
     const userPrompt = generateUserPrompt(prompt, enhancementType, targetModel);
 
-    console.log('System prompt length:', systemPrompt.length);
-    console.log('User prompt length:', userPrompt.length);
+    log('System prompt length:', systemPrompt.length);
+    log('User prompt length:', userPrompt.length);
 
     // Call the selected AI provider
-    console.log('Calling AI provider...');
+    log('Calling AI provider...');
     const enhancedPrompt = await callAIProvider(config, systemPrompt, userPrompt);
 
-    console.log('AI response received, length:', enhancedPrompt?.length || 0);
+    log('AI response received, length:', enhancedPrompt?.length || 0);
 
     // Extract and validate the enhanced prompt
     const result = extractEnhancedPrompt(enhancedPrompt);
@@ -319,10 +337,10 @@ export default async function handler(req, res) {
       enhancementType
     );
 
-    console.log('✓ Enhancement successful');
-    console.log('- Enhanced length:', result.enhanced.length);
-    console.log('- Improvements count:', improvements.length);
-    console.log('- Target model:', targetModel);
+    log('✓ Enhancement successful');
+    log('- Enhanced length:', result.enhanced.length);
+    log('- Improvements count:', improvements.length);
+    log('- Target model:', targetModel);
 
     return res.status(200).json({
       success: true,
@@ -467,7 +485,7 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
       'Authorization': `Bearer ${config.apiKey}`,
     };
 
-    console.log('Preparing request for provider:', ACTIVE_PROVIDER);
+    log('Preparing request for provider:', ACTIVE_PROVIDER);
 
     switch (ACTIVE_PROVIDER) {
       case PROVIDERS.GROQ:
@@ -513,8 +531,8 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
         throw new Error(`Unsupported provider: ${ACTIVE_PROVIDER}`);
     }
 
-    console.log('Making fetch request to:', config.endpoint);
-    console.log('Request body size:', JSON.stringify(requestBody).length, 'bytes');
+    log('Making fetch request to:', config.endpoint);
+    log('Request body size:', JSON.stringify(requestBody).length, 'bytes');
 
     // ── Use native fetch() here — this runs server-side, not in the browser ──
     const response = await fetch(config.endpoint, {
@@ -526,8 +544,8 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
 
     clearTimeout(timeoutId);
 
-    console.log('Response status:', response.status);
-    console.log('Response ok:', response.ok);
+    log('Response status:', response.status);
+    log('Response ok:', response.ok);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -543,7 +561,7 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
     }
 
     const data = await response.json();
-    console.log('Response parsed successfully');
+    log('Response parsed successfully');
 
     let content;
     switch (ACTIVE_PROVIDER) {
@@ -562,7 +580,7 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
       throw new Error('No content in AI response');
     }
 
-    console.log('Content extracted successfully, length:', content.length);
+    log('Content extracted successfully, length:', content.length);
     return content;
 
   } catch (error) {
@@ -579,7 +597,7 @@ async function callAIProvider(config, systemPrompt, userPrompt) {
 
 // Extract enhanced prompt and improvements from AI response
 function extractEnhancedPrompt(response) {
-  console.log('Extracting enhanced prompt from response...');
+  log('Extracting enhanced prompt from response...');
   
   const enhancedMatch    = response.match(/ENHANCED PROMPT:\s*([\s\S]*?)(?=IMPROVEMENTS:|$)/i);
   const improvementsMatch = response.match(/IMPROVEMENTS:\s*([\s\S]*?)$/i);
@@ -592,7 +610,7 @@ function extractEnhancedPrompt(response) {
   } else {
     const paragraphs = response.split('\n\n').filter(p => p.trim().length > 50);
     enhanced = paragraphs[0]?.trim() || response.trim();
-    console.log('Using fallback extraction method');
+    log('Using fallback extraction method');
   }
 
   if (improvementsMatch) {
