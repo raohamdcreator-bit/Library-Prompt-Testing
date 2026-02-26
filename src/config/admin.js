@@ -1,13 +1,7 @@
 // src/config/admin.js
 // ============================================
-// ADMIN EMAIL CONFIGURATION
-// ============================================
-// §2.5 — Admin email is no longer hardcoded in source.
-// Set VITE_ADMIN_EMAIL in your .env.local (dev) and in
-// Vercel → Project Settings → Environment Variables (prod/preview).
-//
-// Example .env.local:
-//   VITE_ADMIN_EMAIL=your-admin@example.com
+
+
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || '';
 
