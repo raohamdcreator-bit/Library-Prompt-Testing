@@ -5,7 +5,8 @@
 //   • escapeHtml() applied to all user-controlled values before HTML interpolation
 //   • validateInviteLink() ensures the href is a legitimate HTTPS URL on your domain
 
-import { requireAuth } from './_auth.js';
+import { requireAuth }    from './_auth.js';
+import { checkRateLimit } from './_rateLimit.js';
 
 // ── Security helpers ──────────────────────────────────────────────────────────
 
@@ -52,11 +53,21 @@ function validateInviteLink(link) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
-  // CORS headers
+  // §2.2 — CORS: reflect origin only if it is on the allow-list
+  const ALLOWED_ORIGINS = [
+    'https://prism-app.online',
+    'https://www.prism-app.online',
+    'http://localhost:3000',
+    'http://localhost:5173',
+  ];
+  const reqOrigin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(reqOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin',  reqOrigin);
+    res.setHeader('Vary', 'Origin');
+  }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods',  'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers',  'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -70,6 +81,9 @@ export default async function handler(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
   // ───────────────────────────────────────────────────────────────────────────
+
+  // §2.4 — Rate limiting: 10 invite emails per user per 60 seconds
+  if (!(await checkRateLimit(req, res, user.uid, 'send-invite', 10, 60))) return;
 
   console.log('📨 Send invite API called by uid:', user.uid);
 
