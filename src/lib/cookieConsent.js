@@ -76,10 +76,10 @@ function showBanner() {
 
   banner.innerHTML = `
     <p style="flex:1;min-width:220px;margin:0;line-height:1.5">
-      🍪 We use <strong style="color:#e4e4f0">analytics cookies</strong> (Google Analytics 4)
+      We use <strong style="color:#e4e4f0">analytics cookies</strong> (Google Analytics 4)
       to understand how Prism is used.
       Authentication cookies are always required.
-      <a href="/privacy-policy"
+      <a href="/privacy"
          style="color:#a78bfa;text-decoration:underline"
          target="_blank" rel="noopener">Privacy Policy</a>
     </p>
