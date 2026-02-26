@@ -7,6 +7,7 @@
 
 import { customAlphabet } from 'nanoid';
 import { requireAuth }    from './_auth.js';
+import { checkRateLimit } from './_rateLimit.js';
 
 // Use URL-safe characters for tokens
 const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 32);
@@ -39,11 +40,21 @@ function getBaseUrl() {
 }
 
 export default async function handler(req, res) {
-  // CORS headers
+  // §2.2 — CORS: reflect origin only if it is on the allow-list
+  const ALLOWED_ORIGINS = [
+    'https://prism-app.online',
+    'https://www.prism-app.online',
+    'http://localhost:3000',
+    'http://localhost:5173',
+  ];
+  const reqOrigin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(reqOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin',  reqOrigin);
+    res.setHeader('Vary', 'Origin');
+  }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods',  'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers',  'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -57,6 +68,9 @@ export default async function handler(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
   // ───────────────────────────────────────────────────────────────────────────
+
+  // §2.4 — Rate limiting: 10 invite link generations per user per 60 seconds
+  if (!(await checkRateLimit(req, res, user.uid, 'gen-invite', 10, 60))) return;
 
   console.log('🔗 Generate invite link API called by uid:', user.uid);
 
