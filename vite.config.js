@@ -15,8 +15,14 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    // Ensure public files are copied
     copyPublicDir: true,
+    rollupOptions: {
+      // §2.1 — Prevent server-only packages from being bundled into the
+      // client build. firebase-admin, resend, and @vercel/kv are Node.js
+      // runtime packages used exclusively in api/*.js (Vercel Functions).
+      // Vite/Rollup must never attempt to include them in the browser bundle.
+      external: ['firebase-admin', 'resend', '@vercel/kv', 'nanoid'],
+    },
   },
 
   // Development server
