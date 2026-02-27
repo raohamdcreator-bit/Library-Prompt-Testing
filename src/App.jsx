@@ -28,7 +28,6 @@ import FavoritesList from "./components/Favorites";
 import { TeamAnalytics } from "./components/PromptAnalytics";
 import ActivityFeed from "./components/ActivityFeed";
 import TeamChat from "./components/TeamChat";
-import PlagiarismChecker from "./components/PlagiarismChecker";
 import IntroVideoSection from "./components/IntroVideoSection";
 import OnboardingExperience from "./components/OnboardingExperience";
 import { savePrompt } from "./lib/prompts";
