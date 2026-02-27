@@ -278,6 +278,18 @@ export default async function handler(req, res) {
       });
     }
 
+    // §7.8 — Input length limit: prevent a malicious user from sending a
+    // 500,000-character prompt that exhausts the AI provider quota or runs
+    // up costs. 10,000 characters ≈ ~2,500 tokens, well within model limits.
+    const MAX_PROMPT_LENGTH = 10_000;
+    if (prompt.length > MAX_PROMPT_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        error: 'Prompt too long',
+        message: `Prompt must be ${MAX_PROMPT_LENGTH.toLocaleString()} characters or fewer. Received ${prompt.length.toLocaleString()}.`,
+      });
+    }
+
     log('Prompt length:', prompt.length);
     log('Enhancement type:', enhancementType);
     log('Target model:', targetModel);
