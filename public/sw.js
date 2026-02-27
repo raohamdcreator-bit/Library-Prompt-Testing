@@ -18,11 +18,15 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  if (e.request.url.includes('/api/'))  return; // never cache API calls
+  if (e.request.url.includes('/api/'))             return;
   if (e.request.url.includes('firestore.googleapis.com')) return;
-  if (e.request.url.includes('firebase')) return;
+  if (e.request.url.includes('firebase'))          return;
+  if (e.request.url.includes('googletagmanager'))  return; // ← add
+  if (e.request.url.includes('google-analytics'))  return; // ← add
 
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request))
+    fetch(e.request).catch(() =>
+      caches.match(e.request).then(cached => cached || Response.error())
+    )                        
   );
 });
