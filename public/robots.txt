@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /team/
+Disallow: /admin/
+Disallow: /accept-invite/
+Disallow: /join-team/
+Sitemap: https://prism-app.online/sitemap.xml
