@@ -1,5 +1,6 @@
 // src/App.jsx - FIXED: Proper guest team access initialization and redirect
 import { useEffect, useState, useRef } from "react";
+import { useCanonical } from "./hooks/useCanonical";
 import { db } from "./lib/firebase";
 import {
   collection,
@@ -83,8 +84,10 @@ import About from "./pages/About";
 import JoinTeam from "./pages/JoinTeam";
 import GuestTeamView from "./pages/GuestTeamView";
 import Waitlist from "./pages/Waitlist";
-import AdminDashboard from "./pages/AdminDashboard";
 import { NavigationProvider } from "./components/LegalLayout";
+import { lazy, Suspense } from "react";
+const AdminDashboard    = lazy(() => import("./pages/AdminDashboard"));
+const PlagiarismChecker = lazy(() => import("./components/PlagiarismChecker"));
 
 // Admin email configuration
 const ADMIN_EMAIL = "rao.hamd.creator@gmail.com";
@@ -722,6 +725,9 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
 // ===================================
 export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
+  
+  // §4.3 — Update <link rel="canonical"> dynamically on every navigation
+  useCanonical(currentPath);
   
   // ✅ FIX 2: Simplified useState initializer — token is already in sessionStorage
   // from setGuestAccess(). Don't re-store it (setGuestToken didn't exist anyway),
@@ -1470,7 +1476,7 @@ export default function App() {
             <Route path="/join"><JoinTeam onNavigate={navigate} /></Route>
             <Route path="/guest-team"><GuestTeamView onNavigate={navigate} /></Route>
             <Route path="/waitlist"><Waitlist onNavigate={navigate} /></Route>
-            <Route path="/admin"><AdminDashboard onNavigate={navigate} /></Route>
+            <Route path="/admin"><Suspense fallback={<div className="neo-spinner" style={{margin:'4rem auto'}}/>}><AdminDashboard onNavigate={navigate} /></Suspense></Route>
           </Router>
           {currentPath !== "/waitlist" && currentPath !== "/admin" && <Footer onNavigate={navigate} />}
         </div>
@@ -1927,7 +1933,9 @@ export default function App() {
           {activeTeamObj && activeView === "activity" && <ActivityFeed teamId={activeTeamObj.id} />}
 
           {activeTeamObj && activeView === "plagiarism" && (
-            <PlagiarismChecker teamId={activeTeamObj.id} userRole={role} />
+            <Suspense fallback={<div className="neo-spinner" style={{margin:'4rem auto'}}/>}>
+              <PlagiarismChecker teamId={activeTeamObj.id} userRole={role} />
+            </Suspense>
           )}
 
           {/* Favorites view */}
