@@ -18,6 +18,13 @@ export default defineConfig({
     copyPublicDir: true,
     rollupOptions: {
       external: ['firebase-admin', 'resend', '@vercel/kv', 'nanoid'],
+      output: {
+        manualChunks: {
+          'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/analytics'],
+          'vendor-react':    ['react', 'react-dom', 'react-router-dom'],
+          'vendor-sentry':   ['@sentry/react'],
+        },
+      },
     },
   },
 
