@@ -7,7 +7,7 @@
 
 import { requireAuth }    from './_auth.js';
 import { checkRateLimit } from './_rateLimit.js';
-
+import { ok, err, unauthorized, rateLimited, serverError } from './_response.js';
 // ── Security helpers ──────────────────────────────────────────────────────────
 
 /**
