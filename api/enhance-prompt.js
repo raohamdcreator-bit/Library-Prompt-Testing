@@ -7,7 +7,7 @@
 
 import { requireAuth }    from './_auth.js';
 import { checkRateLimit } from './_rateLimit.js';
-
+import { validateEnv } from './_env.js';
 const PROVIDERS = {
   GROQ: 'groq',
   HUGGINGFACE: 'huggingface',
@@ -213,8 +213,7 @@ const ENHANCEMENT_TYPE_MODIFIERS = {
 };
 
 export default async function handler(req, res) {
-  // §2.2 — CORS: never use wildcard when credentials are involved.
-  // Reflect the request origin only if it is on the allow-list.
+  validateEnv();
   const ALLOWED_ORIGINS = [
     'https://prism-app.online',
     'https://www.prism-app.online',
