@@ -47,18 +47,28 @@ export function initSentry() {
           return null;
         }
 
-        // Filter out sensitive data
+        // §6.2 — PII scrubbing: remove user email and request body
+        // (request body may contain user prompts which are personal data under GDPR)
+        if (event.user) {
+          delete event.user.email;      // keep uid for deduplication, drop PII
+          delete event.user.username;   // display name may identify the person
+        }
         if (event.request) {
+          delete event.request.data;    // body may contain prompt text
           // Remove sensitive headers
           if (event.request.headers) {
             delete event.request.headers['Authorization'];
             delete event.request.headers['Cookie'];
           }
-          
           // Remove query parameters that might contain tokens
           if (event.request.query_string) {
             event.request.query_string = '[Filtered]';
           }
+        }
+        // §6.2 — Strip any extra context keys that might hold prompt content
+        if (event.extra) {
+          delete event.extra.prompt;
+          delete event.extra.promptText;
         }
 
         // Filter out known third-party errors
