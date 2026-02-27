@@ -1,13 +1,11 @@
-// Import the functions you need from the SDKs you need
+// src/lib/firebase.js
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getAuth } from "firebase/auth";          // 👈 you need this import
-import { getFirestore } from "firebase/firestore"; // 👈 and this one for db
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
+
 const firebaseConfig = {
   apiKey:            import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -18,8 +16,18 @@ const firebaseConfig = {
   measurementId:     import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-export const auth = getAuth(app);   // 🔥 must be exported
-export const db = getFirestore(app);
+
+export const analytics = getAnalytics(app);
+export const auth      = getAuth(app);
+export const db        = getFirestore(app);
+
+// §7.1 — Only initialise App Check when the site key is present.
+// This lets the app run in local dev without App Check enforcement
+// while production is fully protected.
+if (import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
+  initializeAppCheck(app, {
+    provider: new ReCaptchaV3Provider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),
+    isTokenAutoRefreshEnabled: true,
+  });
+}
