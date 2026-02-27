@@ -7,6 +7,7 @@
 
 import { requireAuth }    from './_auth.js';
 import { checkRateLimit } from './_rateLimit.js';
+import { validateEnv } from './_env.js';
 import { ok, err, unauthorized, rateLimited, serverError } from './_response.js';
 // ── Security helpers ──────────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ function validateInviteLink(link) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
+  validateEnv();
   // §2.2 — CORS: reflect origin only if it is on the allow-list
   const ALLOWED_ORIGINS = [
     'https://prism-app.online',
