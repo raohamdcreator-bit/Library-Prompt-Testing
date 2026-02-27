@@ -8,6 +8,7 @@
 import { customAlphabet } from 'nanoid';
 import { requireAuth }    from './_auth.js';
 import { checkRateLimit } from './_rateLimit.js';
+import { validateEnv } from './_env.js';
 import { ok, err, unauthorized, badRequest, serverError } from './_response.js';
 // Use URL-safe characters for tokens
 const nanoid = customAlphabet('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 32);
@@ -40,6 +41,7 @@ function getBaseUrl() {
 }
 
 export default async function handler(req, res) {
+  validateEnv();
   // §2.2 — CORS: reflect origin only if it is on the allow-list
   const ALLOWED_ORIGINS = [
     'https://prism-app.online',
