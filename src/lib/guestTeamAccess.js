@@ -1,5 +1,6 @@
 // src/lib/guestTeamAccess.js
-import { db } from "./firebase";
+import { db, auth } from "./firebase";
+import { signInAnonymously } from "firebase/auth";
 import {
   collection,
   doc,
@@ -45,24 +46,19 @@ const ACCESS_CACHE_DURATION = 1000; // 1 second
 // ============================================================
 /**
  * Get the canonical base URL for generating guest links.
- * 
+ *
  * Priority order:
  *  1. VITE_APP_URL — custom domain set in environment variables
  *  2. Production check — if in production mode, use production domain
  *  3. window.location.origin — fallback for development
  */
 function getBaseUrl() {
-  // Check for Vite environment variable
   if (import.meta.env.VITE_APP_URL) {
-    return import.meta.env.VITE_APP_URL.replace(/\/$/, ''); // strip trailing slash
+    return import.meta.env.VITE_APP_URL.replace(/\/$/, '');
   }
-
-  // Production mode check
   if (import.meta.env.PROD) {
     return 'https://prism-app.online';
   }
-
-  // Development fallback
   return window.location.origin;
 }
 
@@ -296,19 +292,15 @@ export function hasGuestAccess() {
  * Get guest token — memory → sessionStorage → pending backup.
  */
 export function getGuestToken() {
-  // Memory is fastest
-  if (_memoryToken) {
-    return _memoryToken;
-  }
+  if (_memoryToken) return _memoryToken;
 
   try {
     const stored = sessionStorage.getItem(KEY_TOKEN);
     if (stored) {
-      _memoryToken = stored; // keep in sync
+      _memoryToken = stored;
       return stored;
     }
 
-    // Last resort: pending backup
     const pendingRaw = sessionStorage.getItem(KEY_PENDING);
     if (pendingRaw) {
       const pending = JSON.parse(pendingRaw);
@@ -399,7 +391,29 @@ export function canGuestPerform(action) {
 // ============================================================
 
 /**
- * ✅ FIXED: Generate guest access link with proper base URL
+ * §5.2 — Ensure the current client has a Firebase auth token before any
+ * Firestore read. Firestore rules now require request.auth != null for all
+ * team data reads. Anonymous sign-in satisfies this without storing any PII.
+ *
+ * Safe to call multiple times — it is a no-op if already signed in.
+ */
+async function ensureAnonymousAuth() {
+  if (auth.currentUser) {
+    // Already signed in (anonymously or with a real account) — nothing to do.
+    return;
+  }
+  try {
+    await signInAnonymously(auth);
+    console.log("✅ [GUEST AUTH] Signed in anonymously for Firestore access");
+  } catch (error) {
+    console.error("❌ [GUEST AUTH] Anonymous sign-in failed:", error);
+    // Propagate — callers must handle the case where Firestore reads will fail.
+    throw error;
+  }
+}
+
+/**
+ * Generate a guest access link for a team.
  */
 export async function generateGuestAccessLink({
   teamId, teamName, createdBy, creatorName, expiresInDays = 30,
@@ -427,13 +441,10 @@ export async function generateGuestAccessLink({
     });
 
     const accessToken = guestAccessRef.id;
-    
-    // ✅ FIXED: Use getBaseUrl() instead of window.location.origin
-    const baseUrl = getBaseUrl();
-    const accessLink = `${baseUrl}/guest-team?token=${accessToken}`;
-    
-    console.log("✅ Guest access link generated:", accessLink);
+    const baseUrl     = getBaseUrl();
+    const accessLink  = `${baseUrl}/guest-team?token=${accessToken}`;
 
+    console.log("✅ Guest access link generated:", accessLink);
     return { success: true, accessToken, accessLink, expiresAt: expiresAt.toDate() };
   } catch (error) {
     console.error("❌ Error generating guest access link:", error);
@@ -441,9 +452,19 @@ export async function generateGuestAccessLink({
   }
 }
 
+/**
+ * Validate a guest access token.
+ *
+ * §5.2 — Calls ensureAnonymousAuth() before the first Firestore read so the
+ * request carries a valid Firebase auth token. Without this, the updated
+ * Firestore rule (hasGuestAccess → isSignedIn()) denies the read.
+ */
 export async function validateGuestAccessToken(token) {
   try {
     if (!token) return { valid: false, error: "No access token provided" };
+
+    // §5.2 — Must be authenticated before any Firestore read.
+    await ensureAnonymousAuth();
 
     const guestAccessRef = doc(db, "guest-team-access", token);
     const guestAccessDoc = await getDoc(guestAccessRef);
