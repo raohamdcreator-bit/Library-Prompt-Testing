@@ -1,0 +1,4 @@
+Contact: mailto:rao.hamd.creator@gmail.com
+Expires: 2027-01-01T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://prism-app.online/.well-known/security.txt
