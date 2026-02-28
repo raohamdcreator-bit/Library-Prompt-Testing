@@ -26,6 +26,12 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
   },
 
+  // Force Vite to pre-bundle React so its CJS→ESM conversion happens once,
+  // before any chunk can reference the scheduler's `const` declarations.
+  optimizeDeps: {
+    include: ['react', 'react-dom', 'react-dom/client'],
+  },
+
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -33,13 +39,30 @@ export default defineConfig({
     // Target modern browsers so Rollup emits clean ESM without legacy CJS wrappers.
     target: 'es2020',
     rollupOptions: {
-      external: ['firebase-admin', 'resend', '@vercel/kv', 'nanoid'],
+      // firebase-admin, resend, @vercel/kv are server-only — correct to exclude.
+      // nanoid v5 is ESM-only browser code and MUST be bundled, not external.
+      external: ['firebase-admin', 'resend', '@vercel/kv'],
       output: {
-        // Split large vendor bundles for better long-term caching.
-        // React/react-dom are intentionally NOT split here — Rollup 4 (Vite 6)
-        // handles React's internal circular deps correctly in a single chunk.
-        // @sentry/react is not here because it is loaded via dynamic import.
+        // ── React MUST be in its own chunk and listed first ──────────────────
+        // Putting React/react-dom/scheduler here guarantees Rollup emits them
+        // as a separate file that other chunks declare as an explicit import,
+        // enforcing correct load order and eliminating the scheduler TDZ race
+        // ("Cannot access '_' before initialization").
+        //
+        // firebase-vendor and icons-vendor both reference React — they resolve
+        // react-vendor at import time (after it is fully initialized), so no
+        // TDZ risk.
+        //
+        // @sentry/react is intentionally absent — it is loaded via dynamic
+        // import() in src/lib/sentry.js, keeping it outside the static graph.
         manualChunks(id) {
+          if (
+            id.includes('node_modules/react/') ||
+            id.includes('node_modules/react-dom/') ||
+            id.includes('node_modules/scheduler/')
+          ) {
+            return 'react-vendor';
+          }
           if (id.includes('node_modules/firebase/'))     return 'firebase-vendor';
           if (id.includes('node_modules/lucide-react/')) return 'icons-vendor';
         },
