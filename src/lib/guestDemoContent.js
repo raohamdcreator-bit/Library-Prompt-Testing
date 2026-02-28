@@ -1,5 +1,8 @@
 // src/lib/guestDemoContent.js
 // Production-ready demo content system with duplication and helper utilities
+// createTimestampMock and formatTimestamp live in dateUtils.js — import from there
+// to avoid the Rollup/Vite duplicate-export TDZ crash.
+import { createTimestampMock, formatTimestamp } from './dateUtils';
 
 /**
  * DEMO PROMPTS - System-owned examples (Read-only)
@@ -417,27 +420,7 @@ export function getPromptBadge(prompt, isGuest) {
   return null;
 }
 
-/**
- * Create mock timestamp for compatibility with Firestore
- * @returns {Object} - Timestamp object with Firestore-like interface
- */
-export function createTimestampMock() {
-  const now = new Date();
-  return {
-    seconds: Math.floor(now.getTime() / 1000),
-    nanoseconds: (now.getTime() % 1000) * 1000000,
-    toDate: function() { return now; },
-    toMillis: function() { return now.getTime(); },
-  };
-}
-
-/**
- * Reconstruct timestamp from various formats
- * Handles Firestore timestamps, ISO strings, and plain objects
- * 
- * @param {*} timestamp - Timestamp in various formats
- * @returns {Object} - Normalized timestamp object
- */
+// reconstructTimestamp uses createTimestampMock (imported from dateUtils above)
 export function reconstructTimestamp(timestamp) {
   if (!timestamp) {
     return createTimestampMock();
@@ -473,48 +456,8 @@ export function reconstructTimestamp(timestamp) {
   return createTimestampMock();
 }
 
-/**
- * Format timestamp for display
- * @param {*} timestamp - Timestamp to format
- * @returns {string} - Formatted date string
- */
-export function formatTimestamp(timestamp) {
-  if (!timestamp) return 'Unknown';
-  
-  try {
-    let date;
-    
-    if (typeof timestamp === 'string') {
-      date = new Date(timestamp);
-    } else if (timestamp.toDate) {
-      date = timestamp.toDate();
-    } else if (timestamp.seconds) {
-      date = new Date(timestamp.seconds * 1000);
-    } else {
-      return 'Unknown';
-    }
-    
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
-    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
-    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
-    
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-    });
-  } catch (error) {
-    console.error('Error formatting timestamp:', error);
-    return 'Unknown';
-  }
-}
+// formatTimestamp is imported from dateUtils above — re-export for backwards compatibility
+export { createTimestampMock, formatTimestamp };
 
 export default {
   DEMO_PROMPTS,
