@@ -1,15 +1,25 @@
 // src/lib/sentry.js - Error Tracking Configuration
-// NOTE: Do NOT import from "@sentry/tracing" — it was merged into @sentry/react in v7
-// and importing it in Vite 7 production builds causes a Rollup TDZ crash:
-// "Cannot access 'G' before initialization" (Sentry binding chain races React scheduler init).
-// BrowserTracing is available directly from @sentry/react since v7.
-import * as Sentry from "@sentry/react";
+//
+// ⚠️  CRITICAL — DO NOT ADD A TOP-LEVEL `import * as Sentry from "@sentry/react"` HERE.
+//
+// @sentry/react has a static initialisation side-effect that races with React's own
+// scheduler initialisation under Vite 7 / Rolldown's live-binding model.
+// The symptom is a production-only TDZ crash:
+//   "Cannot access 'G'/'W'/'N' before initialization"
+//
+// Fix: load @sentry/react via a dynamic import() so it sits outside the static
+// module graph entirely.  React and all app modules are fully initialised before
+// the dynamic import resolves, eliminating the race condition.
 
-// Initialize Sentry only if DSN is provided and in production
-export function initSentry() {
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
+// Lazily-resolved Sentry instance so helper functions can use it after init.
+let _sentry = null;
+
+// ─── Initialise ──────────────────────────────────────────────────────────────
+
+export async function initSentry() {
+  const dsn         = import.meta.env.VITE_SENTRY_DSN;
   const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
-  const isEnabled = import.meta.env.VITE_ENABLE_ERROR_TRACKING === 'true';
+  const isEnabled   = import.meta.env.VITE_ENABLE_ERROR_TRACKING === 'true';
 
   if (!dsn || !isEnabled) {
     console.log('📊 Sentry error tracking is disabled');
@@ -17,130 +27,68 @@ export function initSentry() {
   }
 
   try {
+    // Dynamic import — @sentry/react is NOT in the static dependency graph.
+    const Sentry = await import('@sentry/react');
+    _sentry = Sentry;
+
     Sentry.init({
       dsn,
       environment,
-      
-      // Performance Monitoring
-      // BrowserTracing is sourced from @sentry/react (not the removed @sentry/tracing package)
+
       integrations: [
         new Sentry.BrowserTracing(),
         new Sentry.Replay({
-          maskAllText: true,
+          maskAllText:   true,
           blockAllMedia: true,
         }),
       ],
 
-      // Set tracesSampleRate to 1.0 to capture 100% of transactions for performance monitoring.
-      // We recommend adjusting this value in production
-      tracesSampleRate: environment === 'production' ? 0.1 : 1.0,
-
-      // Capture Replay for 10% of all sessions,
-      // plus for 100% of sessions with an error
+      tracesSampleRate:         environment === 'production' ? 0.1 : 1.0,
       replaysSessionSampleRate: 0.1,
       replaysOnErrorSampleRate: 1.0,
 
-      // Release tracking
       release: `${import.meta.env.VITE_APP_NAME}@${import.meta.env.VITE_APP_VERSION}`,
 
-      // BeforeSend hook to filter sensitive data
-      beforeSend(event, hint) {
-        // Don't send events in development
+      beforeSend(event) {
         if (environment === 'development') {
           console.log('Sentry Event (dev):', event);
           return null;
         }
-
-        // §6.2 — PII scrubbing: remove user email and request body
-        // (request body may contain user prompts which are personal data under GDPR)
+        // §6.2 — PII scrubbing
         if (event.user) {
-          delete event.user.email;      // keep uid for deduplication, drop PII
-          delete event.user.username;   // display name may identify the person
+          delete event.user.email;
+          delete event.user.username;
         }
         if (event.request) {
-          delete event.request.data;    // body may contain prompt text
-          // Remove sensitive headers
+          delete event.request.data;
           if (event.request.headers) {
             delete event.request.headers['Authorization'];
             delete event.request.headers['Cookie'];
           }
-          // Remove query parameters that might contain tokens
-          if (event.request.query_string) {
-            event.request.query_string = '[Filtered]';
-          }
+          if (event.request.query_string) event.request.query_string = '[Filtered]';
         }
-        // §6.2 — Strip any extra context keys that might hold prompt content
         if (event.extra) {
           delete event.extra.prompt;
           delete event.extra.promptText;
         }
-
-        // Filter out known third-party errors
-        if (event.exception) {
-          const exceptionValue = event.exception.values?.[0]?.value || '';
-          
-          // Ignore browser extension errors
-          if (exceptionValue.includes('chrome-extension://') || 
-              exceptionValue.includes('moz-extension://')) {
-            return null;
-          }
-
-          // Ignore network errors (they're usually not actionable)
-          if (exceptionValue.includes('NetworkError') || 
-              exceptionValue.includes('Failed to fetch')) {
-            return null;
-          }
-        }
-
+        const val = event.exception?.values?.[0]?.value || '';
+        if (val.includes('chrome-extension://') || val.includes('moz-extension://')) return null;
+        if (val.includes('NetworkError') || val.includes('Failed to fetch')) return null;
         return event;
       },
 
-      // Ignore certain errors
       ignoreErrors: [
-        // Browser extensions
-        'top.GLOBALS',
-        'canvas.contentDocument',
-        'MyApp_RemoveAllHighlights',
-        'atomicFindClose',
-        
-        // Random plugins/extensions
-        'Can\'t find variable: ZiteReader',
-        'jigsaw is not defined',
-        'ComboSearch is not defined',
-        
-        // Facebook blocked errors
-        'fb_xd_fragment',
-        
-        // ISP injected ads
-        'bmi_SafeAddOnload',
-        'EBCallBackMessageReceived',
-        
-        // Chrome extensions
-        'conduitPage',
-        
-        // Network errors
-        'Network request failed',
-        'NetworkError when attempting to fetch resource',
-        'Failed to fetch',
-        'Load failed',
-        
-        // Ignore ResizeObserver errors (not actionable)
+        'top.GLOBALS','canvas.contentDocument','fb_xd_fragment',
+        'bmi_SafeAddOnload','EBCallBackMessageReceived','conduitPage',
+        'Network request failed','NetworkError when attempting to fetch resource',
+        'Failed to fetch','Load failed',
         'ResizeObserver loop limit exceeded',
         'ResizeObserver loop completed with undelivered notifications',
       ],
 
-      // Don't send events from certain URLs
       denyUrls: [
-        // Chrome extensions
-        /extensions\//i,
-        /^chrome:\/\//i,
-        /^chrome-extension:\/\//i,
-        
-        // Firefox extensions
-        /^moz-extension:\/\//i,
-        
-        // Other extensions
-        /^safari-extension:\/\//i,
+        /extensions\//i,/^chrome:\/\//i,/^chrome-extension:\/\//i,
+        /^moz-extension:\/\//i,/^safari-extension:\/\//i,
       ],
     });
 
@@ -152,130 +100,71 @@ export function initSentry() {
   }
 }
 
-// Custom error logging with context
+// ─── Helpers (all no-ops when Sentry is disabled) ─────────────────────────────
+
 export function logError(error, context = {}) {
-  if (import.meta.env.DEV) {
-    console.error('Error:', error, 'Context:', context);
-  }
-
-  Sentry.withScope((scope) => {
-    // Add context
-    Object.entries(context).forEach(([key, value]) => {
-      scope.setContext(key, value);
-    });
-
-    // Set error level
+  if (import.meta.env.DEV) console.error('Error:', error, 'Context:', context);
+  if (!_sentry) return;
+  _sentry.withScope((scope) => {
+    Object.entries(context).forEach(([k, v]) => scope.setContext(k, v));
     scope.setLevel(context.level || 'error');
-
-    // Add tags for filtering
-    if (context.tags) {
-      Object.entries(context.tags).forEach(([key, value]) => {
-        scope.setTag(key, value);
-      });
-    }
-
-    // Capture the error
-    Sentry.captureException(error);
+    if (context.tags) Object.entries(context.tags).forEach(([k, v]) => scope.setTag(k, v));
+    _sentry.captureException(error);
   });
 }
 
-// Log a message (not an error)
 export function logMessage(message, level = 'info', context = {}) {
-  if (import.meta.env.DEV) {
-    console.log(`[${level}]`, message, context);
-  }
-
-  Sentry.withScope((scope) => {
-    Object.entries(context).forEach(([key, value]) => {
-      scope.setContext(key, value);
-    });
-
+  if (import.meta.env.DEV) console.log(`[${level}]`, message, context);
+  if (!_sentry) return;
+  _sentry.withScope((scope) => {
+    Object.entries(context).forEach(([k, v]) => scope.setContext(k, v));
     scope.setLevel(level);
-    Sentry.captureMessage(message);
+    _sentry.captureMessage(message);
   });
 }
 
-// Set user context for error tracking
 export function setUserContext(user) {
-  if (!user) {
-    Sentry.setUser(null);
-    return;
-  }
-
-  Sentry.setUser({
-    id: user.uid,
-    email: user.email,
-    username: user.displayName || user.email,
-  });
+  if (!_sentry) return;
+  _sentry.setUser(user
+    ? { id: user.uid, email: user.email, username: user.displayName || user.email }
+    : null);
 }
 
-// Add breadcrumb for debugging
 export function addBreadcrumb(message, category = 'custom', data = {}) {
-  Sentry.addBreadcrumb({
-    message,
-    category,
-    data,
-    level: 'info',
-    timestamp: Date.now() / 1000,
-  });
+  if (!_sentry) return;
+  _sentry.addBreadcrumb({ message, category, data, level: 'info', timestamp: Date.now() / 1000 });
 }
 
-// Performance monitoring
 export function startTransaction(name, operation = 'custom') {
-  return Sentry.startTransaction({
-    name,
-    op: operation,
-  });
+  if (!_sentry) return null;
+  return _sentry.startTransaction({ name, op: operation });
 }
 
-// Track user interaction
-export function trackUserAction(action, data = {}) {
-  addBreadcrumb(action, 'user', data);
-}
+export function trackUserAction(action, data = {}) { addBreadcrumb(action, 'user', data); }
 
-// Export Sentry for advanced usage
-export { Sentry };
-
-// Custom error boundary error handler
 export function handleErrorBoundary(error, errorInfo) {
   logError(error, {
     errorBoundary: true,
     componentStack: errorInfo.componentStack,
-    tags: {
-      error_boundary: 'true',
-    },
+    tags: { error_boundary: 'true' },
   });
 }
 
-// API error handler
 export function handleAPIError(error, endpoint, method = 'GET') {
-  const context = {
-    api: true,
-    endpoint,
-    method,
+  logError(error, {
+    api: true, endpoint, method,
     status: error.response?.status,
     statusText: error.response?.statusText,
-    tags: {
-      api_error: 'true',
-      endpoint: endpoint,
-    },
-  };
-
-  logError(error, context);
+    tags: { api_error: 'true', endpoint },
+  });
 }
 
-// Firebase error handler
 export function handleFirebaseError(error, operation) {
-  const context = {
-    firebase: true,
-    operation,
-    code: error.code,
-    tags: {
-      firebase_error: 'true',
-      operation: operation,
-      error_code: error.code,
-    },
-  };
-
-  logError(error, context);
+  logError(error, {
+    firebase: true, operation, code: error.code,
+    tags: { firebase_error: 'true', operation, error_code: error.code },
+  });
 }
+
+// getSentry() for rare cases that need the raw SDK after init
+export function getSentry() { return _sentry; }
