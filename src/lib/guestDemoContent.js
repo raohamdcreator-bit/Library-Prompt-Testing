@@ -457,7 +457,7 @@ export function reconstructTimestamp(timestamp) {
 }
 
 // formatTimestamp is imported from dateUtils above — re-export for backwards compatibility
-export { createTimestampMock, formatTimestamp };
+
 
 export default {
   DEMO_PROMPTS,
@@ -470,7 +470,7 @@ export default {
   searchDemoPrompts,
   getRecommendedDemos,
   getPromptBadge,
-  createTimestampMock,
+  
   reconstructTimestamp,
-  formatTimestamp,
+  
 };
