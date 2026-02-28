@@ -23,6 +23,11 @@ self.addEventListener('fetch', e => {
   if (e.request.url.includes('firebase'))          return;
   if (e.request.url.includes('googletagmanager'))  return; // ← add
   if (e.request.url.includes('google-analytics'))  return; // ← add
+  // Bypass font requests: the SW's connect-src does not cover fonts.gstatic.com
+  // so intercepting and re-fetching fonts causes a CSP violation. Let the browser
+  // handle font requests natively using the page-level CSP (font-src is allowed).
+  if (e.request.url.includes('fonts.googleapis.com')) return;
+  if (e.request.url.includes('fonts.gstatic.com'))    return;
 
   e.respondWith(
     fetch(e.request).catch(() =>
