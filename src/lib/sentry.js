@@ -1,6 +1,9 @@
 // src/lib/sentry.js - Error Tracking Configuration
+// NOTE: Do NOT import from "@sentry/tracing" — it was merged into @sentry/react in v7
+// and importing it in Vite 7 production builds causes a Rollup TDZ crash:
+// "Cannot access 'G' before initialization" (Sentry binding chain races React scheduler init).
+// BrowserTracing is available directly from @sentry/react since v7.
 import * as Sentry from "@sentry/react";
-import { BrowserTracing } from "@sentry/tracing";
 
 // Initialize Sentry only if DSN is provided and in production
 export function initSentry() {
@@ -19,8 +22,9 @@ export function initSentry() {
       environment,
       
       // Performance Monitoring
+      // BrowserTracing is sourced from @sentry/react (not the removed @sentry/tracing package)
       integrations: [
-        new BrowserTracing(),
+        new Sentry.BrowserTracing(),
         new Sentry.Replay({
           maskAllText: true,
           blockAllMedia: true,
