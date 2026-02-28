@@ -1,5 +1,8 @@
 // src/lib/guestTeamAccess.js
 import { db, auth } from "./firebase";
+// Re-export from the single source of truth to avoid duplicate module state
+// and the Vite TDZ "Cannot access 'G' before initialization" crash.
+export { getGuestToken, getGuestUserId } from "./guestToken";
 import { signInAnonymously } from "firebase/auth";
 import {
   collection,
@@ -286,56 +289,6 @@ export function hasGuestAccess() {
     lastAccessCheck  = now;
     return errorResult;
   }
-}
-
-/**
- * Get guest token — memory → sessionStorage → pending backup.
- */
-export function getGuestToken() {
-  if (_memoryToken) return _memoryToken;
-
-  try {
-    const stored = sessionStorage.getItem(KEY_TOKEN);
-    if (stored) {
-      _memoryToken = stored;
-      return stored;
-    }
-
-    const pendingRaw = sessionStorage.getItem(KEY_PENDING);
-    if (pendingRaw) {
-      const pending = JSON.parse(pendingRaw);
-      if (pending.token) {
-        _memoryToken       = pending.token;
-        _memoryTeamId      = pending.teamId;
-        _memoryPermissions = typeof pending.permissions === "string"
-          ? pending.permissions
-          : JSON.stringify(pending.permissions ?? {});
-
-        sessionStorage.setItem(KEY_TOKEN,       _memoryToken);
-        sessionStorage.setItem(KEY_TEAM_ID,     _memoryTeamId);
-        sessionStorage.setItem(KEY_PERMISSIONS, _memoryPermissions);
-        sessionStorage.setItem(KEY_GUEST_MODE,  "true");
-        console.log("🔄 [GUEST TOKEN] Restored from pending backup");
-        return _memoryToken;
-      }
-    }
-  } catch (e) {
-    // sessionStorage unavailable
-  }
-
-  console.warn("⚠️ [GUEST TOKEN] No token found, cannot generate guest user ID");
-  return null;
-}
-
-/**
- * Get stable guest user ID derived from token.
- */
-export function getGuestUserId() {
-  const token = getGuestToken();
-  if (!token) return null;
-  const userId = `guest_${token}`;
-  console.log("🔑 [GUEST TOKEN] Generated guest user ID:", userId.substring(0, 16) + "...");
-  return userId;
 }
 
 /**
