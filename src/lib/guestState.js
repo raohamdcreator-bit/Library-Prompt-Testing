@@ -1,5 +1,5 @@
 // src/lib/guestState.js
-import { createTimestampMock } from './guestDemoContent';
+import { createTimestampMock } from './dateUtils';
 
 const GUEST_STORAGE_KEY = 'prism_guest_work';
 const GUEST_SESSION_KEY = 'prism_guest_session';
