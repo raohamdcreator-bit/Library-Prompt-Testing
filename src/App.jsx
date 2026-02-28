@@ -726,7 +726,7 @@ export default function App() {
   const { user, signInWithGoogle, logout } = useAuth();
   
   // §4.3 — Update <link rel="canonical"> dynamically on every navigation
-  useCanonical(currentPath);
+  
   
   // ✅ FIX 2: Simplified useState initializer — token is already in sessionStorage
   // from setGuestAccess(). Don't re-store it (setGuestToken didn't exist anyway),
@@ -777,6 +777,7 @@ export default function App() {
   } = useGuestMode();
   
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  useCanonical(currentPath);
   const [teams, setTeams] = useState([]);
   const [role, setRole] = useState(null);
   const [avatars, setAvatars] = useState({});
