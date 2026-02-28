@@ -2,8 +2,8 @@
 // Demo prompts are ephemeral and stored only in sessionStorage
 // They are discarded on refresh and never saved to backend
 
-import { DEMO_PROMPTS, isDemoPrompt, createTimestampMock } from './guestDemoContent';  // 
-
+import { DEMO_PROMPTS, isDemoPrompt } from './guestDemoContent';
+import { createTimestampMock } from './dateUtils';
 const DEMO_STORAGE_KEY = 'prism_demo_prompts_session';
 
 /**
