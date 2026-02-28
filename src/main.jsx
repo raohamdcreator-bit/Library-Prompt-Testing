@@ -10,10 +10,12 @@ import { GuestModeProvider } from "./context/GuestModeContext.jsx";
 import { initSentry } from "./lib/sentry.js";
 import { initCookieConsent } from "./lib/cookieConsent.js";
 import { NotificationProvider } from "./context/NotificationContext";
-// Initialize error tracking
-initSentry();
 // §3.1 — Show consent banner on first visit; load GA4 only after user accepts
 initCookieConsent();
+// Sentry loads via dynamic import inside initSentry() — keeps @sentry/react
+// out of the static module graph, preventing the Vite 7 Rolldown TDZ crash.
+// Fire-and-forget: Sentry initialises after React starts, not before.
+initSentry().catch(() => {});
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
