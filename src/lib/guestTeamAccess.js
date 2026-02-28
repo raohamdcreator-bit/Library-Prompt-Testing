@@ -1,8 +1,11 @@
 // src/lib/guestTeamAccess.js
 import { db, auth } from "./firebase";
-// Re-export from the single source of truth to avoid duplicate module state
-// and the Vite TDZ "Cannot access 'G' before initialization" crash.
-export { getGuestToken, getGuestUserId } from "./guestToken";
+// Single source of truth for token helpers — import, do NOT re-export.
+// Re-exporting caused a Vite/Rollup TDZ crash ("Cannot access 'G' before
+// initialization") because Rollup created a circular binding chain between
+// the two modules when they shared the same export name.
+// Callers that need getGuestToken / getGuestUserId must import from guestToken.js directly.
+import { getGuestToken, getGuestUserId } from "./guestToken";
 import { signInAnonymously } from "firebase/auth";
 import {
   collection,
