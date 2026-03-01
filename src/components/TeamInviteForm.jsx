@@ -39,23 +39,43 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email.trim())) { showError("Please enter a valid email address"); return; }
     setLoading(true);
+    let result = null;
     try {
       console.log('📧 Sending email invite:', { teamId, teamName, email, inviteRole });
-      const result = await sendTeamInvitation({
+      result = await sendTeamInvitation({
         teamId, teamName, email: email.trim(), role: inviteRole,
         invitedBy: user.uid, inviterName: user.displayName || user.email,
       });
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) {
+        // Treat non-success result as a thrown error so catch can handle it uniformly
+        const e2 = Object.assign(new Error(result.error), {
+          code: result.code,
+          timeUntilSlot: result.timeUntilSlot,
+          earliestExpiry: result.earliestExpiry,
+          max: result.max,
+          current: result.current,
+        });
+        throw e2;
+      }
       if (window.gtag) window.gtag('event', 'team_invited_email', { team_id: teamId, team_name: teamName, invited_role: inviteRole, invited_by: user.uid, email_sent: result.emailSent });
       setEmail(""); setInviteRole("member"); playNotification();
-      success(`Invite sent to ${email.trim()}! ${result.emailSent ? 'Email delivered.' : 'Saved to database.'}`, 4000);
+      const remaining = result.remaining != null ? ` (${result.remaining} invite${result.remaining !== 1 ? "s" : ""} remaining)` : "";
+      success(`Invite sent to ${email.trim()}! ${result.emailSent ? "Email delivered." : "Saved to database."}${remaining}`, 4000);
     } catch (err) {
       console.error("❌ Error sending invite:", err);
-      let errorMessage = "Failed to send invite: ";
-      if (err.message.includes("already exists")) errorMessage = "An active invitation already exists for this email.";
-      else if (err.message.includes("maximum")) errorMessage = err.message;
-      else errorMessage += err.message || "Unknown error";
-      showError(errorMessage, 5000);
+      let errorMessage;
+      if (err.message?.includes("already exists")) {
+        errorMessage = "An active invitation already exists for this email.";
+      } else if (err.code === "INVITE_LIMIT_REACHED") {
+        const slot = err.timeUntilSlot;
+        const max  = err.max ?? 10;
+        errorMessage = slot
+          ? `Invite limit reached (${max}/${max} active). A slot opens in ${slot}. Cancel an old invite to send sooner.`
+          : `Invite limit reached (${max}/${max} active). Cancel an existing invite to free up a slot.`;
+      } else {
+        errorMessage = "Failed to send invite: " + (err.message || "Unknown error");
+      }
+      showError(errorMessage, 7000);
     } finally { setLoading(false); }
   }
 
@@ -68,16 +88,32 @@ const TeamInviteForm = forwardRef(({ teamId, teamName, role }, ref) => {
         teamId, teamName, role: inviteRole, invitedBy: user.uid,
         inviterName: user.displayName || user.email, expiresInDays: 7,
       });
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) {
+        const e2 = Object.assign(new Error(result.error), {
+          code: result.code,
+          timeUntilSlot: result.timeUntilSlot,
+          earliestExpiry: result.earliestExpiry,
+        });
+        throw e2;
+      }
       if (window.gtag) window.gtag('event', 'auth_invite_link_generated', { team_id: teamId, team_name: teamName, role: inviteRole, invited_by: user.uid, expires_in_days: 7 });
       setGeneratedLink({ url: result.inviteLink, token: result.token, inviteId: result.inviteId, expiresAt: result.expiresAt, type: "auth" });
-      playNotification(); success("Full access invite link generated successfully!", 3000);
+      playNotification();
+      const remaining = result.remaining != null ? ` (${result.remaining} invite${result.remaining !== 1 ? "s" : ""} remaining)` : "";
+      success(`Full access invite link generated!${remaining}`, 3000);
     } catch (err) {
       console.error("❌ Error generating auth invite link:", err);
-      let errorMessage = "Failed to generate invite link: ";
-      if (err.message.includes("maximum")) errorMessage = err.message;
-      else errorMessage += err.message || "Unknown error";
-      showError(errorMessage, 5000);
+      let errorMessage;
+      if (err.code === "INVITE_LIMIT_REACHED") {
+        const slot = err.timeUntilSlot;
+        const max  = err.max ?? 10;
+        errorMessage = slot
+          ? `Invite limit reached (${max}/${max} active). A slot opens in ${slot}. Cancel an old invite to proceed sooner.`
+          : `Invite limit reached (${max}/${max} active). Cancel an existing invite to free up a slot.`;
+      } else {
+        errorMessage = "Failed to generate invite link: " + (err.message || "Unknown error");
+      }
+      showError(errorMessage, 7000);
     } finally { setLoading(false); }
   }
 
