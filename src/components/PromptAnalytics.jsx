@@ -68,7 +68,8 @@ export function usePromptRating(teamId, promptId) {
     if (!teamId || !promptId) {
       setRatings([]); setUserRating(null); setLoading(false); return;
     }
-    debugGuestToken();
+    // Only debug guest token when user is NOT signed in (i.e. actually a guest)
+    if (!user) debugGuestToken();
     try {
       const ratingsRef = collection(db, "teams", teamId, "prompts", promptId, "ratings");
       const unsub = onSnapshot(ratingsRef, (snap) => {
