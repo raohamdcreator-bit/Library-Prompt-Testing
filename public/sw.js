@@ -1,7 +1,7 @@
 // §4.1: Network-first caching strategy
 // §4.4: No { type: 'module' } — incompatible with Firefox and Safari ≤ iOS 16
 
-const CACHE_NAME = 'prism-v2.1.0'; // bumped: force SW replacement to apply new CSP/frame-src fixes
+const CACHE_NAME = 'prism-v2.2.0'; // bumped: lh3.googleusercontent.com bypass + frame-src/COOP fixes
 const PRECACHE   = ['/', '/index.html', '/logo.png', '/og-image.png'];
 
 self.addEventListener('install', e => {
@@ -32,6 +32,8 @@ self.addEventListener('fetch', e => {
   // handle font requests natively using the page-level CSP (font-src is allowed).
   if (e.request.url.includes('fonts.googleapis.com'))     return;
   if (e.request.url.includes('fonts.gstatic.com'))        return;
+  // Bypass Google profile avatar images (used for team member display)
+  if (e.request.url.includes('lh3.googleusercontent.com')) return;
 
   e.respondWith(
     fetch(e.request).catch(() =>
