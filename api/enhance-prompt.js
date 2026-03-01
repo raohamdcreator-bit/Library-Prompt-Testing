@@ -7,7 +7,8 @@
 
 import { requireAuth }    from './_auth.js';
 import { checkRateLimit } from './_rateLimit.js';
-import { validateEnv } from './_env.js';
+// validateEnv import removed — enhance-prompt uses requireEnvVars internally
+// via config.apiKey check; email vars (RESEND_*) are not needed here.
 const PROVIDERS = {
   GROQ: 'groq',
   HUGGINGFACE: 'huggingface',
@@ -213,18 +214,12 @@ const ENHANCEMENT_TYPE_MODIFIERS = {
 };
 
 export default async function handler(req, res) {
-  // Wrap env validation so a missing variable returns a clear JSON 500
-  // instead of an unhandled exception that surfaces as an opaque error to the client.
-  try { validateEnv(); } catch (envError) {
-    console.error("❌ [enhance-prompt] Environment misconfiguration:", envError.message);
-    return res.status(500).json({
-      success: false,
-      error: "Server configuration error",
-      details: process.env.NODE_ENV === "development"
-        ? envError.message
-        : "One or more required environment variables are missing. Check your Vercel project settings.",
-    });
-  }
+  // NOTE: validateEnv() intentionally removed from this handler.
+  // It checks RESEND_API_KEY + RESEND_FROM_EMAIL — email-only vars this
+  // endpoint never uses. That caused a false 500 whenever email vars were
+  // absent even though AI enhancement worked fine.
+  // AI provider key is validated below via config.apiKey check.
+  // FIREBASE_SERVICE_ACCOUNT is validated at module load time by _auth.js.
   const ALLOWED_ORIGINS = [
     'https://prism-app.online',
     'https://www.prism-app.online',
