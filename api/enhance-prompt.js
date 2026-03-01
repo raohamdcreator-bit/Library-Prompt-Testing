@@ -213,7 +213,18 @@ const ENHANCEMENT_TYPE_MODIFIERS = {
 };
 
 export default async function handler(req, res) {
-  validateEnv();
+  // Wrap env validation so a missing variable returns a clear JSON 500
+  // instead of an unhandled exception that surfaces as an opaque error to the client.
+  try { validateEnv(); } catch (envError) {
+    console.error("❌ [enhance-prompt] Environment misconfiguration:", envError.message);
+    return res.status(500).json({
+      success: false,
+      error: "Server configuration error",
+      details: process.env.NODE_ENV === "development"
+        ? envError.message
+        : "One or more required environment variables are missing. Check your Vercel project settings.",
+    });
+  }
   const ALLOWED_ORIGINS = [
     'https://prism-app.online',
     'https://www.prism-app.online',
