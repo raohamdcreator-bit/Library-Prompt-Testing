@@ -48,14 +48,14 @@ export async function trackPromptCopy(teamId, promptId, isGuest = false) {
       'stats.lastCopied': serverTimestamp(),
     };
     
-    // ✅ Track guest copies separately
+    // ✅ Track guest copies separately — only call getGuestToken when actually a guest
     if (isGuest) {
       const guestToken = getGuestToken();
       console.log('📋 [COPY TRACKING] Guest copy detected, token:', guestToken ? 'present' : 'missing');
       
       if (!guestToken) {
-        console.error('❌ [COPY TRACKING] Guest token not found');
-        // Still track the copy, but don't increment guest counter
+        // Still track the copy, but skip the guest counter
+        console.warn('⚠️ [COPY TRACKING] Guest token not found — counting as anonymous copy');
       } else {
         updateData['stats.guestCopies'] = increment(1);
         console.log('✅ [COPY TRACKING] Incrementing guestCopies counter');
