@@ -9,6 +9,12 @@ import { requireAuth }    from './_auth.js';
 import { checkRateLimit } from './_rateLimit.js';
 // validateEnv import removed — enhance-prompt uses requireEnvVars internally
 // via config.apiKey check; email vars (RESEND_*) are not needed here.
+// Module-level dev logger — safe to call from any function in this file.
+// Defined here (not inside handler) so callAIProvider() and extractEnhancedPrompt()
+// can reference it without a ReferenceError.
+const log = process.env.NODE_ENV !== 'production'
+  ? console.log.bind(console)
+  : () => {};
 const PROVIDERS = {
   GROQ: 'groq',
   HUGGINGFACE: 'huggingface',
@@ -251,9 +257,8 @@ export default async function handler(req, res) {
   // §2.4 — Rate limiting: 20 requests per user per 60 seconds
   if (!(await checkRateLimit(req, res, user.uid, 'enhance', 20, 60))) return;
 
-  // §2.6 — Dev-only logging guard: never log key substrings or full bodies in prod
-  const isDev = process.env.NODE_ENV === 'development';
-  const log   = isDev ? console.log.bind(console) : () => {};
+  // §2.6 — Dev-only logging guard: log is defined at module level above.
+  // Never log key substrings or full request bodies in prod.
 
   log('=== AI Enhancement Request ===');
   log('Authenticated user:', user.uid);
