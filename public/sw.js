@@ -1,7 +1,7 @@
 // §4.1: Network-first caching strategy
 // §4.4: No { type: 'module' } — incompatible with Firefox and Safari ≤ iOS 16
 
-const CACHE_NAME = 'prism-v2.0.0';
+const CACHE_NAME = 'prism-v2.1.0'; // bumped: force SW replacement to apply new CSP/frame-src fixes
 const PRECACHE   = ['/', '/index.html', '/logo.png', '/og-image.png'];
 
 self.addEventListener('install', e => {
