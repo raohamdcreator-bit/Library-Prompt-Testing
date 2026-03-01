@@ -60,7 +60,13 @@ export async function checkDuplicateInvite(teamId, email) {
 }
 
 /**
- * Count pending invites sent by a user (rate limiting)
+ * Count ACTIVE (non-expired) pending invites sent by a user.
+ *
+ * FIX: The original counted ALL pending invites regardless of expiration, so
+ * stale expired invites permanently blocked the user from sending new ones.
+ * Now filters to only truly active (non-expired) invites before comparing to
+ * the limit, and returns earliestExpiry + remaining so the UI can show the
+ * user exactly when a slot will open up.
  */
 export async function countPendingInvites(userId) {
   const invitesRef = collection(db, "team-invites");
@@ -71,7 +77,70 @@ export async function countPendingInvites(userId) {
   );
 
   const snapshot = await getDocs(q);
-  return snapshot.size;
+  const now = new Date();
+
+  // Only count truly active (non-expired) invites
+  const activeDocs = snapshot.docs.filter((d) => {
+    const expiresAt = d.data().expiresAt?.toDate?.();
+    return !expiresAt || expiresAt > now;
+  });
+
+  // Find the earliest expiry so the UI can tell the user when a slot opens
+  let earliestExpiry = null;
+  activeDocs.forEach((d) => {
+    const expiresAt = d.data().expiresAt?.toDate?.();
+    if (expiresAt && (!earliestExpiry || expiresAt < earliestExpiry)) {
+      earliestExpiry = expiresAt;
+    }
+  });
+
+  return {
+    count: activeDocs.length,
+    earliestExpiry,       // Date | null — when the next slot frees up
+    remaining: Math.max(0, MAX_PENDING_INVITES_PER_USER - activeDocs.length),
+  };
+}
+
+/**
+ * Human-readable countdown helper.
+ * Returns strings like "2 days", "5 hours", "a few minutes".
+ */
+export function formatTimeUntil(date) {
+  if (!date) return null;
+  const diffMs = date - new Date();
+  if (diffMs <= 0) return "now";
+  const diffMins  = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays  = Math.floor(diffMs / 86400000);
+  if (diffDays >= 2)   return `${diffDays} days`;
+  if (diffDays === 1)  return "1 day";
+  if (diffHours >= 2)  return `${diffHours} hours`;
+  if (diffHours === 1) return "1 hour";
+  if (diffMins >= 2)   return `${diffMins} minutes`;
+  return "a few minutes";
+}
+
+/**
+ * Build a structured Error for the invite limit so callers can render
+ * a precise message (code, timeUntilSlot, earliestExpiry, max, current).
+ */
+function makeLimitError(count, earliestExpiry) {
+  const when = formatTimeUntil(earliestExpiry);
+  const detail = when
+    ? ` Your oldest pending invite expires in ${when} — a new slot will open then.`
+    : " Cancel an existing invite to free up a slot.";
+  return Object.assign(
+    new Error(
+      `You have reached the maximum of ${MAX_PENDING_INVITES_PER_USER} active invitations.${detail}`
+    ),
+    {
+      code: "INVITE_LIMIT_REACHED",
+      max: MAX_PENDING_INVITES_PER_USER,
+      current: count,
+      earliestExpiry,
+      timeUntilSlot: when,
+    }
+  );
 }
 
 /**
@@ -109,12 +178,10 @@ export async function createTeamInvite({
     throw new Error("An active invitation already exists for this email");
   }
 
-  // Check rate limiting
-  const pendingCount = await countPendingInvites(invitedBy);
-  if (pendingCount >= MAX_PENDING_INVITES_PER_USER) {
-    throw new Error(
-      `You have reached the maximum of ${MAX_PENDING_INVITES_PER_USER} pending invitations`
-    );
+  // Check rate limiting (expiry-aware)
+  const { count, earliestExpiry, remaining } = await countPendingInvites(invitedBy);
+  if (count >= MAX_PENDING_INVITES_PER_USER) {
+    throw makeLimitError(count, earliestExpiry);
   }
 
   // Calculate expiration date
@@ -144,6 +211,7 @@ export async function createTeamInvite({
     success: true,
     inviteId: inviteDoc.id,
     expiresAt: expiresAt.toDate(),
+    remaining: remaining - 1,
   };
 }
 
@@ -169,12 +237,10 @@ export async function createLinkInvite({
     throw new Error("Invalid role. Must be 'member' or 'admin'");
   }
 
-  // Check rate limiting
-  const pendingCount = await countPendingInvites(invitedBy);
-  if (pendingCount >= MAX_PENDING_INVITES_PER_USER) {
-    throw new Error(
-      `You have reached the maximum of ${MAX_PENDING_INVITES_PER_USER} pending invitations`
-    );
+  // Check rate limiting (expiry-aware)
+  const { count, earliestExpiry, remaining } = await countPendingInvites(invitedBy);
+  if (count >= MAX_PENDING_INVITES_PER_USER) {
+    throw makeLimitError(count, earliestExpiry);
   }
 
   // Calculate expiration date
@@ -205,6 +271,7 @@ export async function createLinkInvite({
     inviteId: inviteDoc.id,
     token,
     expiresAt: expiresAt.toDate(),
+    remaining: remaining - 1,
   };
 }
 
@@ -333,7 +400,8 @@ export async function acceptLinkInvite(token, userId) {
 }
 
 /**
- * Accept a team invite via EMAIL (existing function - unchanged)
+ * Accept a team invite via EMAIL (atomic transaction)
+ * Signature preserved exactly from original: (inviteId, teamId, userId)
  */
 export async function acceptTeamInvite(inviteId, teamId, userId) {
   try {
@@ -404,6 +472,7 @@ export async function acceptTeamInvite(inviteId, teamId, userId) {
 
 /**
  * Reject a team invite
+ * Signature preserved exactly from original: (inviteId, userId)
  */
 export async function rejectTeamInvite(inviteId, userId) {
   try {
@@ -608,7 +677,9 @@ export async function sendInviteEmail({ to, teamName, invitedBy, role, link }) {
 
 /**
  * ✅ FIXED: Complete EMAIL invite flow (create + send email)
- * Now generates proper invite link with inviteId parameter
+ * Now generates proper invite link with inviteId parameter.
+ * Propagates structured error data (code, timeUntilSlot, earliestExpiry)
+ * so the UI can render a precise message instead of a generic error.
  */
 export async function sendTeamInvitation({
   teamId,
@@ -654,10 +725,20 @@ export async function sendTeamInvitation({
       emailSent: emailResult.success,
       emailError: emailResult.error,
       expiresAt: createResult.expiresAt,
+      remaining: createResult.remaining,
     };
   } catch (error) {
     console.error("❌ Error in sendTeamInvitation:", error);
-    return { success: false, error: error.message };
+    // Preserve all structured error fields for the UI
+    return {
+      success: false,
+      error: error.message,
+      code: error.code,
+      timeUntilSlot: error.timeUntilSlot,
+      earliestExpiry: error.earliestExpiry,
+      max: error.max,
+      current: error.current,
+    };
   }
 }
 
@@ -719,10 +800,17 @@ export async function generateTeamInviteLink({
       token,
       inviteLink,
       expiresAt: new Date(expiresAt),
+      remaining: createResult.remaining,
     };
   } catch (error) {
     console.error("❌ Error in generateTeamInviteLink:", error);
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error.message,
+      code: error.code,
+      timeUntilSlot: error.timeUntilSlot,
+      earliestExpiry: error.earliestExpiry,
+    };
   }
 }
 
