@@ -587,19 +587,19 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
                 icon: <Layers size={20} />,
                 title: "Multi-Model Testing",
                 desc: "Test your ideas simultaneously across GPT-4, Claude, Gemini, and more. Compare outputs side-by-side to find the perfect model for your use case.",
-                badge: "Q2 2025",
+                badge: "Q2 2026",
               },
               {
                 icon: <Repeat size={20} />,
                 title: "Reverse Prompt Testing",
                 desc: "Input your desired output and let AI generate optimal prompts. Perfect for discovering new prompt strategies and improving existing workflows.",
-                badge: "Q2 2025",
+                badge: "Q2 2026",
               },
               {
                 icon: <Puzzle size={20} />,
                 title: "IDE & Browser Extensions",
                 desc: "Access your workflow directly in VS Code, Chrome, and Firefox. Seamlessly integrate AI into your daily development workflow.",
-                badge: "Q3 2025",
+                badge: "Q3 2026",
               },
             ].map((feature, index) => (
               <div 
