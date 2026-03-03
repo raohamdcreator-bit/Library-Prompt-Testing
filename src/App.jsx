@@ -226,13 +226,13 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onEx
             </button>
           )}
 
-          {/* Always show Sign up free on desktop when not authenticated */}
           {!isAuthenticated && (
             <button
               onClick={onSignIn}
               className="btn-premium"
               style={{ padding: '10px 20px' }}
             >
+              <Zap size={16} />
               Sign up free
               <ArrowRight size={16} className="btn-arrow" />
             </button>
@@ -246,6 +246,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onEx
         >
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
+      </div>
 
       {/* Mobile Navigation Menu */}
       {mobileMenuOpen && (
@@ -298,7 +299,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onEx
               </button>
             )}
 
-     {!isAuthenticated && (
+            {!isAuthenticated && (
               <button
                 onClick={() => {
                   onSignIn();
@@ -317,7 +318,6 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onEx
     </nav>
   );
 }
-
 // ===================================
 // FOOTER COMPONENT
 // ===================================
