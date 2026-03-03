@@ -232,7 +232,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onEx
               className="btn-premium"
               style={{ padding: '10px 20px' }}
             >
-              <Zap size={16} />
+              
               Sign up free
               <ArrowRight size={16} className="btn-arrow" />
             </button>
