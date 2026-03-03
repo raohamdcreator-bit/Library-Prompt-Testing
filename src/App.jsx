@@ -226,27 +226,26 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onEx
             </button>
           )}
 
-          {isGuest && (
+          {/* Always show Sign up free on desktop when not authenticated */}
+          {!isAuthenticated && (
             <button
               onClick={onSignIn}
               className="btn-premium"
               style={{ padding: '10px 20px' }}
             >
-              <Zap size={16} />
               Sign up free
               <ArrowRight size={16} className="btn-arrow" />
             </button>
           )}
         </div>
 
-        {/* Mobile Menu Button */}
+        {/* Mobile Menu Button — hidden on large screens */}
         <button
           className="md:hidden mobile-menu-btn"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-      </div>
 
       {/* Mobile Navigation Menu */}
       {mobileMenuOpen && (
