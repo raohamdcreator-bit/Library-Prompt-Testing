@@ -298,7 +298,7 @@ function Navigation({ onSignIn, isAuthenticated, onNavigate, user, isGuest, onEx
               </button>
             )}
 
-            {isGuest && (
+     {!isAuthenticated && (
               <button
                 onClick={() => {
                   onSignIn();
