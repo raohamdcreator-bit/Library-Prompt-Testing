@@ -732,7 +732,11 @@ select option {
 
 @media (min-width: 769px) {
   .mobile-header {
-    display: none;
+    display: none !important;
+  }
+
+  .mobile-menu-btn {
+    display: none !important;
   }
 }
 
@@ -742,11 +746,17 @@ select option {
   color: var(--foreground);
   cursor: pointer;
   padding: 0.5rem;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   border-radius: 6px;
   transition: background 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: flex !important;
+  }
 }
 
 .mobile-menu-btn:hover {
