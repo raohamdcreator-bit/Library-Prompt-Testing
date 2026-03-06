@@ -396,8 +396,6 @@ export function TeamAnalytics({ teamId }) {
         const promptIds  = allPrompts.map(p => p.id);
 
         // ✅ PERF: fetch ratings + comments for ALL prompts in 2 parallel batch calls
-        //    Old: 2N sequential getDocs (e.g. 20 prompts = 40 serial round-trips)
-        //    New: 2 parallel Promise.all calls (all fetches run concurrently)
         const [allRatings, allComments] = await Promise.all([
           fetchAllSubcollections(teamId, promptIds, 'ratings'),
           fetchAllSubcollections(teamId, promptIds, 'comments'),
@@ -464,12 +462,14 @@ export function TeamAnalytics({ teamId }) {
   return (
     <>
       <style>{`
+        @keyframes paSlideUp { from { opacity:0; transform:translateY(7px) } to { opacity:1; transform:none } }
+
         .pa-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: .75rem;
-  margin-top: 0;   
-}
+          display: flex;
+          flex-direction: column;
+          gap: .75rem;
+          margin-top: 0;
+        }
 
         .pa-header {
           background:var(--card); border:1px solid rgba(255,255,255,.05);
@@ -477,12 +477,55 @@ export function TeamAnalytics({ teamId }) {
           display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem;
         }
 
+        /* ── KPI strip — matches af-stats / tm-tiles pattern ── */
         .pa-kpi {
-          display:grid;
-          grid-template-columns:repeat(4,1fr);
-          gap:.5rem;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: .5rem;
         }
-        @media(max-width:500px){ .pa-kpi { grid-template-columns:repeat(2,1fr); } }
+        @media(max-width:500px){ .pa-kpi { grid-template-columns: repeat(2, 1fr); } }
+
+        .pa-kpi-tile {
+          position: relative;
+          overflow: hidden;
+          padding: .7rem .5rem;
+          border-radius: 10px;
+          text-align: center;
+          background: var(--card);
+          border: 1px solid rgba(255,255,255,.05);
+          transition: border-color .14s, transform .14s;
+          animation: paSlideUp .28s ease-out backwards;
+        }
+        .pa-kpi-tile::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: repeating-linear-gradient(
+            0deg,
+            transparent, transparent 11px,
+            rgba(255,255,255,.011) 11px, rgba(255,255,255,.011) 12px
+          );
+        }
+        .pa-kpi-tile:hover {
+          border-color: rgba(139,92,246,.16);
+          transform: translateY(-1px);
+        }
+        .pa-kpi-n {
+          font-size: 1.3rem;
+          font-weight: 800;
+          letter-spacing: -.04em;
+          font-variant-numeric: tabular-nums;
+          line-height: 1;
+          margin-bottom: .22rem;
+        }
+        .pa-kpi-l {
+          font-size: .59rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: .06em;
+          color: var(--muted-foreground);
+        }
 
         .pa-main {
           display:grid;
@@ -543,24 +586,17 @@ export function TeamAnalytics({ teamId }) {
           </div>
         </div>
 
-        {/* ── Top KPI strip ── */}
+        {/* ── Top KPI strip — af-stat style ── */}
         <div className="pa-kpi">
           {[
-            { icon: <FileText size={14} />,     value: analytics.totalPrompts,  label: "Prompts" },
-            { icon: <Copy size={14} />,          value: analytics.totalCopies,   label: "Copies"  },
-            { icon: <MessageSquare size={14} />, value: analytics.totalComments, label: "Comments"},
-            {
-              icon: <Star size={14} />,
-              value: analytics.averageRating > 0 ? analytics.averageRating.toFixed(1) : "—",
-              label: "Avg Rating",
-            },
-          ].map(({ icon, value, label }) => (
-            <div key={label} className="glass-card p-3 text-center">
-              <div className="flex items-center justify-center gap-1 mb-1" style={{ color: "var(--primary)" }}>
-                {icon}
-              </div>
-              <div className="text-lg font-bold leading-none mb-0.5" style={{ color: "var(--foreground)" }}>{value}</div>
-              <div className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>{label}</div>
+            { n: analytics.totalPrompts,                                                    l: "Prompts",    c: "#8b5cf6", d: ".04s" },
+            { n: analytics.totalCopies,                                                     l: "Copies",     c: "#a78bfa", d: ".09s" },
+            { n: analytics.totalComments,                                                   l: "Comments",   c: "#22d3ee", d: ".14s" },
+            { n: analytics.averageRating > 0 ? analytics.averageRating.toFixed(1) : "—",   l: "Avg Rating", c: "#f59e0b", d: ".19s" },
+          ].map(({ n, l, c, d }) => (
+            <div key={l} className="pa-kpi-tile" style={{ animationDelay: d }}>
+              <div className="pa-kpi-n" style={{ color: c }}>{n}</div>
+              <div className="pa-kpi-l">{l}</div>
             </div>
           ))}
         </div>
