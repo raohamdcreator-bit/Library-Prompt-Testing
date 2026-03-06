@@ -83,7 +83,7 @@ export default function TeamHeader({
           border: 1px solid rgba(255,255,255,.06);
           border-radius: 14px;
           overflow: hidden;
-          margin-bottom: 1rem;
+          margin-bottom: .25rem;
         }
 
         /* ── Top info bar ── */
