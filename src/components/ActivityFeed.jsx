@@ -510,12 +510,12 @@ export default function ActivityFeed({ teamId }) {
         {/* Stats */}
         <div className="af-stats">
           {[
-            { n: stats.created,  l: "Created",    c: "#8b5cf6", d: ".04s" },
-            { n: stats.updated,  l: "Updated",    c: "#a78bfa", d: ".09s" },
+            { n: stats.created,  l: "Created",    c: "#EAEFEF", d: ".04s" },
+            { n: stats.updated,  l: "Updated",    c: "#BFC9D1", d: ".09s" },
             { n: stats.ratings,  l: "Ratings",    c: "#f59e0b", d: ".14s" },
             { n: stats.comments, l: "Comments",   c: "#22d3ee", d: ".19s" },
             { n: stats.guests,   l: "Guest Acts", c: "#34d399", d: ".24s" },
-            { n: stats.unique,   l: "Unique",     c: "#c084fc", d: ".29s" },
+            { n: stats.unique,   l: "Unique",     c: "#3b82f6", d: ".29s" },
           ].map(s => (
             <div key={s.l} className="af-stat" style={{ animationDelay: s.d }}>
               <div className="af-stat-n" style={{ color: s.c }}>{s.n}</div>
