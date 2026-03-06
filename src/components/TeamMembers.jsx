@@ -223,6 +223,7 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
       <style>{`
         @keyframes tmSpin    { to{transform:rotate(360deg)} }
         @keyframes tmFadeUp  { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+        @keyframes tmSlideUp { from{opacity:0;transform:translateY(7px)} to{opacity:1;transform:none} }
 
         .tm-wrap { display:flex; flex-direction:column; gap:.875rem; }
 
@@ -252,22 +253,56 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
         .tm-leave:hover    { background:rgba(239,68,68,.15); border-color:rgba(239,68,68,.35); }
         .tm-leave:disabled { opacity:.5; cursor:not-allowed; }
 
+        /* ── Tiles — af-stat pattern ── */
         .tm-tiles {
-          display:grid;
-          grid-template-columns:repeat(4,1fr);
-          gap:.5rem;
-          padding:.875rem 1.125rem;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: .5rem;
+          padding: .875rem 1.125rem;
         }
-        @media(max-width:600px){ .tm-tiles { grid-template-columns:repeat(2,1fr); } }
+        @media(max-width:600px){ .tm-tiles { grid-template-columns: repeat(2, 1fr); } }
 
         .tm-tile {
-          padding:.7rem .625rem; border-radius:9px; text-align:center;
-          background:rgba(255,255,255,.02); border:1px solid rgba(255,255,255,.05);
-          transition:border-color .14s;
+          position: relative;
+          overflow: hidden;
+          padding: .7rem .5rem;
+          border-radius: 10px;
+          text-align: center;
+          background: rgba(255,255,255,.02);
+          border: 1px solid rgba(255,255,255,.05);
+          transition: border-color .14s, transform .14s;
+          animation: tmSlideUp .28s ease-out backwards;
         }
-        .tm-tile:hover { border-color:rgba(139,92,246,.14); }
-        .tm-tile-n { font-size:1.2rem; font-weight:800; letter-spacing:-.04em; font-variant-numeric:tabular-nums; line-height:1; margin-bottom:.22rem; }
-        .tm-tile-l { font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted-foreground); }
+        .tm-tile::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          background: repeating-linear-gradient(
+            0deg,
+            transparent, transparent 11px,
+            rgba(255,255,255,.011) 11px, rgba(255,255,255,.011) 12px
+          );
+        }
+        .tm-tile:hover {
+          border-color: rgba(139,92,246,.16);
+          transform: translateY(-1px);
+        }
+        .tm-tile-n {
+          font-size: 1.3rem;
+          font-weight: 800;
+          letter-spacing: -.04em;
+          font-variant-numeric: tabular-nums;
+          line-height: 1;
+          margin-bottom: .22rem;
+        }
+        .tm-tile-l {
+          font-size: .59rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: .06em;
+          color: var(--muted-foreground);
+        }
 
         .tm-panel {
           background:var(--card); border:1px solid rgba(255,255,255,.05);
@@ -415,23 +450,16 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
             )}
           </div>
 
+          {/* ── Tiles — af-stat style ── */}
           <div className="tm-tiles">
             {[
-              { n: members.length,           l: "Members",     c: "var(--foreground)", d: ".04s" },
-              { n: pendingInvites.length,     l: "Pending",     c: "#f59e0b",           d: ".09s" },
-              { n: adminsCount,               l: "Admins",      c: "#8b5cf6",           d: ".14s" },
-              {
-                n: loadingGuest ? "—" : guestStats.totalAccesses,
-                l: "Guest Visits",
-                c: "#34d399",
-                d: ".19s",
-                
-              },
+              { n: members.length,                                  l: "Members",     c: "var(--foreground)", d: ".04s" },
+              { n: pendingInvites.length,                           l: "Pending",     c: "#f59e0b",           d: ".09s" },
+              { n: adminsCount,                                     l: "Admins",      c: "#8b5cf6",           d: ".14s" },
+              { n: loadingGuest ? "—" : guestStats.totalAccesses,  l: "Guest Visits", c: "#34d399",           d: ".19s" },
             ].map(s => (
               <div key={s.l} className="tm-tile" style={{ animationDelay: s.d }}>
-                <div className="tm-tile-n" style={{ color:s.c, display:"flex", alignItems:"center", justifyContent:"center", gap:".25rem" }}>
-                  {s.icon}{s.n}
-                </div>
+                <div className="tm-tile-n" style={{ color: s.c }}>{s.n}</div>
                 <div className="tm-tile-l">{s.l}</div>
               </div>
             ))}
