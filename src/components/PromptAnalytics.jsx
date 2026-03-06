@@ -589,10 +589,10 @@ export function TeamAnalytics({ teamId }) {
         {/* ── Top KPI strip — af-stat style ── */}
         <div className="pa-kpi">
           {[
-            { n: analytics.totalPrompts,                                                    l: "Prompts",    c: "#8b5cf6", d: ".04s" },
-            { n: analytics.totalCopies,                                                     l: "Copies",     c: "#a78bfa", d: ".09s" },
-            { n: analytics.totalComments,                                                   l: "Comments",   c: "#22d3ee", d: ".14s" },
-            { n: analytics.averageRating > 0 ? analytics.averageRating.toFixed(1) : "—",   l: "Avg Rating", c: "#f59e0b", d: ".19s" },
+            { n: analytics.totalPrompts,                                                    l: "Prompts",    c: "#BFC9D1", d: ".04s" },
+            { n: analytics.totalCopies,                                                     l: "Copies",     c: "#EAEFEF", d: ".11s" },
+            { n: analytics.totalComments,                                                   l: "Comments",   c: "#22d3ee", d: ".18s" },
+            { n: analytics.averageRating > 0 ? analytics.averageRating.toFixed(1) : "—",   l: "Avg Rating", c: "#f59e0b", d: ".26s" },
           ].map(({ n, l, c, d }) => (
             <div key={l} className="pa-kpi-tile" style={{ animationDelay: d }}>
               <div className="pa-kpi-n" style={{ color: c }}>{n}</div>
