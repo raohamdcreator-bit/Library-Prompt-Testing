@@ -454,9 +454,9 @@ export default function TeamMembers({ teamId, teamName, userRole, teamData }) {
           <div className="tm-tiles">
             {[
               { n: members.length,                                  l: "Members",     c: "var(--foreground)", d: ".04s" },
-              { n: pendingInvites.length,                           l: "Pending",     c: "#f59e0b",           d: ".09s" },
-              { n: adminsCount,                                     l: "Admins",      c: "#3b82f6",           d: ".14s" },
-              { n: loadingGuest ? "—" : guestStats.totalAccesses,  l: "Guest Visits", c: "#34d399",           d: ".19s" },
+              { n: pendingInvites.length,                           l: "Pending",     c: "#f59e0b",           d: ".14s" },
+              { n: adminsCount,                                     l: "Admins",      c: "#3b82f6",           d: ".24s" },
+              { n: loadingGuest ? "—" : guestStats.totalAccesses,  l: "Guest Visits", c: "#34d399",           d: ".34s" },
             ].map(s => (
               <div key={s.l} className="tm-tile" style={{ animationDelay: s.d }}>
                 <div className="tm-tile-n" style={{ color: s.c }}>{s.n}</div>
