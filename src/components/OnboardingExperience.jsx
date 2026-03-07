@@ -266,7 +266,7 @@ export default function OnboardingExperience({
               <div className="ob-hd-icon"><Sparkles size={20} color="#c4b5fd" /></div>
               <div>
                 <div className="ob-hd-title">
-                  {isGuest ? "Welcome to Prism 👋" : `Welcome, ${userName?.split(" ")[0] || "there"} 👋`}
+                  {isGuest ? "Welcome to Prism" : `Welcome, ${userName?.split(" ")[0] || "there"}`}
                 </div>
                 <div className="ob-hd-sub">
                   {isGuest
