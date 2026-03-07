@@ -1794,7 +1794,8 @@ export default function App() {
                 </>
               ) : (
                 <>
-                  <Sparkles size={32} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
+                  
+                  <Eye size={32} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
                   <p>Exploring as guest</p>
                   <p className="text-xs">Create a free account to unlock everything</p>
                 </>
