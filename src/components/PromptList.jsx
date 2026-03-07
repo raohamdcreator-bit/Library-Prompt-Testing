@@ -671,7 +671,7 @@ function PromptCard({
           <>
             <CopyButton text={prompt.text} promptId={prompt.id} onCopy={onCopy} isGuestMode={isGuestMode} />
             <button onClick={() => onDuplicate && onDuplicate(prompt)} className="btn-action-primary">
-              <Sparkles className="w-3.5 h-3.5" /><span>Make My Own</span>
+              <span>Make My Own</span>
             </button>
           </>
         ) : (
