@@ -1606,7 +1606,6 @@ export default function App() {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    {guestTeamId ? <Eye size={16} style={{ color: 'var(--primary)' }} /> : <Sparkles size={16} style={{ color: 'var(--primary)' }} />}
                     <span style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--foreground)' }}>
                       {guestTeamId ? 'Guest Team View • Read-Only' : 'Guest Mode • Changes are temporary'}
                     </span>
