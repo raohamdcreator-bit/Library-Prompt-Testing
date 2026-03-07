@@ -1413,8 +1413,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       {displayDemos.length > 0 && (
         <section className="mb-4">
           <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="w-4 h-4" style={{ color: 'var(--primary)' }} />
-            <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Try These Examples</h3>
+            <h4 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Try These Examples</h3>
           </div>
           {demoPromptsPagination.currentItems.map(prompt => (
             <PromptCard
