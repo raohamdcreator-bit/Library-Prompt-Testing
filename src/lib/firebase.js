@@ -3,7 +3,6 @@ import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
-
 import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 
 const firebaseConfig = {
@@ -16,15 +15,15 @@ const firebaseConfig = {
   measurementId:     import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-const app = initializeApp(firebaseConfig);
+// ── Export `app` so other modules (e.g. storage.js) can call getStorage(app)
+// and guarantee they're talking to the correct Firebase project instance.
+export const app       = initializeApp(firebaseConfig);
 
 export const analytics = getAnalytics(app);
 export const auth      = getAuth(app);
 export const db        = getFirestore(app);
 
 // §7.1 — Only initialise App Check when the site key is present.
-// This lets the app run in local dev without App Check enforcement
-// while production is fully protected.
 if (import.meta.env.VITE_RECAPTCHA_SITE_KEY) {
   initializeAppCheck(app, {
     provider: new ReCaptchaV3Provider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),
