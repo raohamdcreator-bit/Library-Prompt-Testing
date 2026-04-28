@@ -54,37 +54,50 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
   }
 
   async function handleSubmit(e) {
-    e.preventDefault();
-    if (!title.trim()) { alert("Title is required"); return; }
-    if (resultType !== "image" && !content.trim()) { alert("Content is required"); return; }
-    if (resultType === "image" && !imageFile) { alert("Please select an image"); return; }
-    setUploading(true); setUploadProgress(0);
-    try {
-      let resultData = { type: resultType, title: title.trim() };
-      if (resultType === "text") {
-        resultData.content = content.trim();
-      } else if (resultType === "code") {
-        resultData.content = content.trim();
-        resultData.language = language;
-      } else {
-        setUploadProgress(30);
-        const img = await uploadResultImage(imageFile, promptId, userId);
-        setUploadProgress(70);
-        Object.assign(resultData, { imageUrl: img.url, imagePath: img.path, imageFilename: img.filename, imageSize: img.size, imageType: img.type });
-      }
-      setUploadProgress(90);
-      await addResultToPrompt(teamId, promptId, userId, resultData);
-      setUploadProgress(100);
-      if (window.gtag) window.gtag("event","output_attached",{ team_id:teamId, prompt_id:promptId, output_type:resultType });
-      notify("Result added successfully!");
-      onClose();
-    } catch (err) {
-      notify(err.message || "Failed to add result", "error");
-    } finally {
-      setUploading(false); setUploadProgress(0);
-    }
-  }
+  e.preventDefault();
+  if (!title.trim()) { alert("Title is required"); return; }
+  if (resultType !== "image" && !content.trim()) { alert("Content is required"); return; }
+  if (resultType === "image" && !imageFile) { alert("Please select an image"); return; }
 
+  setUploading(true);
+  setUploadProgress(0);
+
+  try {
+    let resultData = { type: resultType, title: title.trim() };
+
+    if (resultType === "text") {
+      resultData.content = content.trim();
+    } else if (resultType === "code") {
+      resultData.content = content.trim();
+      resultData.language = language;
+    } else {
+      // Pass the real progress callback — goes 0 → 100 during the actual upload
+      const img = await uploadResultImage(imageFile, promptId, userId, setUploadProgress);
+      Object.assign(resultData, {
+        imageUrl: img.url,
+        imagePath: img.path,
+        imageFilename: img.filename,
+        imageSize: img.size,
+        imageType: img.type,
+      });
+    }
+
+    await addResultToPrompt(teamId, promptId, userId, resultData);
+
+    if (window.gtag) window.gtag("event", "output_attached", {
+      team_id: teamId, prompt_id: promptId, output_type: resultType,
+    });
+
+    notify("Result added successfully!");
+    onClose();
+  } catch (err) {
+    notify(err.message || "Failed to add result", "error");
+  } finally {
+    // Always runs — prevents the modal from getting stuck
+    setUploading(false);
+    setUploadProgress(0);
+  }
+}
   return (
     <>
       <style>{`
