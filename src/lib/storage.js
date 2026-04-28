@@ -5,7 +5,7 @@ import { app } from './firebase';
 // Pass the app instance explicitly so the correct Firebase project is used
 const storage = getStorage(app);
 
-const UPLOAD_TIMEOUT_MS = 60_000; // 60 s — fail fast instead of hanging forever
+const UPLOAD_TIMEOUT_MS = 60_000; // 60 s — fail fast instead of hanging forever 
 
 /**
  * Upload image with real progress tracking.
