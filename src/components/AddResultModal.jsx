@@ -30,13 +30,14 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
   if (!isOpen) return null;
 
   function handleImageSelect(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { alert("Please select an image file"); return; }
-    if (file.size > 10 * 1024 * 1024) { alert("Image must be less than 10MB"); return; }
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-  }
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { alert("Please select an image file"); return; }
+  if (file.size > 10 * 1024 * 1024) { alert("Image must be less than 10MB"); return; }
+  if (imagePreview) URL.revokeObjectURL(imagePreview);
+  setImageFile(file);
+  setImagePreview(URL.createObjectURL(file));
+}
 
   function notify(message, type = "info") {
     playNotification();
@@ -369,7 +370,11 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
                       <div className="arm-preview">
                         <img src={imagePreview} alt="Preview"
                           style={{ width:"100%", maxHeight:"220px", objectFit:"contain", display:"block", background:"rgba(0,0,0,.2)" }} />
-                        <button type="button" onClick={() => { setImageFile(null); setImagePreview(null); }}
+                        <button type="button" onClick={() => {
+  if (imagePreview) URL.revokeObjectURL(imagePreview);
+  setImageFile(null);
+  setImagePreview(null);
+}}
                           disabled={uploading} className="arm-preview-x"><X size={11} /></button>
                       </div>
                       {imageFile && <div className="arm-finfo">{imageFile.name} · {(imageFile.size/1024).toFixed(1)} KB</div>}
