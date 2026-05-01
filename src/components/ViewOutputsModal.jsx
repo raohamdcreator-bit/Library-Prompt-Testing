@@ -131,7 +131,7 @@ function OutputCard({ output, onDelete, canDelete }) {
   // Collapsed heights chosen to show a clear "peek" without wasting space
   const COLLAPSE_TEXT  = "6.6rem";   // ≈ 4 lines at .8rem/1.65 line-height
   const COLLAPSE_CODE  = "7.8rem";   // ≈ 5 lines at .73rem/1.6 line-height
-  const COLLAPSE_IMG   = "200px";
+  const COLLAPSE_IMG   = "min(60vh, 600px)";
   const EXPAND_MAX     = "min(55vh, 500px)"; // FIX 6: cap so modal footer stays reachable
 
   async function handleCopy() {
@@ -232,66 +232,75 @@ function OutputCard({ output, onDelete, canDelete }) {
   }
 
   // ── Image renderer ────────────────────────────────────────────────────────────
-  // FIX 7: Clickable image + lightbox. Expand toggles natural height.
-  function ImageContent() {
-    if (imgErr) return (
-      <div style={{
-        padding: "2.5rem 1rem", textAlign: "center", borderRadius: "8px",
-        background: "rgba(0,0,0,.2)", border: "1px solid rgba(255,255,255,.06)",
-      }}>
-        <ImageIcon size={32} color="rgba(244,114,182,.35)"
-          style={{ margin: "0 auto .625rem", display: "block" }} />
-        <p style={{ fontSize: ".76rem", color: "var(--muted-foreground)", margin: 0 }}>
-          Image failed to load
-        </p>
-      </div>
-    );
-    if (!output.imageUrl) return null;
+ // Replace the entire ImageContent() function inside OutputCard:
+function ImageContent() {
+  if (imgErr) return (
+    <div style={{
+      padding: "2.5rem 1rem", textAlign: "center", borderRadius: "8px",
+      background: "rgba(0,0,0,.2)", border: "1px solid rgba(255,255,255,.06)",
+    }}>
+      <ImageIcon size={32} color="rgba(244,114,182,.35)"
+        style={{ margin: "0 auto .625rem", display: "block" }} />
+      <p style={{ fontSize: ".76rem", color: "var(--muted-foreground)", margin: 0 }}>
+        Image failed to load
+      </p>
+    </div>
+  );
+  if (!output.imageUrl) return null;
 
-    return (
-      <div style={{ position: "relative" }}>
-        <div
-          ref={contentRef}
-          onClick={() => setLightbox(true)}
+  return (
+    <div style={{ position: "relative" }}>
+      <div
+        ref={contentRef}
+        onClick={() => setLightbox(true)}
+        style={{
+          // No fixed maxHeight in collapsed — image always shows in full.
+          // The lightbox is still available for full-screen viewing.
+          borderRadius: "8px",
+          background: "rgba(0,0,0,.22)",
+          border: "1px solid rgba(255,255,255,.06)",
+          cursor: "zoom-in",
+          // Center image of any aspect ratio
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+        }}
+      >
+        <img
+          src={output.imageUrl}
+          alt={output.title || "Output image"}
+          onError={() => setImgErr(true)}
           style={{
-            maxHeight: expanded ? EXPAND_MAX : COLLAPSE_IMG,
-            overflow: "hidden",
-            transition: "max-height .3s cubic-bezier(.4,0,.2,1)",
-            borderRadius: "8px",
-            background: "rgba(0,0,0,.22)",
-            border: "1px solid rgba(255,255,255,.06)",
-            cursor: "zoom-in",
+            // KEY: width:100%, height:auto → image always fully visible,
+            // never cropped, works for landscape, portrait, square.
+            display: "block",
+            width: "100%",
+            height: "auto",
+            objectFit: "contain",
           }}
-        >
-          <img
-            src={output.imageUrl}
-            alt={output.title || "Output image"}
-            onError={() => setImgErr(true)}
-            style={{ width: "100%", display: "block", objectFit: "contain" }}
-          />
-        </div>
-        {/* Zoom button */}
-        <button
-          onClick={() => setLightbox(true)}
-          title="View full size"
-          style={{
-            position: "absolute", top: ".5rem", right: ".5rem",
-            width: "28px", height: "28px", borderRadius: "7px",
-            background: "rgba(0,0,0,.65)", border: "1px solid rgba(255,255,255,.18)",
-            color: "#fff", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "background .13s",
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,0,0,.88)"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,.65)"; }}
-        >
-          <ZoomIn size={13} />
-        </button>
-        {!expanded && realOverflow && <ClipFade />}
+        />
       </div>
-    );
-  }
-
+      {/* Zoom button always visible */}
+      <button
+        onClick={() => setLightbox(true)}
+        title="View full size"
+        style={{
+          position: "absolute", top: ".5rem", right: ".5rem",
+          width: "28px", height: "28px", borderRadius: "7px",
+          background: "rgba(0,0,0,.65)", border: "1px solid rgba(255,255,255,.18)",
+          color: "#fff", cursor: "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          transition: "background .13s",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,0,0,.88)"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,.65)"; }}
+      >
+        <ZoomIn size={13} />
+      </button>
+    </div>
+  );
+}
   const hasContent = output.type === "image" ? !!output.imageUrl : !!output.content;
   const showToggle = hasContent && realOverflow;
 
