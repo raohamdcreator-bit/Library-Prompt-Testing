@@ -340,84 +340,51 @@ function OutputSidebar({ outputs, onViewAll, onAttach, isGuestMode, canModify = 
     );
   }
 
- // In OutputSidebar, replace the entire component's return for the "has outputs" case:
-
-const latestImage = outputs.find(o => o.type === 'image' && o.imageUrl);
-const latest = outputs[0];
-
-return (
-  <button onClick={onViewAll}
-    style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-      padding: '0', cursor: 'pointer', border: 'none', background: 'transparent',
-      textAlign: 'left', transition: 'background 0.15s' }}
-    title="View all outputs"
-    onMouseEnter={e => e.currentTarget.style.background = 'var(--muted)'}
-    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-
-    {/* Show latest IMAGE output if any exists — full image, no cropping */}
-    {latestImage ? (
-      <div style={{
-        width: '100%',
-        background: 'rgba(0,0,0,.25)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        borderBottom: '1px solid var(--border)',
-        // No fixed height — image defines its own height, capped sensibly
-        maxHeight: '140px',
-        overflow: 'hidden',
-      }}>
-        <img
-          src={latestImage.imageUrl}
-          alt={latestImage.title}
-          style={{
-            width: '100%',
-            height: 'auto',          // never crop vertically
-            maxHeight: '140px',
-            objectFit: 'contain',    // show full image, no cropping
-            display: 'block',
-          }}
-        />
-      </div>
-    ) : (
-      /* Non-image latest output header */
-      <div style={{ padding: '0.5rem 0.625rem 0.25rem', display: 'flex', alignItems: 'center',
-        gap: '0.375rem', borderBottom: '1px solid var(--border)' }}>
-        {latest.type === 'code'
-          ? <Code className="w-3 h-3 text-purple-400 flex-shrink-0" />
-          : <FileText className="w-3 h-3 text-blue-400 flex-shrink-0" />}
-        <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--foreground)' }}>
-          {latest.type === 'code' ? 'Code' : 'Text'}
-        </span>
-      </div>
-    )}
-
-    {/* Title + text preview */}
-    <div style={{ padding: '0.5rem 0.625rem', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-      <p style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--foreground)',
-        marginBottom: '0.25rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-        {(latestImage || latest).title || 'Untitled'}
-      </p>
-      {/* Only show text preview for non-image outputs */}
-      {!latestImage && latest.content && (
-        <p style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', lineHeight: 1.45,
-          display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          {latest.content}
-        </p>
+  const latest = outputs[0];
+  return (
+    <button onClick={onViewAll}
+      style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+        padding: '0', cursor: 'pointer', border: 'none', background: 'transparent',
+        textAlign: 'left', transition: 'background 0.15s' }}
+      title="View all outputs"
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--muted)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+      {latest.type === 'image' && latest.imageUrl ? (
+        <div style={{ width: '100%', height: '80px', overflow: 'hidden', flexShrink: 0 }}>
+          <img src={latest.imageUrl} alt={latest.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        </div>
+      ) : (
+        <div style={{ padding: '0.5rem 0.625rem 0.25rem', display: 'flex', alignItems: 'center', gap: '0.375rem', borderBottom: '1px solid var(--border)' }}>
+          {latest.type === 'code'
+            ? <Code className="w-3 h-3 text-purple-400 flex-shrink-0" />
+            : <FileText className="w-3 h-3 text-blue-400 flex-shrink-0" />}
+          <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--foreground)' }}>
+            {latest.type === 'code' ? 'Code' : 'Text'}
+          </span>
+        </div>
       )}
-    </div>
-
-    {/* Footer count */}
-    <div style={{ borderTop: '1px solid var(--border)', padding: '0.3rem 0.625rem',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-      <span style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)' }}>
-        {outputs.length} output{outputs.length !== 1 ? 's' : ''}
-      </span>
-      <ChevronUp className="w-3 h-3" style={{ color: "var(--primary)", opacity: 0.7 }} />
-    </div>
-  </button>
-);
+      <div style={{ padding: '0.5rem 0.625rem', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <p style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--foreground)',
+          marginBottom: '0.25rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+          {latest.title || 'Untitled'}
+        </p>
+        {latest.type !== 'image' && latest.content && (
+          <p style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', lineHeight: 1.45,
+            display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {latest.content}
+          </p>
+        )}
+      </div>
+      <div style={{ borderTop: '1px solid var(--border)', padding: '0.3rem 0.625rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <span style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)' }}>
+          {outputs.length} output{outputs.length !== 1 ? 's' : ''}
+        </span>
+        <ChevronUp className="w-3 h-3" style={{ color: "var(--primary)", opacity: 0.7 }} />
+      </div>
+    </button>
+  );
+}
 
 // ─── Restriction Banner ───────────────────────────────────────────────────────
 function RestrictionBanner({ creatorRole }) {
