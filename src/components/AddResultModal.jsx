@@ -4,7 +4,8 @@ import { addResultToPrompt } from "../lib/results";
 import { uploadResultImage } from "../lib/storage";
 import { X, FileText, Code, Image, Upload, Check } from "lucide-react";
 import { useSoundEffects } from "../hooks/useSoundEffects";
-
+import VideoUploader from './VideoUploader.jsx';
+import { Video } from 'lucide-react';
 const LANGUAGES = [
   "javascript","typescript","python","java","csharp","cpp","go","rust",
   "php","ruby","swift","kotlin","html","css","sql","bash","json","yaml","markdown",
@@ -14,6 +15,7 @@ const TYPES = [
   { value: "text",  icon: FileText, label: "Text",  desc: "Prose output"  },
   { value: "code",  icon: Code,     label: "Code",  desc: "Source code"   },
   { value: "image", icon: Image,    label: "Image", desc: "Visual output" },
+  { value: "video", icon: Video,    label: "Video", desc: "Video recording" },
 ];
 
 export default function AddResultModal({ isOpen, onClose, promptId, teamId, userId }) {
@@ -59,7 +61,8 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
   if (!title.trim()) { alert("Title is required"); return; }
   if (resultType !== "image" && !content.trim()) { alert("Content is required"); return; }
   if (resultType === "image" && !imageFile) { alert("Please select an image"); return; }
-
+  // Video type manages its own upload flow via VideoUploader
+  if (resultType === "video") return;
   setUploading(true);
   setUploadProgress(0);
 
@@ -382,7 +385,24 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
                   )}
                 </div>
               )}
-
+              
+              {/* video */}
+{resultType === "video" && (
+  <div>
+    <span className="arm-lbl">Video file *</span>
+    <VideoUploader
+      teamId={teamId}
+      promptId={promptId}
+      disabled={uploading}
+      onSuccess={(videoData) => {
+        // Video upload is self-contained — close modal on success
+        notify("Video uploaded successfully!");
+        onClose();
+      }}
+      onCancel={() => setResultType("text")}
+    />
+  </div>
+)}
               {/* progress */}
               {uploading && (
                 <div className="arm-prog">
