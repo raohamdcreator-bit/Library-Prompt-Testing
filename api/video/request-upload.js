@@ -22,7 +22,7 @@ import {
 import { PLAN_LIMITS } from '../../src/config/plans.js';
 
 export const config = {
-  runtime: 'nodejs20.x',
+  runtime: 'nodejs',
 };
 
 export default async function handler(request) {
