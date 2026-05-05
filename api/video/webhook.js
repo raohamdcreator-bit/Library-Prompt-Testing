@@ -10,7 +10,7 @@ import { verifyWebhookSignature } from '../../src/lib/cloudflareApi.js';
 import { errorResponse, successResponse } from '../../src/lib/apiHelpers.js';
 
 export const config = {
-  runtime: 'nodejs20.x',
+  runtime: 'nodejs',
 };
 
 export default async function handler(request) {
