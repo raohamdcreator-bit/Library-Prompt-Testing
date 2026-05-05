@@ -12,10 +12,10 @@ function getAdminApp() {
 
   return initializeApp({
     credential: cert({
-      projectId:   process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      projectId:   process.env.VITE_FIREBASE_PROJECT_ID,
+      clientEmail: process.env.VITE_ADMIN_EMAIL,
       // Vercel stores newlines as literal \n — this restores them
-      privateKey:  process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      privateKey:  process.env.FIREBASE_SERVICE_ACCOUNT?.replace(/\\n/g, '\n'),
     }),
   });
 }
