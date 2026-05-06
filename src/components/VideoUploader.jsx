@@ -2,7 +2,7 @@
 // Drop-zone + progress UI for video uploads.
 // Designed to slot into AddResultModal as the "Video" output type.
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, Video, X, CheckCircle, AlertCircle,
          Loader2, Play, FileVideo } from 'lucide-react';
 import useVideoUpload, { ACCEPTED_VIDEO_TYPES } from '../hooks/useVideoUpload.js';
