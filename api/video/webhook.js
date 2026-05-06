@@ -8,7 +8,7 @@
 import { adminDb }               from '../../src/lib/firebaseAdmin.js';
 import { verifyWebhookSignature } from '../../src/lib/cloudflareApi.js';
 import { errorResponse, successResponse } from '../../src/lib/apiHelpers.js';
-
+import { FieldValue }            from 'firebase-admin/firestore';
 export const config = {
   runtime: 'nodejs',
 };
@@ -89,11 +89,11 @@ export default async function handler(request) {
       });
 
       // ── 4b. Increment user's video count and storage usage ───────────────
-      await adminDb.collection('users').doc(ownerId).update({
-        videosUploaded:   adminDb.FieldValue.increment(1),
-        totalStorageUsed: adminDb.FieldValue.increment(videoData.fileSizeBytes || 0),
-        updatedAt:        now,
-      });
+     await adminDb.collection('users').doc(ownerId).update({
+  videosUploaded:   FieldValue.increment(1),
+  totalStorageUsed: FieldValue.increment(videoData.fileSizeBytes || 0),
+  updatedAt:        now,
+});
 
       console.log(`✅ Video ${videoId} marked ready for user ${ownerId}`);
 
