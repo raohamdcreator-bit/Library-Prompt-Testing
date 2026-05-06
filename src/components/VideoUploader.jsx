@@ -156,15 +156,21 @@ export default function VideoUploader({
   onSuccess,
   onCancel,
   disabled = false,
+  onUploadStart,
+  onUploadEnd,
 }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [title,        setTitle]        = useState('');
 
   const {
-    stage, progress, error, videoData,
-    isActive, stageLabel,
-    startUpload, cancelUpload, reset,
-  } = useVideoUpload({ teamId, promptId, onSuccess });
+  stage, progress, error, videoData,
+  isActive, stageLabel,
+  startUpload, cancelUpload, reset,
+} = useVideoUpload({ teamId, promptId, onSuccess });
+
+useEffect(() => {
+  if (stage === 'done') onUploadEnd?.();
+}, [stage]);
 
   const handleFileSelect = (file) => {
     setSelectedFile(file);
@@ -180,15 +186,17 @@ export default function VideoUploader({
     reset();
   };
 
-  const handleUpload = () => {
-    if (!selectedFile) return;
-    startUpload(selectedFile, title);
-  };
+ const handleUpload = () => {
+  if (!selectedFile) return;
+  onUploadStart?.();
+  startUpload(selectedFile, title);
+};
 
   const handleCancel = () => {
-    cancelUpload();
-    onCancel?.();
-  };
+  cancelUpload();
+  onUploadEnd?.();
+  onCancel?.();
+};
 
   // ── Done state ─────────────────────────────────────────────────────────────
   if (stage === 'done' && videoData) {
