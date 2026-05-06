@@ -9,13 +9,13 @@ import { auth } from './firebase.js';
  * Get the current user's Firebase ID token.
  * Throws if user is not authenticated.
  */
+// AFTER
 async function getIdToken() {
-  // Wait for auth to resolve instead of reading currentUser synchronously
   const user = await new Promise((resolve, reject) => {
-    const unsub = auth.onAuthStateChanged(u => {
-      unsub();
-      resolve(u);
-    }, reject);
+    const unsub = auth.onAuthStateChanged(
+      (u) => { unsub(); resolve(u); },
+      (err) => { unsub(); reject(err); }
+    );
   });
   if (!user) throw new Error('You must be signed in to upload videos');
   return user.getIdToken(false);
