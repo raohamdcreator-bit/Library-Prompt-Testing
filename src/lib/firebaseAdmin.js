@@ -1,5 +1,3 @@
-// FULL REPLACEMENT — src/lib/firebaseAdmin.js
-
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth }      from 'firebase-admin/auth';
@@ -8,7 +6,6 @@ function getAdminApp() {
   if (getApps().length > 0) return getApps()[0];
 
   const rawServiceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
-
   if (!rawServiceAccount) {
     throw new Error('Firebase Admin: FIREBASE_SERVICE_ACCOUNT env var is missing');
   }
@@ -26,7 +23,7 @@ function getAdminApp() {
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
-      `Firebase Admin: service account JSON is missing fields: ${[
+      `Firebase Admin: service account JSON missing fields: ${[
         !projectId   && 'project_id',
         !clientEmail && 'client_email',
         !privateKey  && 'private_key',
@@ -34,7 +31,8 @@ function getAdminApp() {
     );
   }
 
-  console.log('[firebaseAdmin] Initializing with project:', projectId, '| client:', clientEmail);
+  // ✅ Never log credentials — only confirm init succeeded
+  console.log('[firebaseAdmin] Admin SDK initialized');
 
   return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
 }
