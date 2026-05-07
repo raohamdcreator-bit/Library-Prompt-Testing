@@ -117,46 +117,98 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, error: 'Failed to verify team' });
   }
 
-  // ── Request Cloudflare upload URL ───────────────────────────────────────────
+    // ── Request Cloudflare upload URL ───────────────────────────────────────────
   log('requesting CF upload URL...');
+
   let uploadUrl, videoId, expiresAt;
+
   try {
-    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
-    const apiToken  = process.env.CLOUDFLARE_API_TOKEN;
-    if (!accountId || !apiToken) throw new Error('Cloudflare env vars missing');
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
+    const apiToken  = process.env.CLOUDFLARE_API_TOKEN?.trim();
 
-    expiresAt      = new Date(Date.now() + 1800 * 1000).toISOString();
-    const cfRes    = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`,
-      {
-        method:  'POST',
-        headers: {
-          'Authorization': `Bearer ${apiToken}`,
-          'Content-Type':  'application/json',
+    // ── Debug env vars ────────────────────────────────────────────────────────
+    log(`CF ACCOUNT ID EXISTS: ${!!accountId}`);
+    log(`CF TOKEN EXISTS: ${!!apiToken}`);
+
+    if (accountId) {
+      log(`CF ACCOUNT ID: ${accountId}`);
+      log(`CF ACCOUNT ID LENGTH: ${accountId.length}`);
+    }
+
+    if (apiToken) {
+      log(`CF TOKEN LENGTH: ${apiToken.length}`);
+      log(`CF TOKEN PREFIX: ${apiToken.slice(0, 8)}...`);
+    }
+
+    if (!accountId || !apiToken) {
+      throw new Error('Cloudflare env vars missing');
+    }
+
+    expiresAt = new Date(Date.now() + 1800 * 1000).toISOString();
+
+    const endpoint =
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`;
+
+    log(`CF ENDPOINT: ${endpoint}`);
+
+    const cfRes = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        maxDurationSeconds: 3600,
+        expiry: expiresAt,
+        requireSignedURLs: false,
+        meta: {
+          userId: uid,
+          teamId,
+          promptId,
+          source: 'prism-app',
         },
-        body: JSON.stringify({
-          maxDurationSeconds: 3600,
-          expiry:            expiresAt,
-          meta:              { userId: uid, teamId, promptId, source: 'prism-app' },
-          requireSignedURLs: false,
-        }),
-      }
-    );
+      }),
+    });
 
-    const cfData = await cfRes.json();
+    // ── RAW RESPONSE DEBUG ────────────────────────────────────────────────────
+    log(`CF STATUS: ${cfRes.status}`);
+    log(`CF STATUS TEXT: ${cfRes.statusText}`);
+
+    const rawText = await cfRes.text();
+
+    log(`CF RAW RESPONSE: ${rawText}`);
+
+    let cfData;
+
+    try {
+      cfData = JSON.parse(rawText);
+    } catch {
+      throw new Error(`Invalid CF JSON response: ${rawText}`);
+    }
+
     if (!cfRes.ok || !cfData.success) {
-      const msg = cfData.errors?.map(e => e.message).join(', ') || `CF HTTP ${cfRes.status}`;
+      const msg =
+        cfData?.errors?.map(e => e.message).join(', ') ||
+        `CF HTTP ${cfRes.status}`;
+
       throw new Error(msg);
     }
 
     uploadUrl = cfData.result.uploadURL;
     videoId   = cfData.result.uid;
-    log(`CF OK videoId=${videoId}`);
-  } catch (err) {
-    log(`CF FAILED: ${err.message}`);
-    return res.status(502).json({ success: false, error: `Failed to prepare upload: ${err.message}` });
-  }
 
+    log(`CF OK videoId=${videoId}`);
+
+  } catch (err) {
+
+    log(`CF FAILED: ${err.message}`);
+    log(`CF STACK: ${err.stack}`);
+
+    return res.status(502).json({
+      success: false,
+      error: `Failed to prepare upload: ${err.message}`,
+    });
+  }
   // ── Save pending video doc ──────────────────────────────────────────────────
   log('saving video doc...');
   try {
