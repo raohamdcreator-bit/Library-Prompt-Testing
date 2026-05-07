@@ -6,7 +6,7 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getFirestore }                  from 'firebase-admin/firestore';
 import { getAuth }                       from 'firebase-admin/auth';
 
-// Singleton pattern — prevents re-initialisation on hot reloads
+// Singleton pattern — prevents re-initialisation on hot reload
 function getAdminApp() {
   if (getApps().length > 0) return getApps()[0];
 
@@ -20,15 +20,7 @@ function getAdminApp() {
       !clientEmail && 'FIREBASE_CLIENT_EMAIL',
       !privateKey  && 'FIREBASE_SERVICE_ACCOUNT',
     ].filter(Boolean);
-    throw new Error(`Firebase Admin SDK: missing env vars: ${missing.join(', ')}`);
-  }
-
-  if (!clientEmail.includes('iam.gserviceaccount.com')) {
-    throw new Error(
-      `Firebase Admin SDK: FIREBASE_CLIENT_EMAIL looks wrong ("${clientEmail}"). ` +
-      `It must be a service account email ending in iam.gserviceaccount.com, ` +
-      `not a personal Gmail address.`
-    );
+    throw new Error(`Firebase Admin: missing env vars: ${missing.join(', ')}`);
   }
 
   return initializeApp({
