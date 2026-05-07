@@ -5,7 +5,7 @@ import admin from 'firebase-admin';
 const t0  = Date.now();
 const log = (msg) => console.log(`[request-upload] +${Date.now()-t0}ms ${msg}`);
 
-// ── Initialize Firebase Admin exactly like _auth.js does ──────────────────────
+// ── Initialize Firebase Admin exactly like _auth.js does ────────────────────
 if (!admin.apps.length) {
   const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!serviceAccount) {
