@@ -1,7 +1,8 @@
 // src/lib/apiHelpers.js
 // Shared utilities for all /api route handlers.
 
-import { adminAuth, adminDb } from './firebaseAdmin.js';
+
+import { getAdminAuth, getAdminDb } from './firebaseAdmin.js';
 
 /**
  * Verify the Firebase ID token from the Authorization header.
@@ -10,18 +11,15 @@ import { adminAuth, adminDb } from './firebaseAdmin.js';
  */
 export async function verifyAuthToken(request) {
   const authHeader = request.headers.get('Authorization') || '';
-
   if (!authHeader.startsWith('Bearer ')) {
     const err = new Error('Missing or malformed Authorization header');
     err.statusCode = 401;
     throw err;
   }
-
-  const idToken = authHeader.slice(7); // strip "Bearer "
-
+  const idToken = authHeader.slice(7);
   try {
-    return await adminAuth.verifyIdToken(idToken);
-  } catch (firebaseErr) {
+    return await getAdminAuth().verifyIdToken(idToken);
+  } catch {
     const err = new Error('Invalid or expired authentication token');
     err.statusCode = 401;
     throw err;
@@ -33,22 +31,18 @@ export async function verifyAuthToken(request) {
  * Throws 403 if user is suspended.
  */
 export async function getUserDoc(uid) {
-  const snap = await adminDb.collection('users').doc(uid).get();
-
+  const snap = await getAdminDb().collection('users').doc(uid).get();
   if (!snap.exists) {
     const err = new Error('User profile not found');
     err.statusCode = 404;
     throw err;
   }
-
   const data = snap.data();
-
   if (data.status === 'suspended') {
     const err = new Error('Account suspended');
     err.statusCode = 403;
     throw err;
   }
-
   return { id: snap.id, ...data };
 }
 
