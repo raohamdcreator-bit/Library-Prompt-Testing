@@ -5,10 +5,11 @@
 // Updates Firestore video status → "ready" and stores playback URLs.
 // Also increments user's videosUploaded counter.
 
-import { adminDb }               from '../../src/lib/firebaseAdmin.js';
+
+import { getAdminDb } from '../../src/lib/firebaseAdmin.js';
+import { FieldValue } from 'firebase-admin/firestore';
 import { verifyWebhookSignature } from '../../src/lib/cloudflareApi.js';
 import { errorResponse, successResponse } from '../../src/lib/apiHelpers.js';
-import { FieldValue }            from 'firebase-admin/firestore';
 export const config = {
   runtime: 'nodejs',
 };
@@ -58,7 +59,7 @@ export default async function handler(request) {
 
     try {
       // Fetch existing Firestore document to get ownerId
-      const videoRef  = adminDb.collection('videos').doc(videoId);
+      const videoRef  = getAdminDb().collection('videos').doc(videoId);
       const videoSnap = await videoRef.get();
 
       if (!videoSnap.exists) {
@@ -89,11 +90,9 @@ export default async function handler(request) {
       });
 
       // ── 4b. Increment user's video count and storage usage ───────────────
-     await adminDb.collection('users').doc(ownerId).update({
+    await getAdminDb().collection('users').doc(ownerId).update({
   videosUploaded:   FieldValue.increment(1),
   totalStorageUsed: FieldValue.increment(videoData.fileSizeBytes || 0),
-  updatedAt:        now,
-});
 
       console.log(`✅ Video ${videoId} marked ready for user ${ownerId}`);
 
