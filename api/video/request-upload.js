@@ -56,12 +56,24 @@ export default async function handler(request) {
   }
 
   // ── 3. Verify Firebase auth token ───────────────────────────────────────────
-  let decodedToken;
-  try {
-    decodedToken = await verifyAuthToken(request);
-  } catch (err) {
-    return errorResponse(err.message, err.statusCode || 401);
-  }
+ let decodedToken;
+try {
+  decodedToken = await Promise.race([
+    verifyAuthToken(request),
+    new Promise((_, reject) =>
+      setTimeout(
+        () => reject(Object.assign(
+          new Error('Firebase Admin timed out — check FIREBASE_CLIENT_EMAIL and FIREBASE_SERVICE_ACCOUNT env vars'),
+          { statusCode: 500 }
+        )),
+        8000
+      )
+    ),
+  ]);
+} catch (err) {
+  console.error('[request-upload] Auth failed:', err.message);
+  return errorResponse(err.message, err.statusCode || 401);
+}
 
   const uid = decodedToken.uid;
 
