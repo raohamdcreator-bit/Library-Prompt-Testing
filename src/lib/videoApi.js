@@ -51,12 +51,19 @@ export async function requestUploadUrl({ file, teamId, title, promptId }) {
     }),
   });
 
-  const data = await response.json();
+ let data;
+try {
+  data = await response.json();
+} catch {
+  throw new Error(
+    `Server error (HTTP ${response.status}) — the API returned a non-JSON response. ` +
+    `Check Vercel function logs for the actual error.`
+  );
+}
 
-  if (!response.ok || !data.success) {
-    // Surface the server's error message directly — it's user-friendly
-    throw new Error(data.error || 'Failed to prepare upload');
-  }
+if (!response.ok || !data.success) {
+  throw new Error(data.error || `Upload request failed with status ${response.status}`);
+}
 
   return {
     videoId:   data.videoId,
