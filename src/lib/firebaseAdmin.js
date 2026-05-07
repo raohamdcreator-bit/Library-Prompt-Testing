@@ -1,12 +1,8 @@
-// src/lib/firebaseAdmin.js
-// Firebase Admin SDK singleton — used only in /api server routes.
-// Never import in frontend components.
 
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getFirestore }                  from 'firebase-admin/firestore';
-import { getAuth }                       from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
+import { getAuth }      from 'firebase-admin/auth';
 
-// Singleton pattern — prevents re-initialisation on hot reload
 function getAdminApp() {
   if (getApps().length > 0) return getApps()[0];
 
@@ -23,12 +19,29 @@ function getAdminApp() {
     throw new Error(`Firebase Admin: missing env vars: ${missing.join(', ')}`);
   }
 
-  return initializeApp({
-    credential: cert({ projectId, clientEmail, privateKey }),
+  console.log('[firebaseAdmin] Initializing with:', {
+    projectId,
+    clientEmail,
+    privateKeyStart: privateKey.substring(0, 40),
   });
+
+  return initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) });
 }
 
-const adminApp = getAdminApp();
+// ── Lazy getters — initialize on first call, not at module load ──────────────
+let _db   = null;
+let _auth = null;
 
-export const adminDb   = getFirestore(adminApp);
-export const adminAuth = getAuth(adminApp);
+export function getAdminDb() {
+  if (!_db) _db = getFirestore(getAdminApp());
+  return _db;
+}
+
+export function getAdminAuth() {
+  if (!_auth) _auth = getAuth(getAdminApp());
+  return _auth;
+}
+
+// Keep these for backward compatibility with existing imports
+export const adminDb   = new Proxy({}, { get: (_, prop) => getAdminDb()[prop] });
+export const adminAuth = new Proxy({}, { get: (_, prop) => getAdminAuth()[prop] });
