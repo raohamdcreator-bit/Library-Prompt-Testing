@@ -7,7 +7,7 @@
 "functions": {
   "api/video/request-upload.js": { "maxDuration": 30, "runtime": "nodejs20.x" },
   "api/video/webhook.js":        { "maxDuration": 30, "runtime": "nodejs20.x" }
-}
+},
 
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/:path*" },
