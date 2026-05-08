@@ -187,9 +187,9 @@ useEffect(() => {
   };
 
  const handleUpload = () => {
-  if (!selectedFile) return;
+  if (!selectedFile || !userId) return;
   onUploadStart?.();
-  startUpload(selectedFile, title);
+  startUpload(selectedFile, title, userId); 
 };
 
   const handleCancel = () => {
