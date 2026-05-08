@@ -152,6 +152,7 @@ function DropZone({ onFileSelect, disabled }) {
 
 export default function VideoUploader({
   teamId,
+  userId,
   promptId,
   onSuccess,
   onCancel,
