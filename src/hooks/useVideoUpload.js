@@ -19,47 +19,68 @@ export default function useVideoUpload({ teamId, promptId, onSuccess, onError })
   const cancelledRef = useRef(false);
 
   const startUpload = useCallback(async (file, title, userId) => {
-    cancelledRef.current = false;
-    setError(null);
-    setProgress(0);
-    setVideoData(null);
+  cancelledRef.current = false;
+  setError(null);
+  setProgress(0);
+  setVideoData(null);
 
-    // Validate
-    setStage('validating');
-    if (!file) { setError('No file selected'); setStage('error'); return; }
-    if (!ACCEPTED_VIDEO_TYPES.includes(file.type)) {
-      const msg = 'Only MP4 and MOV files are accepted.';
-      setError(msg); setStage('error'); onError?.(msg); return;
-    }
-    if (file.size === 0) {
-      const msg = 'File is empty.';
-      setError(msg); setStage('error'); onError?.(msg); return;
-    }
+  // ── Step 1: Validate locally first (no network needed) ───────────────────
+  setStage('validating');
 
-    setStage('uploading');
+  if (!file) {
+    const msg = 'No file selected';
+    setError(msg); setStage('error'); onError?.(msg); return;
+  }
+  if (!ACCEPTED_VIDEO_TYPES.includes(file.type)) {
+    const msg = 'Only MP4 and MOV files are accepted.';
+    setError(msg); setStage('error'); onError?.(msg); return;
+  }
+  if (file.size === 0) {
+    const msg = 'File appears to be empty.';
+    setError(msg); setStage('error'); onError?.(msg); return;
+  }
+  if (!userId) {
+    const msg = 'You must be signed in to upload videos.';
+    setError(msg); setStage('error'); onError?.(msg); return;
+  }
 
-    try {
-      const result = await uploadVideo({
-        file, userId, teamId, promptId, title,
-        onProgress: pct => {
-          if (!cancelledRef.current) setProgress(pct);
-        },
-      });
+  // ── Step 2: Pre-flight check — verify plan limits server-side ────────────
+  setStage('requesting');
+  try {
+    await checkUploadAllowed({ file, teamId });
+  } catch (err) {
+    setError(err.message);
+    setStage('error');
+    onError?.(err.message);
+    return;
+  }
 
-      if (cancelledRef.current) return;
+  if (cancelledRef.current) return;
 
-      setStage('done');
-      setProgress(100);
-      setVideoData(result);
-      onSuccess?.(result);
+  // ── Step 3: Upload to Firebase Storage ───────────────────────────────────
+  setStage('uploading');
+  try {
+    const result = await uploadVideo({
+      file, userId, teamId, promptId, title,
+      onProgress: pct => {
+        if (!cancelledRef.current) setProgress(pct);
+      },
+    });
 
-    } catch (err) {
-      if (cancelledRef.current) return;
-      setError(err.message);
-      setStage('error');
-      onError?.(err.message);
-    }
-  }, [teamId, promptId, onSuccess, onError]);
+    if (cancelledRef.current) return;
+
+    setStage('done');
+    setProgress(100);
+    setVideoData(result);
+    onSuccess?.(result);
+
+  } catch (err) {
+    if (cancelledRef.current) return;
+    setError(err.message);
+    setStage('error');
+    onError?.(err.message);
+  }
+}, [teamId, promptId, onSuccess, onError]);
 
   const cancelUpload = useCallback(() => {
     cancelledRef.current = true;
