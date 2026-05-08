@@ -1,252 +1,109 @@
-// api/video/request-upload.js
-
 import admin from 'firebase-admin';
+import { getPlanLimits } from '../../src/config/plans.js';
 
-const t0  = Date.now();
-const log = (msg) => console.log(`[request-upload] +${Date.now()-t0}ms ${msg}`);
-
-// ── Initialize Firebase Admin exactly like _auth.js does ────────────────────
 if (!admin.apps.length) {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!serviceAccount) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT environment variable is not set');
-  }
   admin.initializeApp({
-    credential: admin.credential.cert(JSON.parse(serviceAccount)),
+    credential: admin.credential.cert(
+      JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+    ),
   });
 }
 
-const LIMITS = {
-  free: { maxVideos: 2,   maxFileSizeBytes: 25  * 1024 * 1024,      maxStorageBytes: 50  * 1024 * 1024      },
-  pro:  { maxVideos: 50,  maxFileSizeBytes: 500 * 1024 * 1024,      maxStorageBytes: 5   * 1024 * 1024 * 1024 },
-  team: { maxVideos: 200, maxFileSizeBytes: 1024 * 1024 * 1024,     maxStorageBytes: 20  * 1024 * 1024 * 1024 },
-};
+const ALLOWED_ORIGINS = [
+  'https://prism-app.online',
+  'http://localhost:3000',
+  'http://localhost:5173',
+];
 
 export default async function handler(req, res) {
-  log('HANDLER STARTED');
-
-  // ── CORS ────────────────────────────────────────────────────────────────────
-  const ALLOWED_ORIGINS = [
-    'https://prism-app.online',
-    'https://www.prism-app.online',
-    'http://localhost:3000',
-    'http://localhost:5173',
-  ];
-  const reqOrigin = req.headers.origin;
-  if (ALLOWED_ORIGINS.includes(reqOrigin)) {
-    res.setHeader('Access-Control-Allow-Origin', reqOrigin);
+  if (ALLOWED_ORIGINS.includes(req.headers.origin)) {
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin);
     res.setHeader('Vary', 'Origin');
   }
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Methods',  'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers',  'Content-Type, Authorization');
-
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST')   return res.status(405).json({ success: false, error: 'Method not allowed' });
 
-  // ── Parse body ──────────────────────────────────────────────────────────────
-  const { fileName, fileSizeBytes, mimeType, teamId, promptId, title } = req.body;
-  log('body parsed');
-
-  if (!fileName   || typeof fileName   !== 'string') return res.status(400).json({ success: false, error: 'fileName is required' });
-  if (!fileSizeBytes || fileSizeBytes  <= 0)          return res.status(400).json({ success: false, error: 'fileSizeBytes must be positive' });
-  if (!mimeType   || !mimeType.startsWith('video/'))  return res.status(400).json({ success: false, error: 'File must be a video' });
-  if (!teamId     || typeof teamId     !== 'string')  return res.status(400).json({ success: false, error: 'teamId is required' });
-
-  // ── Auth — same pattern as _auth.js ────────────────────────────────────────
-  log('verifying auth token...');
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
-
-  if (!token) {
-    return res.status(401).json({ success: false, error: 'Missing Bearer token' });
-  }
+  // Auth
+  const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+  if (!token) return res.status(401).json({ success: false, error: 'Missing token' });
 
   let uid;
   try {
     const decoded = await admin.auth().verifyIdToken(token);
     uid = decoded.uid;
-    log(`auth OK uid=${uid}`);
-  } catch (err) {
-    log(`auth FAILED: ${err.message}`);
-    return res.status(401).json({ success: false, error: 'Invalid or expired token' });
+  } catch {
+    return res.status(401).json({ success: false, error: 'Invalid token' });
   }
 
-  // ── Fetch user doc ──────────────────────────────────────────────────────────
-  log('fetching user doc...');
+  const { fileName, fileSizeBytes, mimeType, teamId } = req.body;
+
+  if (!fileName || !fileSizeBytes || !mimeType || !teamId) {
+    return res.status(400).json({ success: false, error: 'Missing required fields' });
+  }
+
+  // Format check
+  if (!['video/mp4', 'video/quicktime'].includes(mimeType)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Only MP4 and MOV files are accepted.',
+    });
+  }
+
+  // Load user
   let userDoc;
   try {
     const snap = await admin.firestore().collection('users').doc(uid).get();
-    if (!snap.exists) {
-      return res.status(404).json({ success: false, error: 'User profile not found' });
-    }
+    if (!snap.exists) return res.status(404).json({ success: false, error: 'User not found' });
     userDoc = snap.data();
-    log(`user doc OK plan=${userDoc.plan || 'free'}`);
-  } catch (err) {
-    log(`user doc FAILED: ${err.message}`);
-    return res.status(500).json({ success: false, error: 'Failed to load user profile' });
+  } catch {
+    return res.status(500).json({ success: false, error: 'Failed to load user' });
   }
 
-  // ── Plan limits ─────────────────────────────────────────────────────────────
   const plan   = userDoc.plan || 'free';
-  const limits = LIMITS[plan] || LIMITS.free;
+  const limits = getPlanLimits(plan);
 
+  // Enforce file size
   if (fileSizeBytes > limits.maxFileSizeBytes) {
     const limitMB = Math.round(limits.maxFileSizeBytes / 1_048_576);
     const fileMB  = (fileSizeBytes / 1_048_576).toFixed(1);
-    return res.status(413).json({ success: false, error: `File too large. Plan allows ${limitMB}MB, file is ${fileMB}MB.` });
-  }
-  if ((userDoc.videosUploaded || 0) >= limits.maxVideos) {
-    return res.status(403).json({ success: false, error: `Video limit reached for ${plan} plan.` });
-  }
-  if ((userDoc.totalStorageUsed || 0) + fileSizeBytes > limits.maxStorageBytes) {
-    return res.status(403).json({ success: false, error: 'Storage limit reached.' });
+    return res.status(413).json({
+      success: false,
+      error: `File too large. Your ${plan} plan allows ${limitMB}MB per video. This file is ${fileMB}MB.`,
+      code:  'FILE_TOO_LARGE',
+    });
   }
 
-  // ── Verify team membership ──────────────────────────────────────────────────
-  log('checking team membership...');
+  // Enforce video count
+  if ((userDoc.videosUploaded || 0) >= limits.maxVideos) {
+    return res.status(403).json({
+      success: false,
+      error: `Video limit reached. Your ${plan} plan allows ${limits.maxVideos} videos.`,
+      code:  'VIDEO_LIMIT_REACHED',
+    });
+  }
+
+  // Enforce storage
+  const storageUsed = userDoc.storageUsedBytes || 0;
+  if (storageUsed + fileSizeBytes > limits.maxStorageBytes) {
+    return res.status(403).json({
+      success: false,
+      error: `Storage full on ${plan} plan.`,
+      code:  'STORAGE_LIMIT_REACHED',
+    });
+  }
+
+  // Team membership
   try {
     const teamSnap = await admin.firestore().collection('teams').doc(teamId).get();
     if (!teamSnap.exists) return res.status(404).json({ success: false, error: 'Team not found' });
     if (!teamSnap.data().members?.[uid]) return res.status(403).json({ success: false, error: 'Not a team member' });
-    log('team OK');
-  } catch (err) {
-    log(`team FAILED: ${err.message}`);
+  } catch {
     return res.status(500).json({ success: false, error: 'Failed to verify team' });
   }
 
-    // ── Request Cloudflare upload URL ───────────────────────────────────────────
-  log('requesting CF upload URL...');
-
-  let uploadUrl, videoId, expiresAt;
-
-  try {
-    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID?.trim();
-    const apiToken  = process.env.CLOUDFLARE_API_TOKEN?.trim();
-
-    // ── Debug env vars ────────────────────────────────────────────────────────
-    log(`CF ACCOUNT ID EXISTS: ${!!accountId}`);
-    log(`CF TOKEN EXISTS: ${!!apiToken}`);
-
-    if (accountId) {
-      log(`CF ACCOUNT ID: ${accountId}`);
-      log(`CF ACCOUNT ID LENGTH: ${accountId.length}`);
-    }
-
-    if (apiToken) {
-      log(`CF TOKEN LENGTH: ${apiToken.length}`);
-      log(`CF TOKEN PREFIX: ${apiToken.slice(0, 8)}...`);
-    }
-
-    if (!accountId || !apiToken) {
-      throw new Error('Cloudflare env vars missing');
-    }
-
-    expiresAt = new Date(Date.now() + 1800 * 1000).toISOString();
-
-    const endpoint =
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`;
-
-    log(`CF ENDPOINT: ${endpoint}`);
-
-    const cfRes = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        maxDurationSeconds: 3600,
-        expiry: expiresAt,
-        requireSignedURLs: false,
-        meta: {
-          userId: uid,
-          teamId,
-          promptId,
-          source: 'prism-app',
-        },
-      }),
-    });
-
-    // ── RAW RESPONSE DEBUG ────────────────────────────────────────────────────
-    log(`CF STATUS: ${cfRes.status}`);
-    log(`CF STATUS TEXT: ${cfRes.statusText}`);
-
-    const rawText = await cfRes.text();
-
-    log(`CF RAW RESPONSE: ${rawText}`);
-
-    let cfData;
-
-    try {
-      cfData = JSON.parse(rawText);
-    } catch {
-      throw new Error(`Invalid CF JSON response: ${rawText}`);
-    }
-
-    if (!cfRes.ok || !cfData.success) {
-      const msg =
-        cfData?.errors?.map(e => e.message).join(', ') ||
-        `CF HTTP ${cfRes.status}`;
-
-      throw new Error(msg);
-    }
-
-    uploadUrl = cfData.result.uploadURL;
-    videoId   = cfData.result.uid;
-
-    log(`CF OK videoId=${videoId}`);
-
-  } catch (err) {
-
-    log(`CF FAILED: ${err.message}`);
-    log(`CF STACK: ${err.stack}`);
-
-    return res.status(502).json({
-      success: false,
-      error: `Failed to prepare upload: ${err.message}`,
-    });
-  }
-  // ── Save pending video doc ──────────────────────────────────────────────────
-  log('saving video doc...');
-  try {
-    const now = new Date();
-    await admin.firestore().collection('videos').doc(videoId).set({
-      videoId,
-      ownerId:         uid,
-      teamId,
-      promptId:        promptId || null,
-      title:           title?.trim() || fileName,
-      fileSizeBytes,
-      mimeType,
-      durationSeconds: 0,
-      status:          'pending',
-      playback:        { hls: null, dash: null },
-      thumbnailUrl:    null,
-      visibility:      'private',
-      totalViews:      0,
-      uploadSession:   {
-        uploadUrl,
-        expiresAt:  new Date(expiresAt),
-        issuedAt:   now,
-      },
-      createdAt:       now,
-      uploadedAt:      null,
-      updatedAt:       now,
-    });
-    log('video doc saved');
-  } catch (err) {
-    log(`video doc FAILED (non-fatal): ${err.message}`);
-  }
-
-  log('DONE');
-  return res.status(200).json({
-    success:          true,
-    videoId,
-    uploadUrl,
-    expiresAt,
-    accountSubdomain: `customer-${process.env.CLOUDFLARE_ACCOUNT_ID?.slice(0, 8)}`,
-  });
+  // All checks passed — frontend can proceed with Firebase Storage upload
+  return res.status(200).json({ success: true, approved: true, plan });
 }
