@@ -338,7 +338,7 @@ function OutputCard({ output, onDelete, canDelete }) {
           alignItems: 'center', justifyContent: 'center', gap: '.875rem',
           background: 'rgba(0,0,0,.4)',
         }}>
-          
+          <a
             href={output.downloadUrl}
             target="_blank"
             rel="noreferrer"
