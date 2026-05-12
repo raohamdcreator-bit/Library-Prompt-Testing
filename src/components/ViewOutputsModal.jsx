@@ -305,15 +305,14 @@ function OutputCard({ output, onDelete, canDelete }) {
   }
   // ── Video renderer ──────────────────────────────────────────────────────────
   function VideoContent() {
-    const [videoError, setVideoError] = useState(null);
+    const [blocked, setBlocked] = useState(false);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [progress, setProgress] = useState(0);
     const [duration, setDuration] = useState(0);
     const [currentTime, setCurrentTime] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
-    const [isFullscreen, setIsFullscreen] = useState(false);
     const videoRef = useRef(null);
 
+    // ── No URL ────────────────────────────────────────────────────────────────
     if (!output.downloadUrl) return (
       <div style={{
         padding: '2.5rem 1rem', textAlign: 'center', borderRadius: '8px',
@@ -327,134 +326,130 @@ function OutputCard({ output, onDelete, canDelete }) {
       </div>
     );
 
+    // ── CSP / load error — show clean open-in-tab UI, no red error text ───────
+    if (blocked) return (
+      <div style={{
+        borderRadius: '10px', overflow: 'hidden',
+        border: '1px solid rgba(52,211,153,.2)',
+        background: 'rgba(0,0,0,.3)',
+      }}>
+        <div style={{
+          height: '180px', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: '.875rem',
+          background: 'rgba(0,0,0,.4)',
+        }}>
+          
+            href={output.downloadUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              width: '64px', height: '64px', borderRadius: '50%',
+              background: 'rgba(139,92,246,.9)',
+              border: '3px solid rgba(255,255,255,.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 24px rgba(139,92,246,.5)',
+              textDecoration: 'none', transition: 'transform .15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            title="Open video in new tab"
+          >
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="white">
+              <polygon points="5,3 19,11 5,19" />
+            </svg>
+          </a>
+          <p style={{ fontSize: '.75rem', color: 'rgba(255,255,255,.5)', margin: 0 }}>
+            Click to open video in new tab
+          </p>
+        </div>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '.4rem .75rem', background: 'rgba(0,0,0,.25)',
+          borderTop: '1px solid rgba(255,255,255,.05)',
+        }}>
+          <span style={{ fontSize: '.68rem', color: 'var(--muted-foreground)' }}>
+            {output.mimeType === 'video/quicktime' ? 'MOV' : 'MP4'}
+            {output.fileSizeBytes ? ` · ${(output.fileSizeBytes / 1_048_576).toFixed(1)} MB` : ''}
+          </span>
+          <a href={output.downloadUrl} target="_blank" rel="noreferrer"
+            style={{ fontSize: '.68rem', fontWeight: 600, color: 'rgba(52,211,153,.85)', textDecoration: 'none' }}>
+            ↗ Open · ↓ Download
+          </a>
+        </div>
+      </div >
+    );
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
     function togglePlay() {
       const v = videoRef.current;
       if (!v) return;
       if (v.paused) { v.play(); setIsPlaying(true); }
       else { v.pause(); setIsPlaying(false); }
     }
-
     function toggleMute() {
       const v = videoRef.current;
       if (!v) return;
       v.muted = !v.muted;
       setIsMuted(v.muted);
     }
-
     function toggleFullscreen() {
       const v = videoRef.current;
       if (!v) return;
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-        setIsFullscreen(false);
-      } else {
-        v.requestFullscreen();
-        setIsFullscreen(true);
-      }
+      if (document.fullscreenElement) document.exitFullscreen();
+      else v.requestFullscreen();
     }
-
     function handleSeek(e) {
       const v = videoRef.current;
       if (!v || !duration) return;
       const rect = e.currentTarget.getBoundingClientRect();
-      const pct = (e.clientX - rect.left) / rect.width;
-      v.currentTime = pct * duration;
+      v.currentTime = ((e.clientX - rect.left) / rect.width) * duration;
     }
-
-    function formatTime(s) {
+    function fmt(s) {
       if (!s || isNaN(s)) return '0:00';
-      const m = Math.floor(s / 60);
-      const sec = Math.floor(s % 60).toString().padStart(2, '0');
-      return `${m}:${sec}`;
+      return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
     }
 
-    const progressPct = duration ? (currentTime / duration) * 100 : 0;
-
+    // ── Full inline player ────────────────────────────────────────────────────
     return (
       <div style={{
         borderRadius: '10px', overflow: 'hidden',
         border: '1px solid rgba(52,211,153,.2)',
-        background: '#000',
-        position: 'relative',
+        background: '#000', position: 'relative',
       }}>
 
-        {/* ── Video element — NO native controls ── */}
+        {/* Video element */}
         <video
           ref={videoRef}
           src={output.downloadUrl}
           style={{
-            width: '100%',
-            maxHeight: '340px',
-            display: 'block',
-            background: '#000',
-            cursor: 'pointer',
+            width: '100%', maxHeight: '340px', display: 'block',
+            background: '#000', cursor: 'pointer'
           }}
           preload="metadata"
           playsInline
           onClick={togglePlay}
-          onTimeUpdate={e => {
-            setCurrentTime(e.target.currentTime);
-            setProgress(duration ? (e.target.currentTime / duration) * 100 : 0);
-          }}
           onLoadedMetadata={e => setDuration(e.target.duration)}
+          onTimeUpdate={e => setCurrentTime(e.target.currentTime)}
           onEnded={() => setIsPlaying(false)}
-          onError={e => {
-            const code = e.target.error?.code;
-            const errors = {
-              1: 'Aborted',
-              2: 'Network error — possible CORS issue',
-              3: 'Decode error — unsupported format',
-              4: 'Source not supported — URL may be expired',
-            };
-            setVideoError(`${errors[code] || 'Unknown'} (code ${code})`);
-          }}
+          onError={() => setBlocked(true)}  // ← any error → graceful fallback
         />
 
-        {/* ── Error state ── */}
-        {videoError && (
-          <div style={{
-            position: 'absolute', inset: 0,
-            display: 'flex', flexDirection: 'column',
+        {/* Centre play overlay when paused */}
+        {!isPlaying && (
+          <div onClick={togglePlay} style={{
+            position: 'absolute', inset: 0, display: 'flex',
             alignItems: 'center', justifyContent: 'center',
-            background: 'rgba(0,0,0,.85)', gap: '.75rem', padding: '1rem',
+            cursor: 'pointer', background: 'rgba(0,0,0,.3)',
           }}>
-            <p style={{ fontSize: '.8rem', color: '#f87171', textAlign: 'center' }}>
-              ⚠️ {videoError}
-            </p>
-            <a href={output.downloadUrl} target="_blank" rel="noreferrer"
-              style={{
-                padding: '.45rem .9rem', borderRadius: '7px',
-                background: 'rgba(52,211,153,.12)', color: 'rgba(52,211,153,.9)',
-                border: '1px solid rgba(52,211,153,.25)',
-                fontSize: '.75rem', fontWeight: 600, textDecoration: 'none',
-              }}>
-              ↗ Open in new tab
-            </a>
-          </div>
-        )}
-
-        {/* ── Big centre play button — shown when paused ── */}
-        {!isPlaying && !videoError && (
-          <div
-            onClick={togglePlay}
-            style={{
-              position: 'absolute', inset: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: 'pointer', background: 'rgba(0,0,0,.25)',
-            }}
-          >
             <div style={{
               width: '56px', height: '56px', borderRadius: '50%',
-              background: 'rgba(139,92,246,.9)',
-              border: '3px solid rgba(255,255,255,.4)',
+              background: 'rgba(139,92,246,.9)', border: '3px solid rgba(255,255,255,.4)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 4px 24px rgba(139,92,246,.5)',
-              transition: 'transform .15s',
+              boxShadow: '0 4px 24px rgba(139,92,246,.5)', transition: 'transform .15s',
             }}
               onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
               onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
             >
-              {/* Play triangle */}
               <svg width="20" height="20" viewBox="0 0 20 20" fill="white">
                 <polygon points="5,3 17,10 5,17" />
               </svg>
@@ -462,55 +457,38 @@ function OutputCard({ output, onDelete, canDelete }) {
           </div>
         )}
 
-        {/* ── Custom controls bar ── */}
+        {/* Controls bar */}
         <div style={{
-          display: 'flex', flexDirection: 'column', gap: 0,
-          background: 'linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,.4))',
+          background: 'linear-gradient(to top, rgba(0,0,0,.9), rgba(0,0,0,.45))',
           padding: '.4rem .75rem .55rem',
         }}>
-
-          {/* Progress bar */}
-          <div
-            onClick={handleSeek}
-            style={{
-              width: '100%', height: '4px', borderRadius: '2px',
-              background: 'rgba(255,255,255,.2)', cursor: 'pointer',
-              marginBottom: '.45rem', position: 'relative',
-            }}
-          >
+          {/* Seek bar */}
+          <div onClick={handleSeek} style={{
+            width: '100%', height: '4px', borderRadius: '2px',
+            background: 'rgba(255,255,255,.2)', cursor: 'pointer', marginBottom: '.45rem',
+          }}>
             <div style={{
-              height: '100%', borderRadius: '2px',
-              width: `${progressPct}%`,
-              background: 'var(--primary)',
+              height: '100%', borderRadius: '2px', background: 'var(--primary)',
+              width: `${duration ? (currentTime / duration) * 100 : 0}%`,
               transition: 'width .1s linear',
             }} />
           </div>
 
-          {/* Buttons row */}
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            justifyContent: 'space-between',
-          }}>
+          {/* Button row */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
 
-              {/* Play / Pause */}
+              {/* Play/Pause */}
               <button onClick={togglePlay} style={{
                 width: '28px', height: '28px', borderRadius: '6px', border: 'none',
-                background: 'rgba(255,255,255,.1)', color: '#fff',
-                cursor: 'pointer', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                transition: 'background .13s',
-              }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.2)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.1)'}
-              >
+                background: 'rgba(255,255,255,.12)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
                 {isPlaying
-                  /* Pause icon */
                   ? <svg width="12" height="12" viewBox="0 0 12 12" fill="white">
                     <rect x="2" y="1" width="3" height="10" rx="1" />
                     <rect x="7" y="1" width="3" height="10" rx="1" />
                   </svg>
-                  /* Play icon */
                   : <svg width="12" height="12" viewBox="0 0 12 12" fill="white">
                     <polygon points="2,1 11,6 2,11" />
                   </svg>
@@ -520,32 +498,30 @@ function OutputCard({ output, onDelete, canDelete }) {
               {/* Mute */}
               <button onClick={toggleMute} style={{
                 width: '28px', height: '28px', borderRadius: '6px', border: 'none',
-                background: 'rgba(255,255,255,.1)', color: '#fff',
-                cursor: 'pointer', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                transition: 'background .13s',
-              }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.2)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.1)'}
-              >
+                background: 'rgba(255,255,255,.12)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
                 {isMuted
-                  ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="white" strokeWidth="1.5">
+                  ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
+                    stroke="white" strokeWidth="1.5">
                     <path d="M2 4.5H4.5L7.5 2V11L4.5 8.5H2V4.5Z" />
-                    <line x1="10" y1="4" x2="13" y2="7" /><line x1="13" y1="4" x2="10" y2="7" />
+                    <line x1="10" y1="4" x2="13" y2="7" />
+                    <line x1="13" y1="4" x2="10" y2="7" />
                   </svg>
-                  : <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="white" strokeWidth="1.5">
+                  : <svg width="13" height="13" viewBox="0 0 13 13" fill="none"
+                    stroke="white" strokeWidth="1.5">
                     <path d="M2 4.5H4.5L7.5 2V11L4.5 8.5H2V4.5Z" />
                     <path d="M9.5 4.5C10.5 5.2 10.5 7.8 9.5 8.5" />
                   </svg>
                 }
               </button>
 
-              {/* Timestamp */}
+              {/* Time */}
               <span style={{
                 fontSize: '.66rem', color: 'rgba(255,255,255,.7)',
-                fontVariantNumeric: 'tabular-nums',
+                fontVariantNumeric: 'tabular-nums'
               }}>
-                {formatTime(currentTime)} / {formatTime(duration)}
+                {fmt(currentTime)} / {fmt(duration)}
               </span>
             </div>
 
@@ -555,12 +531,10 @@ function OutputCard({ output, onDelete, canDelete }) {
                 download={output.title || 'video'}
                 style={{
                   width: '28px', height: '28px', borderRadius: '6px',
-                  background: 'rgba(255,255,255,.1)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', textDecoration: 'none', transition: 'background .13s',
+                  background: 'rgba(255,255,255,.12)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', textDecoration: 'none'
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.2)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.1)'}
                 title="Download"
               >
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
@@ -568,46 +542,33 @@ function OutputCard({ output, onDelete, canDelete }) {
                   <path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" />
                 </svg>
               </a>
-
               {/* Fullscreen */}
               <button onClick={toggleFullscreen} style={{
                 width: '28px', height: '28px', borderRadius: '6px', border: 'none',
-                background: 'rgba(255,255,255,.1)', color: '#fff',
-                cursor: 'pointer', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                transition: 'background .13s',
-              }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.2)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.1)'}
-                title="Fullscreen"
-              >
+                background: 'rgba(255,255,255,.12)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
                   stroke="white" strokeWidth="1.6" strokeLinecap="round">
-                  {isFullscreen
-                    ? <><path d="M4 1v3H1M8 1v3h3M4 11V8H1M8 11V8h3" /></>
-                    : <><path d="M1 4V1h3M8 1h3v3M1 8v3h3M11 8v3H8" /></>
-                  }
+                  <path d="M1 4V1h3M8 1h3v3M1 8v3h3M11 8v3H8" />
                 </svg>
               </button>
             </div>
           </div>
         </div>
 
-        {/* File info strip */}
+        {/* File info */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '.3rem .75rem',
-          background: 'rgba(0,0,0,.4)',
-          borderTop: '1px solid rgba(255,255,255,.04)',
+          padding: '.3rem .75rem', background: 'rgba(0,0,0,.4)',
+          borderTop: '1px solid rgba(255,255,255,.04)'
         }}>
           <span style={{ fontSize: '.65rem', color: 'var(--muted-foreground)' }}>
             {output.mimeType === 'video/quicktime' ? 'MOV' : 'MP4'}
-            {output.fileSizeBytes
-              ? ` · ${(output.fileSizeBytes / 1_048_576).toFixed(1)} MB`
-              : ''}
+            {output.fileSizeBytes ? ` · ${(output.fileSizeBytes / 1_048_576).toFixed(1)} MB` : ''}
           </span>
           <span style={{ fontSize: '.65rem', color: 'rgba(52,211,153,.7)' }}>
-            {duration ? `${formatTime(duration)} duration` : ''}
+            {duration ? `${fmt(duration)} duration` : ''}
           </span>
         </div>
       </div>
