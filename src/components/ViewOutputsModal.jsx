@@ -7,7 +7,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X, FileText, Code, Image as ImageIcon, Loader2,
   Plus, Copy, Trash2, ChevronDown, ChevronUp, Check,
-  ZoomIn, Maximize2,
+  ZoomIn, Maximize2, Video as VideoIcon,
 } from "lucide-react";
 import { subscribeToResults, deleteResult } from "../lib/results";
 import { useAuth } from "../context/AuthContext";
@@ -22,19 +22,21 @@ function fmtDate(ts) {
   } catch { return ""; }
 }
 
-const TYPE_COLOR = { code: "#a78bfa", image: "#f472b6", text: "#60a5fa" };
-const TYPE_BG    = {
-  code:  "rgba(167,139,250,.13)",
+const TYPE_COLOR = { code: "#a78bfa", image: "#f472b6", text: "#60a5fa", video: "#34d399" };
+const TYPE_BG = {
+  code: "rgba(167,139,250,.13)",
   image: "rgba(244,114,182,.13)",
-  text:  "rgba(96,165,250,.13)",
+  text: "rgba(96,165,250,.13)",
+  video: "rgba(52,211,153,.13)",                       // ← added video (green)
 };
 function typeColor(t) { return TYPE_COLOR[t] ?? TYPE_COLOR.text; }
-function typeBg(t)    { return TYPE_BG[t]    ?? TYPE_BG.text; }
+function typeBg(t) { return TYPE_BG[t] ?? TYPE_BG.text; }
 
 function TypeIcon({ type, size = 14 }) {
   const c = typeColor(type);
-  if (type === "code")  return <Code      size={size} color={c} />;
+  if (type === "code") return <Code size={size} color={c} />;
   if (type === "image") return <ImageIcon size={size} color={c} />;
+  if (type === "video") return <VideoIcon size={size} color={c} />;
   return <FileText size={size} color={c} />;
 }
 
@@ -106,10 +108,10 @@ function OutputCard({ output, onDelete, canDelete }) {
   // FIX 5: Detect REAL rendered overflow (replaces brittle char-count threshold).
   // scrollHeight > clientHeight is always accurate regardless of font/zoom/width.
   const [realOverflow, setRealOverflow] = useState(false);
-  const [expanded,     setExpanded]     = useState(false);
-  const [copied,       setCopied]       = useState(false);
-  const [lightbox,     setLightbox]     = useState(false);
-  const [imgErr,       setImgErr]       = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
+  const [imgErr, setImgErr] = useState(false);
 
   const measureOverflow = useCallback(() => {
     const el = contentRef.current;
@@ -126,13 +128,13 @@ function OutputCard({ output, onDelete, canDelete }) {
   }, [measureOverflow, output.content, output.imageUrl]);
 
   const color = typeColor(output.type);
-  const bg    = typeBg(output.type);
+  const bg = typeBg(output.type);
 
   // Collapsed heights chosen to show a clear "peek" without wasting space
-  const COLLAPSE_TEXT  = "6.6rem";   // ≈ 4 lines at .8rem/1.65 line-height
-  const COLLAPSE_CODE  = "7.8rem";   // ≈ 5 lines at .73rem/1.6 line-height
-  const COLLAPSE_IMG   = "min(60vh, 600px)";
-  const EXPAND_MAX     = "min(55vh, 500px)"; // FIX 6: cap so modal footer stays reachable
+  const COLLAPSE_TEXT = "6.6rem";   // ≈ 4 lines at .8rem/1.65 line-height
+  const COLLAPSE_CODE = "7.8rem";   // ≈ 5 lines at .73rem/1.6 line-height
+  const COLLAPSE_IMG = "min(60vh, 600px)";
+  const EXPAND_MAX = "min(55vh, 500px)"; // FIX 6: cap so modal footer stays reachable
 
   async function handleCopy() {
     if (!output.content) return;
@@ -232,77 +234,392 @@ function OutputCard({ output, onDelete, canDelete }) {
   }
 
   // ── Image renderer ────────────────────────────────────────────────────────────
- // Replace the entire ImageContent() function inside OutputCard:
-function ImageContent() {
-  if (imgErr) return (
-    <div style={{
-      padding: "2.5rem 1rem", textAlign: "center", borderRadius: "8px",
-      background: "rgba(0,0,0,.2)", border: "1px solid rgba(255,255,255,.06)",
-    }}>
-      <ImageIcon size={32} color="rgba(244,114,182,.35)"
-        style={{ margin: "0 auto .625rem", display: "block" }} />
-      <p style={{ fontSize: ".76rem", color: "var(--muted-foreground)", margin: 0 }}>
-        Image failed to load
-      </p>
-    </div>
-  );
-  if (!output.imageUrl) return null;
+  // Replace the entire ImageContent() function inside OutputCard:
+  function ImageContent() {
+    if (imgErr) return (
+      <div style={{
+        padding: "2.5rem 1rem", textAlign: "center", borderRadius: "8px",
+        background: "rgba(0,0,0,.2)", border: "1px solid rgba(255,255,255,.06)",
+      }}>
+        <ImageIcon size={32} color="rgba(244,114,182,.35)"
+          style={{ margin: "0 auto .625rem", display: "block" }} />
+        <p style={{ fontSize: ".76rem", color: "var(--muted-foreground)", margin: 0 }}>
+          Image failed to load
+        </p>
+      </div>
+    );
+    if (!output.imageUrl) return null;
 
-  return (
-    <div style={{ position: "relative" }}>
-      <div
-        ref={contentRef}
-        onClick={() => setLightbox(true)}
-        style={{
-          // No fixed maxHeight in collapsed — image always shows in full.
-          // The lightbox is still available for full-screen viewing.
-          borderRadius: "8px",
-          background: "rgba(0,0,0,.22)",
-          border: "1px solid rgba(255,255,255,.06)",
-          cursor: "zoom-in",
-          // Center image of any aspect ratio
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-        }}
-      >
-        <img
-          src={output.imageUrl}
-          alt={output.title || "Output image"}
-          onError={() => setImgErr(true)}
+    return (
+      <div style={{ position: "relative" }}>
+        <div
+          ref={contentRef}
+          onClick={() => setLightbox(true)}
           style={{
-            // KEY: width:100%, height:auto → image always fully visible,
-            // never cropped, works for landscape, portrait, square.
-            display: "block",
-            width: "100%",
-            height: "auto",
-            objectFit: "contain",
+            // No fixed maxHeight in collapsed — image always shows in full.
+            // The lightbox is still available for full-screen viewing.
+            borderRadius: "8px",
+            background: "rgba(0,0,0,.22)",
+            border: "1px solid rgba(255,255,255,.06)",
+            cursor: "zoom-in",
+            // Center image of any aspect ratio
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+          }}
+        >
+          <img
+            src={output.imageUrl}
+            alt={output.title || "Output image"}
+            onError={() => setImgErr(true)}
+            style={{
+              // KEY: width:100%, height:auto → image always fully visible,
+              // never cropped, works for landscape, portrait, square.
+              display: "block",
+              width: "100%",
+              height: "auto",
+              objectFit: "contain",
+            }}
+          />
+        </div>
+        {/* Zoom button always visible */}
+        <button
+          onClick={() => setLightbox(true)}
+          title="View full size"
+          style={{
+            position: "absolute", top: ".5rem", right: ".5rem",
+            width: "28px", height: "28px", borderRadius: "7px",
+            background: "rgba(0,0,0,.65)", border: "1px solid rgba(255,255,255,.18)",
+            color: "#fff", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "background .13s",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,0,0,.88)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,.65)"; }}
+        >
+          <ZoomIn size={13} />
+        </button>
+      </div>
+    );
+  }
+  // ── Video renderer ──────────────────────────────────────────────────────────
+  function VideoContent() {
+    const [videoError, setVideoError] = useState(null);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [progress, setProgress] = useState(0);
+    const [duration, setDuration] = useState(0);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [isMuted, setIsMuted] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const videoRef = useRef(null);
+
+    if (!output.downloadUrl) return (
+      <div style={{
+        padding: '2.5rem 1rem', textAlign: 'center', borderRadius: '8px',
+        background: 'rgba(0,0,0,.2)', border: '1px solid rgba(255,255,255,.06)',
+      }}>
+        <VideoIcon size={32} color="rgba(52,211,153,.35)"
+          style={{ margin: '0 auto .625rem', display: 'block' }} />
+        <p style={{ fontSize: '.76rem', color: 'var(--muted-foreground)', margin: 0 }}>
+          Video URL not available
+        </p>
+      </div>
+    );
+
+    function togglePlay() {
+      const v = videoRef.current;
+      if (!v) return;
+      if (v.paused) { v.play(); setIsPlaying(true); }
+      else { v.pause(); setIsPlaying(false); }
+    }
+
+    function toggleMute() {
+      const v = videoRef.current;
+      if (!v) return;
+      v.muted = !v.muted;
+      setIsMuted(v.muted);
+    }
+
+    function toggleFullscreen() {
+      const v = videoRef.current;
+      if (!v) return;
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+        setIsFullscreen(false);
+      } else {
+        v.requestFullscreen();
+        setIsFullscreen(true);
+      }
+    }
+
+    function handleSeek(e) {
+      const v = videoRef.current;
+      if (!v || !duration) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      v.currentTime = pct * duration;
+    }
+
+    function formatTime(s) {
+      if (!s || isNaN(s)) return '0:00';
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60).toString().padStart(2, '0');
+      return `${m}:${sec}`;
+    }
+
+    const progressPct = duration ? (currentTime / duration) * 100 : 0;
+
+    return (
+      <div style={{
+        borderRadius: '10px', overflow: 'hidden',
+        border: '1px solid rgba(52,211,153,.2)',
+        background: '#000',
+        position: 'relative',
+      }}>
+
+        {/* ── Video element — NO native controls ── */}
+        <video
+          ref={videoRef}
+          src={output.downloadUrl}
+          style={{
+            width: '100%',
+            maxHeight: '340px',
+            display: 'block',
+            background: '#000',
+            cursor: 'pointer',
+          }}
+          preload="metadata"
+          playsInline
+          onClick={togglePlay}
+          onTimeUpdate={e => {
+            setCurrentTime(e.target.currentTime);
+            setProgress(duration ? (e.target.currentTime / duration) * 100 : 0);
+          }}
+          onLoadedMetadata={e => setDuration(e.target.duration)}
+          onEnded={() => setIsPlaying(false)}
+          onError={e => {
+            const code = e.target.error?.code;
+            const errors = {
+              1: 'Aborted',
+              2: 'Network error — possible CORS issue',
+              3: 'Decode error — unsupported format',
+              4: 'Source not supported — URL may be expired',
+            };
+            setVideoError(`${errors[code] || 'Unknown'} (code ${code})`);
           }}
         />
+
+        {/* ── Error state ── */}
+        {videoError && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(0,0,0,.85)', gap: '.75rem', padding: '1rem',
+          }}>
+            <p style={{ fontSize: '.8rem', color: '#f87171', textAlign: 'center' }}>
+              ⚠️ {videoError}
+            </p>
+            <a href={output.downloadUrl} target="_blank" rel="noreferrer"
+              style={{
+                padding: '.45rem .9rem', borderRadius: '7px',
+                background: 'rgba(52,211,153,.12)', color: 'rgba(52,211,153,.9)',
+                border: '1px solid rgba(52,211,153,.25)',
+                fontSize: '.75rem', fontWeight: 600, textDecoration: 'none',
+              }}>
+              ↗ Open in new tab
+            </a>
+          </div>
+        )}
+
+        {/* ── Big centre play button — shown when paused ── */}
+        {!isPlaying && !videoError && (
+          <div
+            onClick={togglePlay}
+            style={{
+              position: 'absolute', inset: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: 'pointer', background: 'rgba(0,0,0,.25)',
+            }}
+          >
+            <div style={{
+              width: '56px', height: '56px', borderRadius: '50%',
+              background: 'rgba(139,92,246,.9)',
+              border: '3px solid rgba(255,255,255,.4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 4px 24px rgba(139,92,246,.5)',
+              transition: 'transform .15s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.08)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              {/* Play triangle */}
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="white">
+                <polygon points="5,3 17,10 5,17" />
+              </svg>
+            </div>
+          </div>
+        )}
+
+        {/* ── Custom controls bar ── */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 0,
+          background: 'linear-gradient(to top, rgba(0,0,0,.85), rgba(0,0,0,.4))',
+          padding: '.4rem .75rem .55rem',
+        }}>
+
+          {/* Progress bar */}
+          <div
+            onClick={handleSeek}
+            style={{
+              width: '100%', height: '4px', borderRadius: '2px',
+              background: 'rgba(255,255,255,.2)', cursor: 'pointer',
+              marginBottom: '.45rem', position: 'relative',
+            }}
+          >
+            <div style={{
+              height: '100%', borderRadius: '2px',
+              width: `${progressPct}%`,
+              background: 'var(--primary)',
+              transition: 'width .1s linear',
+            }} />
+          </div>
+
+          {/* Buttons row */}
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+
+              {/* Play / Pause */}
+              <button onClick={togglePlay} style={{
+                width: '28px', height: '28px', borderRadius: '6px', border: 'none',
+                background: 'rgba(255,255,255,.1)', color: '#fff',
+                cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                transition: 'background .13s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.1)'}
+              >
+                {isPlaying
+                  /* Pause icon */
+                  ? <svg width="12" height="12" viewBox="0 0 12 12" fill="white">
+                    <rect x="2" y="1" width="3" height="10" rx="1" />
+                    <rect x="7" y="1" width="3" height="10" rx="1" />
+                  </svg>
+                  /* Play icon */
+                  : <svg width="12" height="12" viewBox="0 0 12 12" fill="white">
+                    <polygon points="2,1 11,6 2,11" />
+                  </svg>
+                }
+              </button>
+
+              {/* Mute */}
+              <button onClick={toggleMute} style={{
+                width: '28px', height: '28px', borderRadius: '6px', border: 'none',
+                background: 'rgba(255,255,255,.1)', color: '#fff',
+                cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                transition: 'background .13s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.1)'}
+              >
+                {isMuted
+                  ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="white" strokeWidth="1.5">
+                    <path d="M2 4.5H4.5L7.5 2V11L4.5 8.5H2V4.5Z" />
+                    <line x1="10" y1="4" x2="13" y2="7" /><line x1="13" y1="4" x2="10" y2="7" />
+                  </svg>
+                  : <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="white" strokeWidth="1.5">
+                    <path d="M2 4.5H4.5L7.5 2V11L4.5 8.5H2V4.5Z" />
+                    <path d="M9.5 4.5C10.5 5.2 10.5 7.8 9.5 8.5" />
+                  </svg>
+                }
+              </button>
+
+              {/* Timestamp */}
+              <span style={{
+                fontSize: '.66rem', color: 'rgba(255,255,255,.7)',
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {formatTime(currentTime)} / {formatTime(duration)}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem' }}>
+              {/* Download */}
+              <a href={output.downloadUrl} target="_blank" rel="noreferrer"
+                download={output.title || 'video'}
+                style={{
+                  width: '28px', height: '28px', borderRadius: '6px',
+                  background: 'rgba(255,255,255,.1)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', textDecoration: 'none', transition: 'background .13s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.1)'}
+                title="Download"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
+                  stroke="white" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" />
+                </svg>
+              </a>
+
+              {/* Fullscreen */}
+              <button onClick={toggleFullscreen} style={{
+                width: '28px', height: '28px', borderRadius: '6px', border: 'none',
+                background: 'rgba(255,255,255,.1)', color: '#fff',
+                cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                transition: 'background .13s',
+              }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,.2)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,.1)'}
+                title="Fullscreen"
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
+                  stroke="white" strokeWidth="1.6" strokeLinecap="round">
+                  {isFullscreen
+                    ? <><path d="M4 1v3H1M8 1v3h3M4 11V8H1M8 11V8h3" /></>
+                    : <><path d="M1 4V1h3M8 1h3v3M1 8v3h3M11 8v3H8" /></>
+                  }
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* File info strip */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '.3rem .75rem',
+          background: 'rgba(0,0,0,.4)',
+          borderTop: '1px solid rgba(255,255,255,.04)',
+        }}>
+          <span style={{ fontSize: '.65rem', color: 'var(--muted-foreground)' }}>
+            {output.mimeType === 'video/quicktime' ? 'MOV' : 'MP4'}
+            {output.fileSizeBytes
+              ? ` · ${(output.fileSizeBytes / 1_048_576).toFixed(1)} MB`
+              : ''}
+          </span>
+          <span style={{ fontSize: '.65rem', color: 'rgba(52,211,153,.7)' }}>
+            {duration ? `${formatTime(duration)} duration` : ''}
+          </span>
+        </div>
       </div>
-      {/* Zoom button always visible */}
-      <button
-        onClick={() => setLightbox(true)}
-        title="View full size"
-        style={{
-          position: "absolute", top: ".5rem", right: ".5rem",
-          width: "28px", height: "28px", borderRadius: "7px",
-          background: "rgba(0,0,0,.65)", border: "1px solid rgba(255,255,255,.18)",
-          color: "#fff", cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "background .13s",
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = "rgba(0,0,0,.88)"; }}
-        onMouseLeave={e => { e.currentTarget.style.background = "rgba(0,0,0,.65)"; }}
-      >
-        <ZoomIn size={13} />
-      </button>
-    </div>
-  );
-}
-  const hasContent = output.type === "image" ? !!output.imageUrl : !!output.content;
-  const showToggle = hasContent && realOverflow;
+    );
+  }
+
+  const hasContent = output.type === "image"
+    ? !!output.imageUrl
+    : output.type === "video"
+      ? !!output.downloadUrl                             // ← video uses downloadUrl
+      : !!output.content;
+  const showToggle = hasContent && realOverflow && output.type !== 'video'; // video never needs show-more
 
   return (
     <>
@@ -441,9 +758,10 @@ function ImageContent() {
         {/* ── Content area ── */}
         {hasContent && (
           <div style={{ padding: ".75rem .875rem .5rem" }}>
-            {output.type === "text"  && <TextContent />}
-            {output.type === "code"  && <CodeContent />}
+            {output.type === "text" && <TextContent />}
+            {output.type === "code" && <CodeContent />}
             {output.type === "image" && <ImageContent />}
+            {output.type === "video" && <VideoContent />}  {/* ← added */}
           </div>
         )}
 
@@ -521,10 +839,10 @@ export default function ViewOutputsModal({
   isGuestMode = false,
   onAttachNew,
 }) {
-  const { user }              = useAuth();
+  const { user } = useAuth();
   const [outputs, setOutputs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter,  setFilter]  = useState("all");
+  const [filter, setFilter] = useState("all");
 
   useEffect(() => {
     if (!isOpen || !teamId || !prompt?.id) {
@@ -558,16 +876,17 @@ export default function ViewOutputsModal({
       || userRole === "admin";
   }
 
-  const counts = { all: outputs.length, text: 0, code: 0, image: 0 };
+  const counts = { all: outputs.length, text: 0, code: 0, image: 0, video: 0 }; // ← added video
   outputs.forEach(o => { if (o.type in counts) counts[o.type]++; });
 
   const filtered = filter === "all" ? outputs : outputs.filter(o => o.type === filter);
 
   const filterTabs = [
-    { id: "all",   label: "All",   icon: null       },
-    { id: "text",  label: "Text",  icon: FileText    },
-    { id: "code",  label: "Code",  icon: Code        },
-    { id: "image", label: "Image", icon: ImageIcon   },
+    { id: "all", label: "All", icon: null },
+    { id: "text", label: "Text", icon: FileText },
+    { id: "code", label: "Code", icon: Code },
+    { id: "image", label: "Image", icon: ImageIcon },
+    { id: "video", label: "Video", icon: VideoIcon }, // ← added
   ].filter(t => t.id === "all" || counts[t.id] > 0);
 
   if (!isOpen) return null;
@@ -776,8 +1095,8 @@ export default function ViewOutputsModal({
                   {isGuestMode
                     ? "This prompt has no outputs attached yet."
                     : filter !== "all"
-                    ? `No ${filter} outputs found. Switch to "All" or add one.`
-                    : "Attach AI-generated text, code, or images to this prompt."}
+                      ? `No ${filter} outputs found. Switch to "All" or add one.`
+                      : "Attach AI-generated text, code, or images to this prompt."}
                 </p>
                 {onAttachNew && !isGuestMode && filter === "all" && (
                   <button

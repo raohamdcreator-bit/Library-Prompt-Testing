@@ -33,3 +33,4 @@ dist-ssr
 # General env safety
 .env
 .env.*
+.env*.local

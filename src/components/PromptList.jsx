@@ -25,10 +25,10 @@ import {
   Plus, X, Sparkles, Copy, Edit2, Trash2, ChevronDown,
   MoreVertical, Lock, Unlock, Eye, Star, FileText, Search,
   Check, Clock, Filter, MessageSquare, Activity, Code,
-  Image as ImageIcon, Send, Loader2, Cpu, DollarSign,
+  Image as ImageIcon, Loader2, Cpu, DollarSign,
   Target, TrendingUp, User, Calendar, Tag, Ruler, BarChart2,
   Lightbulb, SlidersHorizontal, UserPlus, TrendingUp as TrendIcon,
-  ChevronUp, ShieldAlert,
+  ChevronUp, ShieldAlert, Video,                                    // ← added Video
 } from "lucide-react";
 import EditPromptModal from "./EditPromptModal";
 import EnhancedBadge from './EnhancedBadge';
@@ -258,10 +258,9 @@ function AIAnalysisSection({ text, isExpanded, onToggle, onEnhance }) {
         <div className="flex items-center gap-1.5">
           <Cpu className="w-3 h-3" style={{ color: "var(--primary)" }} />
           <span style={{ color: "var(--muted-foreground)" }}>AI Model Analysis</span>
-          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
-            compatPct >= 80 ? 'bg-green-500/15 text-green-400' :
+          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${compatPct >= 80 ? 'bg-green-500/15 text-green-400' :
             compatPct >= 50 ? 'bg-yellow-500/15 text-yellow-400' :
-            'bg-red-500/15 text-red-400'}`}>
+              'bg-red-500/15 text-red-400'}`}>
             {compatPct}%
           </span>
         </div>
@@ -302,18 +301,24 @@ function OutputSidebar({ outputs, onViewAll, onAttach, isGuestMode, canModify = 
   if (isGuestMode) {
     return (
       <div onClick={() => alert("Sign up to attach outputs!")}
-        style={{ cursor: 'pointer', padding: '0.75rem', display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center', gap: '0.375rem', height: '100%', opacity: 0.6 }}>
+        style={{
+          cursor: 'pointer', padding: '0.75rem', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: '0.375rem', height: '100%', opacity: 0.6
+        }}>
         <Lock className="w-4 h-4" style={{ color: "var(--muted-foreground)" }} />
-        <span style={{ fontSize: '0.65rem', textAlign: 'center', color: "var(--muted-foreground)" }}>Sign up for outputs</span>
+        <span style={{ fontSize: '0.65rem', textAlign: 'center', color: "var(--muted-foreground)" }}>
+          Sign up for outputs
+        </span>
       </div>
     );
   }
 
   if (!canModify && (!outputs || outputs.length === 0)) {
     return (
-      <div style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', gap: '0.375rem', height: '100%', opacity: 0.45 }}>
+      <div style={{
+        padding: '0.75rem', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: '0.375rem', height: '100%', opacity: 0.45
+      }}>
         <Lock className="w-4 h-4" style={{ color: "var(--muted-foreground)" }} />
         <span style={{ fontSize: '0.6rem', textAlign: 'center', color: "var(--muted-foreground)", lineHeight: 1.4 }}>
           Only admins can attach outputs
@@ -325,99 +330,154 @@ function OutputSidebar({ outputs, onViewAll, onAttach, isGuestMode, canModify = 
   if (!outputs || outputs.length === 0) {
     return (
       <button onClick={onAttach}
-        style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+        style={{
+          width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
           alignItems: 'center', justifyContent: 'center', gap: '0.375rem',
           padding: '0.75rem', cursor: 'pointer', border: 'none', background: 'transparent',
-          color: 'var(--muted-foreground)', transition: 'background 0.15s' }}
+          color: 'var(--muted-foreground)', transition: 'background 0.15s'
+        }}
         title="Attach first output"
         onMouseEnter={e => e.currentTarget.style.background = 'var(--muted)'}
         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
         <Activity className="w-5 h-5 opacity-30" />
         <span style={{ fontSize: '0.65rem', textAlign: 'center', opacity: 0.6 }}>No outputs yet</span>
-        <span style={{ fontSize: '0.6rem', padding: '0.1rem 0.5rem', borderRadius: '999px',
-          border: '1px dashed var(--border)', marginTop: '0.25rem', opacity: 0.7 }}>+ Attach</span>
+        <span style={{
+          fontSize: '0.6rem', padding: '0.1rem 0.5rem', borderRadius: '999px',
+          border: '1px dashed var(--border)', marginTop: '0.25rem', opacity: 0.7
+        }}>+ Attach</span>
       </button>
     );
   }
 
- // In OutputSidebar, replace the entire component's return for the "has outputs" case:
+  // ── Find best preview candidate ───────────────────────────────────────────
+  const latestImage = outputs.find(o => o.type === 'image' && o.imageUrl);
+  const latestVideo = outputs.find(o => o.type === 'video');           // ← new
+  const latest = outputs[0];
 
-const latestImage = outputs.find(o => o.type === 'image' && o.imageUrl);
-const latest = outputs[0];
+  return (
+    <button onClick={onViewAll}
+      style={{
+        width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
+        padding: '0', cursor: 'pointer', border: 'none', background: 'transparent',
+        textAlign: 'left', transition: 'background 0.15s'
+      }}
+      title="View all outputs"
+      onMouseEnter={e => e.currentTarget.style.background = 'var(--muted)'}
+      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
 
-return (
-  <button onClick={onViewAll}
-    style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-      padding: '0', cursor: 'pointer', border: 'none', background: 'transparent',
-      textAlign: 'left', transition: 'background 0.15s' }}
-    title="View all outputs"
-    onMouseEnter={e => e.currentTarget.style.background = 'var(--muted)'}
-    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+      {/* ── Preview area ── */}
+      {latestImage ? (
+        // Image — full, no cropping
+        <div style={{
+          width: '100%', background: 'rgba(0,0,0,.25)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          borderBottom: '1px solid var(--border)', maxHeight: '140px', overflow: 'hidden',
+        }}>
+          <img src={latestImage.imageUrl} alt={latestImage.title}
+            style={{
+              width: '100%', height: 'auto', maxHeight: '140px',
+              objectFit: 'contain', display: 'block'
+            }} />
+        </div>
 
-    {/* Show latest IMAGE output if any exists — full image, no cropping */}
-    {latestImage ? (
-      <div style={{
-        width: '100%',
-        background: 'rgba(0,0,0,.25)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        borderBottom: '1px solid var(--border)',
-        // No fixed height — image defines its own height, capped sensibly
-        maxHeight: '140px',
-        overflow: 'hidden',
-      }}>
-        <img
-          src={latestImage.imageUrl}
-          alt={latestImage.title}
-          style={{
-            width: '100%',
-            height: 'auto',          // never crop vertically
-            maxHeight: '140px',
-            objectFit: 'contain',    // show full image, no cropping
-            display: 'block',
-          }}
-        />
-      </div>
-    ) : (
-      /* Non-image latest output header */
-      <div style={{ padding: '0.5rem 0.625rem 0.25rem', display: 'flex', alignItems: 'center',
-        gap: '0.375rem', borderBottom: '1px solid var(--border)' }}>
-        {latest.type === 'code'
-          ? <Code className="w-3 h-3 text-purple-400 flex-shrink-0" />
-          : <FileText className="w-3 h-3 text-blue-400 flex-shrink-0" />}
-        <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--foreground)' }}>
-          {latest.type === 'code' ? 'Code' : 'Text'}
-        </span>
-      </div>
-    )}
+      ) : latestVideo ? (
+        // Video — native <video> element for real preview
+        <div style={{
+          width: '100%', background: 'rgba(0,0,0,.35)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          borderBottom: '1px solid var(--border)', maxHeight: '120px',
+          overflow: 'hidden', position: 'relative',
+        }}>
+          {latestVideo.downloadUrl ? (
+            <video
+              src={latestVideo.downloadUrl}
+              style={{
+                width: '100%',
+                maxHeight: '120px',
+                objectFit: 'cover',
+                display: 'block',
+                pointerEvents: 'none', // card click opens modal, not video controls
+              }}
+              // preload just metadata so browser gets the first frame as poster
+              preload="metadata"
+              muted
+              playsInline
+            />
+          ) : (
+            // No URL yet — icon placeholder
+            <div style={{
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', gap: '0.2rem', opacity: 0.55, padding: '1rem'
+            }}>
+              <Video className="w-5 h-5" style={{ color: 'var(--primary)' }} />
+              <span style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)' }}>Video</span>
+            </div>
+          )}
+          {/* Play overlay — purely decorative, click opens the modal */}
+          <div style={{
+            position: 'absolute', inset: 0, display: 'flex',
+            alignItems: 'center', justifyContent: 'center', pointerEvents: 'none'
+          }}>
+            <div style={{
+              width: '28px', height: '28px', borderRadius: '50%',
+              background: 'rgba(139,92,246,.85)', border: '2px solid rgba(255,255,255,.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="white">
+                <polygon points="2,1 9,5 2,9" />
+              </svg>
+            </div>
+          </div>
+        </div>
 
-    {/* Title + text preview */}
-    <div style={{ padding: '0.5rem 0.625rem', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-      <p style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--foreground)',
-        marginBottom: '0.25rem', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-        {(latestImage || latest).title || 'Untitled'}
-      </p>
-      {/* Only show text preview for non-image outputs */}
-      {!latestImage && latest.content && (
-        <p style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', lineHeight: 1.45,
-          display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-          {latest.content}
-        </p>
+      ) : (
+        // Text or code — type label header
+        <div style={{
+          padding: '0.5rem 0.625rem 0.25rem', display: 'flex',
+          alignItems: 'center', gap: '0.375rem', borderBottom: '1px solid var(--border)'
+        }}>
+          {latest.type === 'code'
+            ? <Code className="w-3 h-3 text-purple-400 flex-shrink-0" />
+            : <FileText className="w-3 h-3 text-blue-400 flex-shrink-0" />}
+          <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--foreground)' }}>
+            {latest.type === 'code' ? 'Code' : 'Text'}
+          </span>
+        </div>
       )}
-    </div>
 
-    {/* Footer count */}
-    <div style={{ borderTop: '1px solid var(--border)', padding: '0.3rem 0.625rem',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-      <span style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)' }}>
-        {outputs.length} output{outputs.length !== 1 ? 's' : ''}
-      </span>
-      <ChevronUp className="w-3 h-3" style={{ color: "var(--primary)", opacity: 0.7 }} />
-    </div>
-  </button>
-);
+      {/* ── Title + text preview ── */}
+      <div style={{ padding: '0.5rem 0.625rem', flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <p style={{
+          fontSize: '0.7rem', fontWeight: 600, color: 'var(--foreground)',
+          marginBottom: '0.25rem', overflow: 'hidden',
+          whiteSpace: 'nowrap', textOverflow: 'ellipsis'
+        }}>
+          {(latestImage || latestVideo || latest).title || 'Untitled'}
+        </p>
+        {/* Text preview only for text/code — not for image or video */}
+        {!latestImage && !latestVideo && latest.content && (
+          <p style={{
+            fontSize: '0.65rem', color: 'var(--muted-foreground)', lineHeight: 1.45,
+            display: '-webkit-box', WebkitLineClamp: 4,
+            WebkitBoxOrient: 'vertical', overflow: 'hidden'
+          }}>
+            {latest.content}
+          </p>
+        )}
+      </div>
+
+      {/* ── Footer count ── */}
+      <div style={{
+        borderTop: '1px solid var(--border)', padding: '0.3rem 0.625rem',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0
+      }}>
+        <span style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)' }}>
+          {outputs.length} output{outputs.length !== 1 ? 's' : ''}
+        </span>
+        <ChevronUp className="w-3 h-3" style={{ color: "var(--primary)", opacity: 0.7 }} />
+      </div>
+    </button>
+  );
 }
 // ─── Restriction Banner ───────────────────────────────────────────────────────
 function RestrictionBanner({ creatorRole }) {
@@ -632,8 +692,8 @@ function PromptCard({
               onToggle={() => setShowAIAnalysis(!showAIAnalysis)}
               onEnhance={
                 isGuestMode && activeTeam ? null
-                : !canModify ? null
-                : () => onEnhance && onEnhance(prompt)
+                  : !canModify ? null
+                    : () => onEnhance && onEnhance(prompt)
               }
             />
           )}
@@ -1029,10 +1089,10 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           try {
             const userDoc = await getDoc(doc(db, "users", memberId));
             if (userDoc.exists()) profiles[memberId] = userDoc.data();
-          } catch {}
+          } catch { }
         }
         setTeamMembers(profiles);
-      } catch {}
+      } catch { }
     }
     loadTeamData();
   }, [activeTeam, isGuestMode, user]);
@@ -1122,7 +1182,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         try {
           const d = typeof p.createdAt.toDate === 'function' ? p.createdAt.toDate()
             : p.createdAt instanceof Date ? p.createdAt
-            : typeof p.createdAt === 'number' ? new Date(p.createdAt) : null;
+              : typeof p.createdAt === 'number' ? new Date(p.createdAt) : null;
           return d && d >= cutoff;
         } catch { return false; }
       });
@@ -1178,7 +1238,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         if (isGuestMode) guestState.deletePrompt(id);
         else {
           await deletePrompt(activeTeam, id);
-          if (user) deleteDoc(doc(db, "users", user.uid, "favorites", id)).catch(() => {});
+          if (user) deleteDoc(doc(db, "users", user.uid, "favorites", id)).catch(() => { });
         }
         deletedCount++;
       }
@@ -1223,7 +1283,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
           visibility: newPrompt.visibility,
         });
         setUserPrompts(prev => [saved, ...prev]);
-        checkSaveRequired('create_prompt', () => {});
+        checkSaveRequired('create_prompt', () => { });
       } else {
         await savePrompt(user.uid, {
           title: newPrompt.title.trim(), text: newPrompt.text.trim(),
@@ -1258,7 +1318,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         setUserPrompts(prev => prev.filter(p => p.id !== promptId));
       } else {
         await deletePrompt(activeTeam, promptId);
-        if (user) deleteDoc(doc(db, "users", user.uid, "favorites", promptId)).catch(() => {});
+        if (user) deleteDoc(doc(db, "users", user.uid, "favorites", promptId)).catch(() => { });
       }
       showSuccessToast("Prompt deleted");
     } catch { showNotification("Failed to delete prompt", "error"); }
@@ -1283,7 +1343,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
       showSuccessToast("Copied to clipboard!");
       if (activeTeam) {
         const guestToken = sessionStorage.getItem('guest_team_token');
-        try { await trackPromptCopy(activeTeam, promptId, !!guestToken); } catch {}
+        try { await trackPromptCopy(activeTeam, promptId, !!guestToken); } catch { }
       }
     } catch { showNotification("Failed to copy", "error"); }
   }
@@ -1455,7 +1515,7 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
               isGuestMode={isGuestMode} activeTeam={activeTeam} userRole={userRole}
               onCopy={handleCopy} onDuplicate={handleDuplicateDemo}
               viewedPrompts={viewedPrompts} showCommentSection={false}
-              onToggleComments={() => {}} openMenuId={openMenuId}
+              onToggleComments={() => { }} openMenuId={openMenuId}
               onMenuToggle={setOpenMenuId} onTrackView={handleTrackView}
               onToggleFavourite={null} favouritePromptIds={favouritePromptIds}
               canModify={true} creatorRole="member"

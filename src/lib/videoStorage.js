@@ -7,12 +7,13 @@ import {
 import { app } from './firebase';
 import { db } from './firebase';
 import {
-  doc, setDoc, updateDoc, serverTimestamp,
+  doc, setDoc, updateDoc, addDoc,      // ← added addDoc
+  collection, serverTimestamp,          // ← added collection
 } from 'firebase/firestore';
 
 const storage = getStorage(app);
 
-const ALLOWED_MIME   = ['video/mp4', 'video/quicktime'];
+const ALLOWED_MIME = ['video/mp4', 'video/quicktime'];
 const MAX_SIZE_BYTES = 25 * 1024 * 1024; // frontend guard — server enforces plan limit
 
 /**
@@ -36,37 +37,37 @@ export async function uploadVideo({
   }
   if (file.size > MAX_SIZE_BYTES) {
     throw new Error(
-      `File too large (${(file.size/1_048_576).toFixed(1)}MB). ` +
-      `Maximum is ${Math.round(MAX_SIZE_BYTES/1_048_576)}MB on the free plan.`
+      `File too large (${(file.size / 1_048_576).toFixed(1)}MB). ` +
+      `Maximum is ${Math.round(MAX_SIZE_BYTES / 1_048_576)}MB on the free plan.`
     );
   }
 
-  const videoId    = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const safeName   = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const videoId = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
   const storagePath = `videos/${userId}/${videoId}/${safeName}`;
-  const storageRef  = ref(storage, storagePath);
+  const storageRef = ref(storage, storagePath);
 
   // Save pending Firestore record before upload starts
   // so we can clean up if the upload fails
   const videoDocRef = doc(db, 'videos', videoId);
   await setDoc(videoDocRef, {
     videoId,
-    ownerId:      userId,
+    ownerId: userId,
     teamId,
-    promptId:     promptId || null,
-    title:        (title || file.name).substring(0, 200),
+    promptId: promptId || null,
+    title: (title || file.name).substring(0, 200),
     fileSizeBytes: file.size,
-    mimeType:     file.type,
+    mimeType: file.type,
     storagePath,
-    status:       'uploading',
-    downloadUrl:  null,
+    status: 'uploading',
+    downloadUrl: null,
     thumbnailUrl: null,
-    duration:     null,
-    visibility:   'private',
-    views:        0,
-    createdAt:    serverTimestamp(),
-    uploadedAt:   null,
-    updatedAt:    serverTimestamp(),
+    duration: null,
+    visibility: 'private',
+    views: 0,
+    createdAt: serverTimestamp(),
+    uploadedAt: null,
+    updatedAt: serverTimestamp(),
   });
 
   // Upload with progress tracking
@@ -86,10 +87,10 @@ export async function uploadVideo({
       uploadTask.cancel();
       // Mark as failed in Firestore
       updateDoc(videoDocRef, {
-        status:    'error',
+        status: 'error',
         lastError: 'Upload timed out',
         updatedAt: serverTimestamp(),
-      }).catch(() => {});
+      }).catch(() => { });
       reject(new Error('Upload timed out. Please check your connection and try again.'));
     }, 60_000);
 
@@ -105,10 +106,10 @@ export async function uploadVideo({
         clearTimeout(timeout);
         // Mark Firestore record as failed
         await updateDoc(videoDocRef, {
-          status:    'error',
+          status: 'error',
           lastError: error.message,
           updatedAt: serverTimestamp(),
-        }).catch(() => {});
+        }).catch(() => { });
 
         if (error.code === 'storage/canceled') {
           reject(new Error('Upload cancelled.'));
@@ -126,11 +127,32 @@ export async function uploadVideo({
           const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
 
           await updateDoc(videoDocRef, {
-            status:      'ready',
+            status: 'ready',
             downloadUrl,
-            uploadedAt:  serverTimestamp(),
-            updatedAt:   serverTimestamp(),
+            uploadedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
           });
+
+          // ── Write result record so PromptList picks up the video ──────────
+          // Without this, subscribeToResults never returns the video and
+          // the sidebar stays blank after a video upload.
+          if (promptId && teamId) {
+            await addDoc(
+              collection(db, 'teams', teamId, 'prompts', promptId, 'results'),
+              {
+                type: 'video',
+                title: (title || file.name).substring(0, 200),
+                videoId,
+                downloadUrl,
+                thumbnailUrl: null,
+                fileSizeBytes: file.size,
+                mimeType: file.type,
+                storagePath,
+                createdBy: userId,
+                createdAt: serverTimestamp(),
+              }
+            );
+          }
 
           onProgress?.(100);
           resolve({
@@ -141,10 +163,10 @@ export async function uploadVideo({
           });
         } catch (err) {
           await updateDoc(videoDocRef, {
-            status:    'error',
+            status: 'error',
             lastError: err.message,
             updatedAt: serverTimestamp(),
-          }).catch(() => {});
+          }).catch(() => { });
           reject(err);
         }
       }

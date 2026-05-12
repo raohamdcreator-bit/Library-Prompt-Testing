@@ -5,13 +5,9 @@ import path from 'path';
 export default defineConfig({
   plugins: [react()],
 
-  // Public directory configuration
   publicDir: 'public',
-
-  // Base URL
   base: '/',
 
-  // Build configuration
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -21,13 +17,18 @@ export default defineConfig({
     },
   },
 
-  // Development server
+  // ── Dev server with API proxy ─────────────────────────────────────────────
   server: {
     port: 3000,
     open: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
   },
 
-  // Test configuration
   test: {
     globals: true,
     environment: 'jsdom',
@@ -46,7 +47,6 @@ export default defineConfig({
     },
   },
 
-  // Path aliases
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
