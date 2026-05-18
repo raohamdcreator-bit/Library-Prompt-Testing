@@ -89,7 +89,8 @@ const AdminDashboard    = lazy(() => import("./pages/AdminDashboard"));
 const PlagiarismChecker = lazy(() => import("./components/PlagiarismChecker"));
 
 // Admin email configuration
-const ADMIN_EMAIL = "rao.hamd.creator@gmail.com";
+// src/config/admin.js
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
 
 // ===================================
 // SCROLL REVEAL HOOK
