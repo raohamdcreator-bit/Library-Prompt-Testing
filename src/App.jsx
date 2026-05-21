@@ -435,24 +435,24 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
               <div className="hero-badge mb-6 pulse-glow">
-                <span className="font-medium">The GitHub for AI workflows</span>
+                <span className="font-medium">The GitHub for AI content</span>
               </div>
 
               <h1 className="hero-title text-4xl md:text-6xl lg:text-7xl mb-6 px-4">
-                Build Better{" "}
+                Build for{" "}
                 <span style={{ 
                   background: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   backgroundClip: 'text'
                 }}>
-                Workflows </span>
-                with Your Team{" "}
+                Next Generation </span>
+                AI Creators{" "}
               </h1>
 
               <p className="hero-description text-lg md:text-xl mb-8 max-w-2xl mx-auto leading-relaxed px-4"
                 style={{ color: "var(--muted-foreground)" }}>
-                Where teams build, test, and manage AI workflows
+                Upload prompts, track performance, build your creator community, and turn viral content into lasting value
               </p>
 
               {/* CTA Buttons */}
