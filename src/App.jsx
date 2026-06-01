@@ -449,13 +449,11 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
                 }}>
                 Next Generation </span>
                 AI Creators{" "}
-                Next Generation </span>
-                AI Creators{" "}
+                
               </h1>
 
               <p className="hero-description text-lg md:text-xl mb-8 max-w-2xl mx-auto leading-relaxed px-4"
                 style={{ color: "var(--muted-foreground)" }}>
-                Upload prompts, track performance, build your creator community, and turn viral content into lasting value
                 Upload prompts, track performance, build your creator community, and turn viral content into lasting value
               </p>
 
