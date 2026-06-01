@@ -435,10 +435,11 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-12">
               <div className="hero-badge mb-6 pulse-glow">
-                <span className="font-medium">The GitHub for AI Content</span>
+                <span className="font-medium">The GitHub for AI content</span>
               </div>
 
               <h1 className="hero-title text-4xl md:text-6xl lg:text-7xl mb-6 px-4">
+                Build for{" "}
                 Build for{" "}
                 <span style={{ 
                   background: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
@@ -448,10 +449,13 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
                 }}>
                 Next Generation </span>
                 AI Creators{" "}
+                Next Generation </span>
+                AI Creators{" "}
               </h1>
 
               <p className="hero-description text-lg md:text-xl mb-8 max-w-2xl mx-auto leading-relaxed px-4"
                 style={{ color: "var(--muted-foreground)" }}>
+                Upload prompts, track performance, build your creator community, and turn viral content into lasting value
                 Upload prompts, track performance, build your creator community, and turn viral content into lasting value
               </p>
 
