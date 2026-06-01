@@ -486,87 +486,256 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
         </section>
 
         {/* Features Grid */}
-        <section className="container mx-auto px-4 py-20">
-          <div className="section-header scroll-reveal">
-            <h2 className="section-title">
-              Everything you need to collaborate on AI prompts
-            </h2>
-            <p className="section-subtitle">
-              Comprehensive tools designed for modern AI prompt development
-            </p>
-          </div>
+<section className="container mx-auto px-4 py-20">
+  <div className="section-header scroll-reveal">
+    <h2 className="section-title">
+      Everything you need to collaborate on AI prompts
+    </h2>
+    <p className="section-subtitle">
+      Comprehensive tools designed for modern AI prompt development
+    </p>
+  </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {[
-              {
-                icon: <Users size={24} />,
-                title: "Team Collaboration",
-                desc: "Work together seamlessly with live updates and team chat.",
-              },
-              {
-                icon: <GitBranch size={24} />,
-                title: "Workflow Versioning",
-                desc: "Track changes and revert to previous versions effortlessly.",
-              },
-              {
-                icon: <Database size={24} />,
-                title: "Workflow Hub",
-                desc: "Centralized storage for saving and reusing your best work.",
-              },
-              {
-                icon: <EyeOff size={24} />,
-                title: "Access Control",
-                desc: "Granular permissions to control who sees what.",
-              },
-              {
-                icon: <RotateCcw size={24} />,
-                title: "Smart Reuse",
-                desc: "Ensure originality with built-in similarity checks.",
-              },
-              {
-                icon: <Save size={24} />,
-                title: "Outcome Attachments",
-                desc: "Save text, code, images and results alongside.",
-              },
-              {
-                icon: <BarChart3 size={24} />,
-                title: "Workflow Insights",
-                desc: "Track usage patterns and optimize performance.",
-              },
-              {
-                icon: <UserCheck size={24} />,
-                title: "Team Workspaces",
-                desc: "Owner, Admin, and Member roles with custom permissions.",
-              },
-              {
-                icon: <FileDown size={24} />,
-                title: "Execute & Export",
-                desc: "Run prompts directly and export to JSON/API formats.",
-              },
-            ].map((feature, index) => (
-              <div key={index} className="capsule-card feature-card-3d scroll-reveal">
-                <div className="feature-icon-container">
-                  <div style={{ color: "var(--primary)" }}>
-                    {feature.icon}
-                  </div>
-                </div>
-                <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--foreground)" }}>
-                  {feature.title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
-                  {feature.desc}
-                </p>
-              </div>
-            ))}
-          </div>
+  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    {[
+      {
+        icon: <Users size={24} />,
+        bgIcon: <Users size={80} />,
+        title: "Team Collaboration",
+        desc: "Work together seamlessly with live updates and team chat.",
+        theme: {
+          bg: "linear-gradient(135deg, #1a0828 0%, #2e0a48 100%)",
+          border: "rgba(139, 92, 246, 0.35)",
+          iconBg: "rgba(139, 92, 246, 0.18)",
+          iconBorder: "rgba(139, 92, 246, 0.35)",
+          iconColor: "#c4b5fd",
+          bgIconColor: "#a78bfa",
+          titleColor: "#ede9fe",
+          descColor: "rgba(196, 181, 253, 0.58)",
+          hoverBorder: "rgba(139, 92, 246, 0.65)",
+        },
+      },
+      {
+        icon: <GitBranch size={24} />,
+        bgIcon: <GitBranch size={80} />,
+        title: "Workflow Versioning",
+        desc: "Track changes and revert to previous versions effortlessly.",
+        theme: {
+          bg: "linear-gradient(135deg, #1f0820 0%, #3d0a3a 100%)",
+          border: "rgba(220, 40, 160, 0.35)",
+          iconBg: "rgba(220, 40, 160, 0.18)",
+          iconBorder: "rgba(220, 40, 160, 0.35)",
+          iconColor: "#f0abdc",
+          bgIconColor: "#e879c8",
+          titleColor: "#fde8f8",
+          descColor: "rgba(240, 171, 220, 0.55)",
+          hoverBorder: "rgba(220, 40, 160, 0.65)",
+        },
+      },
+      {
+        icon: <Database size={24} />,
+        bgIcon: <Database size={80} />,
+        title: "Workflow Hub",
+        desc: "Centralized storage for saving and reusing your best work.",
+        theme: {
+          bg: "linear-gradient(135deg, #071a1a 0%, #0a3030 100%)",
+          border: "rgba(20, 184, 166, 0.35)",
+          iconBg: "rgba(20, 184, 166, 0.18)",
+          iconBorder: "rgba(20, 184, 166, 0.35)",
+          iconColor: "#5eead4",
+          bgIconColor: "#2dd4bf",
+          titleColor: "#ccfbf1",
+          descColor: "rgba(94, 234, 212, 0.52)",
+          hoverBorder: "rgba(20, 184, 166, 0.65)",
+        },
+      },
+      {
+        icon: <EyeOff size={24} />,
+        bgIcon: <EyeOff size={80} />,
+        title: "Access Control",
+        desc: "Granular permissions to control who sees what.",
+        theme: {
+          bg: "linear-gradient(135deg, #1c1002 0%, #372005 100%)",
+          border: "rgba(245, 158, 11, 0.35)",
+          iconBg: "rgba(245, 158, 11, 0.18)",
+          iconBorder: "rgba(245, 158, 11, 0.35)",
+          iconColor: "#fcd34d",
+          bgIconColor: "#f59e0b",
+          titleColor: "#fef3c7",
+          descColor: "rgba(252, 211, 77, 0.52)",
+          hoverBorder: "rgba(245, 158, 11, 0.65)",
+        },
+      },
+      {
+        icon: <RotateCcw size={24} />,
+        bgIcon: <RotateCcw size={80} />,
+        title: "Smart Reuse",
+        desc: "Ensure originality with built-in similarity checks.",
+        theme: {
+          bg: "linear-gradient(135deg, #040e22 0%, #0a1c44 100%)",
+          border: "rgba(59, 130, 246, 0.35)",
+          iconBg: "rgba(59, 130, 246, 0.18)",
+          iconBorder: "rgba(59, 130, 246, 0.35)",
+          iconColor: "#93c5fd",
+          bgIconColor: "#60a5fa",
+          titleColor: "#dbeafe",
+          descColor: "rgba(147, 197, 253, 0.52)",
+          hoverBorder: "rgba(59, 130, 246, 0.65)",
+        },
+      },
+      {
+        icon: <Save size={24} />,
+        bgIcon: <Save size={80} />,
+        title: "Outcome Attachments",
+        desc: "Save text, code, images and results alongside.",
+        theme: {
+          bg: "linear-gradient(135deg, #071408 0%, #0d2b10 100%)",
+          border: "rgba(34, 197, 94, 0.35)",
+          iconBg: "rgba(34, 197, 94, 0.18)",
+          iconBorder: "rgba(34, 197, 94, 0.35)",
+          iconColor: "#86efac",
+          bgIconColor: "#4ade80",
+          titleColor: "#dcfce7",
+          descColor: "rgba(134, 239, 172, 0.52)",
+          hoverBorder: "rgba(34, 197, 94, 0.65)",
+        },
+      },
+      {
+        icon: <BarChart3 size={24} />,
+        bgIcon: <BarChart3 size={80} />,
+        title: "Workflow Insights",
+        desc: "Track usage patterns and optimize performance.",
+        theme: {
+          bg: "linear-gradient(135deg, #1c0608 0%, #380810 100%)",
+          border: "rgba(239, 68, 68, 0.35)",
+          iconBg: "rgba(239, 68, 68, 0.18)",
+          iconBorder: "rgba(239, 68, 68, 0.35)",
+          iconColor: "#fca5a5",
+          bgIconColor: "#f87171",
+          titleColor: "#fee2e2",
+          descColor: "rgba(252, 165, 165, 0.52)",
+          hoverBorder: "rgba(239, 68, 68, 0.65)",
+        },
+      },
+      {
+        icon: <UserCheck size={24} />,
+        bgIcon: <UserCheck size={80} />,
+        title: "Team Workspaces",
+        desc: "Owner, Admin, and Member roles with custom permissions.",
+        theme: {
+          bg: "linear-gradient(135deg, #0c0a22 0%, #1c1860 100%)",
+          border: "rgba(99, 102, 241, 0.35)",
+          iconBg: "rgba(99, 102, 241, 0.18)",
+          iconBorder: "rgba(99, 102, 241, 0.35)",
+          iconColor: "#a5b4fc",
+          bgIconColor: "#818cf8",
+          titleColor: "#e0e7ff",
+          descColor: "rgba(165, 180, 252, 0.52)",
+          hoverBorder: "rgba(99, 102, 241, 0.65)",
+        },
+      },
+      {
+        icon: <FileDown size={24} />,
+        bgIcon: <FileDown size={80} />,
+        title: "Execute & Export",
+        desc: "Run prompts directly and export to JSON/API formats.",
+        theme: {
+          bg: "linear-gradient(135deg, #031018 0%, #062030 100%)",
+          border: "rgba(14, 165, 233, 0.35)",
+          iconBg: "rgba(14, 165, 233, 0.18)",
+          iconBorder: "rgba(14, 165, 233, 0.35)",
+          iconColor: "#7dd3fc",
+          bgIconColor: "#38bdf8",
+          titleColor: "#e0f2fe",
+          descColor: "rgba(125, 211, 252, 0.52)",
+          hoverBorder: "rgba(14, 165, 233, 0.65)",
+        },
+      },
+    ].map((feature, index) => (
+      <div
+        key={index}
+        className="scroll-reveal"
+        style={{
+          background: feature.theme.bg,
+          border: `1px solid ${feature.theme.border}`,
+          borderRadius: "16px",
+          padding: "1.25rem",
+          position: "relative",
+          overflow: "hidden",
+          transition: "transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease",
+          cursor: "default",
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.transform = "translateY(-3px)";
+          e.currentTarget.style.borderColor = feature.theme.hoverBorder;
+          e.currentTarget.style.boxShadow = `0 8px 32px ${feature.theme.iconBg}`;
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.transform = "translateY(0)";
+          e.currentTarget.style.borderColor = feature.theme.border;
+          e.currentTarget.style.boxShadow = "none";
+        }}
+      >
+        {/* Background watermark icon */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            bottom: "-12px",
+            right: "-12px",
+            color: feature.theme.bgIconColor,
+            opacity: 0.08,
+            lineHeight: 1,
+            pointerEvents: "none",
+            transition: "opacity 0.2s",
+          }}
+        >
+          {feature.bgIcon}
+        </div>
 
-          <div className="text-center scroll-reveal">
-            <button className="btn-premium" onClick={onExploreApp}>
-              Explore Features
-              <ArrowRight size={20} className="btn-arrow" />
-            </button>
-          </div>
-        </section>
+        {/* Small icon container */}
+        <div
+          style={{
+            width: "40px",
+            height: "40px",
+            borderRadius: "10px",
+            background: feature.theme.iconBg,
+            border: `1px solid ${feature.theme.iconBorder}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: "0.75rem",
+            position: "relative",
+            zIndex: 1,
+            color: feature.theme.iconColor,
+          }}
+        >
+          {feature.icon}
+        </div>
+
+        <h3
+          className="text-lg font-semibold mb-2"
+          style={{ color: feature.theme.titleColor, position: "relative", zIndex: 1 }}
+        >
+          {feature.title}
+        </h3>
+        <p
+          className="text-sm leading-relaxed"
+          style={{ color: feature.theme.descColor, position: "relative", zIndex: 1 }}
+        >
+          {feature.desc}
+        </p>
+      </div>
+    ))}
+  </div>
+
+  <div className="text-center scroll-reveal">
+    <button className="btn-premium" onClick={onExploreApp}>
+      Explore Features
+      <ArrowRight size={20} className="btn-arrow" />
+    </button>
+  </div>
+</section>
 
         {/* Upcoming Features Section */}
         <section className="container mx-auto px-4 py-20">

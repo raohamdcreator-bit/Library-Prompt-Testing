@@ -1651,6 +1651,62 @@ select option {
 /* ======================================
    3D CARD ROTATION ON SCROLL
 ====================================== */
+/* ── Feature grid cards — icon background watermark ── */
+.feature-card-3d {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s, border-color 0.18s !important;
+}
+.feature-card-3d:hover { transform: translateY(-2px); }
+
+/* Large background icon — place this inside each card in JSX */
+.feature-card-3d .card-bg-icon {
+  position: absolute;
+  bottom: -10px; right: -10px;
+  font-size: 72px;
+  line-height: 1;
+  opacity: 0.09;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.feature-card-3d:hover .card-bg-icon { opacity: 0.15; }
+
+/* Per-card color themes — apply nth-child or individual classes */
+.feature-card-3d:nth-child(1)  { background: linear-gradient(135deg,#1a0828 0%,#2e0a48 100%); border-color: rgba(139,92,246,0.35); }
+.feature-card-3d:nth-child(1)  .feature-icon-container { background: rgba(139,92,246,0.18); border-color: rgba(139,92,246,0.35); color: #c4b5fd; }
+.feature-card-3d:nth-child(1)  .card-bg-icon { color: #a78bfa; }
+
+.feature-card-3d:nth-child(2)  { background: linear-gradient(135deg,#1f0820 0%,#3d0a3a 100%); border-color: rgba(220,40,160,0.35); }
+.feature-card-3d:nth-child(2)  .feature-icon-container { background: rgba(220,40,160,0.18); border-color: rgba(220,40,160,0.35); color: #f0abdc; }
+.feature-card-3d:nth-child(2)  .card-bg-icon { color: #e879c8; }
+
+.feature-card-3d:nth-child(3)  { background: linear-gradient(135deg,#071a1a 0%,#0a3030 100%); border-color: rgba(20,184,166,0.35); }
+.feature-card-3d:nth-child(3)  .feature-icon-container { background: rgba(20,184,166,0.18); border-color: rgba(20,184,166,0.35); color: #5eead4; }
+.feature-card-3d:nth-child(3)  .card-bg-icon { color: #2dd4bf; }
+
+.feature-card-3d:nth-child(4)  { background: linear-gradient(135deg,#1c1002 0%,#372005 100%); border-color: rgba(245,158,11,0.35); }
+.feature-card-3d:nth-child(4)  .feature-icon-container { background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.35); color: #fcd34d; }
+.feature-card-3d:nth-child(4)  .card-bg-icon { color: #f59e0b; }
+
+.feature-card-3d:nth-child(5)  { background: linear-gradient(135deg,#040e22 0%,#0a1c44 100%); border-color: rgba(59,130,246,0.35); }
+.feature-card-3d:nth-child(5)  .feature-icon-container { background: rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.35); color: #93c5fd; }
+.feature-card-3d:nth-child(5)  .card-bg-icon { color: #60a5fa; }
+
+.feature-card-3d:nth-child(6)  { background: linear-gradient(135deg,#071408 0%,#0d2b10 100%); border-color: rgba(34,197,94,0.35); }
+.feature-card-3d:nth-child(6)  .feature-icon-container { background: rgba(34,197,94,0.18); border-color: rgba(34,197,94,0.35); color: #86efac; }
+.feature-card-3d:nth-child(6)  .card-bg-icon { color: #4ade80; }
+
+.feature-card-3d:nth-child(7)  { background: linear-gradient(135deg,#4e1b1f 0%,#380810 100%); border-color: rgba(239,68,68,0.35); }
+.feature-card-3d:nth-child(7)  .feature-icon-container { background: rgba(239,68,68,0.18); border-color: rgba(239,68,68,0.35); color: #fca5a5; }
+.feature-card-3d:nth-child(7)  .card-bg-icon { color: #f87171; }
+
+.feature-card-3d:nth-child(8)  { background: linear-gradient(135deg,#0c0a22 0%,#1c1860 100%); border-color: rgba(99,102,241,0.35); }
+.feature-card-3d:nth-child(8)  .feature-icon-container { background: rgba(99,102,241,0.18); border-color: rgba(99,102,241,0.35); color: #a5b4fc; }
+.feature-card-3d:nth-child(8)  .card-bg-icon { color: #818cf8; }
+
+.feature-card-3d:nth-child(9)  { background: linear-gradient(135deg,#031018 0%,#062030 100%); border-color: rgba(14,165,233,0.35); }
+.feature-card-3d:nth-child(9)  .feature-icon-container { background: rgba(14,165,233,0.18); border-color: rgba(14,165,233,0.35); color: #7dd3fc; }
+.feature-card-3d:nth-child(9)  .card-bg-icon { color: #38bdf8; }
 
 .feature-card-3d {
   transform-style: preserve-3d;
