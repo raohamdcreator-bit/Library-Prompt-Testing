@@ -1679,17 +1679,21 @@ export default function PromptList({ activeTeam, userRole, isGuestMode = false, 
         /* ── Responsive body layout ── */
         /* Desktop: side-by-side */
         .prompt-card-body-responsive {
-          display: grid;
-          grid-template-columns: 1fr 160px;
-          gap: 0;
-        }
+  display: grid;
+  grid-template-columns: 1fr 160px;
+  gap: 0;
+  align-items: start;
+}
         .prompt-output-sidebar-desktop {
-          border-left: 1px solid var(--border);
-          display: flex;
-          flex-direction: column;
-          background: color-mix(in srgb, var(--muted) 40%, transparent);
-          min-height: 100px;
-        }
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
+  min-height: 100px;
+  align-self: start;
+  position: sticky;
+  top: 0;
+}
         .prompt-output-mobile-bar {
           display: none;
         }
