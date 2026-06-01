@@ -32,8 +32,7 @@ export default async function handler(req, res) {
 
   try {
     await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL,
-      to: process.env.SENDER_EMAIL,
+from: `Prism Support <contact@prism-app.online>`,      to: process.env.SENDER_EMAIL,
       subject: `[Prism Contact] [${category}] ${subject}`,
       replyTo: email,
       html: `
