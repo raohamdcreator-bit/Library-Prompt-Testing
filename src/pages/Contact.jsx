@@ -17,15 +17,14 @@ export default function Contact() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    // Enforce message character limit
+    if (name === "message" && value.length > 2000) return;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.email || !formData.subject || !formData.message) {
-      setStatus({
-        type: "error",
-        message: "Please fill in all required fields.",
-      });
+      setStatus({ type: "error", message: "Please fill in all required fields." });
       return;
     }
 
@@ -33,12 +32,21 @@ export default function Contact() {
     setStatus({ type: "", message: "" });
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send message");
+      }
 
       setStatus({
         type: "success",
-        message:
-          "Thank you for contacting us! We'll respond within 24-48 hours.",
+        message: "Thank you for contacting us! We'll respond within 24-48 hours.",
       });
 
       setFormData({
@@ -51,8 +59,7 @@ export default function Contact() {
     } catch (error) {
       setStatus({
         type: "error",
-        message:
-          "Failed to send message. Please try again or email us directly.",
+        message: error.message || "Failed to send message. Please try again or email us directly.",
       });
     } finally {
       setIsSubmitting(false);
@@ -71,103 +78,60 @@ export default function Contact() {
         <section className="grid md:grid-cols-3 gap-6">
           <div
             className="p-6 rounded-lg border text-center"
-            style={{
-              backgroundColor: "var(--secondary)",
-              borderColor: "var(--border)",
-            }}
+            style={{ backgroundColor: "var(--secondary)", borderColor: "var(--border)" }}
           >
             <div
               className="w-12 h-12 rounded-lg mx-auto mb-4 flex items-center justify-center"
               style={{ backgroundColor: "var(--primary)" }}
             >
-              <Mail
-                className="w-6 h-6"
-                style={{ color: "var(--primary-foreground)" }}
-              />
+              <Mail className="w-6 h-6" style={{ color: "var(--primary-foreground)" }} />
             </div>
-            <h3
-              className="font-semibold mb-2"
-              style={{ color: "var(--foreground)" }}
-            >
+            <h3 className="font-semibold mb-2" style={{ color: "var(--foreground)" }}>
               Email Support
             </h3>
-            <p
-              className="text-sm mb-3"
-              style={{ color: "var(--muted-foreground)" }}
-            >
+            <p className="text-sm mb-3" style={{ color: "var(--muted-foreground)" }}>
               Get help via email
             </p>
-            <a
-              href="mailto:research.prismhq@gmail.com"
-              className="text-sm"
-              style={{ color: "var(--primary)" }}
-            >
+            <a href="mailto:research.prismhq@gmail.com" className="text-sm" style={{ color: "var(--primary)" }}>
               research.prismhq@gmail.com
             </a>
           </div>
 
           <div
             className="p-6 rounded-lg border text-center"
-            style={{
-              backgroundColor: "var(--secondary)",
-              borderColor: "var(--border)",
-            }}
+            style={{ backgroundColor: "var(--secondary)", borderColor: "var(--border)" }}
           >
             <div
               className="w-12 h-12 rounded-lg mx-auto mb-4 flex items-center justify-center"
               style={{ backgroundColor: "var(--primary)" }}
             >
-              <MessageCircle
-                className="w-6 h-6"
-                style={{ color: "var(--primary-foreground)" }}
-              />
+              <MessageCircle className="w-6 h-6" style={{ color: "var(--primary-foreground)" }} />
             </div>
-            <h3
-              className="font-semibold mb-2"
-              style={{ color: "var(--foreground)" }}
-            >
+            <h3 className="font-semibold mb-2" style={{ color: "var(--foreground)" }}>
               Live Chat
             </h3>
-            <p
-              className="text-sm mb-3"
-              style={{ color: "var(--muted-foreground)" }}
-            >
+            <p className="text-sm mb-3" style={{ color: "var(--muted-foreground)" }}>
               Chat with our team
             </p>
-            <span
-              className="text-sm"
-              style={{ color: "var(--muted-foreground)" }}
-            >
+            <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>
               Coming Soon
             </span>
           </div>
 
           <div
             className="p-6 rounded-lg border text-center"
-            style={{
-              backgroundColor: "var(--secondary)",
-              borderColor: "var(--border)",
-            }}
+            style={{ backgroundColor: "var(--secondary)", borderColor: "var(--border)" }}
           >
             <div
               className="w-12 h-12 rounded-lg mx-auto mb-4 flex items-center justify-center"
               style={{ backgroundColor: "var(--primary)" }}
             >
-              <BookOpen
-                className="w-6 h-6"
-                style={{ color: "var(--primary-foreground)" }}
-              />
+              <BookOpen className="w-6 h-6" style={{ color: "var(--primary-foreground)" }} />
             </div>
-            <h3
-              className="font-semibold mb-2"
-              style={{ color: "var(--foreground)" }}
-            >
+            <h3 className="font-semibold mb-2" style={{ color: "var(--foreground)" }}>
               Documentation
             </h3>
-            <p
-              className="text-sm mb-3"
-              style={{ color: "var(--muted-foreground)" }}
-            >
+            <p className="text-sm mb-3" style={{ color: "var(--muted-foreground)" }}>
               Browse our guides
             </p>
             <button
@@ -183,26 +147,16 @@ export default function Contact() {
         <section>
           <div
             className="p-6 rounded-lg border"
-            style={{
-              backgroundColor: "var(--secondary)",
-              borderColor: "var(--border)",
-            }}
+            style={{ backgroundColor: "var(--secondary)", borderColor: "var(--border)" }}
           >
-            <h2
-              className="text-2xl font-bold mb-6"
-              style={{ color: "var(--foreground)" }}
-            >
+            <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--foreground)" }}>
               Send us a Message
             </h2>
 
             <div className="space-y-6">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium mb-2"
-                    style={{ color: "var(--foreground)" }}
-                  >
+                  <label htmlFor="name" className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                     Name *
                   </label>
                   <input
@@ -212,21 +166,13 @@ export default function Contact() {
                     value={formData.name}
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-lg border"
-                    style={{
-                      backgroundColor: "var(--input)",
-                      borderColor: "var(--border)",
-                      color: "var(--foreground)",
-                    }}
+                    style={{ backgroundColor: "var(--input)", borderColor: "var(--border)", color: "var(--foreground)" }}
                     placeholder="John Doe"
                   />
                 </div>
 
                 <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium mb-2"
-                    style={{ color: "var(--foreground)" }}
-                  >
+                  <label htmlFor="email" className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                     Email *
                   </label>
                   <input
@@ -236,22 +182,14 @@ export default function Contact() {
                     value={formData.email}
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-lg border"
-                    style={{
-                      backgroundColor: "var(--input)",
-                      borderColor: "var(--border)",
-                      color: "var(--foreground)",
-                    }}
+                    style={{ backgroundColor: "var(--input)", borderColor: "var(--border)", color: "var(--foreground)" }}
                     placeholder="john@company.com"
                   />
                 </div>
               </div>
 
               <div>
-                <label
-                  htmlFor="category"
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--foreground)" }}
-                >
+                <label htmlFor="category" className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                   Category *
                 </label>
                 <select
@@ -260,11 +198,7 @@ export default function Contact() {
                   value={formData.category}
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-lg border"
-                  style={{
-                    backgroundColor: "var(--input)",
-                    borderColor: "var(--border)",
-                    color: "var(--foreground)",
-                  }}
+                  style={{ backgroundColor: "var(--input)", borderColor: "var(--border)", color: "var(--foreground)" }}
                 >
                   <option value="general">General Inquiry</option>
                   <option value="support">Technical Support</option>
@@ -276,11 +210,7 @@ export default function Contact() {
               </div>
 
               <div>
-                <label
-                  htmlFor="subject"
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--foreground)" }}
-                >
+                <label htmlFor="subject" className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                   Subject *
                 </label>
                 <input
@@ -290,21 +220,13 @@ export default function Contact() {
                   value={formData.subject}
                   onChange={handleChange}
                   className="w-full px-4 py-3 rounded-lg border"
-                  style={{
-                    backgroundColor: "var(--input)",
-                    borderColor: "var(--border)",
-                    color: "var(--foreground)",
-                  }}
+                  style={{ backgroundColor: "var(--input)", borderColor: "var(--border)", color: "var(--foreground)" }}
                   placeholder="How can we help you?"
                 />
               </div>
 
               <div>
-                <label
-                  htmlFor="message"
-                  className="block text-sm font-medium mb-2"
-                  style={{ color: "var(--foreground)" }}
-                >
+                <label htmlFor="message" className="block text-sm font-medium mb-2" style={{ color: "var(--foreground)" }}>
                   Message *
                 </label>
                 <textarea
@@ -314,17 +236,10 @@ export default function Contact() {
                   onChange={handleChange}
                   rows={6}
                   className="w-full px-4 py-3 rounded-lg border resize-none"
-                  style={{
-                    backgroundColor: "var(--input)",
-                    borderColor: "var(--border)",
-                    color: "var(--foreground)",
-                  }}
+                  style={{ backgroundColor: "var(--input)", borderColor: "var(--border)", color: "var(--foreground)" }}
                   placeholder="Please provide as much detail as possible..."
                 />
-                <p
-                  className="text-xs mt-1"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
+                <p className="text-xs mt-1" style={{ color: formData.message.length >= 1800 ? "rgb(239,68,68)" : "var(--muted-foreground)" }}>
                   {formData.message.length} / 2000 characters
                 </p>
               </div>
@@ -337,13 +252,7 @@ export default function Contact() {
                       : "bg-red-500/10 border-red-500/30"
                   }`}
                 >
-                  <p
-                    className={
-                      status.type === "success"
-                        ? "text-green-300"
-                        : "text-red-300"
-                    }
-                  >
+                  <p className={status.type === "success" ? "text-green-300" : "text-red-300"}>
                     {status.message}
                   </p>
                 </div>
@@ -353,7 +262,7 @@ export default function Contact() {
                 onClick={handleSubmit}
                 disabled={isSubmitting}
                 className="w-full btn-primary py-3 text-lg font-semibold flex items-center justify-center gap-2"
-                style={{ opacity: isSubmitting ? 0.7 : 1 }}
+                style={{ opacity: isSubmitting ? 0.7 : 1, cursor: isSubmitting ? "not-allowed" : "pointer" }}
               >
                 {isSubmitting ? (
                   <>
@@ -372,10 +281,7 @@ export default function Contact() {
         </section>
 
         <section>
-          <h2
-            className="text-2xl font-bold mb-6"
-            style={{ color: "var(--foreground)" }}
-          >
+          <h2 className="text-2xl font-bold mb-6" style={{ color: "var(--foreground)" }}>
             Frequently Asked Questions
           </h2>
 
@@ -401,21 +307,12 @@ export default function Contact() {
               <details
                 key={index}
                 className="p-4 rounded-lg border"
-                style={{
-                  backgroundColor: "var(--secondary)",
-                  borderColor: "var(--border)",
-                }}
+                style={{ backgroundColor: "var(--secondary)", borderColor: "var(--border)" }}
               >
-                <summary
-                  className="font-semibold cursor-pointer"
-                  style={{ color: "var(--foreground)" }}
-                >
+                <summary className="font-semibold cursor-pointer" style={{ color: "var(--foreground)" }}>
                   {faq.q}
                 </summary>
-                <p
-                  className="mt-3 text-sm"
-                  style={{ color: "var(--muted-foreground)" }}
-                >
+                <p className="mt-3 text-sm" style={{ color: "var(--muted-foreground)" }}>
                   {faq.a}
                 </p>
               </details>
@@ -425,15 +322,9 @@ export default function Contact() {
 
         <section
           className="p-6 rounded-lg border text-center"
-          style={{
-            backgroundColor: "var(--muted)",
-            borderColor: "var(--border)",
-          }}
+          style={{ backgroundColor: "var(--muted)", borderColor: "var(--border)" }}
         >
-          <h3
-            className="font-semibold mb-3"
-            style={{ color: "var(--foreground)" }}
-          >
+          <h3 className="font-semibold mb-3" style={{ color: "var(--foreground)" }}>
             Business Hours
           </h3>
           <p style={{ color: "var(--muted-foreground)" }}>
@@ -441,9 +332,7 @@ export default function Contact() {
             <br />
             Saturday - Sunday: Closed
             <br />
-            <span className="text-sm">
-              Emergency support available 24/7 for critical issues
-            </span>
+            <span className="text-sm">Emergency support available 24/7 for critical issues</span>
           </p>
         </section>
       </div>

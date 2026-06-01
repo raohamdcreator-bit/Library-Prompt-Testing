@@ -440,7 +440,6 @@ function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
 
               <h1 className="hero-title text-4xl md:text-6xl lg:text-7xl mb-6 px-4">
                 Build for{" "}
-                Build for{" "}
                 <span style={{ 
                   background: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
                   WebkitBackgroundClip: 'text',
