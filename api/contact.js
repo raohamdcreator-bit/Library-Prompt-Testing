@@ -37,7 +37,7 @@ from: `Prism Support <contact@prism-app.online>`,      to: process.env.SENDER_EM
       replyTo: email,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background: #0a0d14; color: #e4e4e7; border-radius: 12px;">
-          <h2 style="color: #8b5cf6; margin-bottom: 24px;">New Contact Form Submission</h2>
+          <h2 style="color: #8b5cf6; margin-bottom: 24px;">New Contact Form from Prism</h2>
 
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
             <tr>
