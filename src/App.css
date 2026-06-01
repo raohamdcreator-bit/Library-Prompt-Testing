@@ -1651,96 +1651,75 @@ select option {
 /* ======================================
    3D CARD ROTATION ON SCROLL
 ====================================== */
-/* Purple */
-.feature-card-3d:nth-child(1),
-.feature-card-3d:nth-child(5),
-.feature-card-3d:nth-child(9) {
-  background: linear-gradient(135deg, #1a0828 0%, #2e0a48 100%);
+
+/*   Variant 1 — Deep Purple
+========================= */
+.feature-card-3d:nth-child(3n + 1) {
+  background: linear-gradient(135deg, #14071f 0%, #2a0d42 100%);
   border-color: rgba(139, 92, 246, 0.35);
 }
-.feature-card-3d:nth-child(1) .feature-icon-container,
-.feature-card-3d:nth-child(5) .feature-icon-container,
-.feature-card-3d:nth-child(9) .feature-icon-container {
+
+.feature-card-3d:nth-child(3n + 1) .feature-icon-container {
   background: rgba(139, 92, 246, 0.18);
   border-color: rgba(139, 92, 246, 0.35);
   color: #c4b5fd;
 }
-.feature-card-3d:nth-child(1) .card-bg-icon,
-.feature-card-3d:nth-child(5) .card-bg-icon,
-.feature-card-3d:nth-child(9) .card-bg-icon {
+
+.feature-card-3d:nth-child(3n + 1) .card-bg-icon {
   color: #a78bfa;
 }
-.feature-card-3d:nth-child(1):hover,
-.feature-card-3d:nth-child(5):hover,
-.feature-card-3d:nth-child(9):hover {
+
+.feature-card-3d:nth-child(3n + 1):hover {
   border-color: rgba(139, 92, 246, 0.65);
   box-shadow: 0 8px 32px rgba(139, 92, 246, 0.15);
 }
 
-/* Blue */
-.feature-card-3d:nth-child(2),
-.feature-card-3d:nth-child(6) {
-  background: linear-gradient(135deg, #040e22 0%, #0a1c44 100%);
-  border-color: rgba(59, 130, 246, 0.35);
-}
-.feature-card-3d:nth-child(2) .feature-icon-container,
-.feature-card-3d:nth-child(6) .feature-icon-container {
-  background: rgba(59, 130, 246, 0.18);
-  border-color: rgba(59, 130, 246, 0.35);
-  color: #93c5fd;
-}
-.feature-card-3d:nth-child(2) .card-bg-icon,
-.feature-card-3d:nth-child(6) .card-bg-icon {
-  color: #60a5fa;
-}
-.feature-card-3d:nth-child(2):hover,
-.feature-card-3d:nth-child(6):hover {
-  border-color: rgba(59, 130, 246, 0.65);
-  box-shadow: 0 8px 32px rgba(59, 130, 246, 0.15);
+
+/* =========================
+   Variant 2 — Vibrant Purple
+========================= */
+.feature-card-3d:nth-child(3n + 2) {
+  background: linear-gradient(135deg, #1b0a30 0%, #3b1360 100%);
+  border-color: rgba(168, 85, 247, 0.35);
 }
 
-/* Yellow */
-.feature-card-3d:nth-child(3),
-.feature-card-3d:nth-child(7) {
-  background: linear-gradient(135deg, #1c1002 0%, #372005 100%);
-  border-color: rgba(245, 158, 11, 0.35);
-}
-.feature-card-3d:nth-child(3) .feature-icon-container,
-.feature-card-3d:nth-child(7) .feature-icon-container {
-  background: rgba(245, 158, 11, 0.18);
-  border-color: rgba(245, 158, 11, 0.35);
-  color: #fcd34d;
-}
-.feature-card-3d:nth-child(3) .card-bg-icon,
-.feature-card-3d:nth-child(7) .card-bg-icon {
-  color: #f59e0b;
-}
-.feature-card-3d:nth-child(3):hover,
-.feature-card-3d:nth-child(7):hover {
-  border-color: rgba(245, 158, 11, 0.65);
-  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.15);
+.feature-card-3d:nth-child(3n + 2) .feature-icon-container {
+  background: rgba(168, 85, 247, 0.18);
+  border-color: rgba(168, 85, 247, 0.35);
+  color: #ddd6fe;
 }
 
-/* Red */
-.feature-card-3d:nth-child(4),
-.feature-card-3d:nth-child(8) {
-  background: linear-gradient(135deg, #1c0608 0%, #380810 100%);
-  border-color: rgba(239, 68, 68, 0.35);
+.feature-card-3d:nth-child(3n + 2) .card-bg-icon {
+  color: #c084fc;
 }
-.feature-card-3d:nth-child(4) .feature-icon-container,
-.feature-card-3d:nth-child(8) .feature-icon-container {
-  background: rgba(239, 68, 68, 0.18);
-  border-color: rgba(239, 68, 68, 0.35);
-  color: #fca5a5;
+
+.feature-card-3d:nth-child(3n + 2):hover {
+  border-color: rgba(168, 85, 247, 0.65);
+  box-shadow: 0 8px 32px rgba(168, 85, 247, 0.18);
 }
-.feature-card-3d:nth-child(4) .card-bg-icon,
-.feature-card-3d:nth-child(8) .card-bg-icon {
-  color: #f87171;
+
+
+/* =========================
+   Variant 3 — Royal Violet
+========================= */
+.feature-card-3d:nth-child(3n) {
+  background: linear-gradient(135deg, #120826 0%, #4c1d95 100%);
+  border-color: rgba(124, 58, 237, 0.35);
 }
-.feature-card-3d:nth-child(4):hover,
-.feature-card-3d:nth-child(8):hover {
-  border-color: rgba(239, 68, 68, 0.65);
-  box-shadow: 0 8px 32px rgba(239, 68, 68, 0.15);
+
+.feature-card-3d:nth-child(3n) .feature-icon-container {
+  background: rgba(124, 58, 237, 0.18);
+  border-color: rgba(124, 58, 237, 0.35);
+  color: #e9d5ff;
+}
+
+.feature-card-3d:nth-child(3n) .card-bg-icon {
+  color: #a855f7;
+}
+
+.feature-card-3d:nth-child(3n):hover {
+  border-color: rgba(124, 58, 237, 0.65);
+  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.18);
 }
 
 /* Shared base */
