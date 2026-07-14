@@ -26,12 +26,12 @@
   --ring: #8b5cf6;
   --radius: 16px;
   --black-background: #000000;
-  
+
   /* Semantic Colors */
   --success: #10b981;
   --warning: #f59e0b;
   --info: #3b82f6;
-  
+
   /* Subtle Effects */
   --glow-subtle: rgba(139, 92, 246, 0.15);
   --glow-medium: rgba(139, 92, 246, 0.25);
@@ -48,7 +48,11 @@
 }
 
 body {
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   background: var(--background);
   color: var(--foreground);
   min-height: 100vh;
@@ -103,7 +107,6 @@ select option {
   color: var(--foreground);
 }
 
-
 /* ======================================
    ANIMATED BACKGROUND GRADIENT GLOW (Landing Page)
 ====================================== */
@@ -120,7 +123,12 @@ select option {
   width: 800px;
   height: 800px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.8) 0%, rgba(139, 92, 246, 0.7) 30%, transparent 30%);
+  background: radial-gradient(
+    circle,
+    rgba(139, 92, 246, 0.8) 0%,
+    rgba(139, 92, 246, 0.7) 30%,
+    transparent 30%
+  );
   filter: blur(80px);
   pointer-events: none;
   z-index: 0;
@@ -137,11 +145,17 @@ select option {
   bottom: -300px;
   left: -200px;
   animation-delay: 10s;
-  background: radial-gradient(circle, rgba(124, 58, 237, 1.05) 0%, rgba(124, 58, 237, 1.08) 20%, transparent 20%);
+  background: radial-gradient(
+    circle,
+    rgba(124, 58, 237, 1.05) 0%,
+    rgba(124, 58, 237, 1.08) 20%,
+    transparent 20%
+  );
 }
 
 @keyframes float-orb {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(0, 0) scale(1);
     opacity: 0.8;
   }
@@ -162,7 +176,7 @@ select option {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: 
+  background-image:
     linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
   background-size: 60px 60px;
@@ -248,7 +262,7 @@ select option {
 }
 
 .navbar-link::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 0;
   left: 0;
@@ -978,13 +992,18 @@ select option {
 }
 
 .capsule-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(139, 92, 246, 0.5),
+    transparent
+  );
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -1019,20 +1038,27 @@ select option {
 }
 
 .prompt-card-premium::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.3), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(139, 92, 246, 0.3),
+    transparent
+  );
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 .prompt-card-premium:hover {
   border-color: rgba(139, 92, 246, 0.3);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(139, 92, 246, 0.1);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(139, 92, 246, 0.1);
   transform: translateY(-2px);
 }
 
@@ -1041,11 +1067,21 @@ select option {
 }
 
 /* Staggered animation for cards */
-.prompt-card-premium:nth-child(1) { animation-delay: 0.05s; }
-.prompt-card-premium:nth-child(2) { animation-delay: 0.1s; }
-.prompt-card-premium:nth-child(3) { animation-delay: 0.15s; }
-.prompt-card-premium:nth-child(4) { animation-delay: 0.2s; }
-.prompt-card-premium:nth-child(5) { animation-delay: 0.25s; }
+.prompt-card-premium:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.prompt-card-premium:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.prompt-card-premium:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.prompt-card-premium:nth-child(4) {
+  animation-delay: 0.2s;
+}
+.prompt-card-premium:nth-child(5) {
+  animation-delay: 0.25s;
+}
 
 @keyframes fadeInUp {
   from {
@@ -1114,7 +1150,7 @@ select option {
 }
 
 .content-preview-box.collapsed::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: 0;
   left: 0;
@@ -1132,7 +1168,7 @@ select option {
   font-size: 0.813rem;
   line-height: 1.6;
   color: rgba(228, 228, 231, 0.75);
-  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-family: "JetBrains Mono", "Consolas", monospace;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -1254,7 +1290,9 @@ select option {
   border: 1px solid rgba(139, 92, 246, 0.2);
   border-radius: 8px;
   padding: 0.375rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.1);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(139, 92, 246, 0.1);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   z-index: 1000;
@@ -1367,7 +1405,7 @@ select option {
 }
 
 .result-card-premium::after {
-  content: 'Result';
+  content: "Result";
   position: absolute;
   top: 12px;
   right: 12px;
@@ -1399,10 +1437,18 @@ select option {
   }
 }
 
-.result-card-premium:nth-child(1) { animation-delay: 0.05s; }
-.result-card-premium:nth-child(2) { animation-delay: 0.1s; }
-.result-card-premium:nth-child(3) { animation-delay: 0.15s; }
-.result-card-premium:nth-child(4) { animation-delay: 0.2s; }
+.result-card-premium:nth-child(1) {
+  animation-delay: 0.05s;
+}
+.result-card-premium:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.result-card-premium:nth-child(3) {
+  animation-delay: 0.15s;
+}
+.result-card-premium:nth-child(4) {
+  animation-delay: 0.2s;
+}
 
 /* ======================================
    VISIBILITY BADGE
@@ -1464,7 +1510,6 @@ select option {
   font-size: 0.688rem;
   color: rgba(228, 228, 231, 0.5);
 }
-
 
 /* ======================================
    EXPANDABLE SECTIONS
@@ -1596,8 +1641,12 @@ select option {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* ======================================
@@ -1638,15 +1687,33 @@ select option {
 }
 
 /* Staggered animation delays */
-.scroll-reveal:nth-child(1) { transition-delay: 0.1s; }
-.scroll-reveal:nth-child(2) { transition-delay: 0.2s; }
-.scroll-reveal:nth-child(3) { transition-delay: 0.3s; }
-.scroll-reveal:nth-child(4) { transition-delay: 0.4s; }
-.scroll-reveal:nth-child(5) { transition-delay: 0.5s; }
-.scroll-reveal:nth-child(6) { transition-delay: 0.6s; }
-.scroll-reveal:nth-child(7) { transition-delay: 0.7s; }
-.scroll-reveal:nth-child(8) { transition-delay: 0.8s; }
-.scroll-reveal:nth-child(9) { transition-delay: 0.9s; }
+.scroll-reveal:nth-child(1) {
+  transition-delay: 0.1s;
+}
+.scroll-reveal:nth-child(2) {
+  transition-delay: 0.2s;
+}
+.scroll-reveal:nth-child(3) {
+  transition-delay: 0.3s;
+}
+.scroll-reveal:nth-child(4) {
+  transition-delay: 0.4s;
+}
+.scroll-reveal:nth-child(5) {
+  transition-delay: 0.5s;
+}
+.scroll-reveal:nth-child(6) {
+  transition-delay: 0.6s;
+}
+.scroll-reveal:nth-child(7) {
+  transition-delay: 0.7s;
+}
+.scroll-reveal:nth-child(8) {
+  transition-delay: 0.8s;
+}
+.scroll-reveal:nth-child(9) {
+  transition-delay: 0.9s;
+}
 
 /* ======================================
    3D CARD ROTATION ON SCROLL
@@ -1770,7 +1837,8 @@ select option {
 }
 
 @keyframes pulseGlow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
   }
   50% {
@@ -1835,11 +1903,11 @@ select option {
   .navbar-content {
     padding: 1rem 1.5rem;
   }
-  
+
   .tab-navigation {
     padding: 0 1.5rem;
   }
-  
+
   .section-title {
     font-size: 2rem;
   }
@@ -1849,20 +1917,20 @@ select option {
   .navbar-links {
     display: none;
   }
-  
+
   .gradient-orb {
     width: 500px;
     height: 500px;
   }
-  
+
   .section-title {
     font-size: 1.75rem;
   }
-  
+
   .capsule-card {
     padding: 1.5rem;
   }
-  
+
   .prompt-card-premium {
     padding: 1.25rem;
   }
@@ -1879,7 +1947,7 @@ select option {
   .result-card-premium {
     padding: 16px;
   }
-  
+
   .team-sidebar {
     position: fixed;
     left: 0;
@@ -1927,17 +1995,39 @@ select option {
    UTILITY CLASSES
 ====================================== */
 
-.relative { position: relative; }
-.z-10 { z-index: 10; }
-.flex { display: flex; }
-.flex-col { flex-direction: column; }
-.items-center { align-items: center; }
-.justify-center { justify-content: center; }
-.gap-2 { gap: 0.5rem; }
-.gap-3 { gap: 0.75rem; }
-.gap-4 { gap: 1rem; }
-.w-full { width: 100%; }
-.text-center { text-align: center; }
+.relative {
+  position: relative;
+}
+.z-10 {
+  z-index: 10;
+}
+.flex {
+  display: flex;
+}
+.flex-col {
+  flex-direction: column;
+}
+.items-center {
+  align-items: center;
+}
+.justify-center {
+  justify-content: center;
+}
+.gap-2 {
+  gap: 0.5rem;
+}
+.gap-3 {
+  gap: 0.75rem;
+}
+.gap-4 {
+  gap: 1rem;
+}
+.w-full {
+  width: 100%;
+}
+.text-center {
+  text-align: center;
+}
 
 .flex-center {
   display: flex;
@@ -2823,7 +2913,6 @@ select option {
     height: 14px !important;
   }
 
- 
   /* Kebab Menu - Mobile */
   .kebab-menu {
     right: 0 !important;
@@ -2963,7 +3052,7 @@ select option {
 @media (min-width: 770px) and (max-width: 1024px) {
   /* Only add rules if needed for tablet-specific adjustments */
   /* Desktop layout is maintained, but some spacing might be tighter */
-  
+
   .glass-card.max-w-6xl {
     max-width: 90vw;
   }
@@ -3100,7 +3189,7 @@ select option {
 }
 
 .code-snippet {
-  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-family: "JetBrains Mono", "Consolas", monospace;
   font-size: 0.75rem;
   color: #d4d4d4;
   margin: 0;
@@ -3382,39 +3471,39 @@ select option {
   .comment-preview-item {
     padding: 0.5rem;
   }
-  
+
   .comment-author {
     font-size: 0.75rem;
   }
-  
+
   .comment-text-preview {
     font-size: 0.75rem;
     -webkit-line-clamp: 1;
   }
-  
+
   /*  Mobile comment input improvements */
   .comment-textarea {
     font-size: 0.875rem;
     min-height: 70px;
     padding: 0.625rem;
   }
-  
+
   .comment-actions {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .comment-actions > div:first-child {
     width: 100%;
     text-align: right;
   }
-  
+
   .comment-actions > div:last-child {
     width: 100%;
     display: flex;
     gap: 0.5rem;
   }
-  
+
   .comment-actions button {
     flex: 1;
   }
@@ -3534,8 +3623,12 @@ select option {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .modal-container {
@@ -3759,7 +3852,7 @@ select option {
 }
 
 .output-code-preview-compact pre {
-  font-family: 'JetBrains Mono', 'Consolas', monospace;
+  font-family: "JetBrains Mono", "Consolas", monospace;
   font-size: 0.813rem;
   color: #d4d4d4;
   margin: 0;
@@ -3874,7 +3967,8 @@ select option {
   animation: menuSlideDown 0.2s cubic-bezier(0.4, 0, 0.2, 1); /* CHANGED: Animation name */
 }
 
-@keyframes menuSlideDown { /* CHANGED: Renamed and direction reversed */
+@keyframes menuSlideDown {
+  /* CHANGED: Renamed and direction reversed */
   from {
     opacity: 0;
     transform: translateY(4px); /* CHANGED: Positive instead of negative */
@@ -4103,11 +4197,11 @@ select option {
   .prompt-card-v2 {
     padding: 1.25rem;
   }
-  
+
   .output-preview-panel {
     padding: 0.875rem;
   }
-  
+
   .modal-container {
     max-width: 90vw;
   }
@@ -4118,32 +4212,32 @@ select option {
   .modal-overlay {
     padding: 0.5rem;
   }
-  
+
   .modal-container {
     max-height: 95vh;
   }
-  
+
   .modal-header {
     padding: 1rem;
   }
-  
+
   .modal-content {
     padding: 1rem;
   }
-  
+
   .output-card-header {
     flex-wrap: wrap;
   }
-  
+
   .output-actions {
     width: 100%;
     justify-content: flex-end;
   }
-  
+
   .prompt-actions {
     width: 100%;
   }
-  
+
   .btn-action-primary,
   .btn-action-secondary {
     flex: 1;
@@ -4319,7 +4413,7 @@ select option {
 }
 
 /* ==========================================
-   MOBILE RESPONSIVE
+   MOBILE RESPONSIVENESS
 ========================================== */
 
 @media (max-width: 769px) {
