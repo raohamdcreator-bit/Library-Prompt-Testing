@@ -458,25 +458,6 @@ function Footer({ onNavigate }) {
   );
 }
 
-<<<<<<< HEAD
-// ===================================
-// LANDING PAGE
-// ===================================
-function LandingPage({ onSignIn, onNavigate, onExploreApp, onExitGuestMode }) {
-  useScrollReveal();
-const purpleTheme1 = {
-  bg: "linear-gradient(135deg, #14061f 0%, #2a0a42 100%)",
-  border: "rgba(139, 92, 246, 0.35)",
-  iconBg: "rgba(139, 92, 246, 0.18)",
-  iconBorder: "rgba(139, 92, 246, 0.35)",
-  iconColor: "#c4b5fd",
-  bgIconColor: "#a78bfa",
-  titleColor: "#ede9fe",
-  descColor: "rgba(196, 181, 253, 0.58)",
-  hoverBorder: "rgba(139, 92, 246, 0.65)",
-  hoverShadow: "rgba(139, 92, 246, 0.18)",
-};
-=======
 /* =========================================================================================
    LANDING PAGE DESIGN SYSTEM
    Ported from the reference Hero.tsx / Story.tsx / Pillars.tsx / Comparison.tsx /
@@ -617,35 +598,34 @@ function MagneticButton({
     variant === "primary"
       ? "bg-ink text-white px-7 py-3.5 shadow-float hover:shadow-float-lg"
       : "bg-white text-ink px-7 py-3.5 border border-line hover:border-ink-30";
->>>>>>> feature/promptcard-redesign
 
-const purpleTheme2 = {
-  bg: "linear-gradient(135deg, #1b0a33 0%, #3b1368 100%)",
-  border: "rgba(167, 139, 250, 0.35)",
-  iconBg: "rgba(167, 139, 250, 0.18)",
-  iconBorder: "rgba(167, 139, 250, 0.35)",
-  iconColor: "#ddd6fe",
-  bgIconColor: "#c4b5fd",
-  titleColor: "#f5f3ff",
-  descColor: "rgba(221, 214, 254, 0.58)",
-  hoverBorder: "rgba(167, 139, 250, 0.65)",
-  hoverShadow: "rgba(167, 139, 250, 0.18)",
-};
+  const purpleTheme2 = {
+    bg: "linear-gradient(135deg, #1b0a33 0%, #3b1368 100%)",
+    border: "rgba(167, 139, 250, 0.35)",
+    iconBg: "rgba(167, 139, 250, 0.18)",
+    iconBorder: "rgba(167, 139, 250, 0.35)",
+    iconColor: "#ddd6fe",
+    bgIconColor: "#c4b5fd",
+    titleColor: "#f5f3ff",
+    descColor: "rgba(221, 214, 254, 0.58)",
+    hoverBorder: "rgba(167, 139, 250, 0.65)",
+    hoverShadow: "rgba(167, 139, 250, 0.18)",
+  };
 
-const purpleTheme3 = {
-  bg: "linear-gradient(135deg, #0f0820 0%, #24124a 100%)",
-  border: "rgba(124, 58, 237, 0.35)",
-  iconBg: "rgba(124, 58, 237, 0.18)",
-  iconBorder: "rgba(124, 58, 237, 0.35)",
-  iconColor: "#c4b5fd",
-  bgIconColor: "#8b5cf6",
-  titleColor: "#ede9fe",
-  descColor: "rgba(196, 181, 253, 0.58)",
-  hoverBorder: "rgba(124, 58, 237, 0.65)",
-  hoverShadow: "rgba(124, 58, 237, 0.18)",
-};
+  const purpleTheme3 = {
+    bg: "linear-gradient(135deg, #0f0820 0%, #24124a 100%)",
+    border: "rgba(124, 58, 237, 0.35)",
+    iconBg: "rgba(124, 58, 237, 0.18)",
+    iconBorder: "rgba(124, 58, 237, 0.35)",
+    iconColor: "#c4b5fd",
+    bgIconColor: "#8b5cf6",
+    titleColor: "#ede9fe",
+    descColor: "rgba(196, 181, 253, 0.58)",
+    hoverBorder: "rgba(124, 58, 237, 0.65)",
+    hoverShadow: "rgba(124, 58, 237, 0.18)",
+  };
 
-const themes = [purpleTheme1, purpleTheme2, purpleTheme3];
+  const themes = [purpleTheme1, purpleTheme2, purpleTheme3];
   return (
     <button
       ref={ref}
@@ -1106,44 +1086,6 @@ function LandingHeroWorkspace() {
               <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white">
                 AK
               </div>
-<<<<<<< HEAD
-
-              <h1 className="hero-title text-4xl md:text-6xl lg:text-7xl mb-6 px-4">
-                Build for{" "}
-                <span style={{ 
-                  background: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text'
-                }}>
-                Next Generation </span>
-                AI Creators{" "}
-                
-              </h1>
-
-              <p className="hero-description text-lg md:text-xl mb-8 max-w-2xl mx-auto leading-relaxed px-4"
-                style={{ color: "var(--muted-foreground)" }}>
-                Upload prompts, track performance, build your creator community, and turn viral content into lasting value
-              </p>
-
-              {/* CTA Buttons */}
-              <div className="hero-cta flex flex-row gap-4 justify-center items-center mb-8 px-4 whitespace-nowrap">
-                <button
-                  onClick={onExploreApp}
-                  className="btn-premium inline-flex items-center gap-2"
-                >
-                  <span>Try it now</span>
-                  <ArrowRight size={20} className="btn-arrow" />
-                </button>
-
-                <button
-                  onClick={() => onNavigate("/waitlist")}
-                  className="btn-secondary inline-flex items-center gap-2"
-                >
-                  <span>Waitlist | Feedback</span>
-                  <ArrowUpRight size={20} className="btn-arrow" />
-                </button>
-=======
             </div>
             <div>
               <div className="text-sm font-semibold">Ava Kessler</div>
@@ -1154,7 +1096,6 @@ function LandingHeroWorkspace() {
             <div>
               <div className="text-base font-bold">
                 <Counter value={12400} suffix="K" />
->>>>>>> feature/promptcard-redesign
               </div>
               <div className="text-[9px] uppercase tracking-wide text-muted">
                 Followers
@@ -1576,179 +1517,6 @@ function LandingProblem() {
   );
 }
 
-<<<<<<< HEAD
-        {/* Features Grid */}
-<section className="container mx-auto px-4 py-20">
-  <div className="section-header scroll-reveal">
-    <h2 className="section-title">
-      Everything you need to collaborate on AI prompts
-    </h2>
-    <p className="section-subtitle">
-      Comprehensive tools designed for modern AI prompt development
-    </p>
-  </div>
-
-  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-    
-    {[
-  {
-    icon: <Database size={24} />,
-    bgIcon: <Database size={80} />,
-    title: "Prompt Vault",
-    desc: "Store AI images, videos, prompts and results in one organized workspace.",
-    theme: themes[0],
-  },
-  {
-    icon: <BarChart3 size={24} />,
-    bgIcon: <BarChart3 size={80} />,
-    title: "Performance Analytics",
-    desc: "Understand which prompts attract the most views, saves and engagement.",
-    theme: themes[1],
-  },
-  {
-    icon: <Save size={24} />,
-    bgIcon: <Save size={80} />,
-    title: "Result Attachments",
-    desc: "Attach generated images and videos directly to every prompt.",
-    theme: themes[2],
-  },
-  {
-    icon: <Users size={24} />,
-    bgIcon: <Users size={80} />,
-    title: "Creator Profiles",
-    desc: "Build a professional prompt portfolio and grow your audience.",
-    theme: themes[0],
-  },
-  {
-    icon: <RotateCcw size={24} />,
-    bgIcon: <RotateCcw size={80} />,
-    title: "Prompt Reuse",
-    desc: "Reuse successful prompt frameworks across multiple projects.",
-    theme: themes[1],
-  },
-  {
-    icon: <EyeOff size={24} />,
-    bgIcon: <EyeOff size={80} />,
-    title: "Private Collections",
-    desc: "Keep premium prompts private while showcasing public content.",
-    theme: themes[2],
-  },
-  {
-    icon: <GitBranch size={24} />,
-    bgIcon: <GitBranch size={80} />,
-    title: "Prompt Evolution",
-    desc: "Track prompt improvements and discover what changes perform best.",
-    theme: themes[0],
-  },
-  {
-    icon: <UserCheck size={24} />,
-    bgIcon: <UserCheck size={80} />,
-    title: "Community Discovery",
-    desc: "Help users discover creators through searchable prompt libraries.",
-    theme: themes[1],
-  },
-  {
-    icon: <FileDown size={24} />,
-    bgIcon: <FileDown size={80} />,
-    title: "Export & Share",
-    desc: "Share prompts, workflows and results across platforms instantly.",
-    theme: themes[2],
-  },
-].map((feature, index) => (
-      <div
-        key={index}
-        className="scroll-reveal"
-        style={{
-          background: feature.theme.bg,
-          border: `1px solid ${feature.theme.border}`,
-          borderRadius: "16px",
-          padding: "1.25rem",
-          position: "relative",
-          overflow: "hidden",
-          transition: "transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease",
-          cursor: "default",
-        }}
-        onMouseEnter={e => {
-          e.currentTarget.style.transform = "translateY(-3px)";
-          e.currentTarget.style.borderColor = feature.theme.hoverBorder;
-          e.currentTarget.style.boxShadow = `0 8px 32px ${feature.theme.hoverShadow}`;
-          e.currentTarget.querySelector(".bg-icon-watermark").style.opacity = "0.15";
-        }}
-        onMouseLeave={e => {
-          e.currentTarget.style.transform = "translateY(0)";
-          e.currentTarget.style.borderColor = feature.theme.border;
-          e.currentTarget.style.boxShadow = "none";
-          e.currentTarget.querySelector(".bg-icon-watermark").style.opacity = "0.08";
-        }}
-      >
-        {/* Background watermark icon */}
-        <div
-          className="bg-icon-watermark"
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            bottom: "-12px",
-            right: "-12px",
-            color: feature.theme.bgIconColor,
-            opacity: 0.08,
-            lineHeight: 1,
-            pointerEvents: "none",
-            transition: "opacity 0.2s ease",
-          }}
-        >
-          {feature.bgIcon}
-        </div>
-
-        {/* Small icon container */}
-        <div
-          style={{
-            width: "40px",
-            height: "40px",
-            borderRadius: "10px",
-            background: feature.theme.iconBg,
-            border: `1px solid ${feature.theme.iconBorder}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: "0.75rem",
-            position: "relative",
-            zIndex: 1,
-            color: feature.theme.iconColor,
-          }}
-        >
-          {feature.icon}
-        </div>
-
-        <h3
-          className="text-lg font-semibold mb-2"
-          style={{ color: feature.theme.titleColor, position: "relative", zIndex: 1 }}
-        >
-          {feature.title}
-        </h3>
-        <p
-          className="text-sm leading-relaxed"
-          style={{ color: feature.theme.descColor, position: "relative", zIndex: 1 }}
-        >
-          {feature.desc}
-        </p>
-      </div>
-    ))}
-  </div>
-
-  <div className="text-center scroll-reveal">
-    <button className="btn-premium" onClick={onExploreApp}>
-      Explore Features
-      <ArrowRight size={20} className="btn-arrow" />
-    </button>
-  </div>
-</section>
-        {/* Upcoming Features Section */}
-        <section className="container mx-auto px-4 py-20">
-          <div className="section-header scroll-reveal">
-            <div className="hero-badge mb-6 pulse-glow mx-auto">
-              <Clock size={16} />
-              <span className="font-medium">Coming Soon</span>
-=======
 function LandingSolution() {
   const { ref, progress } = useElementScrollProgress();
   const center = [
@@ -1819,7 +1587,6 @@ function LandingSolution() {
             <div className="absolute inset-6 rotate-45 rounded-xl bg-ink" />
             <div className="absolute inset-0 flex items-center justify-center">
               <span className="text-sm font-bold text-white">PRISM</span>
->>>>>>> feature/promptcard-redesign
             </div>
           </div>
         </div>
