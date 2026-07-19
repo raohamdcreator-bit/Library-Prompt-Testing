@@ -16,10 +16,18 @@ import {
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
 import { useTimestamp } from "../hooks/useTimestamp";
-import { 
-  MessageSquare, Send, X, Edit2, Trash2, Reply, 
-  Clock, Loader, Check, AlertCircle
-} from 'lucide-react';
+import {
+  MessageSquare,
+  Send,
+  X,
+  Edit2,
+  Trash2,
+  Reply,
+  Clock,
+  Loader,
+  Check,
+  AlertCircle,
+} from "lucide-react";
 
 export default function TeamChat({
   teamId,
@@ -44,8 +52,8 @@ export default function TeamChat({
   // Load user profiles with caching
   async function loadUserProfiles(userIds) {
     const profiles = {};
-    const uncachedIds = userIds.filter(id => !userProfiles[id]);
-    
+    const uncachedIds = userIds.filter((id) => !userProfiles[id]);
+
     if (uncachedIds.length === 0) return;
 
     for (const userId of uncachedIds) {
@@ -58,7 +66,7 @@ export default function TeamChat({
           profiles[userId] = {
             name: "Unknown User",
             email: "",
-            avatar: null
+            avatar: null,
           };
         }
       } catch (error) {
@@ -66,11 +74,11 @@ export default function TeamChat({
         profiles[userId] = {
           name: "Unknown User",
           email: "",
-          avatar: null
+          avatar: null,
         };
       }
     }
-    
+
     if (Object.keys(profiles).length > 0) {
       setUserProfiles((prev) => ({ ...prev, ...profiles }));
     }
@@ -86,7 +94,7 @@ export default function TeamChat({
 
     setLoading(true);
     setError(null);
-    
+
     const messagesRef = collection(db, "teams", teamId, "chat");
     const q = query(messagesRef, orderBy("timestamp", "desc"), limit(100));
 
@@ -106,7 +114,7 @@ export default function TeamChat({
         const userIds = [
           ...new Set(messageData.map((m) => m.userId).filter(Boolean)),
         ];
-        
+
         if (userIds.length > 0) {
           await loadUserProfiles(userIds);
         }
@@ -120,7 +128,7 @@ export default function TeamChat({
         console.error("Error loading messages:", error);
         setError("Failed to load messages. Please check your permissions.");
         setLoading(false);
-      }
+      },
     );
 
     return () => unsubscribe();
@@ -180,30 +188,32 @@ export default function TeamChat({
       // Reset form
       setNewMessage("");
       setReplyTo(null);
-      
+
       // Focus input for next message
       setTimeout(() => {
         inputRef.current?.focus();
       }, 100);
-      
     } catch (error) {
       console.error("Error sending message:", error);
-      
+
       // Better error messages
       let errorMessage = "Failed to send message. ";
-      
-      if (error.code === 'permission-denied') {
-        errorMessage += "You don't have permission to send messages in this team.";
-      } else if (error.code === 'failed-precondition') {
+
+      if (error.code === "permission-denied") {
+        errorMessage +=
+          "You don't have permission to send messages in this team.";
+      } else if (error.code === "failed-precondition") {
         errorMessage += "Please check your internet connection.";
-      } else if (error.message?.includes('Missing or insufficient permissions')) {
+      } else if (
+        error.message?.includes("Missing or insufficient permissions")
+      ) {
         errorMessage += "Security rules prevented this action.";
       } else {
         errorMessage += "Please try again.";
       }
-      
+
       setError(errorMessage);
-      
+
       // Clear error after 5 seconds
       setTimeout(() => setError(null), 5000);
     } finally {
@@ -219,13 +229,13 @@ export default function TeamChat({
       await deleteDoc(doc(db, "teams", teamId, "chat", messageId));
     } catch (error) {
       console.error("Error deleting message:", error);
-      
-      if (error.code === 'permission-denied') {
+
+      if (error.code === "permission-denied") {
         setError("You don't have permission to delete this message.");
       } else {
         setError("Failed to delete message.");
       }
-      
+
       setTimeout(() => setError(null), 5000);
     }
   }
@@ -244,8 +254,6 @@ export default function TeamChat({
     setNewMessage("");
     inputRef.current?.focus();
   }
-
- 
 
   // User Avatar Component
   function UserAvatar({ userId, userName }) {
@@ -298,8 +306,8 @@ export default function TeamChat({
       >
         <UserAvatar userId={message.userId} userName={message.userName} />
 
-        <div 
-          className={`flex flex-col ${isMine ? "items-end" : "items-start"}`} 
+        <div
+          className={`flex flex-col ${isMine ? "items-end" : "items-start"}`}
           style={{ maxWidth: "75%" }}
         >
           {/* Message Header */}
@@ -332,7 +340,7 @@ export default function TeamChat({
                 borderColor: "var(--primary)",
               }}
             >
-              <p 
+              <p
                 className="flex items-center gap-1 mb-1"
                 style={{ color: "var(--muted-foreground)" }}
               >
@@ -359,11 +367,11 @@ export default function TeamChat({
               <p className="text-sm whitespace-pre-wrap break-words">
                 {message.text}
               </p>
-              
+
               {/* Edited Indicator */}
               {message.edited && (
-                <span 
-                  className="text-xs italic flex items-center gap-1 mt-1" 
+                <span
+                  className="text-xs italic flex items-center gap-1 mt-1"
                   style={{ opacity: 0.7 }}
                 >
                   <Edit2 size={10} />
@@ -380,11 +388,11 @@ export default function TeamChat({
                     ? "left-0 -translate-x-full"
                     : "right-0 translate-x-full"
                 } opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 p-1 rounded-lg`}
-                style={{ 
-                  backgroundColor: "var(--card)", 
-                  marginLeft: isMine ? '-4px' : '0', 
-                  marginRight: isMine ? '0' : '-4px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                style={{
+                  backgroundColor: "var(--card)",
+                  marginLeft: isMine ? "-4px" : "0",
+                  marginRight: isMine ? "0" : "-4px",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
                 }}
               >
                 <button
@@ -447,9 +455,9 @@ export default function TeamChat({
               className="w-10 h-10 rounded-lg flex items-center justify-center"
               style={{ backgroundColor: "var(--primary)" }}
             >
-              <MessageSquare 
-                size={20} 
-                style={{ color: "var(--primary-foreground)" }} 
+              <MessageSquare
+                size={20}
+                style={{ color: "var(--primary-foreground)" }}
               />
             </div>
             <div>
@@ -481,10 +489,10 @@ export default function TeamChat({
         {error && (
           <div
             className="px-4 py-3 flex items-center gap-2 border-b"
-            style={{ 
-              backgroundColor: "var(--destructive)", 
+            style={{
+              backgroundColor: "var(--destructive)",
               color: "var(--destructive-foreground)",
-              borderColor: "var(--border)"
+              borderColor: "var(--border)",
             }}
           >
             <AlertCircle size={16} />
@@ -499,11 +507,11 @@ export default function TeamChat({
         )}
 
         {/* Messages Body */}
-        <div 
-          className="flex-1 overflow-y-auto p-4" 
-          style={{ 
-            scrollbarWidth: 'thin',
-            scrollbarColor: 'rgba(139, 92, 246, 0.3) transparent'
+        <div
+          className="flex-1 overflow-y-auto p-4"
+          style={{
+            scrollbarWidth: "thin",
+            scrollbarColor: "rgba(139, 92, 246, 0.3) transparent",
           }}
         >
           {loading ? (
@@ -521,9 +529,9 @@ export default function TeamChat({
           ) : messages.length === 0 ? (
             <div className="flex items-center justify-center h-full text-center">
               <div>
-                <div 
-                  className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center" 
-                  style={{ backgroundColor: 'var(--muted)' }}
+                <div
+                  className="w-16 h-16 mx-auto mb-3 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: "var(--muted)" }}
                 >
                   <MessageSquare size={32} color="var(--muted-foreground)" />
                 </div>
@@ -555,9 +563,9 @@ export default function TeamChat({
         {replyTo && (
           <div
             className="px-4 py-2 border-t flex items-center justify-between"
-            style={{ 
-              backgroundColor: "var(--secondary)", 
-              borderColor: "var(--border)" 
+            style={{
+              backgroundColor: "var(--secondary)",
+              borderColor: "var(--border)",
             }}
           >
             <div className="flex-1 min-w-0">
@@ -589,17 +597,14 @@ export default function TeamChat({
         {editingMessage && (
           <div
             className="px-4 py-2 border-t flex items-center justify-between"
-            style={{ 
-              backgroundColor: "var(--secondary)", 
-              borderColor: "var(--border)" 
+            style={{
+              backgroundColor: "var(--secondary)",
+              borderColor: "var(--border)",
             }}
           >
             <div className="flex-1 flex items-center gap-2">
               <Edit2 size={14} style={{ color: "var(--primary)" }} />
-              <p
-                className="text-xs"
-                style={{ color: "var(--foreground)" }}
-              >
+              <p className="text-xs" style={{ color: "var(--foreground)" }}>
                 Editing message
               </p>
             </div>
@@ -630,10 +635,10 @@ export default function TeamChat({
               }
               className="form-input flex-1"
               disabled={sending}
-              maxLength={5000}
+              maxLength={1000}
               style={{
-                fontSize: '0.875rem',
-                padding: '0.625rem 0.875rem'
+                fontSize: "0.875rem",
+                padding: "0.625rem 0.875rem",
               }}
               aria-label="Message input"
             />
@@ -643,9 +648,10 @@ export default function TeamChat({
               disabled={!newMessage.trim() || sending}
               className="btn-primary px-3 py-2 flex items-center justify-center transition-all"
               style={{
-                minWidth: '44px',
+                minWidth: "44px",
                 opacity: !newMessage.trim() || sending ? 0.5 : 1,
-                cursor: !newMessage.trim() || sending ? 'not-allowed' : 'pointer'
+                cursor:
+                  !newMessage.trim() || sending ? "not-allowed" : "pointer",
               }}
               aria-label={editingMessage ? "Save changes" : "Send message"}
             >
@@ -658,17 +664,18 @@ export default function TeamChat({
               )}
             </button>
           </div>
-          
+
           {/* Character Counter */}
-          <div 
-            className="text-xs text-right" 
-            style={{ 
-              color: newMessage.length > 4500 
-                ? 'var(--destructive)' 
-                : 'var(--muted-foreground)' 
+          <div
+            className="text-xs text-right"
+            style={{
+              color:
+                newMessage.length > 4500
+                  ? "var(--destructive)"
+                  : "var(--muted-foreground)",
             }}
           >
-            {newMessage.length}/5000
+            {newMessage.length}/1000
           </div>
         </form>
       </div>

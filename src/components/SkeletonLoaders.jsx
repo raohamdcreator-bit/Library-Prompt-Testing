@@ -32,29 +32,30 @@ const pyramidStyles = `
   }
   .pyramid-loader .wrapper .side1 {
     transform: rotateZ(-30deg) rotateY(90deg);
-    background: linear-gradient(to bottom right, #1afbf0, #da00ff);
+    background: linear-gradient(to bottom right, #f2f2f3, #6b6b71);
   }
   .pyramid-loader .wrapper .side2 {
     transform: rotateZ(30deg) rotateY(90deg);
-    background: linear-gradient(to bottom right, #1afbf0, #da00ff);
+    background: linear-gradient(to bottom right, #f2f2f3, #6b6b71);
   }
   .pyramid-loader .wrapper .side3 {
     transform: rotateX(30deg);
-    background: linear-gradient(to bottom right, #1afbf0, #da00ff);
+    background: linear-gradient(to bottom right, #f2f2f3, #6b6b71);
   }
   .pyramid-loader .wrapper .side4 {
     transform: rotateX(-30deg);
-    background: linear-gradient(to bottom right, #1afbf0, #da00ff);
+    background: linear-gradient(to bottom right, #f2f2f3, #6b6b71);
   }
   .pyramid-loader .wrapper .shadow {
     width: 60px;
     height: 60px;
-    background: #8b5ad5;
+    background: #d4d4d8;
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
     margin: auto;
     transform: rotateX(90deg) translateZ(-40px);
     filter: blur(12px);
+    opacity: 0.35;
   }
 `;
 
@@ -69,7 +70,7 @@ export function PyramidLoader({ label = "Loading..." }) {
           alignItems: "center",
           justifyContent: "center",
           minHeight: "100vh",
-          background: "#0f0f1a",
+          background: "var(--background, #0a0a0b)",
           gap: "2rem",
         }}
       >
@@ -85,11 +86,11 @@ export function PyramidLoader({ label = "Loading..." }) {
         {label && (
           <p
             style={{
-              color: "#c084fc",
+              color: "var(--muted-foreground, #9b9ba3)",
               fontSize: "1rem",
               letterSpacing: "0.1em",
               fontFamily: "sans-serif",
-              opacity: 0.8,
+              opacity: 0.9,
             }}
           >
             {label}
@@ -104,8 +105,8 @@ export function PyramidLoader({ label = "Loading..." }) {
 
 const flowerStyles = `
   .enhance-loader {
-    --fill-color: #5c3d99;
-    --shine-color: #5c3d9933;
+    --fill-color: #f2f2f3;
+    --shine-color: rgba(242,242,243,0.2);
     transform: scale(0.5);
     width: 100px;
     height: auto;
@@ -169,7 +170,7 @@ function PetalSVG() {
         <path d="M50 10 C30 10, 10 30, 10 50 C10 70, 30 90, 50 90 C70 90, 90 70, 90 50 C90 30, 70 10, 50 10Z" />
         <path
           d="M50 25 C40 25, 25 40, 25 50 C25 60, 40 75, 50 75 C60 75, 75 60, 75 50 C75 40, 60 25, 50 25Z"
-          fill="rgba(255,255,255,0.15)"
+          fill="rgba(10,10,11,0.25)"
         />
       </g>
     </svg>
@@ -188,15 +189,24 @@ export function EnhanceLoader({ label = "Enhancing prompt..." }) {
           gap: "0.5rem",
         }}
       >
-        <div className="enhance-loader" style={{ position: "relative", width: 100, height: 100 }}>
-          <div id="pegtopone"><PetalSVG /></div>
-          <div id="pegtoptwo"><PetalSVG /></div>
-          <div id="pegtopthree"><PetalSVG /></div>
+        <div
+          className="enhance-loader"
+          style={{ position: "relative", width: 100, height: 100 }}
+        >
+          <div id="pegtopone">
+            <PetalSVG />
+          </div>
+          <div id="pegtoptwo">
+            <PetalSVG />
+          </div>
+          <div id="pegtopthree">
+            <PetalSVG />
+          </div>
         </div>
         {label && (
           <span
             style={{
-              color: "#5c3d99",
+              color: "var(--muted-foreground, #9b9ba3)",
               fontSize: "0.75rem",
               fontFamily: "sans-serif",
               letterSpacing: "0.05em",
@@ -210,7 +220,39 @@ export function EnhanceLoader({ label = "Enhancing prompt..." }) {
   );
 }
 
-// ─── Original skeleton utilities (unchanged) ────────────────────────────────
+// ─── Modern shimmer skeleton primitive ──────────────────────────────────────
+// A single shared shimmer animation (sweeping highlight, not a flat pulse)
+// used by every skeleton block below, themed to the dark "ink" palette.
+
+const skeletonShimmerStyles = `
+  .modern-skeleton {
+    position: relative;
+    overflow: hidden;
+    background: var(--muted, #1e1e22);
+    isolation: isolate;
+  }
+  .modern-skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(var(--primary-rgb, 242, 242, 243), 0.12),
+      transparent
+    );
+    animation: modern-shimmer 1.6s ease-in-out infinite;
+  }
+  @keyframes modern-shimmer {
+    100% { transform: translateX(100%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .modern-skeleton::after { animation: none; }
+  }
+`;
+
+// ─── Original skeleton utilities (now dark-themed + modern shimmer) ─────────
 
 export function Skeleton({
   width,
@@ -224,10 +266,13 @@ export function Skeleton({
     rectangular: "rounded-none",
   };
   return (
-    <div
-      className={`bg-gray-200 animate-pulse ${variantClasses[variant]} ${className}`}
-      style={{ width, height }}
-    />
+    <>
+      <style>{skeletonShimmerStyles}</style>
+      <div
+        className={`modern-skeleton ${variantClasses[variant]} ${className}`}
+        style={{ width, height }}
+      />
+    </>
   );
 }
 
@@ -269,7 +314,12 @@ export function TeamCardSkeleton() {
   return (
     <div className="team-item p-3 border-2 border-transparent rounded-lg mb-2">
       <div className="flex items-start gap-3">
-        <Skeleton variant="circle" width="1.25rem" height="1.25rem" className="mt-1" />
+        <Skeleton
+          variant="circle"
+          width="1.25rem"
+          height="1.25rem"
+          className="mt-1"
+        />
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <Skeleton width="60%" height="1rem" />
@@ -287,7 +337,10 @@ export function TeamCardSkeleton() {
 
 export function SearchFiltersSkeleton() {
   return (
-    <div className="bg-white border rounded-lg p-4 mb-6 shadow-sm">
+    <div
+      className="border rounded-lg p-4 mb-6"
+      style={{ background: "var(--card)", borderColor: "var(--border)" }}
+    >
       <div className="flex items-center gap-3 mb-4">
         <Skeleton width="100%" height="2.5rem" className="flex-1" />
         <Skeleton width="8rem" height="2.5rem" />
@@ -299,7 +352,10 @@ export function SearchFiltersSkeleton() {
 
 export function BulkOperationsSkeleton() {
   return (
-    <div className="bg-white border rounded-lg p-4 mb-4 shadow-sm">
+    <div
+      className="border rounded-lg p-4 mb-4"
+      style={{ background: "var(--card)", borderColor: "var(--border)" }}
+    >
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-4">
           <Skeleton width="6rem" height="1rem" />
@@ -313,14 +369,21 @@ export function BulkOperationsSkeleton() {
 
 export function TeamMembersSkeleton() {
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border">
+    <div
+      className="p-6 rounded-lg border"
+      style={{ background: "var(--card)", borderColor: "var(--border)" }}
+    >
       <div className="flex items-center justify-between mb-4">
         <Skeleton width="8rem" height="1.5rem" />
         <Skeleton width="3rem" height="1rem" />
       </div>
       <div className="space-y-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="flex items-center justify-between p-3 border rounded-lg">
+          <div
+            key={i}
+            className="flex items-center justify-between p-3 rounded-lg border"
+            style={{ borderColor: "var(--border)" }}
+          >
             <div className="flex items-center gap-3">
               <Skeleton variant="circle" width="1.5rem" height="1.5rem" />
               <div>
@@ -341,7 +404,10 @@ export function TeamMembersSkeleton() {
 
 export function FormSkeleton() {
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border mb-6">
+    <div
+      className="p-6 rounded-lg border mb-6"
+      style={{ background: "var(--card)", borderColor: "var(--border)" }}
+    >
       <Skeleton width="8rem" height="1.5rem" className="mb-4" />
       <div className="space-y-4">
         <div>
@@ -368,8 +434,16 @@ export function FormSkeleton() {
 export function SidebarSkeleton() {
   return (
     <div className="team-sidebar w-72 p-4 flex flex-col">
-      <div className="flex items-center p-3 bg-gray-50 rounded-lg mb-4">
-        <Skeleton variant="circle" width="2rem" height="2rem" className="mr-3" />
+      <div
+        className="flex items-center p-3 rounded-lg mb-4"
+        style={{ background: "var(--muted)" }}
+      >
+        <Skeleton
+          variant="circle"
+          width="2rem"
+          height="2rem"
+          className="mr-3"
+        />
         <div className="flex-1">
           <Skeleton width="70%" height="0.875rem" className="mb-1" />
           <Skeleton width="40%" height="0.75rem" />
@@ -387,7 +461,7 @@ export function SidebarSkeleton() {
           <TeamCardSkeleton key={i} />
         ))}
       </div>
-      <div className="border-t border-gray-200 pt-4">
+      <div className="border-t pt-4" style={{ borderColor: "var(--border)" }}>
         <Skeleton width="100%" height="2.5rem" className="mb-2" />
         <Skeleton width="100%" height="2.5rem" className="mb-4" />
         <Skeleton width="100%" height="2.5rem" />
@@ -398,7 +472,10 @@ export function SidebarSkeleton() {
 
 export function FavoritesListSkeleton() {
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border">
+    <div
+      className="p-6 rounded-lg border"
+      style={{ background: "var(--card)", borderColor: "var(--border)" }}
+    >
       <div className="flex items-center justify-between mb-4">
         <Skeleton width="8rem" height="1.5rem" />
         <Skeleton width="3rem" height="0.875rem" />
@@ -423,8 +500,16 @@ export function FavoritesListSkeleton() {
               <Skeleton width="75%" height="0.875rem" />
             </div>
             <div className="flex flex-wrap gap-1">
-              <Skeleton width="3rem" height="1.25rem" className="rounded-full" />
-              <Skeleton width="4rem" height="1.25rem" className="rounded-full" />
+              <Skeleton
+                width="3rem"
+                height="1.25rem"
+                className="rounded-full"
+              />
+              <Skeleton
+                width="4rem"
+                height="1.25rem"
+                className="rounded-full"
+              />
             </div>
           </div>
         ))}
@@ -435,8 +520,11 @@ export function FavoritesListSkeleton() {
 
 export function TableSkeleton({ rows = 5, columns = 4 }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-      <div className="border-b p-4">
+    <div
+      className="rounded-lg border overflow-hidden"
+      style={{ background: "var(--card)", borderColor: "var(--border)" }}
+    >
+      <div className="border-b p-4" style={{ borderColor: "var(--border)" }}>
         <div className="flex gap-4">
           {Array.from({ length: columns }).map((_, i) => (
             <Skeleton key={i} width="8rem" height="1rem" />
@@ -445,7 +533,11 @@ export function TableSkeleton({ rows = 5, columns = 4 }) {
       </div>
       <div>
         {Array.from({ length: rows }).map((_, rowIndex) => (
-          <div key={rowIndex} className="border-b last:border-b-0 p-4">
+          <div
+            key={rowIndex}
+            className="border-b last:border-b-0 p-4"
+            style={{ borderColor: "var(--border)" }}
+          >
             <div className="flex gap-4">
               {Array.from({ length: columns }).map((_, colIndex) => (
                 <Skeleton key={colIndex} width="8rem" height="1rem" />
@@ -463,11 +555,17 @@ export function PageSkeleton() {
     <div className="app-container flex">
       <SidebarSkeleton />
       <div className="flex-1 flex flex-col">
-        <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div
+          className="border-b px-6 py-4"
+          style={{ background: "var(--card)", borderColor: "var(--border)" }}
+        >
           <Skeleton width="12rem" height="2rem" className="mb-2" />
           <Skeleton width="20rem" height="1rem" />
         </div>
-        <div className="flex-1 p-6 overflow-y-auto bg-gray-50">
+        <div
+          className="flex-1 p-6 overflow-y-auto"
+          style={{ background: "var(--background)" }}
+        >
           <SearchFiltersSkeleton />
           <BulkOperationsSkeleton />
           <FormSkeleton />
