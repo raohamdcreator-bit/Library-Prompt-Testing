@@ -1,11 +1,35 @@
 // src/pages/Waitlist.jsx - Real User Feedback Only
 import { useState, useEffect } from "react";
-import { Rocket, CheckCircle2, XCircle, Zap, MessageCircle, Crown, Star, Quote, MessageSquare } from "lucide-react";
-import { collection, addDoc, serverTimestamp, query, where, orderBy, limit, getDocs } from "firebase/firestore";
+import {
+  Rocket,
+  CheckCircle2,
+  XCircle,
+  Zap,
+  MessageCircle,
+  Crown,
+  Star,
+  Quote,
+  MessageSquare,
+} from "lucide-react";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+} from "firebase/firestore";
 import { db } from "../lib/firebase";
 
 // Star Rating Component
-function StarRating({ rating, onRatingChange, interactive = false, size = 20 }) {
+function StarRating({
+  rating,
+  onRatingChange,
+  interactive = false,
+  size = 20,
+}) {
   const [hover, setHover] = useState(0);
 
   return (
@@ -18,14 +42,16 @@ function StarRating({ rating, onRatingChange, interactive = false, size = 20 }) 
           onMouseEnter={() => interactive && setHover(star)}
           onMouseLeave={() => interactive && setHover(0)}
           disabled={!interactive}
-          className={`transition-all duration-200 ${interactive ? 'cursor-pointer hover:scale-110' : 'cursor-default'}`}
-          style={{ background: 'none', border: 'none', padding: 0 }}
+          className={`transition-all duration-200 ${interactive ? "cursor-pointer hover:scale-110" : "cursor-default"}`}
+          style={{ background: "none", border: "none", padding: 0 }}
         >
           <Star
             size={size}
             fill={star <= (hover || rating) ? "#fbbf24" : "none"}
-            stroke={star <= (hover || rating) ? "#fbbf24" : "var(--muted-foreground)"}
-            style={{ transition: 'all 0.2s ease' }}
+            stroke={
+              star <= (hover || rating) ? "#fbbf24" : "var(--muted-foreground)"
+            }
+            style={{ transition: "all 0.2s ease" }}
           />
         </button>
       ))}
@@ -41,19 +67,28 @@ function TestimonialCard({ testimonial }) {
       style={{ borderColor: "var(--border)" }}
     >
       <div className="mb-4">
-        <Quote className="w-8 h-8 opacity-30" style={{ color: "var(--primary)" }} />
+        <Quote
+          className="w-8 h-8 opacity-30"
+          style={{ color: "var(--primary)" }}
+        />
       </div>
-      
+
       <p
         className="text-sm mb-4 flex-1 leading-relaxed"
         style={{ color: "var(--foreground)" }}
       >
         "{testimonial.feedback}"
       </p>
-      
-      <div className="flex items-center justify-between pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+
+      <div
+        className="flex items-center justify-between pt-4 border-t"
+        style={{ borderColor: "var(--border)" }}
+      >
         <div>
-          <p className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>
+          <p
+            className="font-semibold text-sm"
+            style={{ color: "var(--foreground)" }}
+          >
             {testimonial.name}
           </p>
           <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
@@ -87,7 +122,10 @@ export default function Waitlist({ onNavigate }) {
     feedback: "",
     category: "general",
   });
-  const [feedbackStatus, setFeedbackStatus] = useState({ type: "", message: "" });
+  const [feedbackStatus, setFeedbackStatus] = useState({
+    type: "",
+    message: "",
+  });
   const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   // Real testimonials from Firebase
@@ -105,12 +143,12 @@ export default function Waitlist({ onNavigate }) {
           where("rating", ">=", 4),
           orderBy("rating", "desc"),
           orderBy("timestamp", "desc"),
-          limit(6)
+          limit(6),
         );
-        
+
         const querySnapshot = await getDocs(feedbackQuery);
         const fetchedTestimonials = [];
-        
+
         querySnapshot.forEach((doc) => {
           const data = doc.data();
           fetchedTestimonials.push({
@@ -120,7 +158,7 @@ export default function Waitlist({ onNavigate }) {
             feedback: data.feedback,
           });
         });
-        
+
         setTestimonials(fetchedTestimonials);
       } catch (error) {
         console.error("Error fetching testimonials:", error);
@@ -209,7 +247,12 @@ export default function Waitlist({ onNavigate }) {
   };
 
   const handleFeedbackSubmit = async () => {
-    if (!feedbackData.name || !feedbackData.email || !feedbackData.rating || !feedbackData.feedback) {
+    if (
+      !feedbackData.name ||
+      !feedbackData.email ||
+      !feedbackData.rating ||
+      !feedbackData.feedback
+    ) {
       setFeedbackStatus({
         type: "error",
         message: "Please fill in all required fields and select a rating",
@@ -263,7 +306,8 @@ export default function Waitlist({ onNavigate }) {
       console.error("Feedback submission error:", error);
       setFeedbackStatus({
         type: "error",
-        message: error.message || "Failed to submit feedback. Please try again.",
+        message:
+          error.message || "Failed to submit feedback. Please try again.",
       });
     } finally {
       setIsSubmittingFeedback(false);
@@ -313,7 +357,7 @@ export default function Waitlist({ onNavigate }) {
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20 text-center">
         <div className="max-w-4xl mx-auto">
-          <div
+          {/* <div
             className="mb-6 ai-glow inline-flex items-center gap-2 px-4 py-2 rounded-full border"
             style={{
               backgroundColor: "var(--primary)",
@@ -324,7 +368,7 @@ export default function Waitlist({ onNavigate }) {
           >
             <Rocket className="w-4 h-4" />
             <span className="text-sm font-medium">Limited Early Access</span>
-          </div>
+          </div> */}
 
           <h1
             className="text-3xl md:text-7xl font-normal mb-6"
@@ -377,7 +421,7 @@ export default function Waitlist({ onNavigate }) {
         </section>
       )}
 
-        {/* Feedback Toggle CTA - Always visible */}
+      {/* Feedback Toggle CTA - Always visible */}
       <section className="container mx-auto px-4 pb-16">
         <div className="max-w-2xl mx-auto">
           {!showFeedbackForm ? (
@@ -390,7 +434,10 @@ export default function Waitlist({ onNavigate }) {
                   className="w-14 h-14 mb-4 rounded-full flex items-center justify-center"
                   style={{ backgroundColor: "var(--primary)", opacity: 0.9 }}
                 >
-                  <MessageSquare className="w-7 h-7" style={{ color: "var(--primary-foreground)" }} />
+                  <MessageSquare
+                    className="w-7 h-7"
+                    style={{ color: "var(--primary-foreground)" }}
+                  />
                 </div>
                 <h3
                   className="text-xl font-bold mb-2"
@@ -402,7 +449,8 @@ export default function Waitlist({ onNavigate }) {
                   className="mb-6 max-w-md"
                   style={{ color: "var(--muted-foreground)" }}
                 >
-                  Already exploring AI tools? Share your thoughts and help shape Prism's development — no signup required.
+                  Already exploring AI tools? Share your thoughts and help shape
+                  Prism's development — no signup required.
                 </p>
                 <button
                   onClick={() => setShowFeedbackForm(true)}
@@ -517,7 +565,6 @@ export default function Waitlist({ onNavigate }) {
                   style={{ color: "var(--foreground)" }}
                 >
                   Institution / Company{" "}
-                  
                 </label>
                 <input
                   type="text"
@@ -539,7 +586,6 @@ export default function Waitlist({ onNavigate }) {
                   style={{ color: "var(--foreground)" }}
                 >
                   Tell Us How You Plan to Use Prism{" "}
-                 
                 </label>
                 <textarea
                   id="useCase"
@@ -639,7 +685,10 @@ export default function Waitlist({ onNavigate }) {
                 your information.
               </p>
 
-              <div className="mt-6 pt-6 border-t" style={{ borderColor: "var(--border)" }}>
+              <div
+                className="mt-6 pt-6 border-t"
+                style={{ borderColor: "var(--border)" }}
+              >
                 <p
                   className="text-xs text-center"
                   style={{ color: "var(--muted-foreground)" }}
@@ -648,7 +697,10 @@ export default function Waitlist({ onNavigate }) {
                   <button
                     onClick={() => {
                       setShowFeedbackForm(true);
-                      window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                      window.scrollTo({
+                        top: document.body.scrollHeight,
+                        behavior: "smooth",
+                      });
                     }}
                     className="text-primary hover:underline font-medium"
                   >
@@ -671,8 +723,14 @@ export default function Waitlist({ onNavigate }) {
             >
               <div className="flex items-start justify-between mb-6">
                 <div className="flex-1">
-                  <div className="w-16 h-16 mb-4 rounded-full flex items-center justify-center" style={{ backgroundColor: "var(--primary)" }}>
-                    <Star className="w-8 h-8" style={{ color: "var(--primary-foreground)" }} />
+                  <div
+                    className="w-16 h-16 mb-4 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: "var(--primary)" }}
+                  >
+                    <Star
+                      className="w-8 h-8"
+                      style={{ color: "var(--primary-foreground)" }}
+                    />
                   </div>
                   <h2
                     className="text-2xl font-bold mb-2"
@@ -684,7 +742,8 @@ export default function Waitlist({ onNavigate }) {
                     className="text-sm"
                     style={{ color: "var(--muted-foreground)" }}
                   >
-                    Help us improve Prism by sharing your expectations and feedback. No waitlist signup required.
+                    Help us improve Prism by sharing your expectations and
+                    feedback. No waitlist signup required.
                   </p>
                 </div>
                 <button
@@ -924,7 +983,10 @@ export default function Waitlist({ onNavigate }) {
                 style={{ borderColor: "var(--border)" }}
               >
                 <div className="flex justify-center mb-4">
-                  <benefit.Icon className="w-10 h-10" style={{ color: "var(--primary)" }} />
+                  <benefit.Icon
+                    className="w-10 h-10"
+                    style={{ color: "var(--primary)" }}
+                  />
                 </div>
                 <h4
                   className="font-semibold mb-2"
@@ -943,8 +1005,6 @@ export default function Waitlist({ onNavigate }) {
           </div>
         </div>
       </section>
-
-    
 
       {/* Footer */}
       <footer

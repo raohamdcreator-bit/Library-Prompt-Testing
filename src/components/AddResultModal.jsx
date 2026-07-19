@@ -4,39 +4,64 @@ import { addResultToPrompt } from "../lib/results";
 import { uploadResultImage } from "../lib/storage";
 import { X, FileText, Code, Image, Upload, Check } from "lucide-react";
 import { useSoundEffects } from "../hooks/useSoundEffects";
-import VideoUploader from './VideoUploader.jsx';
-import { Video } from 'lucide-react';
+import VideoUploader from "./VideoUploader.jsx";
+import { Video } from "lucide-react";
 
 const LANGUAGES = [
-  "javascript","typescript","python","java","csharp","cpp","go","rust",
-  "php","ruby","swift","kotlin","html","css","sql","bash","json","yaml","markdown",
+  "javascript",
+  "typescript",
+  "python",
+  "java",
+  "csharp",
+  "cpp",
+  "go",
+  "rust",
+  "php",
+  "ruby",
+  "swift",
+  "kotlin",
+  "html",
+  "css",
+  "sql",
+  "bash",
+  "json",
+  "yaml",
+  "markdown",
 ];
 
 const TYPES = [
-  { value: "text",  icon: FileText, label: "Text",  desc: "Prose output"    },
-  { value: "code",  icon: Code,     label: "Code",  desc: "Source code"     },
-  { value: "image", icon: Image,    label: "Image", desc: "Visual output"   },
-  { value: "video", icon: Video,    label: "Video", desc: "Video recording" },
+  { value: "text", icon: FileText, label: "Text", desc: "Prose output" },
+  { value: "code", icon: Code, label: "Code", desc: "Source code" },
+  { value: "image", icon: Image, label: "Image", desc: "Visual output" },
+  { value: "video", icon: Video, label: "Video", desc: "Video recording" },
 ];
 
-export default function AddResultModal({ isOpen, onClose, promptId, teamId, userId }) {
-  const [resultType,      setResultType]      = useState("text");
-  const [title,           setTitle]           = useState("");
-  const [content,         setContent]         = useState("");
-  const [language,        setLanguage]        = useState("javascript");
-  const [imageFile,       setImageFile]       = useState(null);
-  const [imagePreview,    setImagePreview]    = useState(null);
-  const [uploading,       setUploading]       = useState(false);
-  const [uploadProgress,  setUploadProgress]  = useState(0);
+export default function AddResultModal({
+  isOpen,
+  onClose,
+  promptId,
+  teamId,
+  userId,
+}) {
+  const [resultType, setResultType] = useState("text");
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [language, setLanguage] = useState("javascript");
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   // Track video-specific uploading state separately so the modal can lock
   // even though VideoUploader manages its own upload flow.
-  const [videoUploading,  setVideoUploading]  = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
 
   const { playNotification } = useSoundEffects();
 
   // Stable ref so notify() never closes over a stale playNotification
   const playNotificationRef = useRef(playNotification);
-  useEffect(() => { playNotificationRef.current = playNotification; }, [playNotification]);
+  useEffect(() => {
+    playNotificationRef.current = playNotification;
+  }, [playNotification]);
 
   // Clean up object URL on unmount to avoid memory leaks
   useEffect(() => {
@@ -63,7 +88,10 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
       transition:opacity .3s;
     `;
     document.body.appendChild(el);
-    setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 300); }, 3000);
+    setTimeout(() => {
+      el.style.opacity = "0";
+      setTimeout(() => el.remove(), 300);
+    }, 3000);
   }
 
   function clearImage() {
@@ -75,8 +103,14 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
   function handleImageSelect(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) { notify("Please select an image file", "error"); return; }
-    if (file.size > 10 * 1024 * 1024)   { notify("Image must be less than 10 MB", "error"); return; }
+    if (!file.type.startsWith("image/")) {
+      notify("Please select an image file", "error");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      notify("Image must be less than 10 MB", "error");
+      return;
+    }
     clearImage();
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
@@ -91,9 +125,18 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
     // for video so this path should never be reached, but guard anyway.
     if (resultType === "video") return;
 
-    if (!title.trim())                              { notify("Title is required", "error"); return; }
-    if (resultType !== "image" && !content.trim()) { notify("Content is required", "error"); return; }
-    if (resultType === "image" && !imageFile)       { notify("Please select an image", "error"); return; }
+    if (!title.trim()) {
+      notify("Title is required", "error");
+      return;
+    }
+    if (resultType !== "image" && !content.trim()) {
+      notify("Content is required", "error");
+      return;
+    }
+    if (resultType === "image" && !imageFile) {
+      notify("Please select an image", "error");
+      return;
+    }
 
     setUploading(true);
     setUploadProgress(0);
@@ -104,25 +147,33 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
       if (resultType === "text") {
         resultData.content = content.trim();
       } else if (resultType === "code") {
-        resultData.content  = content.trim();
+        resultData.content = content.trim();
         resultData.language = language;
       } else {
         // image — pass the real progress callback
-        const img = await uploadResultImage(imageFile, promptId, userId, setUploadProgress);
+        const img = await uploadResultImage(
+          imageFile,
+          promptId,
+          userId,
+          setUploadProgress,
+        );
         Object.assign(resultData, {
-          imageUrl:      img.url,
-          imagePath:     img.path,
+          imageUrl: img.url,
+          imagePath: img.path,
           imageFilename: img.filename,
-          imageSize:     img.size,
-          imageType:     img.type,
+          imageSize: img.size,
+          imageType: img.type,
         });
       }
 
       await addResultToPrompt(teamId, promptId, userId, resultData);
 
-      if (window.gtag) window.gtag("event", "output_attached", {
-        team_id: teamId, prompt_id: promptId, output_type: resultType,
-      });
+      if (window.gtag)
+        window.gtag("event", "output_attached", {
+          team_id: teamId,
+          prompt_id: promptId,
+          output_type: resultType,
+        });
 
       notify("Result added successfully!");
       onClose();
@@ -136,9 +187,9 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
 
   // ─── derived ──────────────────────────────────────────────────────────────
 
-  const isVideo        = resultType === "video";
+  const isVideo = resultType === "video";
   // Either the normal upload or the video-specific upload is in progress
-  const anyUploading   = uploading || videoUploading;
+  const anyUploading = uploading || videoUploading;
 
   // ─── render ───────────────────────────────────────────────────────────────
 
@@ -312,7 +363,7 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
           flex:1; padding:.7rem; border-radius:9px; border:none; cursor:pointer;
           font-size:.82rem; font-weight:700;
           display:flex; align-items:center; justify-content:center; gap:.45rem;
-          background:var(--primary); color:#fff; transition:all .14s;
+          background:var(--primary); color:#000; transition:all .14s;
         }
         .arm-submit:hover    { background:var(--primary-hover); transform:translateY(-1px); }
         .arm-submit:disabled { opacity:.45; cursor:not-allowed; transform:none; }
@@ -331,19 +382,31 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
         }
       `}</style>
 
-      <div className="arm-overlay" onClick={!anyUploading ? onClose : undefined}>
-        <div className="arm-shell" onClick={e => e.stopPropagation()}>
-
+      <div
+        className="arm-overlay"
+        onClick={!anyUploading ? onClose : undefined}
+      >
+        <div className="arm-shell" onClick={(e) => e.stopPropagation()}>
           {/* ── header ── */}
           <div className="arm-hd">
             <div className="arm-hd-left">
-              <div className="arm-hd-icon"><Upload size={15} color="#a78bfa" /></div>
+              <div className="arm-hd-icon">
+                <Upload size={15} color="#a78bfa" />
+              </div>
               <div>
                 <div className="arm-title">Add AI Output</div>
-                <div className="arm-subtitle">Attach a result to this prompt</div>
+                <div className="arm-subtitle">
+                  Attach a result to this prompt
+                </div>
               </div>
             </div>
-            <button className="arm-close" onClick={onClose} disabled={anyUploading}><X size={14} /></button>
+            <button
+              className="arm-close"
+              onClick={onClose}
+              disabled={anyUploading}
+            >
+              <X size={14} />
+            </button>
           </div>
 
           {/* ── body ── */}
@@ -352,22 +415,37 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
               The form wraps only text/code/image content.
               Video is self-contained inside VideoUploader.
             */}
-            <form id="arm-form" onSubmit={handleSubmit} style={{ display: "contents" }}>
-
+            <form
+              id="arm-form"
+              onSubmit={handleSubmit}
+              style={{ display: "contents" }}
+            >
               {/* type selector */}
               <div>
                 <span className="arm-lbl">Output type</span>
                 <div className="arm-tgrid">
-                  {TYPES.map(t => {
+                  {TYPES.map((t) => {
                     const Icon = t.icon;
-                    const on   = resultType === t.value;
+                    const on = resultType === t.value;
                     return (
-                      <button key={t.value} type="button"
+                      <button
+                        key={t.value}
+                        type="button"
                         disabled={anyUploading}
                         onClick={() => setResultType(t.value)}
-                        className={`arm-tbtn${on ? " on" : ""}`}>
-                        {on && <div className="arm-tcheck"><Check size={8} color="#fff" /></div>}
-                        <Icon size={19} color={on ? "var(--primary)" : "var(--muted-foreground)"} />
+                        className={`arm-tbtn${on ? " on" : ""}`}
+                      >
+                        {on && (
+                          <div className="arm-tcheck">
+                            <Check size={8} color="#fff" />
+                          </div>
+                        )}
+                        <Icon
+                          size={19}
+                          color={
+                            on ? "var(--primary)" : "var(--muted-foreground)"
+                          }
+                        />
                         <div className="arm-tname">{t.label}</div>
                         <div className="arm-tdesc">{t.desc}</div>
                       </button>
@@ -380,9 +458,15 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
               {!isVideo && (
                 <div>
                   <span className="arm-lbl">Title *</span>
-                  <input type="text" value={title} onChange={e => setTitle(e.target.value)}
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Generated Blog Post, API Response…"
-                    className="arm-input" required disabled={uploading} />
+                    className="arm-input"
+                    required
+                    disabled={uploading}
+                  />
                 </div>
               )}
 
@@ -390,10 +474,18 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
               {resultType === "text" && (
                 <div>
                   <span className="arm-lbl">Text content *</span>
-                  <textarea value={content} onChange={e => setContent(e.target.value)}
+                  <textarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
                     placeholder="Paste your AI-generated text output here…"
-                    className="arm-textarea" rows={8} required disabled={uploading} />
-                  <div className="arm-chars">{content.length.toLocaleString()} chars</div>
+                    className="arm-textarea"
+                    rows={8}
+                    required
+                    disabled={uploading}
+                  />
+                  <div className="arm-chars">
+                    {content.length.toLocaleString()} chars
+                  </div>
                 </div>
               )}
 
@@ -402,19 +494,33 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
                 <>
                   <div>
                     <span className="arm-lbl">Language</span>
-                    <select value={language} onChange={e => setLanguage(e.target.value)}
-                      className="arm-select" disabled={uploading}>
-                      {LANGUAGES.map(l =>
-                        <option key={l} value={l}>{l.charAt(0).toUpperCase() + l.slice(1)}</option>
-                      )}
+                    <select
+                      value={language}
+                      onChange={(e) => setLanguage(e.target.value)}
+                      className="arm-select"
+                      disabled={uploading}
+                    >
+                      {LANGUAGES.map((l) => (
+                        <option key={l} value={l}>
+                          {l.charAt(0).toUpperCase() + l.slice(1)}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   <div>
                     <span className="arm-lbl">Code content *</span>
-                    <textarea value={content} onChange={e => setContent(e.target.value)}
+                    <textarea
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
                       placeholder="Paste your AI-generated code here…"
-                      className="arm-textarea mono" rows={10} required disabled={uploading} />
-                    <div className="arm-chars">{content.length.toLocaleString()} chars</div>
+                      className="arm-textarea mono"
+                      rows={10}
+                      required
+                      disabled={uploading}
+                    />
+                    <div className="arm-chars">
+                      {content.length.toLocaleString()} chars
+                    </div>
                   </div>
                 </>
               )}
@@ -424,26 +530,58 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
                 <div>
                   <span className="arm-lbl">Image *</span>
                   {!imagePreview ? (
-                    <label style={{ display: "block", cursor: uploading ? "not-allowed" : "pointer" }}>
-                      <input type="file" accept="image/*" onChange={handleImageSelect}
-                        style={{ display: "none" }} disabled={uploading} />
+                    <label
+                      style={{
+                        display: "block",
+                        cursor: uploading ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageSelect}
+                        style={{ display: "none" }}
+                        disabled={uploading}
+                      />
                       <div className="arm-upload">
-                        <div className="arm-upload-icon"><Upload size={17} color="rgba(139,92,246,.65)" /></div>
-                        <div className="arm-upload-t">Click to upload image</div>
-                        <div className="arm-upload-s">PNG · JPG · GIF · WebP · max 10 MB</div>
+                        <div className="arm-upload-icon">
+                          <Upload size={17} color="rgba(139,92,246,.65)" />
+                        </div>
+                        <div className="arm-upload-t">
+                          Click to upload image
+                        </div>
+                        <div className="arm-upload-s">
+                          PNG · JPG · GIF · WebP · max 10 MB
+                        </div>
                       </div>
                     </label>
                   ) : (
                     <>
                       <div className="arm-preview">
-                        <img src={imagePreview} alt="Preview"
-                          style={{ width: "100%", maxHeight: "220px", objectFit: "contain", display: "block", background: "rgba(0,0,0,.2)" }} />
-                        <button type="button" onClick={clearImage}
-                          disabled={uploading} className="arm-preview-x"><X size={11} /></button>
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          style={{
+                            width: "100%",
+                            maxHeight: "220px",
+                            objectFit: "contain",
+                            display: "block",
+                            background: "rgba(0,0,0,.2)",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={clearImage}
+                          disabled={uploading}
+                          className="arm-preview-x"
+                        >
+                          <X size={11} />
+                        </button>
                       </div>
                       {imageFile && (
                         <div className="arm-finfo">
-                          {imageFile.name} · {(imageFile.size / 1024).toFixed(1)} KB
+                          {imageFile.name} ·{" "}
+                          {(imageFile.size / 1024).toFixed(1)} KB
                         </div>
                       )}
                     </>
@@ -456,14 +594,18 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
                 <div className="arm-prog">
                   <div className="arm-prog-labels">
                     <span>Uploading…</span>
-                    <span style={{ fontVariantNumeric: "tabular-nums" }}>{uploadProgress}%</span>
+                    <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                      {uploadProgress}%
+                    </span>
                   </div>
                   <div className="arm-prog-track">
-                    <div className="arm-prog-fill" style={{ width: `${uploadProgress}%` }} />
+                    <div
+                      className="arm-prog-fill"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
                   </div>
                 </div>
               )}
-
             </form>
 
             {/* ── video ── (outside the form — fully self-contained) */}
@@ -474,7 +616,7 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
                 userId={userId}
                 disabled={videoUploading}
                 onUploadStart={() => setVideoUploading(true)}
-                onUploadEnd={()   => setVideoUploading(false)}
+                onUploadEnd={() => setVideoUploading(false)}
                 onSuccess={() => {
                   setVideoUploading(false);
                   notify("Video uploaded successfully!");
@@ -491,7 +633,10 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
             {/* lock indicator shown while video is uploading */}
             {videoUploading && (
               <div className="arm-video-lock">
-                <div className="arm-spinner" style={{ borderTopColor: "var(--primary)" }} />
+                <div
+                  className="arm-spinner"
+                  style={{ borderTopColor: "var(--primary)" }}
+                />
                 Uploading video — please don't close this window…
               </div>
             )}
@@ -500,17 +645,34 @@ export default function AddResultModal({ isOpen, onClose, promptId, teamId, user
           {/* ── footer — hidden for video (VideoUploader has its own actions) ── */}
           {!isVideo && (
             <div className="arm-ft">
-              <button type="submit" form="arm-form" disabled={anyUploading} className="arm-submit">
-                {uploading
-                  ? <><div className="arm-spinner" />Uploading…</>
-                  : <><Check size={13} />Add Result</>}
+              <button
+                type="submit"
+                form="arm-form"
+                disabled={anyUploading}
+                className="arm-submit"
+              >
+                {uploading ? (
+                  <>
+                    <div className="arm-spinner" />
+                    Uploading…
+                  </>
+                ) : (
+                  <>
+                    <Check size={13} />
+                    Add Result
+                  </>
+                )}
               </button>
-              <button type="button" onClick={onClose} disabled={anyUploading} className="arm-cancel">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={anyUploading}
+                className="arm-cancel"
+              >
                 Cancel
               </button>
             </div>
           )}
-
         </div>
       </div>
     </>

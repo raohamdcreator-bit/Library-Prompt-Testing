@@ -3,11 +3,11 @@ import { useState, useEffect } from "react";
 import { X, Lock, Unlock, AlertCircle, Save } from "lucide-react";
 
 export default function EditPromptModal({ open, prompt, onClose, onSave }) {
-  const [title,      setTitle]      = useState("");
-  const [text,       setText]       = useState("");
-  const [tags,       setTags]       = useState("");
+  const [title, setTitle] = useState("");
+  const [text, setText] = useState("");
+  const [tags, setTags] = useState("");
   const [visibility, setVisibility] = useState("public");
-  const [saving,     setSaving]     = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (prompt) {
@@ -20,13 +20,19 @@ export default function EditPromptModal({ open, prompt, onClose, onSave }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!title.trim() || !text.trim()) { alert("Title and prompt text are required"); return; }
+    if (!title.trim() || !text.trim()) {
+      alert("Title and prompt text are required");
+      return;
+    }
     setSaving(true);
     try {
       await onSave({
         title: title.trim(),
-        text:  text.trim(),
-        tags:  tags.split(",").map(t => t.trim()).filter(Boolean),
+        text: text.trim(),
+        tags: tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
         visibility,
       });
     } catch (err) {
@@ -39,7 +45,10 @@ export default function EditPromptModal({ open, prompt, onClose, onSave }) {
 
   if (!open) return null;
 
-  const tagList = tags.split(",").map(t => t.trim()).filter(Boolean);
+  const tagList = tags
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
 
   return (
     <>
@@ -172,7 +181,7 @@ export default function EditPromptModal({ open, prompt, onClose, onSave }) {
           flex:1;padding:.7rem;border-radius:9px;border:none;cursor:pointer;
           font-size:.82rem;font-weight:700;
           display:flex;align-items:center;justify-content:center;gap:.45rem;
-          background:var(--primary);color:#fff;transition:all .14s;
+          background:var(--primary);color:#000;transition:all .14s;
         }
         .epm-submit:hover    { background:var(--primary-hover);transform:translateY(-1px); }
         .epm-submit:disabled { opacity:.45;cursor:not-allowed;transform:none; }
@@ -187,50 +196,90 @@ export default function EditPromptModal({ open, prompt, onClose, onSave }) {
       `}</style>
 
       <div className="epm-overlay" onClick={onClose}>
-        <div className="epm-shell" onClick={e => e.stopPropagation()}>
-
+        <div className="epm-shell" onClick={(e) => e.stopPropagation()}>
           {/* header */}
           <div className="epm-hd">
             <div className="epm-hd-left">
-              <div className="epm-hd-icon"><Save size={15} color="#a78bfa" /></div>
+              <div className="epm-hd-icon">
+                <Save size={15} color="#a78bfa" />
+              </div>
               <div>
                 <div className="epm-title">Edit Prompt</div>
                 <div className="epm-subtitle">Update your prompt details</div>
               </div>
             </div>
-            <button className="epm-close" onClick={onClose} disabled={saving}><X size={14} /></button>
+            <button className="epm-close" onClick={onClose} disabled={saving}>
+              <X size={14} />
+            </button>
           </div>
 
           {/* body */}
           <div className="epm-body">
-            <form id="epm-form" onSubmit={handleSubmit} style={{ display:"contents" }}>
-
+            <form
+              id="epm-form"
+              onSubmit={handleSubmit}
+              style={{ display: "contents" }}
+            >
               {/* title */}
               <div className="epm-field">
                 <span className="epm-lbl">Title *</span>
-                <input type="text" value={title} onChange={e => setTitle(e.target.value)}
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Blog Post Generator"
-                  className="epm-input" required disabled={saving} />
+                  className="epm-input"
+                  required
+                  disabled={saving}
+                />
               </div>
 
               {/* prompt text */}
               <div className="epm-field">
                 <span className="epm-lbl">Prompt Text *</span>
-                <textarea value={text} onChange={e => setText(e.target.value)}
+                <textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
                   placeholder="Enter your prompt here…"
-                  className="epm-textarea" rows={8} required disabled={saving} />
-                <div className="epm-char-row">{text.length.toLocaleString()} chars</div>
+                  className="epm-textarea"
+                  rows={8}
+                  required
+                  disabled={saving}
+                />
+                <div className="epm-char-row">
+                  {text.length.toLocaleString()} chars
+                </div>
               </div>
 
               {/* tags */}
               <div className="epm-field">
-                <span className="epm-lbl">Tags <span style={{ opacity:.5, textTransform:"none", letterSpacing:0 }}>(comma separated)</span></span>
-                <input type="text" value={tags} onChange={e => setTags(e.target.value)}
+                <span className="epm-lbl">
+                  Tags{" "}
+                  <span
+                    style={{
+                      opacity: 0.5,
+                      textTransform: "none",
+                      letterSpacing: 0,
+                    }}
+                  >
+                    (comma separated)
+                  </span>
+                </span>
+                <input
+                  type="text"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
                   placeholder="writing, creative, marketing…"
-                  className="epm-input" disabled={saving} />
+                  className="epm-input"
+                  disabled={saving}
+                />
                 {tagList.length > 0 && (
                   <div className="epm-tags">
-                    {tagList.map(t => <span key={t} className="epm-tag">#{t}</span>)}
+                    {tagList.map((t) => (
+                      <span key={t} className="epm-tag">
+                        #{t}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
@@ -239,45 +288,111 @@ export default function EditPromptModal({ open, prompt, onClose, onSave }) {
               <div className="epm-field">
                 <span className="epm-lbl">Visibility</span>
                 <div className="epm-vis-grid">
-
-                  <label className={`epm-vis-opt${visibility === "public" ? " active-pub" : ""}`}>
-                    <input type="radio" name="visibility" value="public"
-                      checked={visibility === "public"} onChange={e => setVisibility(e.target.value)} disabled={saving} />
-                    <div className="epm-vis-accent" style={{ background: visibility==="public" ? "rgba(139,92,246,.7)" : "transparent" }} />
-                    <div className="epm-vis-icon" style={{ background:"rgba(139,92,246,.1)",border:"1px solid rgba(139,92,246,.18)" }}>
-                      <Unlock size={13} color={visibility==="public" ? "var(--primary)" : "var(--muted-foreground)"} />
+                  <label
+                    className={`epm-vis-opt${visibility === "public" ? " active-pub" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="visibility"
+                      value="public"
+                      checked={visibility === "public"}
+                      onChange={(e) => setVisibility(e.target.value)}
+                      disabled={saving}
+                    />
+                    <div
+                      className="epm-vis-accent"
+                      style={{
+                        background:
+                          visibility === "public"
+                            ? "rgba(139,92,246,.7)"
+                            : "transparent",
+                      }}
+                    />
+                    <div
+                      className="epm-vis-icon"
+                      style={{
+                        background: "rgba(139,92,246,.1)",
+                        border: "1px solid rgba(139,92,246,.18)",
+                      }}
+                    >
+                      <Unlock
+                        size={13}
+                        color={
+                          visibility === "public"
+                            ? "var(--primary)"
+                            : "var(--muted-foreground)"
+                        }
+                      />
                     </div>
                     <div>
                       <div className="epm-vis-name">Public</div>
-                      <div className="epm-vis-desc">All team members can view</div>
+                      <div className="epm-vis-desc">
+                        All team members can view
+                      </div>
                     </div>
                   </label>
 
-                  <label className={`epm-vis-opt${visibility === "private" ? " active-priv" : ""}`}>
-                    <input type="radio" name="visibility" value="private"
-                      checked={visibility === "private"} onChange={e => setVisibility(e.target.value)} disabled={saving} />
-                    <div className="epm-vis-accent" style={{ background: visibility==="private" ? "rgba(245,158,11,.6)" : "transparent" }} />
-                    <div className="epm-vis-icon" style={{ background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.16)" }}>
-                      <Lock size={13} color={visibility==="private" ? "#f59e0b" : "var(--muted-foreground)"} />
+                  <label
+                    className={`epm-vis-opt${visibility === "private" ? " active-priv" : ""}`}
+                  >
+                    <input
+                      type="radio"
+                      name="visibility"
+                      value="private"
+                      checked={visibility === "private"}
+                      onChange={(e) => setVisibility(e.target.value)}
+                      disabled={saving}
+                    />
+                    <div
+                      className="epm-vis-accent"
+                      style={{
+                        background:
+                          visibility === "private"
+                            ? "rgba(245,158,11,.6)"
+                            : "transparent",
+                      }}
+                    />
+                    <div
+                      className="epm-vis-icon"
+                      style={{
+                        background: "rgba(245,158,11,.08)",
+                        border: "1px solid rgba(245,158,11,.16)",
+                      }}
+                    >
+                      <Lock
+                        size={13}
+                        color={
+                          visibility === "private"
+                            ? "#f59e0b"
+                            : "var(--muted-foreground)"
+                        }
+                      />
                     </div>
                     <div>
                       <div className="epm-vis-name">Private</div>
-                      <div className="epm-vis-desc">Only you &amp; admins see this</div>
+                      <div className="epm-vis-desc">
+                        Only you &amp; admins see this
+                      </div>
                     </div>
                   </label>
-
                 </div>
               </div>
 
               {/* info */}
               <div className="epm-info">
-                <AlertCircle size={14} color="rgba(139,92,246,.5)" style={{ flexShrink:0, marginTop:1 }} />
+                <AlertCircle
+                  size={14}
+                  color="rgba(139,92,246,.5)"
+                  style={{ flexShrink: 0, marginTop: 1 }}
+                />
                 <div className="epm-info-text">
                   <div className="epm-info-title">Privacy rules</div>
                   <div className="epm-info-list">
-                    {["Private prompts are only visible to you and team admins/owners",
+                    {[
+                      "Private prompts are only visible to you and team admins/owners",
                       "Results added to private prompts follow the same visibility rules",
-                      "You can change visibility at any time"].map(s => (
+                      "You can change visibility at any time",
+                    ].map((s) => (
                       <div key={s} className="epm-info-item">
                         <div className="epm-info-dot" />
                         {s}
@@ -286,18 +401,38 @@ export default function EditPromptModal({ open, prompt, onClose, onSave }) {
                   </div>
                 </div>
               </div>
-
             </form>
           </div>
 
           {/* footer */}
           <div className="epm-ft">
-            <button type="submit" form="epm-form" disabled={saving} className="epm-submit">
-              {saving ? <><div className="epm-spinner" />Saving…</> : <><Save size={13} />Save Changes</>}
+            <button
+              type="submit"
+              form="epm-form"
+              disabled={saving}
+              className="epm-submit"
+            >
+              {saving ? (
+                <>
+                  <div className="epm-spinner" />
+                  Saving…
+                </>
+              ) : (
+                <>
+                  <Save size={13} />
+                  Save Changes
+                </>
+              )}
             </button>
-            <button type="button" onClick={onClose} disabled={saving} className="epm-cancel">Cancel</button>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="epm-cancel"
+            >
+              Cancel
+            </button>
           </div>
-
         </div>
       </div>
     </>
