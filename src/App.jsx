@@ -625,7 +625,7 @@ function MagneticButton({
     hoverShadow: "rgba(124, 58, 237, 0.18)",
   };
 
-  const themes = [purpleTheme1, purpleTheme2, purpleTheme3];
+  const themes = [purpleTheme2, purpleTheme3];
   return (
     <button
       ref={ref}
