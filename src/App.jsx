@@ -1632,7 +1632,7 @@ const prismPillars = [
     n: "01",
     icon: FolderOpen,
     title: "Create",
-    desc: "Store prompts, projects, reference images, generated outputs, videos, assets, version history and prompt iterations. Multi-model testing and AI workflows.",
+    desc: "Store prompts, projects, reference images, generated outputs, videos, assets and prompt iterations. Multi-model testing and AI workflows.",
     value: "Everything needed to create lives together.",
     chart: (
       <BarChart
@@ -1792,7 +1792,6 @@ const prismFeatures = [
   { icon: Shield, label: "Privacy Controls", span: "" },
   { icon: FileText, label: "Templates", span: "" },
   { icon: Clock, label: "Execution History", span: "" },
-  { icon: History, label: "Version History", span: "" },
 ];
 
 function LandingFeatureGrid() {
@@ -1836,7 +1835,7 @@ function LandingFeatureGrid() {
                       <>
                         <p className="mt-2 max-w-xs text-sm text-muted">
                           The home base for every creation — prompts, assets,
-                          outputs, versions and analytics, all linked.
+                          outputs and analytics, all linked.
                         </p>
                         <div className="mt-4 flex items-center gap-3">
                           <div className="flex -space-x-2">
